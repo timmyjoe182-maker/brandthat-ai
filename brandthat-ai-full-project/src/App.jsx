@@ -260,35 +260,101 @@ export default function BrandThatAI() {
           {isGenerating ? "Generating..." : "Generate"}
         </Button>
 
-        {caption && (
+       {caption && (
+  <div
+    style={{
+      background: "#faf9f6",
+      border: "1px solid rgba(0,0,0,.08)",
+      borderRadius: 24,
+      padding: 24,
+      color: "#171717",
+      boxShadow: "0 18px 45px rgba(0,0,0,.06)"
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 18
+      }}
+    >
+      <div>
+        <p
+          style={{
+            margin: 0,
+            color: "#a3a3a3",
+            fontSize: 11,
+            letterSpacing: ".2em",
+            textTransform: "uppercase"
+          }}
+        >
+          Brandthat AI Output
+        </p>
+
+        <h3
+          style={{
+            margin: "6px 0 0",
+            fontSize: 20,
+            fontWeight: 500,
+            letterSpacing: "-.03em"
+          }}
+        >
+          Ready-to-use content
+        </h3>
+      </div>
+
+      <button
+        onClick={() => navigator.clipboard.writeText(caption)}
+        style={{
+          border: "1px solid rgba(0,0,0,.10)",
+          background: "white",
+          borderRadius: 999,
+          padding: "8px 13px",
+          fontSize: 12,
+          cursor: "pointer",
+          color: "#171717"
+        }}
+      >
+        Copy
+      </button>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: 14
+      }}
+    >
+      {caption
+        .split(/\n\s*\n/)
+        .filter(Boolean)
+        .map((section, index) => (
           <div
+            key={index}
             style={{
-              background: "#faf9f6",
-              border: "1px solid rgba(0,0,0,.08)",
-              borderRadius: 20,
-              padding: 20
+              background: "white",
+              border: "1px solid rgba(0,0,0,.07)",
+              borderRadius: 18,
+              padding: 18
             }}
           >
             <p
               style={{
-                margin: "0 0 10px",
-                color: "#a3a3a3",
-                fontSize: 12,
-                letterSpacing: ".18em",
-                textTransform: "uppercase"
+                whiteSpace: "pre-line",
+                margin: 0,
+                fontSize: 14,
+                lineHeight: 1.75,
+                color: "#333"
               }}
             >
-              AI output
-            </p>
-
-            <p style={{ whiteSpace: "pre-line", margin: 0 }}>
-              {caption}
+              {section}
             </p>
           </div>
-        )}
-      </div>
+        ))}
     </div>
-  );
+  </div>
+)}
 
   const inputStyle = {
     width: "100%",
