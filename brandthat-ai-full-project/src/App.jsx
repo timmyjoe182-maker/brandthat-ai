@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 const tools = [
   { title: "Captions", desc: "Premium captions for every social platform." },
@@ -11,6 +11,41 @@ const tools = [
   { title: "Logo Generator", desc: "Create modern logo concepts instantly." }
 ];
 
+const creativeTools = [
+  "Instagram Caption", "TikTok Caption", "Facebook Caption", "LinkedIn Post", "X / Twitter Post",
+  "Reel Hook", "TikTok Hook", "YouTube Short Hook", "On-video Caption", "Carousel Copy",
+  "Hashtag Set", "Brand Bio", "Instagram Bio", "TikTok Bio", "LinkedIn Bio",
+  "Email Campaign", "Newsletter", "Product Launch Email", "Promo Email", "Welcome Email",
+  "Brand Name Ideas", "Tagline Ideas", "Slogan Ideas", "Brand Voice", "Mission Statement",
+  "About Page", "Website Hero Copy", "Landing Page Copy", "Ad Headline", "Meta Ad Copy",
+  "Google Ad Copy", "Content Calendar", "30-Day Content Plan", "Social Strategy", "Campaign Concept",
+  "Launch Plan", "Product Description", "Luxury Product Copy", "Service Description", "Client Pitch",
+  "Press Release", "Influencer Brief", "UGC Script", "Video Script", "Story Ideas"
+];
+
+const creativeTones = [
+  "Luxury", "Modern", "Minimal", "Bold", "Playful", "Professional", "Editorial", "Cinematic",
+  "Premium", "Friendly", "Witty", "Elegant", "Direct", "Emotional", "High-end", "Viral"
+];
+
+const logoStyles = [
+  "Luxury Wordmark", "Modern Minimal", "Bold Monogram", "Editorial Serif", "Clean Sans Serif",
+  "Founder Brand", "Beauty Brand", "Real Estate Brand", "Restaurant Brand", "Fashion Brand",
+  "Wellness Brand", "Tech Startup", "Agency Brand", "Luxury Product", "Signature Style",
+  "Icon + Wordmark", "Badge Logo", "Social Profile Logo", "Packaging Logo", "High-end Brand System"
+];
+
+const logoMoods = [
+  "Luxury", "Minimal", "Modern", "Elegant", "Bold", "Editorial", "Timeless", "Clean",
+  "Premium", "Soft", "Masculine", "Feminine", "Warm", "Sharp", "Classic", "Creative"
+];
+
+function makeCombos(a, b) {
+  const combos = [];
+  a.forEach((x) => b.forEach((y) => combos.push(`${x} — ${y}`)));
+  return combos;
+}
+
 export default function App() {
   const [page, setPage] = useState("home");
 
@@ -20,39 +55,65 @@ export default function App() {
   const [verified, setVerified] = useState(localStorage.getItem("brandthat_verified") === "yes");
 
   const [showSignup, setShowSignup] = useState(false);
+  const [signupStep, setSignupStep] = useState("profile");
   const [signupMode, setSignupMode] = useState("trial");
   const [selectedPlan, setSelectedPlan] = useState("starter");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [verificationCode, setVerificationCode] = useState("");
+  const [enteredCode, setEnteredCode] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
+
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
 
   const [prompt, setPrompt] = useState("");
+  const [creativeType, setCreativeType] = useState("Instagram Caption — Luxury");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [chatOpen, setChatOpen] = useState(false);
 
   const [logoName, setLogoName] = useState("");
-  const [logoStyle, setLogoStyle] = useState("Luxury");
+  const [logoCombo, setLogoCombo] = useState("Luxury Wordmark — Luxury");
   const [logoResult, setLogoResult] = useState("");
+
+  const creativeOptions = useMemo(() => makeCombos(creativeTools, creativeTones), []);
+  const logoOptions = useMemo(() => makeCombos(logoStyles, logoMoods), []);
 
   const openTrialSignup = () => {
     setSignupMode("trial");
     setSelectedPlan("free");
+    setSignupStep("profile");
+    setVerificationMessage("");
     setShowSignup(true);
   };
 
   const openPlanSignup = (plan) => {
     setSignupMode("plan");
     setSelectedPlan(plan);
+    setSignupStep("profile");
+    setVerificationMessage("");
     setShowSignup(true);
   };
 
-  const completeSignup = () => {
+  const sendVerificationCode = () => {
     if (!email || !password) {
       alert("Please enter your email and create a password.");
+      return;
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setVerificationCode(code);
+    setEnteredCode("");
+    setSignupStep("verify");
+    setVerificationMessage(`Verification code sent to ${email}. Demo code: ${code}`);
+  };
+
+  const completeSignup = () => {
+    if (enteredCode !== verificationCode) {
+      setVerificationMessage("That code does not match. Please try again.");
       return;
     }
 
@@ -72,6 +133,9 @@ export default function App() {
     setShowSignup(false);
     setEmail("");
     setPassword("");
+    setEnteredCode("");
+    setVerificationCode("");
+    setVerificationMessage("");
   };
 
   const subscribe = () => {
@@ -130,7 +194,15 @@ Make it agency-level, detailed, strategic, and premium.
       const response = await fetch("/.netlify/functions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: `${systemPrompt}\nUser request:\n${prompt}` })
+        body: JSON.stringify({
+          prompt: `${systemPrompt}
+
+Selected generator type:
+${creativeType}
+
+User request:
+${prompt}`
+        })
       });
 
       const data = await response.json();
@@ -164,7 +236,8 @@ ${logoName || "Your Brand"}
 
 PRO LOGO CONCEPT
 
-Style: ${logoStyle}
+Selected Style:
+${logoCombo}
 
 • Modern premium wordmark
 • Clean typography direction
@@ -186,7 +259,8 @@ ${logoName || "Your Brand"}
 
 STUDIO BRAND IDENTITY SYSTEM
 
-Style: ${logoStyle}
+Selected Style:
+${logoCombo}
 
 Primary Logo:
 • Premium luxury wordmark
@@ -244,15 +318,14 @@ Studio Notes:
                 Generate captions, hashtags, launch ideas, bios, emails, logos,
                 and social media direction — all in one workspace.
               </p>
-
-              <button className="btn dark heroTrialBtn" onClick={openTrialSignup}>
-                Try free now
-              </button>
             </div>
 
             <GeneratorCard
               prompt={prompt}
               setPrompt={setPrompt}
+              creativeType={creativeType}
+              setCreativeType={setCreativeType}
+              creativeOptions={creativeOptions}
               generate={generate}
               loading={loading}
               result={result}
@@ -364,6 +437,9 @@ Studio Notes:
           <GeneratorCard
             prompt={prompt}
             setPrompt={setPrompt}
+            creativeType={creativeType}
+            setCreativeType={setCreativeType}
+            creativeOptions={creativeOptions}
             generate={generate}
             loading={loading}
             result={result}
@@ -401,14 +477,12 @@ Studio Notes:
                 />
 
                 <select
-                  value={logoStyle}
-                  onChange={(e) => setLogoStyle(e.target.value)}
+                  value={logoCombo}
+                  onChange={(e) => setLogoCombo(e.target.value)}
                 >
-                  <option>Luxury</option>
-                  <option>Modern</option>
-                  <option>Minimal</option>
-                  <option>Editorial</option>
-                  <option>Bold</option>
+                  {logoOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
                 </select>
               </div>
 
@@ -454,44 +528,76 @@ Studio Notes:
       {showSignup && (
         <div className="modal">
           <div className="signupBox">
-            <div className="tinyTag">
-              {signupMode === "trial" ? "TRY FREE NOW" : "SUBSCRIBE"}
-            </div>
+            {signupStep === "profile" && (
+              <>
+                <div className="tinyTag">
+                  {signupMode === "trial" ? "TRY FREE NOW" : "SUBSCRIBE"}
+                </div>
 
-            <h2>
-              {signupMode === "trial"
-                ? "Create your profile."
-                : `${selectedPlan.toUpperCase()} Plan`}
-            </h2>
+                <h2>
+                  {signupMode === "trial"
+                    ? "Create your profile."
+                    : `${selectedPlan.toUpperCase()} Plan`}
+                </h2>
 
-            <p>
-              Enter your email and create a password. We will send a verification email before your account is activated.
-            </p>
+                <p>
+                  Create your profile to continue. You will verify your email with a one-time code.
+                </p>
 
-            <input
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+                <input
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
 
-            <input
-              placeholder="Create password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+                <input
+                  placeholder="Create password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
 
-            <div className="verifyNote">
-              Demo verification: clicking below simulates email verification.
-            </div>
+                <button className="btn dark full" onClick={sendVerificationCode}>
+                  Verify email & continue
+                </button>
 
-            <button className="btn dark full" onClick={completeSignup}>
-              Verify email & continue
-            </button>
+                <button className="btn light full" onClick={() => setShowSignup(false)}>
+                  Cancel
+                </button>
+              </>
+            )}
 
-            <button className="btn light full" onClick={() => setShowSignup(false)}>
-              Cancel
-            </button>
+            {signupStep === "verify" && (
+              <>
+                <div className="tinyTag">EMAIL VERIFICATION</div>
+
+                <h2>Enter your verification code.</h2>
+
+                <p>
+                  We just sent a verification code to {email}. Enter it below to activate your profile.
+                </p>
+
+                <input
+                  placeholder="Enter verification code"
+                  value={enteredCode}
+                  onChange={(e) => setEnteredCode(e.target.value)}
+                />
+
+                {verificationMessage && (
+                  <div className="verifyNote">
+                    {verificationMessage}
+                  </div>
+                )}
+
+                <button className="btn dark full" onClick={completeSignup}>
+                  Confirm code
+                </button>
+
+                <button className="btn light full" onClick={sendVerificationCode}>
+                  Resend code
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -526,7 +632,18 @@ Studio Notes:
   );
 }
 
-function GeneratorCard({ prompt, setPrompt, generate, loading, result, userPlan, freeUsed }) {
+function GeneratorCard({
+  prompt,
+  setPrompt,
+  creativeType,
+  setCreativeType,
+  creativeOptions,
+  generate,
+  loading,
+  result,
+  userPlan,
+  freeUsed
+}) {
   return (
     <div className="generateCard">
       <div className="generateTop">
@@ -537,13 +654,22 @@ function GeneratorCard({ prompt, setPrompt, generate, loading, result, userPlan,
             {userPlan === "free"
               ? freeUsed
                 ? "Free use completed. Choose a plan to continue."
-                : "Create a profile to unlock 1 free use."
+                : "Try free now."
               : "Plan access active."}
           </div>
         </div>
 
         <div className="liveBadge">AI Powered</div>
       </div>
+
+      <select
+        value={creativeType}
+        onChange={(e) => setCreativeType(e.target.value)}
+      >
+        {creativeOptions.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
 
       <textarea
         placeholder="Create captions, hashtags, hooks, and branding ideas for my luxury coffee brand..."
@@ -631,15 +757,6 @@ cursor:pointer;
 color:#111;
 font-size:15px
 }
-.heroTrialBtn{
-margin-top:28px;
-padding:16px 28px;
-border-radius:999px;
-display:inline-flex;
-align-items:center;
-justify-content:center;
-min-width:190px
-}
 .hero{
 max-width:1280px;
 margin:0 auto;
@@ -648,14 +765,6 @@ padding:38px 6vw 40px
 .heroTop{
 max-width:760px;
 margin-bottom:50px
-}
-.heroTop .btn{
-margin-top:20px;
-display:inline-flex;
-align-items:center;
-justify-content:center;
-padding:16px 24px;
-min-width:180px
 }
 .eyebrow,.tinyTag{
 font-size:11px;
