@@ -65,9 +65,7 @@ export default function App() {
   const [hasUsedFreeTry, setHasUsedFreeTry] = useState(false);
 
   useEffect(() => {
-    const updateMobile = () => {
-      setIsMobile(window.innerWidth < 800);
-    };
+    const updateMobile = () => setIsMobile(window.innerWidth < 800);
 
     updateMobile();
     window.addEventListener("resize", updateMobile);
@@ -137,8 +135,7 @@ export default function App() {
       style={{
         minHeight: "100vh",
         background: "#f5f3ef",
-        fontFamily:
-          "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         color: "#111",
         overflowX: "hidden"
       }}
@@ -185,7 +182,7 @@ export default function App() {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           {isLoggedIn ? (
             <button onClick={logout} style={whiteButton}>
               Logout
@@ -489,15 +486,29 @@ function StudioCard(props) {
 
       {props.caption && (
         <div style={outputBox}>
-          <div style={eyebrow}>AI OUTPUT</div>
+          <div style={outputHeader}>
+            <div>
+              <div style={eyebrow}>AI OUTPUT</div>
+              <h3 style={{ margin: 0, fontSize: 18 }}>Ready-to-use content</h3>
+            </div>
 
-          <div
-            style={{
-              whiteSpace: "pre-wrap",
-              lineHeight: 1.9
-            }}
-          >
-            {props.caption}
+            <button
+              onClick={() => navigator.clipboard.writeText(props.caption)}
+              style={smallButton}
+            >
+              Copy
+            </button>
+          </div>
+
+          <div style={outputContent}>
+            {props.caption
+              .split(/\n\s*\n/)
+              .filter(Boolean)
+              .map((section, index) => (
+                <div key={index} style={outputSection}>
+                  {section}
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -627,7 +638,11 @@ const navButton = {
   border: "none",
   cursor: "pointer",
   fontWeight: 700,
-  fontSize: 15
+  fontSize: 15,
+  color: "#111",
+  textDecoration: "none",
+  appearance: "none",
+  WebkitAppearance: "none"
 };
 
 const cardStyle = {
@@ -640,9 +655,44 @@ const cardStyle = {
 const outputBox = {
   marginTop: 24,
   border: "1px solid rgba(0,0,0,0.08)",
-  borderRadius: 20,
+  borderRadius: 22,
   padding: 24,
   background: "#fafafa"
+};
+
+const outputHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 16,
+  marginBottom: 18
+};
+
+const smallButton = {
+  background: "white",
+  color: "#111",
+  border: "1px solid rgba(0,0,0,0.1)",
+  borderRadius: 999,
+  padding: "8px 13px",
+  cursor: "pointer",
+  fontWeight: 700,
+  fontSize: 12
+};
+
+const outputContent = {
+  display: "grid",
+  gap: 12
+};
+
+const outputSection = {
+  background: "white",
+  border: "1px solid rgba(0,0,0,0.06)",
+  borderRadius: 16,
+  padding: 16,
+  whiteSpace: "pre-wrap",
+  lineHeight: 1.8,
+  fontSize: 15,
+  color: "#222"
 };
 
 const freeTryBox = {
