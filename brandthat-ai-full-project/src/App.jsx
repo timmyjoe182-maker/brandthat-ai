@@ -110,9 +110,11 @@ export default function App() {
         }}
       >
         <div
+          onClick={() => setPage("home")}
           style={{
             fontWeight: 700,
-            fontSize: 24
+            fontSize: 24,
+            cursor: "pointer"
           }}
         >
           Brandthat
