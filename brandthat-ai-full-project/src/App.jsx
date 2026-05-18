@@ -13,13 +13,14 @@ const tools = [
 ];
 
 const creativeTools = [
+  "Captions", "Hashtags", "Brand Bios", "On-video Hooks", "Email Copy", "Social Strategy", "Brand Creation",
   "Instagram Caption", "TikTok Caption", "Facebook Caption", "LinkedIn Post", "X / Twitter Post",
   "Reel Hook", "TikTok Hook", "YouTube Short Hook", "On-video Caption", "Carousel Copy",
-  "Hashtag Set", "Brand Bio", "Instagram Bio", "TikTok Bio", "LinkedIn Bio",
+  "Hashtag Set", "Instagram Bio", "TikTok Bio", "LinkedIn Bio",
   "Email Campaign", "Newsletter", "Product Launch Email", "Promo Email", "Welcome Email",
   "Brand Name Ideas", "Tagline Ideas", "Slogan Ideas", "Brand Voice", "Mission Statement",
   "Website Hero Copy", "Landing Page Copy", "Ad Headline", "Meta Ad Copy", "Google Ad Copy",
-  "Content Calendar", "30-Day Content Plan", "Social Strategy", "Campaign Concept", "Launch Plan"
+  "Content Calendar", "30-Day Content Plan", "Campaign Concept", "Launch Plan"
 ];
 
 const creativeTones = [
@@ -45,11 +46,21 @@ function makeCombos(a, b) {
   return combos;
 }
 
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getStoredNumber(key, fallback = 0) {
+  const value = Number(localStorage.getItem(key));
+  return Number.isFinite(value) ? value : fallback;
+}
+
 export default function App() {
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
-  const [freeUsed, setFreeUsed] = useState(localStorage.getItem("brandthat_free_used") === "yes");
+  const [visitorFreeCount, setVisitorFreeCount] = useState(getStoredNumber("brandthat_visitor_free_count", 0));
+  const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
 
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("signup");
@@ -62,7 +73,7 @@ export default function App() {
   const [subscribeMessage, setSubscribeMessage] = useState("");
 
   const [prompt, setPrompt] = useState("");
-  const [creativeType, setCreativeType] = useState("Instagram Caption — Luxury");
+  const [creativeType, setCreativeType] = useState("Captions — Professional");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -75,7 +86,19 @@ export default function App() {
   const creativeOptions = useMemo(() => makeCombos(creativeTools, creativeTones), []);
   const logoOptions = useMemo(() => makeCombos(logoStyles, logoMoods), []);
 
+  const visitorRemaining = Math.max(0, 3 - visitorFreeCount);
+  const dailyRemaining = Math.max(0, 10 - dailyFreeCount);
+
   useEffect(() => {
+    const today = getTodayKey();
+    const storedDate = localStorage.getItem("brandthat_daily_date");
+
+    if (storedDate !== today) {
+      localStorage.setItem("brandthat_daily_date", today);
+      localStorage.setItem("brandthat_daily_count", "0");
+      setDailyFreeCount(0);
+    }
+
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
       setUser(data.session?.user || null);
@@ -95,7 +118,7 @@ export default function App() {
   const openTrialSignup = () => {
     setAuthMode("signup");
     setSelectedPlan("free");
-    setAuthMessage("");
+    setAuthMessage("Create a free account to continue. Free accounts get 10 generations per day.");
     setShowAuth(true);
   };
 
@@ -107,32 +130,32 @@ export default function App() {
   };
 
   const signUp = async () => {
-  if (!authEmail || !authPassword) {
-    setAuthMessage("Please enter your email and create a password.");
-    return;
-  }
-
-  setLoading(true);
-
-  const { error } = await supabase.auth.signUp({
-    email: authEmail,
-    password: authPassword,
-    options: {
-      emailRedirectTo: "https://brandthat.ai"
+    if (!authEmail || !authPassword) {
+      setAuthMessage("Please enter your email and create a password.");
+      return;
     }
-  });
 
-  if (error) {
-    setAuthMessage(error.message);
+    setLoading(true);
+
+    const { error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPassword,
+      options: {
+        emailRedirectTo: "https://brandthat.ai"
+      }
+    });
+
+    if (error) {
+      setAuthMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    localStorage.setItem("brandthat_plan", selectedPlan);
+    setUserPlan(selectedPlan);
+    setAuthMessage("Verification email sent. Please check your inbox.");
     setLoading(false);
-    return;
-  }
-
-  localStorage.setItem("brandthat_plan", selectedPlan);
-  setUserPlan(selectedPlan);
-  setAuthMessage("Verification email sent. Please check your inbox.");
-  setLoading(false);
-};
+  };
 
   const logIn = async () => {
     if (!authEmail || !authPassword) {
@@ -176,53 +199,96 @@ export default function App() {
     setSubscribeEmail("");
   };
 
+  const incrementVisitorFreeUse = () => {
+    const newCount = visitorFreeCount + 1;
+    localStorage.setItem("brandthat_visitor_free_count", String(newCount));
+    setVisitorFreeCount(newCount);
+  };
+
+  const incrementDailyFreeUse = () => {
+    const today = getTodayKey();
+    const storedDate = localStorage.getItem("brandthat_daily_date");
+    let currentCount = dailyFreeCount;
+
+    if (storedDate !== today) {
+      currentCount = 0;
+      localStorage.setItem("brandthat_daily_date", today);
+    }
+
+    const newCount = currentCount + 1;
+    localStorage.setItem("brandthat_daily_count", String(newCount));
+    setDailyFreeCount(newCount);
+  };
+
+  const getSystemPrompt = () => {
+    const basePrompt = `
+You are Brandthat AI, a premium AI creative studio for creators, brands, and businesses.
+
+Brandthat AI covers these 8 categories:
+1. Captions — premium captions for every social platform.
+2. Hashtags — smart hashtag systems designed for reach.
+3. Brand Bios — polished bios for creators and businesses.
+4. On-video Hooks — short hooks for Reels, TikTok, and Shorts.
+5. Email Copy — launch emails, promos, and newsletters.
+6. Social Strategy — content direction across every platform.
+7. Brand Creation — brand names, positioning, voice, and direction.
+8. Logo Generator — logo concepts, typography, palette, and identity direction.
+
+Rules:
+- Match the selected generator type exactly.
+- Give organized, useful, brand-ready answers.
+- Use clear headings.
+- Give multiple options.
+- Avoid fluff and generic filler.
+- Do not say "as an AI."
+- Keep the response polished, practical, and easy to copy.
+`;
+
+    if (userPlan === "free") {
+      return `${basePrompt}\nCurrent access level: Free. Give a strong useful answer, but keep it concise.`;
+    }
+
+    if (userPlan === "starter") {
+      return `${basePrompt}\nCurrent access level: Starter. Generate strong content outputs: captions, hashtags, bios, hooks, emails, and simple strategy.`;
+    }
+
+    if (userPlan === "pro") {
+      return `${basePrompt}\nCurrent access level: Pro. Generate premium, polished, multi-option outputs. Include strategic notes and platform-specific recommendations when helpful.`;
+    }
+
+    if (userPlan === "studio") {
+      return `${basePrompt}\nCurrent access level: Studio. Generate agency-level, client-ready outputs. Include strategy, positioning, premium direction, execution notes, and polished formatting.`;
+    }
+
+    return basePrompt;
+  };
+
   const generate = async () => {
-    if (!user) {
-      openTrialSignup();
+    if (!prompt.trim()) {
+      setResult("Tell Brandthat what you want to create first.");
       return;
     }
 
-    if (userPlan === "free" && freeUsed) {
+    if (!user && visitorFreeCount >= 3) {
+      openTrialSignup();
+      setResult("You’ve used your 3 free generations. Create a free account to keep going.");
+      return;
+    }
+
+    if (user && userPlan === "free" && dailyFreeCount >= 10) {
       setPage("pricing");
-      setResult("Your free use has been used. Please choose a plan to continue.");
+      setResult("You’ve reached your 10 free generations for today. Upgrade for unlimited access.");
       return;
     }
 
     setLoading(true);
-
-    let systemPrompt = "";
-
-    if (userPlan === "free" || userPlan === "starter") {
-      systemPrompt = `
-You are Brandthat AI Starter.
-Generate captions, hashtags, on-video hooks, and short brand bio ideas.
-Keep it simple, useful, and clean.
-Do not create advanced strategy, full campaigns, or agency-level systems.
-`;
-    }
-
-    if (userPlan === "pro") {
-      systemPrompt = `
-You are Brandthat AI Pro.
-Generate captions, hashtags, hooks, bios, launch ideas, social strategy, and premium content direction.
-Make it polished, organized, and professional.
-`;
-    }
-
-    if (userPlan === "studio") {
-      systemPrompt = `
-You are Brandthat AI Studio.
-Generate captions, hashtags, hooks, bios, launch ideas, campaign direction, content calendar ideas, brand positioning, social strategy, and client-ready execution notes.
-Make it agency-level, detailed, strategic, and premium.
-`;
-    }
 
     try {
       const response = await fetch("/.netlify/functions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `${systemPrompt}
+          prompt: `${getSystemPrompt()}
 
 Selected generator type:
 ${creativeType}
@@ -233,11 +299,13 @@ ${prompt}`
       });
 
       const data = await response.json();
-      setResult(data.text || "No response generated.");
+      const output = data.text || "No response generated.";
+      setResult(output);
 
-      if (userPlan === "free") {
-        localStorage.setItem("brandthat_free_used", "yes");
-        setFreeUsed(true);
+      if (!user) {
+        incrementVisitorFreeUse();
+      } else if (userPlan === "free") {
+        incrementDailyFreeUse();
       }
     } catch {
       setResult("Something went wrong.");
@@ -249,11 +317,12 @@ ${prompt}`
   const generateLogo = () => {
     if (!user) {
       openTrialSignup();
+      setLogoResult("Create a free account to unlock logo concept previews.");
       return;
     }
 
     if (userPlan === "free" || userPlan === "starter") {
-      setLogoResult("AI Logo Generator is available on Pro and Studio plans. Please upgrade to unlock logo concepts.");
+      setLogoResult("AI Logo Generator is available on Pro and Studio plans. Upgrade to unlock logo concepts.");
       return;
     }
 
@@ -266,16 +335,29 @@ PRO LOGO CONCEPT
 Selected Style:
 ${logoCombo}
 
+Primary Direction:
 • Modern premium wordmark
 • Clean typography direction
 • Social-media ready logo concept
 • Website-ready brand mark
-• Simple color palette
+• Simple, premium color palette
+
+Typography:
+• Clean sans serif or refined serif depending on brand mood
+• Strong spacing
+• High legibility at small sizes
 
 Recommended Colors:
 - Matte Black
 - Soft Ivory
 - Warm Gold Accent
+
+Use Cases:
+• Website header
+• Social profile icon
+• Watermark
+• Email signature
+• Simple brand deck
       `);
       return;
     }
@@ -300,6 +382,7 @@ Secondary System:
 • Social watermark
 • Website header version
 • Small-icon version
+• Simple packaging mark
 
 Recommended Palette:
 - Matte Black
@@ -307,12 +390,51 @@ Recommended Palette:
 - Champagne Gold
 - Soft Stone Neutral
 
-Studio Notes:
+Visual Identity Notes:
 • Use generous spacing
 • Keep typography minimal
 • Build around recognition and trust
 • Create a version that works as a profile picture
+• Create a horizontal and stacked version
+• Keep the system clean enough for future scale
+
+Deliverable Direction:
+• Primary wordmark
+• Secondary monogram
+• Social avatar
+• Brand color palette
+• Typography direction
+• Usage notes
       `);
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    }
+  };
+
+  const shareOutput = async (text) => {
+    if (!text) return;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Brandthat AI Output", text });
+      } catch {
+        copyToClipboard(text);
+      }
+    } else {
+      copyToClipboard(text);
     }
   };
 
@@ -321,9 +443,7 @@ Studio Notes:
       <style>{css}</style>
 
       <nav className="nav">
-        <button className="brand" onClick={() => setPage("home")}>
-          Brandthat
-        </button>
+        <button className="brand" onClick={() => setPage("home")}>Brandthat</button>
 
         <div className="navLinks">
           <button onClick={() => setPage("features")}>Features</button>
@@ -333,13 +453,9 @@ Studio Notes:
         </div>
 
         {user ? (
-          <button className="accountBtn" onClick={logOut}>
-            Log out
-          </button>
+          <button className="accountBtn" onClick={logOut}>Log out</button>
         ) : (
-          <button className="accountBtn" onClick={() => setShowAuth(true)}>
-            Log in
-          </button>
+          <button className="accountBtn" onClick={() => setShowAuth(true)}>Log in</button>
         )}
       </nav>
 
@@ -348,13 +464,18 @@ Studio Notes:
           <main className="hero">
             <div className="heroTop">
               <div className="eyebrow">AI CREATIVE STUDIO</div>
-
               <h1>Your AI creative partner for every post.</h1>
-
               <p className="lead">
                 Generate captions, hashtags, launch ideas, bios, emails, logos,
                 and social media direction — all in one workspace.
               </p>
+              <div className="freePill">
+                {!user
+                  ? `${visitorRemaining} free generations before signup`
+                  : userPlan === "free"
+                  ? `${dailyRemaining} free generations left today`
+                  : "Unlimited premium access active"}
+              </div>
             </div>
 
             <GeneratorCard
@@ -366,8 +487,12 @@ Studio Notes:
               generate={generate}
               loading={loading}
               result={result}
+              user={user}
               userPlan={userPlan}
-              freeUsed={freeUsed}
+              visitorRemaining={visitorRemaining}
+              dailyRemaining={dailyRemaining}
+              copyToClipboard={copyToClipboard}
+              shareOutput={shareOutput}
             />
           </main>
 
@@ -377,7 +502,6 @@ Studio Notes:
                 <div className="tinyTag">WHAT BRANDTHAT AI OFFERS</div>
                 <h2>Everything modern brands need.</h2>
               </div>
-
               <div className="offerBadge">Built for creators, brands, and agencies</div>
             </div>
 
@@ -398,7 +522,6 @@ Studio Notes:
         <section className="pageSection">
           <div className="tinyTag">FEATURES</div>
           <h1 className="pageTitle">Everything you need to grow your brand.</h1>
-
           <div className="featureGrid">
             {tools.map((tool) => (
               <div className="featureCard" key={tool.title}>
@@ -414,52 +537,27 @@ Studio Notes:
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
           <h1 className="pageTitle">Choose the plan that fits your workflow.</h1>
-
           <div className="pricingGrid">
             <PriceCard
               name="STARTER"
               price="$10"
               desc="Unlimited AI generations for captions, hashtags, bios, hooks, and simple social ideas."
-              features={[
-                "Unlimited AI generations",
-                "Captions & hashtags",
-                "Brand bios",
-                "On-video hooks",
-                "Simple social ideas",
-                "No AI Logo Generator"
-              ]}
+              features={["Unlimited AI generations", "Captions & hashtags", "Brand bios", "On-video hooks", "Simple social ideas", "No AI Logo Generator"]}
               onClick={() => openPlanSignup("starter")}
             />
-
             <PriceCard
               name="PRO"
               price="$20"
               featured
               desc="Everything in Starter plus unlimited AI Logo Generator and premium creative outputs."
-              features={[
-                "Unlimited AI generations",
-                "Unlimited AI Logo Generator",
-                "Brand creation tools",
-                "Premium creative outputs",
-                "Launch & campaign ideas",
-                "Social strategy"
-              ]}
+              features={["Unlimited AI generations", "Unlimited AI Logo Generator", "Brand creation tools", "Premium creative outputs", "Launch & campaign ideas", "Social strategy"]}
               onClick={() => openPlanSignup("pro")}
             />
-
             <PriceCard
               name="STUDIO"
               price="$50"
               desc="Built for agencies, studios, and brands needing client-ready creative systems."
-              features={[
-                "Everything in Pro",
-                "Agency-level workflows",
-                "Brand system generation",
-                "Premium export layouts",
-                "Client-ready presentations",
-                "Future white-label access",
-                "Early access to new AI tools"
-              ]}
+              features={["Everything in Pro", "Agency-level workflows", "Brand system generation", "Premium export layouts", "Client-ready presentations", "Future white-label access", "Early access to new AI tools"]}
               onClick={() => openPlanSignup("studio")}
             />
           </div>
@@ -470,7 +568,6 @@ Studio Notes:
         <section className="pageSection">
           <div className="tinyTag">STUDIO</div>
           <h1 className="pageTitle">Your AI creative workspace.</h1>
-
           <GeneratorCard
             prompt={prompt}
             setPrompt={setPrompt}
@@ -480,8 +577,12 @@ Studio Notes:
             generate={generate}
             loading={loading}
             result={result}
+            user={user}
             userPlan={userPlan}
-            freeUsed={freeUsed}
+            visitorRemaining={visitorRemaining}
+            dailyRemaining={dailyRemaining}
+            copyToClipboard={copyToClipboard}
+            shareOutput={shareOutput}
           />
         </section>
       )}
@@ -492,48 +593,37 @@ Studio Notes:
           <h1 className="pageTitle">Create premium logo concepts instantly.</h1>
 
           <div className="planNotice">
-            {userPlan === "free" && "AI Logo Generator is available with Pro or Studio."}
-            {userPlan === "starter" && "Starter does not include AI Logo Generator. Upgrade to Pro or Studio."}
-            {userPlan === "pro" && "Pro includes unlimited AI Logo Generator access."}
-            {userPlan === "studio" && "Studio unlocks advanced brand identity systems and premium logo direction."}
+            {!user && "Create a free account to view logo access options."}
+            {user && userPlan === "free" && "AI Logo Generator is available with Pro or Studio."}
+            {user && userPlan === "starter" && "Starter does not include AI Logo Generator. Upgrade to Pro or Studio."}
+            {user && userPlan === "pro" && "Pro includes unlimited AI Logo Generator access."}
+            {user && userPlan === "studio" && "Studio unlocks advanced brand identity systems and premium logo direction."}
           </div>
 
           <div className="logoPageGrid">
             <div className="logoCard">
               <h2>Generate your logo direction.</h2>
-
-              <p className="logoLead">
-                Create luxury, modern, minimal, and premium logo concepts for your brand.
-              </p>
-
+              <p className="logoLead">Create luxury, modern, minimal, and premium logo concepts for your brand.</p>
               <div className="logoInputs">
-                <input
-                  placeholder="Brand name"
-                  value={logoName}
-                  onChange={(e) => setLogoName(e.target.value)}
-                />
-
-                <select
-                  value={logoCombo}
-                  onChange={(e) => setLogoCombo(e.target.value)}
-                >
-                  {logoOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
+                <input placeholder="Brand name" value={logoName} onChange={(e) => setLogoName(e.target.value)} />
+                <select value={logoCombo} onChange={(e) => setLogoCombo(e.target.value)}>
+                  {logoOptions.map((option) => <option key={option}>{option}</option>)}
                 </select>
               </div>
-
-              <button className="btn dark full" onClick={generateLogo}>
-                Generate Logo Concept
-              </button>
+              <button className="btn dark full" onClick={generateLogo}>Generate Logo Concept</button>
             </div>
 
             <div className="logoPreviewCard">
               <div className="logoPreview">{logoName || "Your Brand"}</div>
-
               <div className="logoBottom">
                 <div className="tinyTag">AI GENERATED DIRECTION</div>
                 <div className="resultContent">{logoResult || "Your logo concept will appear here."}</div>
+                {logoResult && (
+                  <div className="resultActions">
+                    <button onClick={() => copyToClipboard(logoResult)}>Copy</button>
+                    <button onClick={() => shareOutput(logoResult)}>Share</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -546,18 +636,9 @@ Studio Notes:
           <h2>Subscribe for Brandthat updates.</h2>
           <p>Get product news, AI content tips, launch updates, and new feature announcements.</p>
         </div>
-
         <div className="footerForm">
-          <input
-            placeholder="Enter your email"
-            value={subscribeEmail}
-            onChange={(e) => setSubscribeEmail(e.target.value)}
-          />
-
-          <button className="btn dark" onClick={subscribe}>
-            Subscribe
-          </button>
-
+          <input placeholder="Enter your email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
+          <button className="btn dark" onClick={subscribe}>Subscribe</button>
           {subscribeMessage && <span>{subscribeMessage}</span>}
         </div>
       </footer>
@@ -566,74 +647,27 @@ Studio Notes:
         <div className="modal">
           <div className="signupBox">
             <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
-
             <h2>{authMode === "signup" ? "Start using Brandthat." : "Welcome back."}</h2>
-
-            <p>
-              {authMode === "signup"
-                ? "Create your account. A real verification email will be sent to your inbox."
-                : "Log in to continue using your Brandthat account."}
-            </p>
-
-            <input
-              placeholder="Email address"
-              value={authEmail}
-              onChange={(e) => setAuthEmail(e.target.value)}
-            />
-
-            <input
-              placeholder="Password"
-              type="password"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-            />
-
-            <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>
-              {loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}
-            </button>
-
-            <button
-              className="btn light full"
-              onClick={() => {
-                setAuthMode(authMode === "signup" ? "login" : "signup");
-                setAuthMessage("");
-              }}
-            >
+            <p>{authMode === "signup" ? "Create your free account to continue generating. Free accounts get 10 generations per day." : "Log in to continue using your Brandthat account."}</p>
+            <input placeholder="Email address" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
+            <input placeholder="Password" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
+            <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>{loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button>
+            <button className="btn light full" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>
               {authMode === "signup" ? "Already have an account? Log in" : "Create a new account"}
             </button>
-
-            <button className="btn light full" onClick={() => setShowAuth(false)}>
-              Cancel
-            </button>
-
+            <button className="btn light full" onClick={() => setShowAuth(false)}>Cancel</button>
             {authMessage && <div className="verifyNote">{authMessage}</div>}
           </div>
         </div>
       )}
 
-      <button className="chatButton" onClick={() => setChatOpen(!chatOpen)}>
-        AI Assistant
-      </button>
-
+      <button className="chatButton" onClick={() => setChatOpen(!chatOpen)}>AI Assistant</button>
       {chatOpen && (
         <div className="chatWidget">
-          <div className="chatHeader">
-            <strong>Brandthat AI</strong>
-            <span>Need help getting started?</span>
-          </div>
-
+          <div className="chatHeader"><strong>Brandthat AI</strong><span>Need help getting started?</span></div>
           <div className="chatBody">
-            <div className="chatBubble">
-              Create an account, verify your email, and start generating brand content.
-            </div>
-
-            <div className="chatBubble light">
-              Starter: content tools
-              <br />
-              Pro: content + logos
-              <br />
-              Studio: agency-level systems
-            </div>
+            <div className="chatBubble">Start with 3 free generations. Create a free account for 10 daily generations.</div>
+            <div className="chatBubble light">Starter: unlimited content tools<br />Pro: content + logos<br />Studio: agency-level systems</div>
           </div>
         </div>
       )}
@@ -641,18 +675,7 @@ Studio Notes:
   );
 }
 
-function GeneratorCard({
-  prompt,
-  setPrompt,
-  creativeType,
-  setCreativeType,
-  creativeOptions,
-  generate,
-  loading,
-  result,
-  userPlan,
-  freeUsed
-}) {
+function GeneratorCard({ prompt, setPrompt, creativeType, setCreativeType, creativeOptions, generate, loading, result, user, userPlan, visitorRemaining, dailyRemaining, copyToClipboard, shareOutput }) {
   return (
     <div className="generateCard">
       <div className="generateTop">
@@ -660,43 +683,28 @@ function GeneratorCard({
           <div className="tinyTag">CREATIVE STUDIO</div>
           <h2>Generate content instantly.</h2>
           <div className="planIndicator">
-            {userPlan === "free"
-              ? freeUsed
-                ? "Free use completed. Choose a plan to continue."
-                : "Try free now."
-              : "Plan access active."}
+            {!user ? `${visitorRemaining} free generations remaining` : userPlan === "free" ? `${dailyRemaining} free generations left today` : "Unlimited premium access active"}
           </div>
         </div>
-
         <div className="liveBadge">AI Powered</div>
       </div>
 
-      <select
-        value={creativeType}
-        onChange={(e) => setCreativeType(e.target.value)}
-      >
-        {creativeOptions.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
+      <select value={creativeType} onChange={(e) => setCreativeType(e.target.value)}>
+        {creativeOptions.map((option) => <option key={option}>{option}</option>)}
       </select>
 
-      <textarea
-        placeholder="Create captions, hashtags, hooks, and branding ideas for my luxury coffee brand..."
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-      />
-
-      <button className="btn dark full" onClick={generate}>
-        {loading ? "Generating..." : "Generate"}
-      </button>
+      <textarea placeholder="Create captions, hashtags, hooks, and branding ideas for my luxury coffee brand..." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <button className="btn dark full" onClick={generate}>{loading ? "Generating..." : "Generate"}</button>
 
       {result && (
         <div className="resultBox">
           <div className="resultTop">
             <span>BRANDTHAT AI</span>
-            <button onClick={() => navigator.clipboard.writeText(result)}>Copy</button>
+            <div className="resultActions compact">
+              <button onClick={() => copyToClipboard(result)}>Copy</button>
+              <button onClick={() => shareOutput(result)}>Share</button>
+            </div>
           </div>
-
           <div className="resultContent">{result}</div>
         </div>
       )}
@@ -711,16 +719,8 @@ function PriceCard({ name, price, desc, features, featured, onClick }) {
       <h2>{price}</h2>
       <div className={featured ? "priceSub white" : "priceSub"}>per month</div>
       <p>{desc}</p>
-
-      <div className="priceFeatures">
-        {features.map((feature) => (
-          <div key={feature}>✓ {feature}</div>
-        ))}
-      </div>
-
-      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>
-        Subscribe
-      </button>
+      <div className="priceFeatures">{features.map((feature) => <div key={feature}>✓ {feature}</div>)}</div>
+      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>Subscribe</button>
     </div>
   );
 }
@@ -742,6 +742,7 @@ h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .toolCard h3,.featureCard h3{font-size:24px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
+.freePill{display:inline-flex;margin-top:18px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:12px 16px;font-weight:800;color:#8a6b37;font-size:13px}
 .generateCard,.logoCard,.logoPreviewCard,.signupBox{background:white;border-radius:38px;padding:34px;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 90px rgba(0,0,0,.06)}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:30px}
 .liveBadge,.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
@@ -757,9 +758,12 @@ textarea{height:170px;resize:none}
 .btn.full{width:100%;margin-top:18px}
 .whiteBtn{background:white;color:#111;border:none}
 .resultBox{margin-top:26px;background:#fafafa;border-radius:24px;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
-.resultTop{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(0,0,0,.06)}
+.resultTop{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid rgba(0,0,0,.06)}
 .resultTop span{font-size:12px;font-weight:800;letter-spacing:2px;color:#9b7b3f}
-.resultTop button{background:white;border:1px solid rgba(0,0,0,.08);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer}
+.resultActions{display:flex;gap:10px;margin-top:18px}
+.resultActions.compact{margin-top:0}
+.resultActions button,.resultTop button{background:white;border:1px solid rgba(0,0,0,.08);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer}
+.resultActions button:hover,.resultTop button:hover{transform:translateY(-1px)}
 .resultContent{padding:24px;line-height:1.9;white-space:pre-wrap;font-size:15px}
 .logoPreview{min-height:240px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;letter-spacing:-.06em;border-radius:24px;background:#fafafa;border:1px solid rgba(0,0,0,.06);text-align:center;padding:20px}
 .logoBottom{margin-top:24px}
@@ -797,5 +801,5 @@ textarea{height:170px;resize:none}
 .chatBubble{background:#111;color:white;padding:14px 16px;border-radius:18px;line-height:1.6;font-size:14px}
 .chatBubble.light{background:#f5f5f5;color:#111}
 @media(max-width:1100px){.toolGrid,.featureGrid,.pricingGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{flex-direction:column;gap:18px;padding:24px 20px 8px}.navLinks{justify-content:center}.hero,.offersSection,.pageSection,.footerSubscribe{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}textarea{height:150px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{flex-direction:column;gap:18px;padding:24px 20px 8px}.navLinks{justify-content:center}.hero,.offersSection,.pageSection,.footerSubscribe{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:150px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}}
 `;
