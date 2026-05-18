@@ -1,65 +1,78 @@
-exports.handler = async (event) => {
+const OpenAI = require("openai");
+
+exports.handler = async function (event) {
   try {
     const { businessType, tone, topic, contentType } = JSON.parse(event.body);
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are Brandthat AI, a premium branding and social media strategist."
-          },
-          {
-            role: "user",
-            content: `
-Business Type: ${businessType}
-Tone: ${tone}
-Content Type: ${contentType}
-Idea: ${topic}
-
-Create:
-1. A strong premium hook
-2. A polished caption
-3. Three alternate hook options
-4. A clear CTA
-
-Keep it modern, specific, elegant, and not cheesy.
-`
-          }
-        ],
-        temperature: 0.85
-      })
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const data = await response.json();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `
+You are a luxury branding and social media strategist.
 
-    if (!response.ok) {
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({
-          text: data.error?.message || "OpenAI API error."
-        })
-      };
-    }
+Your writing style is:
+- Modern
+- Premium
+- Clean
+- Professional
+- Sophisticated
+- Human sounding
+
+IMPORTANT RULES:
+- NEVER use hashtags
+- NEVER use emojis unless extremely subtle
+- NEVER use markdown symbols like ### or **
+- NEVER label sections with numbers
+- NEVER sound cheesy or generic
+- Keep formatting elegant and minimal
+
+Always structure responses like this:
+
+Primary Hook
+
+Main Caption
+
+Alternate Hooks
+
+Call To Action
+
+Make everything polished and premium.
+          `,
+        },
+        {
+          role: "user",
+          content: `
+Business Type: ${businessType}
+Tone: ${tone}
+Output Type: ${contentType}
+Topic: ${topic}
+
+Generate premium brand content.
+          `,
+        },
+      ],
+      temperature: 0.9,
+      max_tokens: 700,
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        text: data.choices[0].message.content
-      })
+        text: completion.choices[0].message.content,
+      }),
     };
   } catch (error) {
     return {
       statusCode: 500,
       body: JSON.stringify({
-        text: error.message
-      })
+        error: error.message,
+      }),
     };
   }
 };
