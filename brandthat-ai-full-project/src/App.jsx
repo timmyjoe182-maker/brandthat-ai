@@ -325,11 +325,11 @@ export default function BrandThatAI() {
         display: "grid",
         gap: 14
       }}
-    >{caption && (
-      {caption
-        .split(/\n\s*\n/)
-        .filter(Boolean)
-        .map((section, index) => (
+    {caption &&
+  caption
+    .split(/\n\s*\n/)
+    .filter(Boolean)
+    .map((section, index) => (
           <div
             key={index}
             style={{
