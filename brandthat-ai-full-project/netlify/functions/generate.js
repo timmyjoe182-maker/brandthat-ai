@@ -1,48 +1,49 @@
 const OpenAI = require("openai");
 
-exports.handler = async function(event) {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ text: "Method not allowed." }) };
-  }
-
+exports.handler = async function (event) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return { statusCode: 500, body: JSON.stringify({ text: "Missing OPENAI_API_KEY in Netlify environment variables." }) };
-    }
+    const { businessType, tone, topic, contentType } = JSON.parse(event.body);
 
-    const body = JSON.parse(event.body || "{}");
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const prompt = `
-You are Brandthat AI, a premium content strategist for modern businesses.
-
-Create ${body.contentType || "marketing content"} for a ${body.businessType || "business"}.
-
-Brand voice: ${body.tone || "Refined"}
-Idea: ${body.topic || "A new offer, product, service, or brand moment"}
-
-Requirements:
-- Make it polished, modern, specific, and useful.
-- Avoid generic filler.
-- Include a strong hook.
-- Include a caption or main copy.
-- Include 3 alternate hook options.
-- Include a clear CTA.
-- Keep the tone premium but not cheesy.
-`;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You create premium social media, ad, and brand content for businesses." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.85,
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    return { statusCode: 200, body: JSON.stringify({ text: completion.choices?.[0]?.message?.content || "No content generated." }) };
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Brandthat AI, a premium content strategist.",
+        },
+        {
+          role: "user",
+          content: `
+Business type: ${businessType}
+Tone: ${tone}
+Content type: ${contentType}
+Topic: ${topic}
+
+Create premium social media content.
+          `,
+        },
+      ],
+    });
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        text: response.choices[0].message.content,
+      }),
+    };
   } catch (error) {
-    console.error("AI generation error:", error);
-    return { statusCode: 500, body: JSON.stringify({ text: "AI generation failed. Check your OpenAI API key and Netlify function logs." }) };
+    console.error(error);
+
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        text: "AI generation failed.",
+      }),
+    };
   }
 };
