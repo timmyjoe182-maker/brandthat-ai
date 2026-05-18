@@ -107,46 +107,32 @@ export default function App() {
   };
 
   const signUp = async () => {
-    if (!authEmail || !authPassword) {
-      setAuthMessage("Please enter your email and create a password.");
-      return;
+  if (!authEmail || !authPassword) {
+    setAuthMessage("Please enter your email and create a password.");
+    return;
+  }
+
+  setLoading(true);
+
+  const { error } = await supabase.auth.signUp({
+    email: authEmail,
+    password: authPassword,
+    options: {
+      emailRedirectTo: "https://brandthat.ai"
     }
+  });
 
-    setLoading(true);
-
-    try {
-      const response = await fetch("/.netlify/functions/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email: authEmail,
-          password: authPassword
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setAuthMessage(data.error || "Signup failed.");
-        setLoading(false);
-        return;
-      }
-
-      localStorage.setItem("brandthat_plan", selectedPlan);
-      setUserPlan(selectedPlan);
-
-      setAuthMessage(
-        data.message || "Verification email sent. Please check your inbox."
-      );
-    } catch (error) {
-      console.error(error);
-      setAuthMessage("Signup failed. Please try again.");
-    }
-
+  if (error) {
+    setAuthMessage(error.message);
     setLoading(false);
-  };
+    return;
+  }
+
+  localStorage.setItem("brandthat_plan", selectedPlan);
+  setUserPlan(selectedPlan);
+  setAuthMessage("Verification email sent. Please check your inbox.");
+  setLoading(false);
+};
 
   const logIn = async () => {
     if (!authEmail || !authPassword) {
