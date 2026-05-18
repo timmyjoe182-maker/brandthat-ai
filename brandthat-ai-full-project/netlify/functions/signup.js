@@ -3,72 +3,54 @@ export async function handler(event) {
     if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
-        body: JSON.stringify({ error: "Method not allowed" }),
+        body: JSON.stringify({ error: "Method not allowed." }),
       };
     }
 
-    const body = JSON.parse(event.body || "{}");
-    const email = body.email;
-    const password = body.password;
+    const { email, password } = JSON.parse(event.body || "{}");
 
     if (!email || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Email and password are required." }),
+        body: JSON.stringify({ error: "Email and password required." }),
       };
     }
 
-    const supabaseUrl = "https://vfnkmabnocbwawbvdxfo.supabase.co";
-    const supabaseKey = "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk";
-
-    const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        data: {},
-      }),
-    });
+    const response = await fetch(
+      "https://vfnkmabnocbwawbvdxfo.supabase.co/auth/v1/signup",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk",
+          Authorization: "Bearer sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }
+    );
 
     const text = await response.text();
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!response.ok) {
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({
-          error:
-            data.msg ||
-            data.error_description ||
-            data.error ||
-            data.raw ||
-            "Signup failed.",
-        }),
-      };
-    }
-
     return {
-      statusCode: 200,
+      statusCode: response.status,
       body: JSON.stringify({
-        message: "Verification email sent. Please check your inbox.",
+        ok: response.ok,
+        status: response.status,
+        message: response.ok
+          ? "Verification email sent. Please check your inbox."
+          : "Supabase signup failed.",
+        raw: text,
       }),
     };
   } catch (error) {
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: error.message || "Server error.",
+        error: "Function crashed.",
+        details: String(error?.message || error),
       }),
     };
   }
