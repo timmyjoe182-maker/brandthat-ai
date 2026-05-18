@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "./supabaseClient.js";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://vfnkmabnocbwawbvdxfo.supabase.co",
+  "YOUR_FULL_SB_PUBLISHABLE_KEY_HERE"
+);
 
 const tools = [
   { title: "Captions", desc: "Premium captions for every social platform." },
