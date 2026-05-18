@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient.js";
 
 const tools = [
   { title: "Captions", desc: "Premium captions for every social platform." },
-  { title: "Hashtags", desc: "Smart hashtag systems designed for reach." },
+  { title: "Hashtags", desc: "Smart hashtag systems designed for reach." }, 
   { title: "Brand Bios", desc: "Polished bios for creators and businesses." },
   { title: "On-video Hooks", desc: "Short hooks for Reels, TikTok, and Shorts." },
   { title: "Email Copy", desc: "Launch emails, promos, and newsletters." },
