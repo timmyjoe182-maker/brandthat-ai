@@ -33,3 +33,4 @@
       ))}
   </div>
 )}
+export default BrandThatAI;
