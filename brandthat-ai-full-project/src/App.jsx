@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient.js";
 
 const tools = [
   { title: "Captions", desc: "Premium captions for every social platform." },
-  { title: "Hashtags", desc: "Smart hashtag systems designed for reach." }, 
+  { title: "Hashtags", desc: "Smart hashtag systems designed for reach." },
   { title: "Brand Bios", desc: "Polished bios for creators and businesses." },
   { title: "On-video Hooks", desc: "Short hooks for Reels, TikTok, and Shorts." },
   { title: "Email Copy", desc: "Launch emails, promos, and newsletters." },
@@ -47,7 +47,6 @@ function makeCombos(a, b) {
 
 export default function App() {
   const [page, setPage] = useState("home");
-
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
   const [freeUsed, setFreeUsed] = useState(localStorage.getItem("brandthat_free_used") === "yes");
@@ -113,23 +112,40 @@ export default function App() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: authEmail,
-      password: authPassword,
-      options: {
-        emailRedirectTo: window.location.origin
-      }
-    });
+    setLoading(true);
 
-    if (error) {
-      setAuthMessage(error.message);
-      return;
+    try {
+      const response = await fetch("/.netlify/functions/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: authEmail,
+          password: authPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAuthMessage(data.error || "Signup failed.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("brandthat_plan", selectedPlan);
+      setUserPlan(selectedPlan);
+
+      setAuthMessage(
+        data.message || "Verification email sent. Please check your inbox."
+      );
+    } catch (error) {
+      console.error(error);
+      setAuthMessage("Signup failed. Please try again.");
     }
 
-    localStorage.setItem("brandthat_plan", selectedPlan);
-    setUserPlan(selectedPlan);
-
-    setAuthMessage("Verification email sent. Please check your inbox and click the confirmation link.");
+    setLoading(false);
   };
 
   const logIn = async () => {
@@ -138,6 +154,8 @@ export default function App() {
       return;
     }
 
+    setLoading(true);
+
     const { error } = await supabase.auth.signInWithPassword({
       email: authEmail,
       password: authPassword
@@ -145,12 +163,15 @@ export default function App() {
 
     if (error) {
       setAuthMessage(error.message);
+      setLoading(false);
       return;
     }
 
     setShowAuth(false);
     setAuthEmail("");
     setAuthPassword("");
+    setAuthMessage("");
+    setLoading(false);
   };
 
   const logOut = async () => {
@@ -547,15 +568,7 @@ Studio Notes:
             onChange={(e) => setSubscribeEmail(e.target.value)}
           />
 
-          <button className="btn dark" onClick={() => {
-            if (!subscribeEmail) {
-              setSubscribeMessage("Please enter your email.");
-              return;
-            }
-            localStorage.setItem("brandthat_newsletter", subscribeEmail);
-            setSubscribeMessage("You're subscribed. Thank you.");
-            setSubscribeEmail("");
-          }}>
+          <button className="btn dark" onClick={subscribe}>
             Subscribe
           </button>
 
@@ -572,7 +585,7 @@ Studio Notes:
 
             <p>
               {authMode === "signup"
-                ? "Create your account. Supabase will send a real verification email to your inbox."
+                ? "Create your account. A real verification email will be sent to your inbox."
                 : "Log in to continue using your Brandthat account."}
             </p>
 
@@ -590,7 +603,7 @@ Studio Notes:
             />
 
             <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>
-              {authMode === "signup" ? "Create account" : "Log in"}
+              {loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}
             </button>
 
             <button
