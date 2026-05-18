@@ -1,514 +1,524 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
-const niches = [
-  "Luxury Local Business",
-  "Wedding Photographer",
-  "Videographer",
-  "Content Creator",
-  "Ranch / Farm Brand",
-  "Real Estate Agent",
-  "Luxury Real Estate",
-  "Interior Designer",
-  "Med Spa",
-  "Salon",
-  "Restaurant",
-  "Fitness Coach",
-  "Marketing Agency",
-  "Law Firm",
-  "Retail Boutique",
-  "Tech Startup",
-  "Event Venue",
-  "Private Chef",
-  "Lifestyle Brand"
-];
-
-const voices = [
-  "Refined",
-  "Luxury",
-  "Bold",
-  "Minimal",
-  "Modern",
-  "Professional",
-  "Playful",
-  "Emotional",
-  "High-End",
-  "Cinematic",
-  "Viral"
-];
-
-const outputs = [
-  "Instagram caption + Reel hook",
-  "Luxury Instagram Caption",
-  "LinkedIn post",
-  "TikTok Hook",
-  "Email Campaign",
-  "Facebook Caption",
-  "Website Copy",
-  "Brand Slogan",
-  "Product Launch Copy",
-  "Ad Copy"
+const tools = [
+  { title: "Captions", desc: "Premium captions for every social platform." },
+  { title: "Hashtags", desc: "Smart hashtag systems designed for reach." },
+  { title: "Brand Bios", desc: "Polished bios for creators and businesses." },
+  { title: "On-video Hooks", desc: "Short hooks for Reels, TikTok, and Shorts." },
+  { title: "Email Copy", desc: "Launch emails, promos, and newsletters." },
+  { title: "Social Strategy", desc: "Content direction across every platform." },
+  { title: "Brand Creation", desc: "Generate brand names and positioning." },
+  { title: "Logo Generator", desc: "Create modern logo concepts instantly." }
 ];
 
 export default function App() {
   const [page, setPage] = useState("home");
-  const [isMobile, setIsMobile] = useState(false);
 
-  const [businessType, setBusinessType] = useState(niches[0]);
-  const [tone, setTone] = useState(voices[0]);
-  const [contentType, setContentType] = useState(outputs[0]);
-  const [topic, setTopic] = useState("");
-  const [caption, setCaption] = useState("");
+  const [userEmail, setUserEmail] = useState(localStorage.getItem("brandthat_email") || "");
+  const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
+  const [freeUsed, setFreeUsed] = useState(localStorage.getItem("brandthat_free_used") === "yes");
+  const [verified, setVerified] = useState(localStorage.getItem("brandthat_verified") === "yes");
+
+  const [showSignup, setShowSignup] = useState(false);
+  const [signupMode, setSignupMode] = useState("trial");
+  const [selectedPlan, setSelectedPlan] = useState("starter");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [subscribeMessage, setSubscribeMessage] = useState("");
+
+  const [prompt, setPrompt] = useState("");
+  const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [userEmail, setUserEmail] = useState("");
-  const [authMode, setAuthMode] = useState(null);
-  const [hasUsedFreeTry, setHasUsedFreeTry] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
-  useEffect(() => {
-    const updateMobile = () => setIsMobile(window.innerWidth < 800);
+  const [logoName, setLogoName] = useState("");
+  const [logoStyle, setLogoStyle] = useState("Luxury");
+  const [logoResult, setLogoResult] = useState("");
 
-    updateMobile();
-    window.addEventListener("resize", updateMobile);
+  const openTrialSignup = () => {
+    setSignupMode("trial");
+    setSelectedPlan("free");
+    setShowSignup(true);
+  };
 
-    const savedUser = localStorage.getItem("brandthat_user");
-    const freeTry = localStorage.getItem("brandthat_free_try_used") === "yes";
+  const openPlanSignup = (plan) => {
+    setSignupMode("plan");
+    setSelectedPlan(plan);
+    setShowSignup(true);
+  };
 
-    if (savedUser) setUserEmail(savedUser);
-    if (freeTry) setHasUsedFreeTry(true);
+  const completeSignup = () => {
+    if (!email || !password) {
+      alert("Please enter your email and create a password.");
+      return;
+    }
 
-    return () => window.removeEventListener("resize", updateMobile);
-  }, []);
+    localStorage.setItem("brandthat_email", email);
+    localStorage.setItem("brandthat_verified", "yes");
 
-  const isLoggedIn = Boolean(userEmail);
+    if (signupMode === "plan") {
+      localStorage.setItem("brandthat_plan", selectedPlan);
+      setUserPlan(selectedPlan);
+    } else {
+      localStorage.setItem("brandthat_plan", "free");
+      setUserPlan("free");
+    }
 
-  const handleGenerate = async () => {
-    if (!isLoggedIn && hasUsedFreeTry) {
-      setAuthMode("signup");
+    setUserEmail(email);
+    setVerified(true);
+    setShowSignup(false);
+    setEmail("");
+    setPassword("");
+  };
+
+  const subscribe = () => {
+    if (!subscribeEmail) {
+      setSubscribeMessage("Please enter your email.");
+      return;
+    }
+
+    localStorage.setItem("brandthat_newsletter", subscribeEmail);
+    setSubscribeMessage("You're subscribed. Thank you.");
+    setSubscribeEmail("");
+  };
+
+  const generate = async () => {
+    if (!userEmail || !verified) {
+      openTrialSignup();
+      return;
+    }
+
+    if (userPlan === "free" && freeUsed) {
+      setPage("pricing");
+      setResult("Your free use has been used. Please choose a plan to continue.");
       return;
     }
 
     setLoading(true);
-    setCaption("");
+
+    let systemPrompt = "";
+
+    if (userPlan === "free" || userPlan === "starter") {
+      systemPrompt = `
+You are Brandthat AI Starter.
+Generate captions, hashtags, on-video hooks, and short brand bio ideas.
+Keep it simple, useful, and clean.
+Do not create advanced strategy, full campaigns, or agency-level systems.
+`;
+    }
+
+    if (userPlan === "pro") {
+      systemPrompt = `
+You are Brandthat AI Pro.
+Generate captions, hashtags, on-video hooks, brand bios, launch ideas, social strategy, and premium content direction.
+Make it polished, organized, and professional.
+`;
+    }
+
+    if (userPlan === "studio") {
+      systemPrompt = `
+You are Brandthat AI Studio.
+Generate captions, hashtags, hooks, bios, launch ideas, full campaign direction, content calendar ideas, brand positioning, social strategy, and client-ready execution notes.
+Make it agency-level, detailed, strategic, and premium.
+`;
+    }
 
     try {
       const response = await fetch("/.netlify/functions/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          businessType,
-          tone,
-          topic,
-          contentType
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: `${systemPrompt}\nUser request:\n${prompt}` })
       });
 
       const data = await response.json();
+      setResult(data.text || "No response generated.");
 
-      setCaption(data.text || data.result || data.error || "No response generated.");
-
-      if (!isLoggedIn) {
-        localStorage.setItem("brandthat_free_try_used", "yes");
-        setHasUsedFreeTry(true);
+      if (userPlan === "free") {
+        localStorage.setItem("brandthat_free_used", "yes");
+        setFreeUsed(true);
       }
-    } catch (error) {
-      setCaption("Something went wrong connecting to AI.");
+    } catch {
+      setResult("Something went wrong.");
     }
 
     setLoading(false);
   };
 
-  const signInDemo = () => {
-    localStorage.setItem("brandthat_user", "demo@brandthat.ai");
-    setUserEmail("demo@brandthat.ai");
-    setAuthMode(null);
-  };
+  const generateLogo = () => {
+    if (!userEmail || !verified) {
+      openTrialSignup();
+      return;
+    }
 
-  const logout = () => {
-    localStorage.removeItem("brandthat_user");
-    setUserEmail("");
+    if (userPlan === "free" || userPlan === "starter") {
+      setLogoResult("AI Logo Generator is available on Pro and Studio plans. Please upgrade to unlock logo concepts.");
+      return;
+    }
+
+    if (userPlan === "pro") {
+      setLogoResult(`
+${logoName || "Your Brand"}
+
+PRO LOGO CONCEPT
+
+Style: ${logoStyle}
+
+• Modern premium wordmark
+• Clean typography direction
+• Social-media ready logo concept
+• Website-ready brand mark
+• Simple color palette
+
+Recommended Colors:
+- Matte Black
+- Soft Ivory
+- Warm Gold Accent
+      `);
+      return;
+    }
+
+    if (userPlan === "studio") {
+      setLogoResult(`
+${logoName || "Your Brand"}
+
+STUDIO BRAND IDENTITY SYSTEM
+
+Style: ${logoStyle}
+
+Primary Logo:
+• Premium luxury wordmark
+• Refined typography
+• Strong spacing system
+• High-end visual identity
+
+Secondary System:
+• Monogram concept
+• Social watermark
+• Website header version
+• Small-icon version
+
+Recommended Palette:
+- Matte Black
+- Bone White
+- Champagne Gold
+- Soft Stone Neutral
+
+Studio Notes:
+• Use generous spacing
+• Keep typography minimal
+• Build around recognition and trust
+• Create a version that works as a profile picture
+      `);
+    }
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f5f3ef",
-        fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        color: "#111",
-        overflowX: "hidden"
-      }}
-    >
-      <nav
-        style={{
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          gap: isMobile ? 18 : 0,
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: isMobile ? "24px 20px" : "30px 60px"
-        }}
-      >
-        <div
-          onClick={() => setPage("home")}
-          style={{
-            fontWeight: 800,
-            fontSize: 24,
-            cursor: "pointer"
-          }}
-        >
+    <div className="app">
+      <style>{css}</style>
+
+      <nav className="nav">
+        <button className="brand" onClick={() => setPage("home")}>
           Brandthat
-        </div>
+        </button>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 14,
-            flexWrap: "wrap",
-            justifyContent: "center"
-          }}
-        >
-          <button onClick={() => setPage("features")} style={navButton}>
-            Features
-          </button>
-
-          <button onClick={() => setPage("pricing")} style={navButton}>
-            Pricing
-          </button>
-
-          <button onClick={() => setPage("studio")} style={navButton}>
-            Studio
-          </button>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-          {isLoggedIn ? (
-            <button onClick={logout} style={whiteButton}>
-              Logout
-            </button>
-          ) : (
-            <>
-              <button onClick={() => setAuthMode("login")} style={whiteButton}>
-                Log in
-              </button>
-
-              <button onClick={() => setAuthMode("signup")} style={blackButton}>
-                Sign up
-              </button>
-            </>
-          )}
+        <div className="navLinks">
+          <button onClick={() => setPage("features")}>Features</button>
+          <button onClick={() => setPage("pricing")}>Pricing</button>
+          <button onClick={() => setPage("studio")}>Studio</button>
+          <button onClick={() => setPage("logo")}>AI Logo Generator</button>
         </div>
       </nav>
 
       {page === "home" && (
-        <main
-          style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: isMobile ? "30px 20px 60px" : "60px",
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1fr 480px",
-            gap: isMobile ? 34 : 60,
-            alignItems: "center"
-          }}
-        >
-          <Hero isMobile={isMobile} setPage={setPage} />
+        <>
+          <main className="hero">
+            <div className="heroTop">
+              <div className="eyebrow">AI CREATIVE STUDIO</div>
 
-          <StudioCard
-            businessType={businessType}
-            setBusinessType={setBusinessType}
-            tone={tone}
-            setTone={setTone}
-            contentType={contentType}
-            setContentType={setContentType}
-            topic={topic}
-            setTopic={setTopic}
-            caption={caption}
-            loading={loading}
-            handleGenerate={handleGenerate}
-            isLoggedIn={isLoggedIn}
-            hasUsedFreeTry={hasUsedFreeTry}
-          />
-        </main>
-      )}
+              <h1>Your AI creative partner for every post.</h1>
 
-      {page === "studio" && (
-        <main
-          style={{
-            maxWidth: 760,
-            margin: "0 auto",
-            padding: isMobile ? "25px 20px 60px" : "60px"
-          }}
-        >
-          <StudioCard
-            businessType={businessType}
-            setBusinessType={setBusinessType}
-            tone={tone}
-            setTone={setTone}
-            contentType={contentType}
-            setContentType={setContentType}
-            topic={topic}
-            setTopic={setTopic}
-            caption={caption}
-            loading={loading}
-            handleGenerate={handleGenerate}
-            isLoggedIn={isLoggedIn}
-            hasUsedFreeTry={hasUsedFreeTry}
-          />
-        </main>
+              <p className="lead">
+                Generate captions, hashtags, launch ideas, bios, emails, logos,
+                and social media direction — all in one workspace.
+              </p>
+
+              <button className="btn dark heroTrialBtn" onClick={openTrialSignup}>
+                Try free now
+              </button>
+            </div>
+
+            <GeneratorCard
+              prompt={prompt}
+              setPrompt={setPrompt}
+              generate={generate}
+              loading={loading}
+              result={result}
+              userPlan={userPlan}
+              freeUsed={freeUsed}
+            />
+          </main>
+
+          <section className="offersSection">
+            <div className="offersTop">
+              <div>
+                <div className="tinyTag">WHAT BRANDTHAT AI OFFERS</div>
+                <h2>Everything modern brands need.</h2>
+              </div>
+
+              <div className="offerBadge">Built for creators, brands, and agencies</div>
+            </div>
+
+            <div className="toolGrid">
+              {tools.map((tool) => (
+                <div className="toolCard" key={tool.title}>
+                  <div className="toolGlow"></div>
+                  <h3>{tool.title}</h3>
+                  <p>{tool.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
       {page === "features" && (
-        <Page title="Features" isMobile={isMobile}>
-          <Card
-            title="Premium AI Copy"
-            text="Luxury-level captions, ads, hooks, emails, and campaigns."
-          />
+        <section className="pageSection">
+          <div className="tinyTag">FEATURES</div>
+          <h1 className="pageTitle">Everything you need to grow your brand.</h1>
 
-          <Card
-            title="Brand Voices"
-            text="Refined, cinematic, luxury, modern, playful, viral, and more."
-          />
-
-          <Card
-            title="Business Specific"
-            text="Tailored outputs for real estate, weddings, restaurants, ranches, and more."
-          />
-        </Page>
+          <div className="featureGrid">
+            {tools.map((tool) => (
+              <div className="featureCard" key={tool.title}>
+                <h3>{tool.title}</h3>
+                <p>{tool.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {page === "pricing" && (
-        <Page title="Pricing" isMobile={isMobile}>
-          <Price
-            name="Starter"
-            price="$19/mo"
-            items={["50 generations", "Instagram captions", "Basic AI tools"]}
-          />
+        <section className="pageSection">
+          <div className="tinyTag">PRICING</div>
+          <h1 className="pageTitle">Choose the plan that fits your workflow.</h1>
 
-          <Price
-            name="Pro"
-            price="$49/mo"
-            items={["250 generations", "Campaign tools", "Luxury AI voices"]}
-          />
+          <div className="pricingGrid">
+            <PriceCard
+              name="STARTER"
+              price="$10"
+              desc="Unlimited AI generations for captions, hashtags, bios, hooks, and simple social ideas."
+              features={[
+                "Unlimited AI generations",
+                "Captions & hashtags",
+                "Brand bios",
+                "On-video hooks",
+                "Simple social ideas",
+                "No AI Logo Generator"
+              ]}
+              onClick={() => openPlanSignup("starter")}
+            />
 
-          <Price
-            name="Agency"
-            price="$99/mo"
-            items={["Unlimited generations", "Client workspaces", "Priority AI"]}
-          />
-        </Page>
+            <PriceCard
+              name="PRO"
+              price="$20"
+              featured
+              desc="Everything in Starter plus unlimited AI Logo Generator and premium creative outputs."
+              features={[
+                "Unlimited AI generations",
+                "Unlimited AI Logo Generator",
+                "Brand creation tools",
+                "Premium creative outputs",
+                "Launch & campaign ideas",
+                "Social strategy"
+              ]}
+              onClick={() => openPlanSignup("pro")}
+            />
+
+            <PriceCard
+              name="STUDIO"
+              price="$50"
+              desc="Built for agencies, studios, and brands needing client-ready creative systems."
+              features={[
+                "Everything in Pro",
+                "Agency-level workflows",
+                "Brand system generation",
+                "Premium export layouts",
+                "Client-ready presentations",
+                "Future white-label access",
+                "Early access to new AI tools"
+              ]}
+              onClick={() => openPlanSignup("studio")}
+            />
+          </div>
+        </section>
       )}
 
-      {authMode && (
-        <div style={modalOverlay}>
-          <div
-            style={{
-              ...modalCard,
-              width: isMobile ? "86%" : 420
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>
-              {authMode === "signup" ? "Create your account" : "Log in"}
+      {page === "studio" && (
+        <section className="pageSection">
+          <div className="tinyTag">STUDIO</div>
+          <h1 className="pageTitle">Your AI creative workspace.</h1>
+
+          <GeneratorCard
+            prompt={prompt}
+            setPrompt={setPrompt}
+            generate={generate}
+            loading={loading}
+            result={result}
+            userPlan={userPlan}
+            freeUsed={freeUsed}
+          />
+        </section>
+      )}
+
+      {page === "logo" && (
+        <section className="pageSection">
+          <div className="tinyTag">AI LOGO GENERATOR</div>
+          <h1 className="pageTitle">Create premium logo concepts instantly.</h1>
+
+          <div className="planNotice">
+            {userPlan === "free" && "AI Logo Generator is available with Pro or Studio."}
+            {userPlan === "starter" && "Starter does not include AI Logo Generator. Upgrade to Pro or Studio."}
+            {userPlan === "pro" && "Pro includes unlimited AI Logo Generator access."}
+            {userPlan === "studio" && "Studio unlocks advanced brand identity systems and premium logo direction."}
+          </div>
+
+          <div className="logoPageGrid">
+            <div className="logoCard">
+              <h2>Generate your logo direction.</h2>
+
+              <p className="logoLead">
+                Create luxury, modern, minimal, and premium logo concepts for your brand.
+              </p>
+
+              <div className="logoInputs">
+                <input
+                  placeholder="Brand name"
+                  value={logoName}
+                  onChange={(e) => setLogoName(e.target.value)}
+                />
+
+                <select
+                  value={logoStyle}
+                  onChange={(e) => setLogoStyle(e.target.value)}
+                >
+                  <option>Luxury</option>
+                  <option>Modern</option>
+                  <option>Minimal</option>
+                  <option>Editorial</option>
+                  <option>Bold</option>
+                </select>
+              </div>
+
+              <button className="btn dark full" onClick={generateLogo}>
+                Generate Logo Concept
+              </button>
+            </div>
+
+            <div className="logoPreviewCard">
+              <div className="logoPreview">{logoName || "Your Brand"}</div>
+
+              <div className="logoBottom">
+                <div className="tinyTag">AI GENERATED DIRECTION</div>
+                <div className="resultContent">{logoResult || "Your logo concept will appear here."}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <footer className="footerSubscribe">
+        <div>
+          <div className="tinyTag">NEWSLETTER</div>
+          <h2>Subscribe for Brandthat updates.</h2>
+          <p>Get product news, AI content tips, launch updates, and new feature announcements.</p>
+        </div>
+
+        <div className="footerForm">
+          <input
+            placeholder="Enter your email"
+            value={subscribeEmail}
+            onChange={(e) => setSubscribeEmail(e.target.value)}
+          />
+
+          <button className="btn dark" onClick={subscribe}>
+            Subscribe
+          </button>
+
+          {subscribeMessage && <span>{subscribeMessage}</span>}
+        </div>
+      </footer>
+
+      {showSignup && (
+        <div className="modal">
+          <div className="signupBox">
+            <div className="tinyTag">
+              {signupMode === "trial" ? "TRY FREE NOW" : "SUBSCRIBE"}
+            </div>
+
+            <h2>
+              {signupMode === "trial"
+                ? "Create your profile."
+                : `${selectedPlan.toUpperCase()} Plan`}
             </h2>
 
-            <p style={{ color: "#666" }}>
-              Continue generating premium brand content.
+            <p>
+              Enter your email and create a password. We will send a verification email before your account is activated.
             </p>
 
-            <input placeholder="Email" style={inputStyle} />
+            <input
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-            <input placeholder="Password" type="password" style={inputStyle} />
+            <input
+              placeholder="Create password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
-            <button
-              onClick={signInDemo}
-              style={{
-                ...blackButton,
-                width: "100%",
-                marginTop: 16
-              }}
-            >
-              {authMode === "signup" ? "Create account" : "Log in"}
+            <div className="verifyNote">
+              Demo verification: clicking below simulates email verification.
+            </div>
+
+            <button className="btn dark full" onClick={completeSignup}>
+              Verify email & continue
             </button>
 
-            <button
-              onClick={() => setAuthMode(null)}
-              style={{
-                ...whiteButton,
-                width: "100%",
-                marginTop: 12
-              }}
-            >
+            <button className="btn light full" onClick={() => setShowSignup(false)}>
               Cancel
             </button>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function Hero({ isMobile, setPage }) {
-  return (
-    <div>
-      <div style={eyebrow}>AI CONTENT STUDIO FOR BRANDS</div>
-
-      <h1
-        style={{
-          fontSize: isMobile ? 46 : 76,
-          lineHeight: 1,
-          marginBottom: 24
-        }}
-      >
-        Modern content,
-        <br />
-        made simple.
-      </h1>
-
-      <p
-        style={{
-          fontSize: isMobile ? 17 : 22,
-          lineHeight: 1.7,
-          color: "#555",
-          maxWidth: 600
-        }}
-      >
-        Brandthat AI turns one idea into polished captions, hooks, ads, emails,
-        campaigns, and premium brand copy.
-      </p>
-
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginTop: 28,
-          flexWrap: "wrap"
-        }}
-      >
-        <button onClick={() => setPage("studio")} style={blackButton}>
-          Try the studio
-        </button>
-
-        <button onClick={() => setPage("pricing")} style={whiteButton}>
-          View plans
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StudioCard(props) {
-  return (
-    <div style={studioCard}>
-      <div style={eyebrow}>PREMIUM WORKSPACE</div>
-
-      <h2 style={{ fontSize: 34, marginBottom: 24 }}>Content Studio</h2>
-
-      {!props.isLoggedIn && (
-        <div style={freeTryBox}>
-          {props.hasUsedFreeTry
-            ? "Free try used. Sign up to continue."
-            : "You get 1 free generation before signing up."}
-        </div>
-      )}
-
-      <label>Brand category</label>
-
-      <select
-        value={props.businessType}
-        onChange={(e) => props.setBusinessType(e.target.value)}
-        style={inputStyle}
-      >
-        {niches.map((x) => (
-          <option key={x}>{x}</option>
-        ))}
-      </select>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginTop: 16
-        }}
-      >
-        <div>
-          <label>Voice</label>
-
-          <select
-            value={props.tone}
-            onChange={(e) => props.setTone(e.target.value)}
-            style={inputStyle}
-          >
-            {voices.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label>Output</label>
-
-          <select
-            value={props.contentType}
-            onChange={(e) => props.setContentType(e.target.value)}
-            style={inputStyle}
-          >
-            {outputs.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <label style={{ display: "block", marginTop: 16 }}>Idea</label>
-
-      <textarea
-        value={props.topic}
-        onChange={(e) => props.setTopic(e.target.value)}
-        style={{
-          ...inputStyle,
-          height: 120,
-          resize: "none"
-        }}
-      />
-
-      <button
-        onClick={props.handleGenerate}
-        style={{
-          ...blackButton,
-          width: "100%",
-          marginTop: 20
-        }}
-      >
-        {props.loading ? "Generating..." : "Generate"}
+      <button className="chatButton" onClick={() => setChatOpen(!chatOpen)}>
+        AI Assistant
       </button>
 
-      {props.caption && (
-        <div style={outputBox}>
-          <div style={outputHeader}>
-            <div>
-              <div style={eyebrow}>AI OUTPUT</div>
-              <h3 style={{ margin: 0, fontSize: 18 }}>Ready-to-use content</h3>
+      {chatOpen && (
+        <div className="chatWidget">
+          <div className="chatHeader">
+            <strong>Brandthat AI</strong>
+            <span>Need help getting started?</span>
+          </div>
+
+          <div className="chatBody">
+            <div className="chatBubble">
+              Hi — create a profile to get one free use, then choose a plan to keep generating.
             </div>
 
-            <button
-              onClick={() => navigator.clipboard.writeText(props.caption)}
-              style={smallButton}
-            >
-              Copy
-            </button>
-          </div>
-
-          <div style={outputContent}>
-            {props.caption
-              .split(/\n\s*\n/)
-              .filter(Boolean)
-              .map((section, index) => (
-                <div key={index} style={outputSection}>
-                  {section}
-                </div>
-              ))}
+            <div className="chatBubble light">
+              Starter: content tools
+              <br />
+              Pro: content + logos
+              <br />
+              Studio: agency-level systems
+            </div>
           </div>
         </div>
       )}
@@ -516,208 +526,524 @@ function StudioCard(props) {
   );
 }
 
-function Page({ title, children, isMobile }) {
+function GeneratorCard({ prompt, setPrompt, generate, loading, result, userPlan, freeUsed }) {
   return (
-    <main
-      style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        padding: isMobile ? "30px 20px 60px" : "60px"
-      }}
-    >
-      <h1
-        style={{
-          fontSize: isMobile ? 46 : 64
-        }}
-      >
-        {title}
-      </h1>
+    <div className="generateCard">
+      <div className="generateTop">
+        <div>
+          <div className="tinyTag">CREATIVE STUDIO</div>
+          <h2>Generate content instantly.</h2>
+          <div className="planIndicator">
+            {userPlan === "free"
+              ? freeUsed
+                ? "Free use completed. Choose a plan to continue."
+                : "Create a profile to unlock 1 free use."
+              : "Plan access active."}
+          </div>
+        </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
-          gap: 20
-        }}
-      >
-        {children}
+        <div className="liveBadge">AI Powered</div>
       </div>
-    </main>
-  );
-}
 
-function Card({ title, text }) {
-  return (
-    <div style={cardStyle}>
-      <h3>{title}</h3>
-      <p>{text}</p>
+      <textarea
+        placeholder="Create captions, hashtags, hooks, and branding ideas for my luxury coffee brand..."
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+      />
+
+      <button className="btn dark full" onClick={generate}>
+        {loading ? "Generating..." : "Generate"}
+      </button>
+
+      {result && (
+        <div className="resultBox">
+          <div className="resultTop">
+            <span>BRANDTHAT AI</span>
+            <button onClick={() => navigator.clipboard.writeText(result)}>Copy</button>
+          </div>
+
+          <div className="resultContent">{result}</div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Price({ name, price, items }) {
+function PriceCard({ name, price, desc, features, featured, onClick }) {
   return (
-    <div style={cardStyle}>
-      <h3>{name}</h3>
+    <div className={featured ? "priceCard featuredPrice" : "priceCard"}>
+      <span className="priceTag">{name}</span>
+      <h2>{price}</h2>
+      <div className={featured ? "priceSub white" : "priceSub"}>per month</div>
+      <p>{desc}</p>
 
-      <div
-        style={{
-          fontSize: 38,
-          fontWeight: 800,
-          margin: "20px 0"
-        }}
-      >
-        {price}
+      <div className="priceFeatures">
+        {features.map((feature) => (
+          <div key={feature}>✓ {feature}</div>
+        ))}
       </div>
 
-      {items.map((x) => (
-        <div key={x} style={{ marginBottom: 10 }}>
-          ✓ {x}
-        </div>
-      ))}
-
-      <button
-        style={{
-          ...blackButton,
-          width: "100%",
-          marginTop: 24
-        }}
-      >
-        Choose plan
+      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>
+        Subscribe
       </button>
     </div>
   );
 }
 
-const eyebrow = {
-  fontSize: 12,
-  letterSpacing: 3,
-  color: "#999",
-  marginBottom: 14
-};
-
-const studioCard = {
-  background: "white",
-  padding: 28,
-  borderRadius: 30,
-  boxShadow: "0 10px 40px rgba(0,0,0,0.06)"
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: 14,
-  borderRadius: 14,
-  border: "1px solid rgba(0,0,0,0.1)",
-  marginTop: 8,
-  fontSize: 15,
-  boxSizing: "border-box"
-};
-
-const blackButton = {
-  background: "#111",
-  color: "white",
-  border: "none",
-  borderRadius: 16,
-  padding: "14px 22px",
-  cursor: "pointer",
-  fontWeight: 700
-};
-
-const whiteButton = {
-  background: "white",
-  color: "#111",
-  border: "1px solid rgba(0,0,0,0.1)",
-  borderRadius: 16,
-  padding: "14px 22px",
-  cursor: "pointer",
-  fontWeight: 700
-};
-
-const navButton = {
-  background: "transparent",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: 700,
-  fontSize: 15,
-  color: "#111",
-  textDecoration: "none",
-  appearance: "none",
-  WebkitAppearance: "none"
-};
-
-const cardStyle = {
-  background: "white",
-  borderRadius: 24,
-  padding: 28,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
-};
-
-const outputBox = {
-  marginTop: 24,
-  border: "1px solid rgba(0,0,0,0.08)",
-  borderRadius: 22,
-  padding: 24,
-  background: "#fafafa"
-};
-
-const outputHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 16,
-  marginBottom: 18
-};
-
-const smallButton = {
-  background: "white",
-  color: "#111",
-  border: "1px solid rgba(0,0,0,0.1)",
-  borderRadius: 999,
-  padding: "8px 13px",
-  cursor: "pointer",
-  fontWeight: 700,
-  fontSize: 12
-};
-
-const outputContent = {
-  display: "grid",
-  gap: 12
-};
-
-const outputSection = {
-  background: "white",
-  border: "1px solid rgba(0,0,0,0.06)",
-  borderRadius: 16,
-  padding: 16,
-  whiteSpace: "pre-wrap",
-  lineHeight: 1.8,
-  fontSize: 15,
-  color: "#222"
-};
-
-const freeTryBox = {
-  background: "#f7f1e6",
-  border: "1px solid rgba(150,100,20,.15)",
-  color: "#5f4520",
-  borderRadius: 16,
-  padding: 14,
-  fontSize: 14,
-  marginBottom: 18
-};
-
-const modalOverlay = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,.35)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 9999
-};
-
-const modalCard = {
-  background: "white",
-  borderRadius: 28,
-  padding: 32,
-  boxShadow: "0 30px 80px rgba(0,0,0,.22)"
-};
+const css = `
+*{box-sizing:border-box}
+body{margin:0}
+.app{
+background:#f6f4ef;
+min-height:100vh;
+font-family:Inter,system-ui,sans-serif;
+color:#111;
+overflow-x:hidden
+}
+.nav{
+max-width:1280px;
+margin:0 auto;
+padding:28px 6vw 10px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:20px
+}
+.brand{
+background:none;
+border:none;
+font-size:30px;
+font-weight:900;
+letter-spacing:-.06em;
+cursor:pointer;
+color:#111
+}
+.navLinks{
+display:flex;
+gap:18px;
+flex-wrap:wrap
+}
+.navLinks button{
+background:none;
+border:none;
+font-weight:700;
+cursor:pointer;
+color:#111;
+font-size:15px
+}
+.heroTrialBtn{
+margin-top:28px;
+padding:16px 28px;
+border-radius:999px;
+display:inline-flex;
+align-items:center;
+justify-content:center;
+min-width:190px
+}
+.hero{
+max-width:1280px;
+margin:0 auto;
+padding:38px 6vw 40px
+}
+.heroTop{
+max-width:760px;
+margin-bottom:50px
+}
+.heroTop .btn{
+margin-top:20px;
+display:inline-flex;
+align-items:center;
+justify-content:center;
+padding:16px 24px;
+min-width:180px
+}
+.eyebrow,.tinyTag{
+font-size:11px;
+font-weight:800;
+letter-spacing:2px;
+color:#9b7b3f;
+text-transform:uppercase;
+margin-bottom:12px
+}
+h1{
+font-size:88px;
+line-height:.92;
+letter-spacing:-.07em;
+margin:0 0 24px
+}
+.pageTitle{max-width:820px}
+h2{
+font-size:44px;
+line-height:1;
+letter-spacing:-.05em;
+margin:0
+}
+.toolCard h3,.featureCard h3{
+font-size:24px;
+font-weight:700;
+letter-spacing:-.03em;
+margin:0 0 12px
+}
+.lead{
+font-size:22px;
+line-height:1.7;
+color:#666;
+max-width:620px
+}
+.generateCard,.logoCard,.logoPreviewCard,.signupBox{
+background:white;
+border-radius:38px;
+padding:34px;
+border:1px solid rgba(0,0,0,.08);
+box-shadow:0 30px 90px rgba(0,0,0,.06)
+}
+.generateTop{
+display:flex;
+justify-content:space-between;
+gap:20px;
+margin-bottom:30px
+}
+.liveBadge,.offerBadge{
+background:white;
+border:1px solid rgba(0,0,0,.08);
+padding:14px 18px;
+border-radius:999px;
+font-size:13px;
+font-weight:700;
+height:fit-content
+}
+.planIndicator,.planNotice,.verifyNote{
+margin-top:16px;
+font-size:13px;
+font-weight:700;
+color:#8a6b37
+}
+.planNotice{
+background:white;
+border:1px solid rgba(0,0,0,.08);
+border-radius:18px;
+padding:16px 18px;
+margin-bottom:28px;
+max-width:760px
+}
+textarea,input,select{
+width:100%;
+border-radius:24px;
+border:1px solid rgba(0,0,0,.08);
+padding:20px;
+font-size:16px;
+background:#fafafa;
+font-family:inherit;
+margin-top:12px
+}
+textarea{
+height:170px;
+resize:none
+}
+.logoInputs{
+display:grid;
+grid-template-columns:1fr 220px;
+gap:16px;
+margin:26px 0
+}
+.btn{
+border:none;
+border-radius:18px;
+padding:16px 24px;
+font-weight:800;
+cursor:pointer;
+font-size:15px;
+transition:.2s ease;
+display:inline-flex;
+align-items:center;
+justify-content:center
+}
+.btn:hover{
+transform:translateY(-2px);
+opacity:.96
+}
+.btn.dark{background:#111;color:white}
+.btn.light{background:white;color:#111;border:1px solid rgba(0,0,0,.08)}
+.btn.full{width:100%;margin-top:18px}
+.whiteBtn{background:white;color:#111;border:none}
+.resultBox{
+margin-top:26px;
+background:#fafafa;
+border-radius:24px;
+overflow:hidden;
+border:1px solid rgba(0,0,0,.06)
+}
+.resultTop{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:16px 20px;
+border-bottom:1px solid rgba(0,0,0,.06)
+}
+.resultTop span{
+font-size:12px;
+font-weight:800;
+letter-spacing:2px;
+color:#9b7b3f
+}
+.resultTop button{
+background:white;
+border:1px solid rgba(0,0,0,.08);
+padding:8px 12px;
+border-radius:999px;
+font-weight:700;
+cursor:pointer
+}
+.resultContent{
+padding:24px;
+line-height:1.9;
+white-space:pre-wrap;
+font-size:15px
+}
+.logoPreview{
+min-height:240px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:64px;
+font-weight:900;
+letter-spacing:-.06em;
+border-radius:24px;
+background:#fafafa;
+border:1px solid rgba(0,0,0,.06);
+text-align:center;
+padding:20px
+}
+.logoBottom{margin-top:24px}
+.logoLead,.footerSubscribe p{
+font-size:18px;
+line-height:1.7;
+color:#666;
+margin:18px 0 26px
+}
+.offersSection,.pageSection{
+max-width:1280px;
+margin:0 auto;
+padding:40px 6vw 100px
+}
+.offersTop{
+display:flex;
+justify-content:space-between;
+gap:30px;
+align-items:end;
+margin-bottom:34px
+}
+.toolGrid,.featureGrid,.pricingGrid{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:18px
+}
+.logoPageGrid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:28px;
+align-items:start
+}
+.toolCard,.featureCard,.priceCard{
+position:relative;
+overflow:hidden;
+background:white;
+padding:26px;
+border-radius:28px;
+border:1px solid rgba(0,0,0,.08);
+min-height:180px;
+transition:.25s ease
+}
+.toolCard:hover,.featureCard:hover,.priceCard:hover{
+transform:translateY(-4px);
+box-shadow:0 18px 50px rgba(0,0,0,.06)
+}
+.toolGlow{
+position:absolute;
+top:-80px;
+right:-60px;
+width:180px;
+height:180px;
+background:radial-gradient(circle,#f0dfb5,transparent 70%);
+opacity:.8
+}
+.toolCard p,.featureCard p,.priceCard p{
+color:#666;
+line-height:1.7;
+position:relative;
+z-index:2
+}
+.priceTag{
+font-size:11px;
+font-weight:800;
+letter-spacing:2px;
+color:#9b7b3f
+}
+.priceSub{
+margin-top:-8px;
+margin-bottom:28px;
+font-size:15px;
+color:#777
+}
+.priceSub.white{color:rgba(255,255,255,.7)}
+.priceFeatures{
+display:flex;
+flex-direction:column;
+gap:14px;
+margin-top:30px
+}
+.priceFeatures div{
+padding-bottom:14px;
+border-bottom:1px solid rgba(0,0,0,.06);
+line-height:1.6;
+font-size:15px
+}
+.featuredPrice{
+background:#111;
+color:white
+}
+.featuredPrice p{color:rgba(255,255,255,.7)}
+.featuredPrice .priceFeatures div{border-bottom:1px solid rgba(255,255,255,.08)}
+.footerSubscribe{
+max-width:1280px;
+margin:0 auto;
+padding:60px 6vw 90px;
+border-top:1px solid rgba(0,0,0,.08);
+display:grid;
+grid-template-columns:1fr 420px;
+gap:40px;
+align-items:start
+}
+.footerForm{
+background:white;
+border-radius:28px;
+padding:28px;
+border:1px solid rgba(0,0,0,.08);
+display:flex;
+flex-direction:column;
+gap:18px
+}
+.footerForm input{
+margin-top:0
+}
+.footerForm .btn{
+margin-top:8px;
+width:100%;
+display:flex;
+align-items:center;
+justify-content:center;
+padding:16px 24px
+}
+.footerForm span{
+display:block;
+margin-top:14px;
+font-weight:700;
+color:#8a6b37
+}
+.modal{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.35);
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+z-index:2000
+}
+.signupBox{
+max-width:460px;
+width:100%
+}
+.signupBox p{
+color:#666;
+line-height:1.7
+}
+.chatButton{
+position:fixed;
+bottom:24px;
+right:24px;
+background:#111;
+color:white;
+border:none;
+padding:16px 22px;
+border-radius:999px;
+font-weight:800;
+cursor:pointer;
+box-shadow:0 18px 40px rgba(0,0,0,.18);
+z-index:1000
+}
+.chatWidget{
+position:fixed;
+bottom:90px;
+right:24px;
+width:340px;
+background:white;
+border-radius:28px;
+overflow:hidden;
+border:1px solid rgba(0,0,0,.08);
+box-shadow:0 30px 80px rgba(0,0,0,.12);
+z-index:1000
+}
+.chatHeader{
+padding:20px;
+border-bottom:1px solid rgba(0,0,0,.06)
+}
+.chatHeader strong{display:block;margin-bottom:6px}
+.chatHeader span{font-size:14px;color:#666}
+.chatBody{
+padding:18px;
+display:flex;
+flex-direction:column;
+gap:12px
+}
+.chatBubble{
+background:#111;
+color:white;
+padding:14px 16px;
+border-radius:18px;
+line-height:1.6;
+font-size:14px
+}
+.chatBubble.light{
+background:#f5f5f5;
+color:#111
+}
+@media(max-width:1100px){
+.toolGrid,.featureGrid,.pricingGrid{grid-template-columns:repeat(2,1fr)}
+.footerSubscribe{grid-template-columns:1fr}
+}
+@media(max-width:820px){
+h1{font-size:52px}
+h2{font-size:36px}
+.nav{
+flex-direction:column;
+gap:18px;
+padding:24px 20px 8px
+}
+.navLinks{justify-content:center}
+.hero,.offersSection,.pageSection,.footerSubscribe{
+padding-left:20px;
+padding-right:20px
+}
+.hero{
+padding-top:28px
+}
+.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs{
+grid-template-columns:1fr
+}
+.offersTop,.generateTop{
+flex-direction:column;
+align-items:flex-start
+}
+textarea{height:150px}
+.chatWidget{
+width:calc(100vw - 40px);
+right:20px;
+bottom:84px
+}
+.logoPreview{
+font-size:40px;
+min-height:180px
+}
+}
+`;
