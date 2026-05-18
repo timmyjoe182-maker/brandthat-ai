@@ -1,1 +1,19 @@
-{"name":"brandthat-ai","version":"1.0.0","private":true,"scripts":{"dev":"vite","build":"vite build","preview":"vite preview"},"dependencies":{"@supabase/supabase-js": "^2.49.8","openai":"^4.0.0","@vitejs/plugin-react":"latest","vite":"latest","react":"latest","react-dom":"latest",},"devDependencies":{}}
+{
+  "name": "brandthat-ai",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "@vitejs/plugin-react": "latest",
+    "openai": "^4.0.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest"
+  }
+}
