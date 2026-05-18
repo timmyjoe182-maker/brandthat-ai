@@ -1,0 +1,1 @@
+{"name":"brandthat-ai","version":"1.0.0","private":true,"scripts":{"dev":"vite","build":"vite build","preview":"vite preview"},"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","react":"latest","react-dom":"latest","openai":"latest"},"devDependencies":{}}
