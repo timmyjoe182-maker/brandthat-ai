@@ -325,7 +325,7 @@ export default function BrandThatAI() {
         display: "grid",
         gap: 14
       }}
-    >
+    >{caption && (
       {caption
         .split(/\n\s*\n/)
         .filter(Boolean)
@@ -355,7 +355,7 @@ export default function BrandThatAI() {
     </div>
   </div>
 )}
-
+)}
   const inputStyle = {
     width: "100%",
     border: "1px solid rgba(0,0,0,.10)",
