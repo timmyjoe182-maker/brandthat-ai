@@ -1,7 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
   <url>
     <loc>https://brandthat.ai/</loc>
     <priority>1.0</priority>
   </url>
+
+  <url>
+    <loc>https://brandthat.ai/ai-logo-generator</loc>
+    <priority>0.95</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/instagram-caption-generator</loc>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/tiktok-hook-generator</loc>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/brand-bio-generator</loc>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/social-strategy-generator</loc>
+    <priority>0.85</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/hashtag-generator</loc>
+    <priority>0.85</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/email-copy-generator</loc>
+    <priority>0.85</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/brand-creation-generator</loc>
+    <priority>0.85</priority>
+  </url>
+
 </urlset>
