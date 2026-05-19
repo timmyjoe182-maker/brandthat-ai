@@ -984,7 +984,7 @@ ${prompt}`
         </div>
       </footer>
 
-      {showAuth && (
+            {showAuth && (
         <div className="modal">
           <div className="signupBox">
             <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
@@ -1001,7 +1001,9 @@ ${prompt}`
           </div>
         </div>
       )}
-     }
+    </div>
+  );
+}
 
 function getSystemCardText(item) {
   const copy = {
