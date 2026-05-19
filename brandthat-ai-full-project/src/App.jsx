@@ -104,7 +104,6 @@ export default function App() {
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
-  const [visitorFreeCount, setVisitorFreeCount] = useState(getStoredNumber("brandthat_visitor_free_count", 0));
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
 
   const [showAuth, setShowAuth] = useState(false);
@@ -117,7 +116,7 @@ export default function App() {
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
 
-  const [activeToolKey, setActiveToolKey] = useState("captions");
+  const [activeToolKey, setActiveToolKey] = useState("logo");
   const activeTool = toolMap[activeToolKey] || tools[0];
   const [selectedPlatform, setSelectedPlatform] = useState(activeTool.platforms[0]);
   const [creativeTone, setCreativeTone] = useState("Professional");
@@ -128,8 +127,7 @@ export default function App() {
 
   const [chatOpen, setChatOpen] = useState(false);
 
-  const visitorRemaining = Math.max(0, 3 - visitorFreeCount);
-  const dailyRemaining = Math.max(0, 10 - dailyFreeCount);
+  const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -160,7 +158,7 @@ export default function App() {
   const openTrialSignup = () => {
     setAuthMode("signup");
     setSelectedPlan("free");
-    setAuthMessage("Create a free account to continue. Free accounts get 10 generations per day.");
+    setAuthMessage("Try free now. Create a free account and get 1 free generation per day.");
     setShowAuth(true);
   };
 
@@ -241,11 +239,6 @@ export default function App() {
     setSubscribeEmail("");
   };
 
-  const incrementVisitorFreeUse = () => {
-    const newCount = visitorFreeCount + 1;
-    localStorage.setItem("brandthat_visitor_free_count", String(newCount));
-    setVisitorFreeCount(newCount);
-  };
 
   const incrementDailyFreeUse = () => {
     const today = getTodayKey();
@@ -330,31 +323,25 @@ Rules:
       return;
     }
 
-    if (!user && visitorFreeCount >= 3) {
+    if (!user) {
       openTrialSignup();
-      setResult("You’ve used your 3 free generations. Create a free account to keep going.");
+      setResult("Try free now. Create a free account and get 1 free generation per day.");
       return;
     }
 
-    if (user && userPlan === "free" && dailyFreeCount >= 10) {
+    if (userPlan === "free" && dailyFreeCount >= 1) {
       setPage("pricing");
-      setResult("You’ve reached your 10 free generations for today. Upgrade for unlimited access.");
+      setResult("You’ve used your free generation for today. Upgrade to Starter or Pro for unlimited access.");
+      return;
+    }
+
+    if (activeToolKey === "logo" && userPlan === "starter") {
+      setPage("pricing");
+      setResult("Logo image generation is included with Pro. Starter includes unlimited access to every other generator.");
       return;
     }
 
     if (activeToolKey === "logo") {
-      if (!user) {
-        openTrialSignup();
-        setResult("Create an account to use the AI Logo Generator. Pro includes unlimited logo image generations.");
-        return;
-      }
-
-      if (userPlan !== "pro") {
-        setPage("pricing");
-        setResult("AI Logo Generator is included with Pro. Starter includes unlimited generations for every other tool.");
-        return;
-      }
-
       setLoading(true);
       setResult("");
       setLogoImage("");
@@ -381,6 +368,9 @@ Rules:
         setLogoImage(data.image);
         setResult("Your logo image has been generated. Use the download button to save it.");
 
+        if (userPlan === "free") {
+          incrementDailyFreeUse();
+        }
       } catch (error) {
         setResult("Something went wrong creating the logo image. Please try again.");
       }
@@ -406,9 +396,7 @@ ${prompt}`
       const data = await response.json();
       setResult(data.text || "No response generated.");
 
-      if (!user) {
-        incrementVisitorFreeUse();
-      } else if (userPlan === "free") {
+      if (userPlan === "free") {
         incrementDailyFreeUse();
       }
     } catch (error) {
@@ -463,7 +451,7 @@ ${prompt}`
         <div className="navLinks">
           <button onClick={() => setPage("features")}>Features</button>
           <button onClick={() => setPage("pricing")}>Pricing</button>
-          <button onClick={() => { setActiveToolKey("captions"); setPage("studio"); }}>Studio</button>
+          <button onClick={() => { setActiveToolKey("logo"); setPage("logo"); }}>Studio</button>
           <button onClick={() => selectTool("logo")}>AI Logo Generator</button>
         </div>
 
@@ -478,11 +466,15 @@ ${prompt}`
         <>
           <main className="hero">
             <div className="heroTop">
-              <div className="eyebrow">AI CREATIVE STUDIO</div>
-              <h1>Your AI creative partner for every post.</h1>
-              <p className="lead">Generate captions, hashtags, launch ideas, bios, emails, logos, and social media direction — all in one workspace.</p>
+              <div className="eyebrow">AI LOGO GENERATOR</div>
+              <h1>Create a modern logo in seconds.</h1>
+              <p className="lead">Brandthat.ai creates premium logo images first — plus captions, hashtags, bios, hooks, emails, strategy, and brand creation tools.</p>
+              <div className="heroActions">
+                <button className="btn dark" onClick={() => selectTool("logo")}>Try free now</button>
+                <button className="btn light" onClick={() => setPage("pricing")}>View plans</button>
+              </div>
               <div className="freeStrip">
-                {!user ? `${visitorRemaining} free generations left before signup` : userPlan === "free" ? `${dailyRemaining} free generations left today` : "Unlimited premium access active"}
+                {!user ? "Try free now — create a free account for 1 generation daily" : userPlan === "free" ? `${dailyRemaining} free generation left today` : "Unlimited premium access active"}
               </div>
             </div>
 
@@ -499,7 +491,6 @@ ${prompt}`
               result={result}
               user={user}
               userPlan={userPlan}
-              visitorRemaining={visitorRemaining}
               dailyRemaining={dailyRemaining}
               copyToClipboard={copyToClipboard}
               shareOutput={shareOutput}
@@ -533,7 +524,7 @@ ${prompt}`
       {page === "pricing" && (
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
-          <h1 className="pageTitle">Choose the plan that fits your workflow.</h1>
+          <h1 className="pageTitle">Start free, then upgrade when you’re ready.</h1>
           <div className="pricingGrid">
             <PriceCard
               name="STARTER"
@@ -555,7 +546,7 @@ ${prompt}`
               name="PRO"
               price="$20"
               featured
-              desc="Full access to everything, including unlimited AI logo image generations."
+              desc="Full access to everything, including unlimited AI logo image generations every month."
               features={[
                 "Everything in Starter",
                 "Unlimited AI logo image generations",
@@ -589,7 +580,6 @@ ${prompt}`
             result={result}
             user={user}
             userPlan={userPlan}
-            visitorRemaining={visitorRemaining}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -603,11 +593,12 @@ ${prompt}`
         <section className="pageSection" id="brandthat-generator">
           <div className="tinyTag">AI LOGO GENERATOR</div>
           <h1 className="pageTitle">Create modern logo concepts instantly.</h1>
-          <p className="pageLead">Type a word, sentence, or paragraph describing the logo you want. Brandthat will generate a modern logo direction, palette, typography, and image prompt.</p>
+          <p className="pageLead">Type a word, sentence, or paragraph describing the logo you want. Brandthat will create a modern logo image you can download.</p>
 
           <div className="planNotice">
-            {!user && "Create an account to unlock plans. Pro includes unlimited logo image generations."}
-            {user && userPlan !== "pro" && "AI Logo Generator is included with Pro. Starter unlocks unlimited generations for every other tool."}
+            {!user && "Try free now — create a free account for 1 free generation daily."}
+            {user && userPlan === "free" && `${dailyRemaining} free generation left today.`}
+            {user && userPlan === "starter" && "Logo image generation is included with Pro. Starter unlocks unlimited access to every other generator."}
             {user && userPlan === "pro" && "Pro access active — unlimited logo image generations."}
           </div>
 
@@ -624,7 +615,6 @@ ${prompt}`
             result={result}
             user={user}
             userPlan={userPlan}
-            visitorRemaining={visitorRemaining}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -642,7 +632,7 @@ ${prompt}`
         </div>
         <div className="footerForm">
           <input placeholder="Enter your email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
-          <button className="btn dark" onClick={subscribe}>Subscribe</button>
+          <button className="btn dark" onClick={subscribe}>Try free now</button>
           {subscribeMessage && <span>{subscribeMessage}</span>}
         </div>
       </footer>
@@ -652,7 +642,7 @@ ${prompt}`
           <div className="signupBox">
             <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
             <h2>{authMode === "signup" ? "Start using Brandthat." : "Welcome back."}</h2>
-            <p>{authMode === "signup" ? "Create your free account to continue generating. Free accounts get 10 generations per day." : "Log in to continue using your Brandthat account."}</p>
+            <p>{authMode === "signup" ? "Try free now. Create your free account and get 1 free generation per day." : "Log in to continue using your Brandthat account."}</p>
             <input placeholder="Email address" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
             <input placeholder="Password" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
             <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>{loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button>
@@ -671,7 +661,7 @@ ${prompt}`
           <div className="chatHeader"><strong>Brandthat AI</strong><span>Need help getting started?</span></div>
           <div className="chatBody">
             <div className="chatBubble">Click any tool card to open the exact generator for that task.</div>
-            <div className="chatBubble light">3 free generations before signup.<br />Free accounts get 10 daily generations.<br />Paid plans unlock premium access.</div>
+            <div className="chatBubble light">Try free now with 1 free generation daily.<br />Starter unlocks unlimited text tools.<br />Pro unlocks unlimited logo images too.</div>
           </div>
         </div>
       )}
@@ -682,7 +672,7 @@ ${prompt}`
 function ToolGrid({ activeToolKey, selectTool }) {
   return (
     <div className="toolGrid">
-      {tools.map((tool) => (
+      {[toolMap.logo, ...tools.filter((tool) => tool.key !== "logo")].map((tool) => (
         <button
           className={activeToolKey === tool.key ? "toolCard activeTool" : "toolCard"}
           key={tool.key}
@@ -711,7 +701,6 @@ function GeneratorCard({
   result,
   user,
   userPlan,
-  visitorRemaining,
   dailyRemaining,
   copyToClipboard,
   shareOutput,
@@ -725,7 +714,7 @@ function GeneratorCard({
           <div className="tinyTag">{activeTool.label}</div>
           <h2>{activeTool.title}</h2>
           <div className="planIndicator">
-            {!user ? `${visitorRemaining} free generations remaining` : userPlan === "free" ? `${dailyRemaining} free generations left today` : "Unlimited premium access active"}
+            {!user ? "Try free now" : userPlan === "free" ? `${dailyRemaining} free generation left today` : "Unlimited premium access active"}
           </div>
         </div>
         <div className="liveBadge">AI Powered</div>
@@ -786,7 +775,7 @@ function PriceCard({ name, price, desc, features, featured, onClick }) {
       <div className={featured ? "priceSub white" : "priceSub"}>per month</div>
       <p>{desc}</p>
       <div className="priceFeatures">{features.map((feature) => <div key={feature}>✓ {feature}</div>)}</div>
-      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>Subscribe</button>
+      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>Try free now</button>
     </div>
   );
 }
@@ -809,7 +798,7 @@ h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .toolCard h3,.featureCard h3{font-size:24px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
-.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
+.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:16px}.heroActions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 0}
 .generateCard,.logoCard,.logoPreviewCard,.signupBox{background:white;border-radius:38px;padding:34px;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 90px rgba(0,0,0,.06)}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:26px}
 .liveBadge,.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
