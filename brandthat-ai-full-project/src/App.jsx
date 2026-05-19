@@ -232,7 +232,7 @@ export default function App() {
     description: "",
     audience: "",
     tone: "Modern",
-    style: "Black-and-white, modern, premium",
+    style: "",
     launchGoal: "",
   });
 
@@ -798,7 +798,7 @@ ${prompt}`
               <h1>Build your brand with AI.</h1>
               <p className="lead">Start with a logo, save your brand direction, then create captions, hooks, bios, launch copy, and strategy around one real brand workspace.</p>
               <div className="freeStrip">
-                {!user ? "Start your free Brand Workspace" : isFree ? `${dailyRemaining} free brand generation left today` : `${userPlan.toUpperCase()} workspace active`}
+                {!user ? "Start your free Brand Workspace" : `${userPlan.toUpperCase()} workspace active`}
               </div>
               <div className="heroCtas">
                 <button className="btn dark" onClick={() => setPage("workspace")}>Start Your Free Brand Workspace</button>
@@ -1070,11 +1070,27 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace }
           value={workspaceDraft.audience}
           onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
         />
-        <input
-          placeholder="Visual style"
+        <select
           value={workspaceDraft.style}
           onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, style: e.target.value })}
-        />
+        >
+          <option value="">Select Brand Style</option>
+          <option value="Modern Minimal">Modern Minimal</option>
+          <option value="Luxury">Luxury</option>
+          <option value="Bold Startup">Bold Startup</option>
+          <option value="Corporate">Corporate</option>
+          <option value="Playful">Playful</option>
+          <option value="Tech">Tech</option>
+          <option value="Elegant">Elegant</option>
+          <option value="Organic">Organic</option>
+          <option value="Streetwear">Streetwear</option>
+          <option value="Futuristic">Futuristic</option>
+          <option value="Black and White">Black and White</option>
+          <option value="Premium Editorial">Premium Editorial</option>
+          <option value="Rustic">Rustic</option>
+          <option value="Creative Agency">Creative Agency</option>
+          <option value="Luxury Fashion">Luxury Fashion</option>
+        </select>
       </div>
 
       <input
