@@ -1001,8 +1001,7 @@ ${prompt}`
           </div>
         </div>
       )}
-
-}
+     }
 
 function getSystemCardText(item) {
   const copy = {
