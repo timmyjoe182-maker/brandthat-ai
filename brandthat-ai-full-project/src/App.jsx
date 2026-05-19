@@ -343,6 +343,18 @@ Rules:
     }
 
     if (activeToolKey === "logo") {
+      if (!user) {
+        openTrialSignup();
+        setResult("Create an account to use the AI Logo Generator. Pro includes unlimited logo image generations.");
+        return;
+      }
+
+      if (userPlan !== "pro") {
+        setPage("pricing");
+        setResult("AI Logo Generator is included with Pro. Starter includes unlimited generations for every other tool.");
+        return;
+      }
+
       setLoading(true);
       setResult("");
       setLogoImage("");
@@ -369,11 +381,6 @@ Rules:
         setLogoImage(data.image);
         setResult("Your logo image has been generated. Use the download button to save it.");
 
-        if (!user) {
-          incrementVisitorFreeUse();
-        } else if (userPlan === "free") {
-          incrementDailyFreeUse();
-        }
       } catch (error) {
         setResult("Something went wrong creating the logo image. Please try again.");
       }
@@ -531,24 +538,34 @@ ${prompt}`
             <PriceCard
               name="STARTER"
               price="$10"
-              desc="Unlimited AI generations for captions, hashtags, bios, hooks, and simple social ideas."
-              features={["Unlimited AI generations", "Captions & hashtags", "Brand bios", "On-video hooks", "Simple social ideas", "No AI Logo Generator"]}
+              desc="Unlimited generations for every Brandthat tool except the AI logo image generator."
+              features={[
+                "Unlimited captions",
+                "Unlimited hashtags",
+                "Unlimited brand bios",
+                "Unlimited on-video hooks",
+                "Unlimited email copy",
+                "Unlimited social strategy",
+                "Unlimited brand creation",
+                "Logo image generator not included"
+              ]}
               onClick={() => openPlanSignup("starter")}
             />
             <PriceCard
               name="PRO"
               price="$20"
               featured
-              desc="Everything in Starter plus unlimited AI Logo Generator and premium creative outputs."
-              features={["Unlimited AI generations", "Unlimited AI Logo Generator", "Brand creation tools", "Premium creative outputs", "Launch & campaign ideas", "Social strategy"]}
+              desc="Full access to everything, including unlimited AI logo image generations."
+              features={[
+                "Everything in Starter",
+                "Unlimited AI logo image generations",
+                "Modern logo image creation",
+                "Premium creative outputs",
+                "Brand creation tools",
+                "Social strategy",
+                "Best value for creators and businesses"
+              ]}
               onClick={() => openPlanSignup("pro")}
-            />
-            <PriceCard
-              name="STUDIO"
-              price="$50"
-              desc="Built for agencies, studios, and brands needing client-ready creative systems."
-              features={["Everything in Pro", "Agency-level workflows", "Brand system generation", "Premium export layouts", "Client-ready presentations", "Future white-label access", "Early access to new AI tools"]}
-              onClick={() => openPlanSignup("studio")}
             />
           </div>
         </section>
@@ -589,9 +606,9 @@ ${prompt}`
           <p className="pageLead">Type a word, sentence, or paragraph describing the logo you want. Brandthat will generate a modern logo direction, palette, typography, and image prompt.</p>
 
           <div className="planNotice">
-            {!user && `${visitorRemaining} free generations remaining before signup.`}
-            {user && userPlan === "free" && `${dailyRemaining} free generations left today.`}
-            {user && userPlan !== "free" && "Premium logo generation access active."}
+            {!user && "Create an account to unlock plans. Pro includes unlimited logo image generations."}
+            {user && userPlan !== "pro" && "AI Logo Generator is included with Pro. Starter unlocks unlimited generations for every other tool."}
+            {user && userPlan === "pro" && "Pro access active — unlimited logo image generations."}
           </div>
 
           <GeneratorCard
@@ -825,7 +842,8 @@ textarea{height:180px;resize:none;line-height:1.6}
 .logoLead,.footerSubscribe p{font-size:18px;line-height:1.7;color:#666;margin:18px 0 26px}
 .offersSection,.pageSection{max-width:1280px;margin:0 auto;padding:40px 6vw 100px}
 .offersTop{display:flex;justify-content:space-between;gap:30px;align-items:end;margin-bottom:34px}
-.toolGrid,.featureGrid,.pricingGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.toolGrid,.featureGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.pricingGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;max-width:900px}
 .logoPageGrid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
 .toolCard,.featureCard,.priceCard{position:relative;overflow:hidden;background:white;padding:26px;border-radius:28px;border:1px solid rgba(0,0,0,.08);min-height:180px;transition:.25s ease;text-align:left;color:#111;font-family:inherit;cursor:pointer}
 .toolCard:hover,.featureCard:hover,.priceCard:hover,.activeTool{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
@@ -856,6 +874,6 @@ textarea{height:180px;resize:none;line-height:1.6}
 .chatBody{padding:18px;display:flex;flex-direction:column;gap:12px}
 .chatBubble{background:#111;color:white;padding:14px 16px;border-radius:18px;line-height:1.6;font-size:14px}
 .chatBubble.light{background:#f5f5f5;color:#111}
-@media(max-width:1100px){.toolGrid,.featureGrid,.pricingGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{flex-direction:column;gap:18px;padding:24px 20px 8px}.navLinks{justify-content:center}.hero,.offersSection,.pageSection,.footerSubscribe{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs,.generatorButtons{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}}
+@media(max-width:1100px){.toolGrid,.featureGrid{grid-template-columns:repeat(2,1fr)}.pricingGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{display:grid;grid-template-columns:1fr auto;gap:14px;padding:20px}.brand{grid-column:1;grid-row:1;justify-self:start}.accountBtn{grid-column:2;grid-row:1;justify-self:end;padding:10px 14px;font-size:14px}.navLinks{grid-column:1 / -1;grid-row:2;justify-content:flex-start;gap:12px}.hero,.offersSection,.pageSection,.footerSubscribe{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs,.generatorButtons{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}}
 `;
