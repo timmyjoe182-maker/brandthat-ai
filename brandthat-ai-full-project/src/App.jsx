@@ -314,6 +314,49 @@ export default function App() {
     setShowAuth(true);
   };
 
+  const startCheckout = async (plan) => {
+    const { data } = await supabase.auth.getUser();
+    const currentUser = data?.user || user;
+
+    if (!currentUser?.email) {
+      setAuthMode("login");
+      setSelectedPlan(plan);
+      setAuthMessage("Please log in first, then choose a plan.");
+      setShowAuth(true);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/.netlify/functions/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          plan,
+          email: currentUser.email
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Checkout failed.");
+        setLoading(false);
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      alert("Checkout failed. Please try again.");
+    }
+
+    setLoading(false);
+  };
+
+
   const signUp = async () => {
     if (!authEmail || !authPassword) {
       setAuthMessage("Please enter your email and create a password.");
@@ -672,24 +715,17 @@ ${prompt}`
             <PriceCard
               name="STARTER"
               price="$10"
-              desc="Unlimited AI generations for captions, hashtags, bios, hooks, and simple social ideas."
-              features={["Unlimited AI generations", "Captions & hashtags", "Brand bios", "On-video hooks", "Simple social ideas", "No AI Logo Generator"]}
-              onClick={() => openPlanSignup("starter")}
+              desc="Unlimited AI generations for captions, hashtags, bios, hooks, email copy, social strategy, and brand creation. Logo image generation is not included."
+              features={["Unlimited text generations", "Captions & hashtags", "Brand bios", "On-video hooks", "Email copy", "Social strategy", "Brand creation", "No AI logo image generation"]}
+              onClick={() => startCheckout("starter")}
             />
             <PriceCard
               name="PRO"
               price="$20"
               featured
-              desc="Everything in Starter plus unlimited AI Logo Generator and premium creative outputs."
-              features={["Unlimited AI generations", "Unlimited AI Logo Generator", "Brand creation tools", "Premium creative outputs", "Launch & campaign ideas", "Social strategy"]}
-              onClick={() => openPlanSignup("pro")}
-            />
-            <PriceCard
-              name="STUDIO"
-              price="$50"
-              desc="Built for agencies, studios, and brands needing client-ready creative systems."
-              features={["Everything in Pro", "Agency-level workflows", "Brand system generation", "Premium export layouts", "Client-ready presentations", "Future white-label access", "Early access to new AI tools"]}
-              onClick={() => openPlanSignup("studio")}
+              desc="Everything in Starter plus unlimited AI logo image generations and premium creative outputs."
+              features={["Everything in Starter", "Unlimited AI logo image generation", "Logo concepts & visual identity", "Premium creative outputs", "Launch & campaign ideas", "Social strategy"]}
+              onClick={() => startCheckout("pro")}
             />
           </div>
         </section>
