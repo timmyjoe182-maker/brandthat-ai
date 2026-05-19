@@ -14,6 +14,7 @@
     "openai": "^4.0.0",
     "react": "latest",
     "react-dom": "latest",
+    "stripe": "^17.5.0",
     "vite": "latest"
   }
 }
