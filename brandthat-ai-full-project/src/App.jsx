@@ -80,126 +80,154 @@ const tools = [
     platformLabel: "Logo style",
     platforms: ["Modern Minimal", "Luxury Wordmark", "Bold Monogram", "Editorial Serif", "Clean Tech", "Founder Brand", "Beauty / Wellness", "Restaurant / Hospitality", "Real Estate", "Social Media Icon"],
     placeholder: "Example: Brandthat.ai, a black-and-white AI creative studio for modern creators and brands.",
-    promptGuide: "Create an actual modern logo image based on the user's brand name, word, sentence, or paragraph. The logo should feel premium, modern, clean, and ready for a website, social profile, or brand kit."
+    promptGuide: "Create a real modern logo image plus brand-ready logo direction. The user can type a word, sentence, or paragraph describing the logo they want."
   }
 ];
-
-
-
-const seoPages = [
-  {
-    slug: "/ai-logo-generator",
-    toolKey: "logo",
-    title: "AI Logo Generator",
-    metaTitle: "AI Logo Generator | Create Premium Logos Instantly | Brandthat.ai",
-    metaDescription: "Create modern AI logo images for startups, creators, products, and businesses with Brandthat.ai.",
-    h1: "AI Logo Generator for modern brands.",
-    intro: "Create premium logo images from a word, sentence, or full brand idea. Built for creators, startups, local businesses, and agencies that need clean brand-ready visuals fast.",
-    examples: ["Minimal black-and-white logo for a skincare brand", "Modern monogram for a real estate team", "Premium AI startup logo with clean typography"],
-    faqs: [
-      ["Can Brandthat create actual logo images?", "Yes. The logo generator creates a downloadable logo image based on your brand name, style, and description."],
-      ["Who is this for?", "Founders, creators, agencies, product brands, local businesses, and anyone building a modern brand."],
-      ["Can I use it for social profiles?", "Yes. The output is designed to work as a website logo, social profile image, or brand direction concept."]
-    ]
-  },
-  {
-    slug: "/instagram-caption-generator",
-    toolKey: "captions",
-    title: "Instagram Caption Generator",
-    metaTitle: "AI Instagram Caption Generator | Brandthat.ai",
-    metaDescription: "Generate polished Instagram captions, hooks, CTAs, and content options for your brand or business.",
-    h1: "AI Instagram Caption Generator.",
-    intro: "Write better captions for Reels, carousels, launches, behind-the-scenes posts, and brand storytelling without sounding generic.",
-    examples: ["Caption for a luxury coffee launch", "Caption for a ranch animal Reel", "Caption for a wedding photography preview"],
-    faqs: [["Does it write multiple caption options?", "Yes. It can create short, polished, hook-driven, and CTA captions."], ["Can I choose tone?", "Yes. Select from professional, modern, luxury, witty, viral, and more."]]
-  },
-  {
-    slug: "/tiktok-hook-generator",
-    toolKey: "hooks",
-    title: "TikTok Hook Generator",
-    metaTitle: "AI TikTok Hook Generator | Brandthat.ai",
-    metaDescription: "Generate short, scroll-stopping TikTok and Reel hooks for brands, creators, and businesses.",
-    h1: "AI TikTok Hook Generator.",
-    intro: "Turn a simple video idea into strong 1-second, 3-second, and 5-second hooks that help people stop scrolling.",
-    examples: ["Hook for a before-and-after brand reveal", "Hook for a funny animal video", "Hook for a product launch Reel"],
-    faqs: [["Are the hooks short enough for video?", "Yes. They are written for fast on-video text and spoken intros."], ["Does it work for Instagram Reels too?", "Yes. Choose TikTok, Reels, Shorts, or general short video."]]
-  },
-  {
-    slug: "/hashtag-generator",
-    toolKey: "hashtags",
-    title: "AI Hashtag Generator",
-    metaTitle: "AI Hashtag Generator for Instagram, TikTok & Social | Brandthat.ai",
-    metaDescription: "Generate hashtag sets grouped by niche, reach, audience, location, and social platform.",
-    h1: "AI Hashtag Generator for reach-focused posting.",
-    intro: "Type any word, topic, or sentence and Brandthat will generate organized hashtag sets for your selected platform.",
-    examples: ["Hashtags for luxury ranch content", "Hashtags for skincare launch", "Hashtags for local real estate brand"],
-    faqs: [["Does it group hashtags?", "Yes. It groups hashtags by niche, broad reach, audience, location, and viral potential."], ["Can I use it for TikTok?", "Yes. Choose TikTok or any supported platform."]]
-  },
-  {
-    slug: "/brand-bio-generator",
-    toolKey: "bios",
-    title: "AI Brand Bio Generator",
-    metaTitle: "AI Brand Bio Generator | Instagram, TikTok, LinkedIn & Website Bios",
-    metaDescription: "Create polished brand bios for creators, small businesses, startups, and social profiles.",
-    h1: "AI Brand Bio Generator.",
-    intro: "Create professional bios for Instagram, TikTok, LinkedIn, websites, and business profiles that clearly communicate what your brand does.",
-    examples: ["Bio for a luxury ranch brand", "Bio for a creator agency", "Bio for a premium local business"],
-    faqs: [["Can it write different bio lengths?", "Yes. It can create short, polished, platform-ready versions."], ["Is it only for creators?", "No. It works for businesses, founders, agencies, and product brands."]]
-  },
-  {
-    slug: "/email-copy-generator",
-    toolKey: "email",
-    title: "AI Email Copy Generator",
-    metaTitle: "AI Email Copy Generator | Launch Emails, Promos & Newsletters",
-    metaDescription: "Generate email subject lines, preview text, body copy, CTAs, newsletters, and team updates.",
-    h1: "AI Email Copy Generator.",
-    intro: "Create complete, copy-and-paste email drafts for launches, promos, newsletters, team updates, announcements, and client outreach.",
-    examples: ["Email announcing a new logo generator", "Promo email for a product launch", "Team update for a new campaign"],
-    faqs: [["Does it include subject lines?", "Yes. It includes subject lines, preview text, body copy, and CTA."], ["Can it write professional emails?", "Yes. Choose professional, direct, premium, friendly, or other tones."]]
-  },
-  {
-    slug: "/social-strategy-generator",
-    toolKey: "strategy",
-    title: "AI Social Strategy Generator",
-    metaTitle: "AI Social Strategy Generator | Instagram, TikTok, LinkedIn & More",
-    metaDescription: "Generate social media strategy, content pillars, posting ideas, hooks, cadence, and growth tactics.",
-    h1: "AI Social Strategy Generator.",
-    intro: "Get a practical content direction for your brand based on your platform, niche, goals, and audience.",
-    examples: ["Instagram strategy for a ranch brand", "TikTok strategy for a beauty startup", "LinkedIn strategy for an agency"],
-    faqs: [["Does it give content pillars?", "Yes. It includes content pillars, posting ideas, cadence, and next steps."], ["Can it work for one platform?", "Yes. Select Instagram, TikTok, LinkedIn, Facebook, Pinterest, X, or multi-platform."]]
-  },
-  {
-    slug: "/brand-name-generator",
-    toolKey: "brand",
-    title: "AI Brand Name Generator",
-    metaTitle: "AI Brand Name Generator | Create Names, Taglines & Positioning",
-    metaDescription: "Generate brand names, taglines, positioning, voice, visual direction, and launch ideas.",
-    h1: "AI Brand Name Generator and brand creation tool.",
-    intro: "Describe the brand you want to build and Brandthat will generate names, taglines, positioning, audience direction, visual style, and launch ideas.",
-    examples: ["Brand name for an AI studio", "Name for a luxury coffee company", "Brand direction for a creator business"],
-    faqs: [["Does it only generate names?", "No. It also creates positioning, tagline ideas, audience, voice, and visual direction."], ["Can I paste a full brand idea?", "Yes. You can type a word, sentence, or paragraph."]]
-  }
-];
-
-function getInitialSeoPage() {
-  if (typeof window === "undefined") return null;
-  const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
-  return seoPages.find((page) => page.slug === currentPath) || null;
-}
-
-function setPageMeta(title, description) {
-  if (typeof document === "undefined") return;
-  document.title = title;
-  let meta = document.querySelector('meta[name="description"]');
-  if (!meta) {
-    meta = document.createElement("meta");
-    meta.setAttribute("name", "description");
-    document.head.appendChild(meta);
-  }
-  meta.setAttribute("content", description);
-}
 
 const toolMap = Object.fromEntries(tools.map((tool) => [tool.key, tool]));
+
+const seoPages = {
+  logo: {
+    path: "/ai-logo-generator",
+    toolKey: "logo",
+    eyebrow: "AI LOGO GENERATOR",
+    title: "AI Logo Generator for Modern Brands, Creators, and Startups",
+    metaTitle: "AI Logo Generator | Brandthat.ai",
+    metaDescription: "Create premium AI logo images and brand-ready logo concepts for startups, creators, agencies, and businesses with Brandthat.ai.",
+    intro: "Brandthat.ai helps founders, creators, and businesses generate modern logo ideas without starting from a blank page. Describe your brand, choose a style, and use the AI logo generator to create a clean, premium visual direction that can work for websites, social media profiles, product launches, and brand identity concepts.",
+    sections: [
+      {
+        heading: "Why use an AI logo generator?",
+        body: "A strong logo gives a brand a recognizable first impression. Most new businesses need something that feels polished, simple, and usable across platforms, but hiring a designer before the idea is fully formed can be expensive. Brandthat.ai gives you a fast way to explore logo directions, typography styles, monogram ideas, icon concepts, and visual identity notes before you commit to a final brand system."
+      },
+      {
+        heading: "How Brandthat creates logo ideas",
+        body: "Start by typing a brand name, industry, mood, audience, or visual idea. For example, you can ask for a black-and-white AI logo for a modern creative studio, a luxury wordmark for a skincare brand, or a bold monogram for a real estate business. Brandthat turns that input into a logo image and supporting brand direction so the output feels useful, not random."
+      },
+      {
+        heading: "Best for startup logos, creator brands, and small businesses",
+        body: "The logo generator is designed for people moving quickly: founders testing names, creators building a personal brand, agencies brainstorming for clients, and small businesses that need a strong first visual identity. Use it to explore premium, minimal, luxury, bold, editorial, clean-tech, wellness, restaurant, hospitality, and social media icon styles."
+      }
+    ],
+    examples: [
+      "Create a minimal black-and-white logo for an AI branding tool called Brandthat.ai.",
+      "Generate a luxury serif wordmark for a boutique skincare brand focused on natural ingredients.",
+      "Create a bold monogram logo for a real estate team that wants to feel modern and trustworthy."
+    ],
+    faqs: [
+      ["Can I use the generated logo for my business?", "Brandthat.ai is built for concept generation and brand exploration. You should review final usage rights, trademark availability, and uniqueness before using any logo commercially."],
+      ["Can the logo generator create a social media profile logo?", "Yes. Ask for a logo that works as a profile image, app icon, watermark, or social media avatar."],
+      ["What should I type into the logo generator?", "Include your brand name, industry, desired style, colors, audience, and any symbols you want included or avoided."]
+    ]
+  },
+  captions: {
+    path: "/instagram-caption-generator",
+    toolKey: "captions",
+    eyebrow: "INSTAGRAM CAPTION GENERATOR",
+    title: "Instagram Caption Generator for Creators, Brands, and Businesses",
+    metaTitle: "Instagram Caption Generator | Brandthat.ai",
+    metaDescription: "Generate polished Instagram captions, social media captions, CTAs, and hook-driven post copy for creators and brands.",
+    intro: "The Brandthat.ai caption generator helps you turn simple ideas into polished social media copy. Whether you are posting a Reel, carousel, product launch, lifestyle image, behind-the-scenes moment, or brand announcement, the tool creates captions that match your platform and tone.",
+    sections: [
+      { heading: "Captions that match the platform", body: "A caption for Instagram should not always sound like a LinkedIn post or a TikTok description. Brandthat lets you choose the platform and tone so the output is shaped for the place you are posting." },
+      { heading: "Built for scroll-stopping social posts", body: "The generator can create short captions, polished captions, hook-driven captions, CTA versions, and multiple options so you can choose the one that fits your post best." },
+      { heading: "Use it for daily content", body: "Use the caption generator for product posts, creator updates, ranch content, wedding photography, fashion, food, real estate, wellness, luxury brands, and local businesses." }
+    ],
+    examples: [
+      "Write an Instagram caption for a luxury ranch video of goats running to dinner.",
+      "Create a polished caption for a wedding photography carousel.",
+      "Write a TikTok caption for a behind-the-scenes product launch video."
+    ],
+    faqs: [
+      ["Does this only work for Instagram?", "No. You can generate captions for Instagram, TikTok, Facebook, LinkedIn, X, YouTube Shorts, and Pinterest."],
+      ["Can I choose a tone?", "Yes. You can choose tones like professional, modern, luxury, witty, friendly, emotional, and viral."],
+      ["Will it write multiple caption options?", "Yes. Brandthat is designed to give multiple usable options so you are not stuck with one generic caption."]
+    ]
+  },
+  hooks: {
+    path: "/tiktok-hook-generator",
+    toolKey: "hooks",
+    eyebrow: "TIKTOK HOOK GENERATOR",
+    title: "TikTok Hook Generator for Reels, Shorts, and Viral Videos",
+    metaTitle: "TikTok Hook Generator | Brandthat.ai",
+    metaDescription: "Generate short on-video hooks for TikTok, Instagram Reels, YouTube Shorts, and social videos.",
+    intro: "A good video hook can decide whether someone watches or scrolls away. Brandthat.ai creates short, clear, catchy hooks for TikTok, Instagram Reels, YouTube Shorts, and other short-form video platforms.",
+    sections: [
+      { heading: "Short hooks for the first few seconds", body: "The strongest hooks are often simple. Brandthat generates 1-second, 3-second, and 5-second hook options designed to quickly communicate why someone should keep watching." },
+      { heading: "Built for creators and brands", body: "Use the hook generator for animal videos, tutorials, product demos, founder videos, transformations, behind-the-scenes clips, lifestyle content, and educational posts." },
+      { heading: "Avoid cheesy hook copy", body: "The tool is instructed to keep hooks punchy, natural, and not overly cheesy. You can choose a tone and platform to better match your content style." }
+    ],
+    examples: [
+      "Give me hooks for a 20-second video of baby goats jumping on hay bales.",
+      "Create TikTok hooks for a founder showing a new AI logo generator.",
+      "Write on-screen hooks for a before-and-after brand makeover video."
+    ],
+    faqs: [
+      ["What is an on-video hook?", "It is the short text or opening line that grabs attention at the beginning of a video."],
+      ["Can I use the hooks on Instagram Reels?", "Yes. The tool works for TikTok, Instagram Reels, YouTube Shorts, Facebook Reels, and general short video."],
+      ["How many hooks does it create?", "It can generate multiple hook options, including very short versions for the first second of a video."]
+    ]
+  },
+  bios: {
+    path: "/brand-bio-generator",
+    toolKey: "bios",
+    eyebrow: "BRAND BIO GENERATOR",
+    title: "Brand Bio Generator for Instagram, TikTok, LinkedIn, and Websites",
+    metaTitle: "Brand Bio Generator | Brandthat.ai",
+    metaDescription: "Create polished brand bios for Instagram, TikTok, LinkedIn, websites, and business profiles with Brandthat.ai.",
+    intro: "Your bio is often the first thing people read before deciding to follow, click, book, or buy. Brandthat.ai helps creators, businesses, and founders turn a basic brand description into a polished bio for Instagram, TikTok, LinkedIn, websites, and general brand profiles.",
+    sections: [
+      { heading: "Make your brand clear quickly", body: "A strong bio should explain who you are, what you do, who you help, and why someone should care. Brandthat creates concise bio options that feel clear and professional." },
+      { heading: "Bios for every platform", body: "Instagram bios need to be short and sharp. LinkedIn bios can be more professional. Website bios can be more polished and descriptive. Brandthat lets you choose the placement first." },
+      { heading: "Useful for creators and businesses", body: "Use the bio generator for personal brands, ranch brands, agencies, restaurants, real estate teams, wellness brands, creators, online tools, and local businesses." }
+    ],
+    examples: [
+      "Write a bio for a luxury private ranch with miniature animals and high-end gifting.",
+      "Create an Instagram bio for a husband-and-wife photography and social media studio.",
+      "Write a LinkedIn bio for an AI branding tool for small businesses."
+    ],
+    faqs: [
+      ["Can it write Instagram bios?", "Yes. Choose Instagram as the bio placement and describe your brand."],
+      ["Can it make my bio sound more premium?", "Yes. Choose a tone like luxury, modern, editorial, or professional."],
+      ["Can it write multiple bio versions?", "Yes. It can give short, polished, professional, and platform-specific versions."]
+    ]
+  }
+};
+
+const routeMap = {
+  "/": { page: "home", toolKey: "logo", seoKey: null },
+  "/ai-logo-generator": { page: "seo", toolKey: "logo", seoKey: "logo" },
+  "/logo-generator": { page: "seo", toolKey: "logo", seoKey: "logo" },
+  "/instagram-caption-generator": { page: "seo", toolKey: "captions", seoKey: "captions" },
+  "/caption-generator": { page: "seo", toolKey: "captions", seoKey: "captions" },
+  "/tiktok-hook-generator": { page: "seo", toolKey: "hooks", seoKey: "hooks" },
+  "/hook-generator": { page: "seo", toolKey: "hooks", seoKey: "hooks" },
+  "/brand-bio-generator": { page: "seo", toolKey: "bios", seoKey: "bios" }
+};
+
+function getInitialRoute() {
+  const path = window.location.pathname || "/";
+  return routeMap[path] || { page: "home", toolKey: "logo", seoKey: null };
+}
+
+function updateMeta(title, description, canonicalPath = "/") {
+  document.title = title;
+  let descriptionTag = document.querySelector('meta[name="description"]');
+  if (!descriptionTag) {
+    descriptionTag = document.createElement("meta");
+    descriptionTag.setAttribute("name", "description");
+    document.head.appendChild(descriptionTag);
+  }
+  descriptionTag.setAttribute("content", description);
+
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement("link");
+    canonical.setAttribute("rel", "canonical");
+    document.head.appendChild(canonical);
+  }
+  canonical.setAttribute("href", `https://brandthat.ai${canonicalPath}`);
+}
 
 const creativeTones = [
   "Professional", "Modern", "Minimal", "Luxury", "Bold", "Playful", "Editorial", "Cinematic",
@@ -216,11 +244,12 @@ function getStoredNumber(key, fallback = 0) {
 }
 
 export default function App() {
-  const initialSeoPage = getInitialSeoPage();
-  const [page, setPage] = useState(initialSeoPage ? "seoDetail" : "home");
-  const [selectedSeoSlug, setSelectedSeoSlug] = useState(initialSeoPage?.slug || "");
+  const initialRoute = useMemo(() => getInitialRoute(), []);
+  const [page, setPage] = useState(initialRoute.page);
+  const [seoPageKey, setSeoPageKey] = useState(initialRoute.seoKey);
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
+  const [visitorFreeCount, setVisitorFreeCount] = useState(getStoredNumber("brandthat_visitor_free_count", 0));
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
 
   const [showAuth, setShowAuth] = useState(false);
@@ -233,18 +262,19 @@ export default function App() {
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
 
-  const [activeToolKey, setActiveToolKey] = useState("logo");
+  const [activeToolKey, setActiveToolKey] = useState(initialRoute.toolKey || "logo");
   const activeTool = toolMap[activeToolKey] || tools[0];
   const [selectedPlatform, setSelectedPlatform] = useState(activeTool.platforms[0]);
   const [creativeTone, setCreativeTone] = useState("Professional");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
   const [logoImage, setLogoImage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [chatOpen, setChatOpen] = useState(false);
 
-  const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
+  const visitorRemaining = Math.max(0, 3 - visitorFreeCount);
+  const dailyRemaining = Math.max(0, 10 - dailyFreeCount);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -272,65 +302,51 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const currentSeo = seoPages.find((seo) => seo.slug === selectedSeoSlug);
-
-    if (page === "seoDetail" && currentSeo) {
-      setPageMeta(currentSeo.metaTitle, currentSeo.metaDescription);
-    } else if (page === "home") {
-      setPageMeta(
-        "AI Logo Generator & AI Brand Tools | Brandthat.ai",
-        "Create modern AI logo images, captions, hashtags, bios, hooks, email copy, social strategy, and brand names with Brandthat.ai."
-      );
-    } else if (page === "pricing") {
-      setPageMeta("Brandthat.ai Pricing | AI Logo Generator & Brand Tools", "Choose a Brandthat.ai plan for AI logo generation, captions, hashtags, brand bios, email copy, and social strategy.");
-    }
-  }, [page, selectedSeoSlug]);
 
   useEffect(() => {
-    const handlePopState = () => {
-      const seo = getInitialSeoPage();
-      if (seo) {
-        setSelectedSeoSlug(seo.slug);
-        setActiveToolKey(seo.toolKey);
-        setSelectedPlatform(toolMap[seo.toolKey].platforms[0]);
-        setPage("seoDetail");
-      } else {
-        setPage("home");
-      }
+    const onPopState = () => {
+      const route = getInitialRoute();
+      setPage(route.page);
+      setSeoPageKey(route.seoKey);
+      setActiveToolKey(route.toolKey || "logo");
+      setSelectedPlatform((toolMap[route.toolKey] || toolMap.logo).platforms[0]);
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const openSeoPage = (slug) => {
-    const seo = seoPages.find((page) => page.slug === slug);
-    if (!seo) return;
+  useEffect(() => {
+    if (page === "seo" && seoPageKey && seoPages[seoPageKey]) {
+      const seo = seoPages[seoPageKey];
+      updateMeta(seo.metaTitle, seo.metaDescription, seo.path);
+      return;
+    }
 
-    const relatedTool = toolMap[seo.toolKey] || tools[0];
-    setSelectedSeoSlug(seo.slug);
-    setActiveToolKey(relatedTool.key);
-    setSelectedPlatform(relatedTool.platforms[0]);
+    updateMeta(
+      "Brandthat.ai | AI Logo Generator & AI Branding Tools",
+      "Generate premium AI logos, captions, hooks, brand bios, hashtags, email copy, and social strategy instantly with Brandthat.ai.",
+      "/"
+    );
+  }, [page, seoPageKey]);
+
+  const goToRoute = (path) => {
+    const route = routeMap[path] || { page: "home", toolKey: "logo", seoKey: null };
+    window.history.pushState({}, "", path);
+    setPage(route.page);
+    setSeoPageKey(route.seoKey);
+    setActiveToolKey(route.toolKey || "logo");
+    setSelectedPlatform((toolMap[route.toolKey] || toolMap.logo).platforms[0]);
     setPrompt("");
     setResult("");
     setLogoImage("");
-    setPage("seoDetail");
-    window.history.pushState({}, "", seo.slug);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const goHome = () => {
-    setPage("home");
-    setSelectedSeoSlug("");
-    window.history.pushState({}, "", "/");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const openTrialSignup = () => {
     setAuthMode("signup");
     setSelectedPlan("free");
-    setAuthMessage("Try free now. Create a free account and get 1 free generation per day.");
+    setAuthMessage("Create a free account to continue. Free accounts get 10 generations per day.");
     setShowAuth(true);
   };
 
@@ -411,6 +427,11 @@ export default function App() {
     setSubscribeEmail("");
   };
 
+  const incrementVisitorFreeUse = () => {
+    const newCount = visitorFreeCount + 1;
+    localStorage.setItem("brandthat_visitor_free_count", String(newCount));
+    setVisitorFreeCount(newCount);
+  };
 
   const incrementDailyFreeUse = () => {
     const today = getTodayKey();
@@ -434,6 +455,7 @@ export default function App() {
     setPrompt("");
     setResult("");
     setLogoImage("");
+    setSeoPageKey(null);
     setPage(nextTool.key === "logo" ? "logo" : "studio");
 
     window.setTimeout(() => {
@@ -495,63 +517,20 @@ Rules:
       return;
     }
 
-    if (!user) {
+    if (!user && visitorFreeCount >= 3) {
       openTrialSignup();
-      setResult("Try free now. Create a free account and get 1 free generation per day.");
+      setResult("You’ve used your 3 free generations. Create a free account to keep going.");
       return;
     }
 
-    if (userPlan === "free" && dailyFreeCount >= 1) {
+    if (user && userPlan === "free" && dailyFreeCount >= 10) {
       setPage("pricing");
-      setResult("You’ve used your free generation for today. Upgrade to Starter or Pro for unlimited access.");
-      return;
-    }
-
-    if (activeToolKey === "logo" && userPlan === "starter") {
-      setPage("pricing");
-      setResult("Logo image generation is included with Pro. Starter includes unlimited access to every other generator.");
-      return;
-    }
-
-    if (activeToolKey === "logo") {
-      setLoading(true);
-      setResult("");
-      setLogoImage("");
-
-      try {
-        const response = await fetch("/.netlify/functions/logo-image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            logoStyle: selectedPlatform,
-            tone: creativeTone,
-            logoPrompt: prompt
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setResult(data.error || "Logo image generation failed. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        setLogoImage(data.image);
-        setResult("Your logo image has been generated. Use the download button to save it.");
-
-        if (userPlan === "free") {
-          incrementDailyFreeUse();
-        }
-      } catch (error) {
-        setResult("Something went wrong creating the logo image. Please try again.");
-      }
-
-      setLoading(false);
+      setResult("You’ve reached your 10 free generations for today. Upgrade for unlimited access.");
       return;
     }
 
     setLoading(true);
+    if (activeTool.key === "logo") setLogoImage("");
 
     try {
       const response = await fetch("/.netlify/functions/generate", {
@@ -568,7 +547,31 @@ ${prompt}`
       const data = await response.json();
       setResult(data.text || "No response generated.");
 
-      if (userPlan === "free") {
+      if (activeTool.key === "logo") {
+        try {
+          const logoResponse = await fetch("/.netlify/functions/logo-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              brandName: prompt.slice(0, 80),
+              logoPrompt: `${selectedPlatform}. ${creativeTone} tone. ${prompt}`
+            })
+          });
+
+          const logoData = await logoResponse.json();
+          if (logoResponse.ok && logoData.image) {
+            setLogoImage(logoData.image);
+          }
+        } catch (logoError) {
+          setResult((previous) => `${previous}
+
+Logo image preview could not be created, but your logo direction is ready above.`);
+        }
+      }
+
+      if (!user) {
+        incrementVisitorFreeUse();
+      } else if (userPlan === "free") {
         incrementDailyFreeUse();
       }
     } catch (error) {
@@ -610,7 +613,6 @@ ${prompt}`
   const clearGenerator = () => {
     setPrompt("");
     setResult("");
-    setLogoImage("");
   };
 
   return (
@@ -618,14 +620,13 @@ ${prompt}`
       <style>{css}</style>
 
       <nav className="nav">
-        <button className="brand" onClick={goHome}>Brandthat</button>
+        <button className="brand" onClick={() => goToRoute("/")}>Brandthat</button>
 
         <div className="navLinks">
           <button onClick={() => setPage("features")}>Features</button>
-          <button onClick={() => setPage("seoLanding")}>SEO Pages</button>
           <button onClick={() => setPage("pricing")}>Pricing</button>
-          <button onClick={() => { setActiveToolKey("logo"); setPage("logo"); }}>Studio</button>
-          <button onClick={() => selectTool("logo")}>AI Logo Generator</button>
+          <button onClick={() => { setActiveToolKey("captions"); setPage("studio"); }}>Studio</button>
+          <button onClick={() => goToRoute("/ai-logo-generator")}>AI Logo Generator</button>
         </div>
 
         {user ? (
@@ -639,15 +640,11 @@ ${prompt}`
         <>
           <main className="hero">
             <div className="heroTop">
-              <div className="eyebrow">AI LOGO GENERATOR</div>
-              <h1>Create a modern logo in seconds.</h1>
-              <p className="lead">Brandthat.ai creates premium logo images first — plus captions, hashtags, bios, hooks, emails, strategy, and brand creation tools.</p>
-              <div className="heroActions">
-                <button className="btn dark" onClick={() => selectTool("logo")}>Try free now</button>
-                <button className="btn light" onClick={() => setPage("pricing")}>View plans</button>
-              </div>
+              <div className="eyebrow">AI CREATIVE STUDIO</div>
+              <h1>Your AI creative partner for every post.</h1>
+              <p className="lead">Generate captions, hashtags, launch ideas, bios, emails, logos, and social media direction — all in one workspace.</p>
               <div className="freeStrip">
-                {!user ? "Try free now — create a free account for 1 generation daily" : userPlan === "free" ? `${dailyRemaining} free generation left today` : "Unlimited premium access active"}
+                {!user ? `${visitorRemaining} free generations left before signup` : userPlan === "free" ? `${dailyRemaining} free generations left today` : "Unlimited premium access active"}
               </div>
             </div>
 
@@ -664,6 +661,7 @@ ${prompt}`
               result={result}
               user={user}
               userPlan={userPlan}
+              visitorRemaining={visitorRemaining}
               dailyRemaining={dailyRemaining}
               copyToClipboard={copyToClipboard}
               shareOutput={shareOutput}
@@ -682,9 +680,8 @@ ${prompt}`
             </div>
 
             <ToolGrid activeToolKey={activeToolKey} selectTool={selectTool} />
+            <SEOHomeContent goToRoute={goToRoute} />
           </section>
-
-          <SeoGrowthSection openSeoPage={openSeoPage} />
         </>
       )}
 
@@ -696,59 +693,59 @@ ${prompt}`
         </section>
       )}
 
-      {page === "seoLanding" && (
-        <section className="pageSection">
-          <div className="tinyTag">SEO LANDING PAGES</div>
-          <h1 className="pageTitle">Free AI tools built for high-intent Google searches.</h1>
-          <p className="pageLead">Each page targets a specific search intent and opens the matching Brandthat generator.</p>
-          <SeoPageGrid openSeoPage={openSeoPage} />
-        </section>
-      )}
 
-      {page === "seoDetail" && (
-        <SeoDetailPage
-          seo={seoPages.find((seo) => seo.slug === selectedSeoSlug) || seoPages[0]}
-          selectTool={selectTool}
-          openSeoPage={openSeoPage}
-        />
+      {page === "seo" && seoPageKey && seoPages[seoPageKey] && (
+        <section className="pageSection seoPage" id="brandthat-generator">
+          <SEOPageContent seo={seoPages[seoPageKey]} goToRoute={goToRoute} />
+          <GeneratorCard
+            activeTool={activeTool}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            selectedPlatform={selectedPlatform}
+            setSelectedPlatform={setSelectedPlatform}
+            creativeTone={creativeTone}
+            setCreativeTone={setCreativeTone}
+            generate={generate}
+            loading={loading}
+            result={result}
+            user={user}
+            userPlan={userPlan}
+            visitorRemaining={visitorRemaining}
+            dailyRemaining={dailyRemaining}
+            copyToClipboard={copyToClipboard}
+            shareOutput={shareOutput}
+            clearGenerator={clearGenerator}
+            logoImage={logoImage}
+          />
+        </section>
       )}
 
       {page === "pricing" && (
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
-          <h1 className="pageTitle">Start free, then upgrade when you’re ready.</h1>
+          <h1 className="pageTitle">Choose the plan that fits your workflow.</h1>
           <div className="pricingGrid">
             <PriceCard
               name="STARTER"
               price="$10"
-              desc="Unlimited generations for every Brandthat tool except the AI logo image generator."
-              features={[
-                "Unlimited captions",
-                "Unlimited hashtags",
-                "Unlimited brand bios",
-                "Unlimited on-video hooks",
-                "Unlimited email copy",
-                "Unlimited social strategy",
-                "Unlimited brand creation",
-                "Logo image generator not included"
-              ]}
+              desc="Unlimited AI generations for captions, hashtags, bios, hooks, and simple social ideas."
+              features={["Unlimited AI generations", "Captions & hashtags", "Brand bios", "On-video hooks", "Simple social ideas", "No AI Logo Generator"]}
               onClick={() => openPlanSignup("starter")}
             />
             <PriceCard
               name="PRO"
               price="$20"
               featured
-              desc="Full access to everything, including unlimited AI logo image generations every month."
-              features={[
-                "Everything in Starter",
-                "Unlimited AI logo image generations",
-                "Modern logo image creation",
-                "Premium creative outputs",
-                "Brand creation tools",
-                "Social strategy",
-                "Best value for creators and businesses"
-              ]}
+              desc="Everything in Starter plus unlimited AI Logo Generator and premium creative outputs."
+              features={["Unlimited AI generations", "Unlimited AI Logo Generator", "Brand creation tools", "Premium creative outputs", "Launch & campaign ideas", "Social strategy"]}
               onClick={() => openPlanSignup("pro")}
+            />
+            <PriceCard
+              name="STUDIO"
+              price="$50"
+              desc="Built for agencies, studios, and brands needing client-ready creative systems."
+              features={["Everything in Pro", "Agency-level workflows", "Brand system generation", "Premium export layouts", "Client-ready presentations", "Future white-label access", "Early access to new AI tools"]}
+              onClick={() => openPlanSignup("studio")}
             />
           </div>
         </section>
@@ -772,6 +769,7 @@ ${prompt}`
             result={result}
             user={user}
             userPlan={userPlan}
+            visitorRemaining={visitorRemaining}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -785,13 +783,12 @@ ${prompt}`
         <section className="pageSection" id="brandthat-generator">
           <div className="tinyTag">AI LOGO GENERATOR</div>
           <h1 className="pageTitle">Create modern logo concepts instantly.</h1>
-          <p className="pageLead">Type a word, sentence, or paragraph describing the logo you want. Brandthat will create a modern logo image you can download.</p>
+          <p className="pageLead">Type a word, sentence, or paragraph describing the logo you want. Brandthat will generate a modern logo direction, palette, typography, and image prompt.</p>
 
           <div className="planNotice">
-            {!user && "Try free now — create a free account for 1 free generation daily."}
-            {user && userPlan === "free" && `${dailyRemaining} free generation left today.`}
-            {user && userPlan === "starter" && "Logo image generation is included with Pro. Starter unlocks unlimited access to every other generator."}
-            {user && userPlan === "pro" && "Pro access active — unlimited logo image generations."}
+            {!user && `${visitorRemaining} free generations remaining before signup.`}
+            {user && userPlan === "free" && `${dailyRemaining} free generations left today.`}
+            {user && userPlan !== "free" && "Premium logo generation access active."}
           </div>
 
           <GeneratorCard
@@ -807,6 +804,7 @@ ${prompt}`
             result={result}
             user={user}
             userPlan={userPlan}
+            visitorRemaining={visitorRemaining}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -824,7 +822,7 @@ ${prompt}`
         </div>
         <div className="footerForm">
           <input placeholder="Enter your email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
-          <button className="btn dark" onClick={subscribe}>Try free now</button>
+          <button className="btn dark" onClick={subscribe}>Subscribe</button>
           {subscribeMessage && <span>{subscribeMessage}</span>}
         </div>
       </footer>
@@ -834,7 +832,7 @@ ${prompt}`
           <div className="signupBox">
             <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
             <h2>{authMode === "signup" ? "Start using Brandthat." : "Welcome back."}</h2>
-            <p>{authMode === "signup" ? "Try free now. Create your free account and get 1 free generation per day." : "Log in to continue using your Brandthat account."}</p>
+            <p>{authMode === "signup" ? "Create your free account to continue generating. Free accounts get 10 generations per day." : "Log in to continue using your Brandthat account."}</p>
             <input placeholder="Email address" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
             <input placeholder="Password" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
             <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>{loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}</button>
@@ -853,7 +851,7 @@ ${prompt}`
           <div className="chatHeader"><strong>Brandthat AI</strong><span>Need help getting started?</span></div>
           <div className="chatBody">
             <div className="chatBubble">Click any tool card to open the exact generator for that task.</div>
-            <div className="chatBubble light">Try free now with 1 free generation daily.<br />Starter unlocks unlimited text tools.<br />Pro unlocks unlimited logo images too.</div>
+            <div className="chatBubble light">3 free generations before signup.<br />Free accounts get 10 daily generations.<br />Paid plans unlock premium access.</div>
           </div>
         </div>
       )}
@@ -862,97 +860,77 @@ ${prompt}`
 }
 
 
-function SeoGrowthSection({ openSeoPage }) {
+function SEOHomeContent({ goToRoute }) {
   return (
-    <section className="seoGrowthSection">
-      <div className="seoHeroCard">
-        <div className="tinyTag">GOOGLE TRAFFIC ENGINE</div>
-        <h2>Built to rank beyond the homepage.</h2>
-        <p>
-          Brandthat now has focused landing pages for logo generation, captions, hashtags, bios, hooks, emails, social strategy, and brand naming.
-          Each page is designed around a specific search people already make.
-        </p>
+    <div className="seoContent homeSeo">
+      <div className="tinyTag">AI BRANDING TOOLS BUILT TO BE FOUND</div>
+      <h2>Generate logos, captions, hooks, bios, and brand direction from one clean workspace.</h2>
+      <p>
+        Brandthat.ai is designed for creators, founders, small businesses, agencies, and growing brands that need professional creative work fast. Instead of opening separate tools for logo ideas, Instagram captions, TikTok hooks, hashtag sets, brand bios, emails, and social strategy, Brandthat gives you a single AI creative studio built around real brand use cases.
+      </p>
+      <p>
+        The main focus is the AI Logo Generator: a simple way to describe a brand and create a modern logo image plus supporting brand direction. From there, you can generate the content that helps launch and grow the brand: captions, bios, hooks, hashtags, emails, and social plans.
+      </p>
+      <div className="seoCtaGrid">
+        <button onClick={() => goToRoute("/ai-logo-generator")}>Explore AI Logo Generator</button>
+        <button onClick={() => goToRoute("/instagram-caption-generator")}>Instagram Caption Generator</button>
+        <button onClick={() => goToRoute("/tiktok-hook-generator")}>TikTok Hook Generator</button>
+        <button onClick={() => goToRoute("/brand-bio-generator")}>Brand Bio Generator</button>
       </div>
-
-      <SeoPageGrid openSeoPage={openSeoPage} compact />
-
-      <div className="exampleSeoGrid">
-        {[
-          "AI logo generator for clothing brands",
-          "AI logo generator for real estate agents",
-          "Instagram captions for small businesses",
-          "TikTok hooks for creators",
-          "Brand bio generator for startups",
-          "AI hashtags for local brands"
-        ].map((item) => (
-          <div className="exampleSeoCard" key={item}>{item}</div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SeoPageGrid({ openSeoPage, compact = false }) {
-  return (
-    <div className={compact ? "seoPageGrid compactSeoGrid" : "seoPageGrid"}>
-      {seoPages.map((seo) => (
-        <button className="seoPageCard" key={seo.slug} onClick={() => openSeoPage(seo.slug)}>
-          <span>{seo.title}</span>
-          <h3>{seo.h1}</h3>
-          <p>{seo.metaDescription}</p>
-          <strong>Open page →</strong>
-        </button>
-      ))}
     </div>
   );
 }
 
-function SeoDetailPage({ seo, selectTool, openSeoPage }) {
+function SEOPageContent({ seo, goToRoute }) {
   return (
-    <section className="pageSection seoDetailPage">
-      <div className="tinyTag">{seo.title}</div>
-      <h1 className="pageTitle">{seo.h1}</h1>
+    <div className="seoContent dedicatedSeo">
+      <div className="tinyTag">{seo.eyebrow}</div>
+      <h1 className="pageTitle">{seo.title}</h1>
       <p className="pageLead">{seo.intro}</p>
 
-      <div className="seoActionBar">
-        <button className="btn dark" onClick={() => selectTool(seo.toolKey)}>Start generating</button>
-        <button className="btn light" onClick={() => openSeoPage("/ai-logo-generator")}>View logo generator</button>
-      </div>
-
-      <div className="seoContentGrid">
-        <div className="seoContentCard">
-          <div className="tinyTag">EXAMPLE SEARCHES</div>
-          <h2>What people can create</h2>
-          {seo.examples.map((example) => <p key={example}>• {example}</p>)}
-        </div>
-        <div className="seoContentCard">
-          <div className="tinyTag">WHY BRANDTHAT</div>
-          <h2>Premium output, fast.</h2>
-          <p>Brandthat combines AI generation with cleaner prompts, better structure, and brand-first output so users get something useful immediately.</p>
-        </div>
-      </div>
-
-      <div className="faqGrid">
-        {seo.faqs.map(([question, answer]) => (
-          <div className="faqCard" key={question}>
-            <h3>{question}</h3>
-            <p>{answer}</p>
-          </div>
+      <div className="seoInfoGrid">
+        {seo.sections.map((section) => (
+          <article className="seoInfoCard" key={section.heading}>
+            <h2>{section.heading}</h2>
+            <p>{section.body}</p>
+          </article>
         ))}
       </div>
 
-      <div className="relatedSeoBlock">
-        <div className="tinyTag">RELATED AI TOOLS</div>
-        <SeoPageGrid openSeoPage={openSeoPage} compact />
+      <div className="exampleBox">
+        <div className="tinyTag">EXAMPLE PROMPTS</div>
+        <h2>Try prompts like these.</h2>
+        <ul>
+          {seo.examples.map((example) => <li key={example}>{example}</li>)}
+        </ul>
       </div>
-    </section>
+
+      <div className="faqBox">
+        <div className="tinyTag">FAQ</div>
+        <h2>Common questions.</h2>
+        {seo.faqs.map(([question, answer]) => (
+          <details key={question}>
+            <summary>{question}</summary>
+            <p>{answer}</p>
+          </details>
+        ))}
+      </div>
+
+      <div className="relatedTools">
+        <div className="tinyTag">RELATED TOOLS</div>
+        <button onClick={() => goToRoute("/ai-logo-generator")}>AI Logo Generator</button>
+        <button onClick={() => goToRoute("/instagram-caption-generator")}>Instagram Caption Generator</button>
+        <button onClick={() => goToRoute("/tiktok-hook-generator")}>TikTok Hook Generator</button>
+        <button onClick={() => goToRoute("/brand-bio-generator")}>Brand Bio Generator</button>
+      </div>
+    </div>
   );
 }
 
 function ToolGrid({ activeToolKey, selectTool }) {
   return (
     <div className="toolGrid">
-      {[toolMap.logo, ...tools.filter((tool) => tool.key !== "logo")].map((tool) => (
+      {tools.map((tool) => (
         <button
           className={activeToolKey === tool.key ? "toolCard activeTool" : "toolCard"}
           key={tool.key}
@@ -981,6 +959,7 @@ function GeneratorCard({
   result,
   user,
   userPlan,
+  visitorRemaining,
   dailyRemaining,
   copyToClipboard,
   shareOutput,
@@ -994,7 +973,7 @@ function GeneratorCard({
           <div className="tinyTag">{activeTool.label}</div>
           <h2>{activeTool.title}</h2>
           <div className="planIndicator">
-            {!user ? "Try free now" : userPlan === "free" ? `${dailyRemaining} free generation left today` : "Unlimited premium access active"}
+            {!user ? `${visitorRemaining} free generations remaining` : userPlan === "free" ? `${dailyRemaining} free generations left today` : "Unlimited premium access active"}
           </div>
         </div>
         <div className="liveBadge">AI Powered</div>
@@ -1019,20 +998,12 @@ function GeneratorCard({
       <textarea placeholder={activeTool.placeholder} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
 
       <div className="generatorButtons">
-        <button className="btn dark" onClick={generate}>{loading ? (activeTool.key === "logo" ? "Creating logo..." : "Generating...") : activeTool.key === "logo" ? "Generate Logo Image" : `Generate ${activeTool.title}`}</button>
+        <button className="btn dark" onClick={generate}>{loading ? "Generating..." : `Generate ${activeTool.title}`}</button>
         <button className="btn light" onClick={clearGenerator}>Clear</button>
       </div>
 
-      {(result || logoImage) && (
+      {result && (
         <div className="resultBox">
-          {logoImage && (
-            <div className="logoImageWrap">
-              <img src={logoImage} alt="Generated logo" className="generatedLogoImage" />
-              <a className="downloadLogoBtn" href={logoImage} download="brandthat-logo.png">
-                Download Logo
-              </a>
-            </div>
-          )}
           <div className="resultTop">
             <span>BRANDTHAT AI</span>
             <div className="resultActions compact">
@@ -1040,6 +1011,12 @@ function GeneratorCard({
               <button onClick={() => shareOutput(result)}>Share</button>
             </div>
           </div>
+          {activeTool.key === "logo" && logoImage && (
+            <div className="logoImageResult">
+              <img src={logoImage} alt="Generated AI logo" />
+              <button onClick={() => window.open(logoImage, "_blank")}>Open Logo Image</button>
+            </div>
+          )}
           <div className="resultContent">{result}</div>
         </div>
       )}
@@ -1055,7 +1032,7 @@ function PriceCard({ name, price, desc, features, featured, onClick }) {
       <div className={featured ? "priceSub white" : "priceSub"}>per month</div>
       <p>{desc}</p>
       <div className="priceFeatures">{features.map((feature) => <div key={feature}>✓ {feature}</div>)}</div>
-      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>Try free now</button>
+      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>Subscribe</button>
     </div>
   );
 }
@@ -1078,7 +1055,7 @@ h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .toolCard h3,.featureCard h3{font-size:24px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
-.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:16px}.heroActions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 0}
+.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
 .generateCard,.logoCard,.logoPreviewCard,.signupBox{background:white;border-radius:38px;padding:34px;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 90px rgba(0,0,0,.06)}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:26px}
 .liveBadge,.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
@@ -1103,16 +1080,12 @@ textarea{height:180px;resize:none;line-height:1.6}
 .resultActions.compact{margin-top:0}
 .resultActions button,.resultTop button{background:white;border:1px solid rgba(0,0,0,.08);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer;color:#111}
 .resultContent{padding:24px;line-height:1.9;white-space:pre-wrap;font-size:15px}
-.logoImageWrap{padding:24px;background:white;border-bottom:1px solid rgba(0,0,0,.06);text-align:center}
-.generatedLogoImage{width:100%;max-width:440px;border-radius:28px;border:1px solid rgba(0,0,0,.08);box-shadow:0 24px 70px rgba(0,0,0,.10);display:block;margin:0 auto 16px}
-.downloadLogoBtn{display:inline-flex;align-items:center;justify-content:center;background:#111;color:white;text-decoration:none;font-weight:900;border-radius:999px;padding:12px 18px;font-size:13px}
 .logoPreview{min-height:240px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;letter-spacing:-.06em;border-radius:24px;background:#fafafa;border:1px solid rgba(0,0,0,.06);text-align:center;padding:20px}
 .logoBottom{margin-top:24px}
 .logoLead,.footerSubscribe p{font-size:18px;line-height:1.7;color:#666;margin:18px 0 26px}
 .offersSection,.pageSection{max-width:1280px;margin:0 auto;padding:40px 6vw 100px}
 .offersTop{display:flex;justify-content:space-between;gap:30px;align-items:end;margin-bottom:34px}
-.toolGrid,.featureGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.pricingGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;max-width:900px}
+.toolGrid,.featureGrid,.pricingGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
 .logoPageGrid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
 .toolCard,.featureCard,.priceCard{position:relative;overflow:hidden;background:white;padding:26px;border-radius:28px;border:1px solid rgba(0,0,0,.08);min-height:180px;transition:.25s ease;text-align:left;color:#111;font-family:inherit;cursor:pointer}
 .toolCard:hover,.featureCard:hover,.priceCard:hover,.activeTool{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
@@ -1143,28 +1116,26 @@ textarea{height:180px;resize:none;line-height:1.6}
 .chatBody{padding:18px;display:flex;flex-direction:column;gap:12px}
 .chatBubble{background:#111;color:white;padding:14px 16px;border-radius:18px;line-height:1.6;font-size:14px}
 .chatBubble.light{background:#f5f5f5;color:#111}
-
-.seoGrowthSection{max-width:1280px;margin:0 auto;padding:30px 6vw 90px}
-.seoHeroCard{background:#111;color:white;border-radius:38px;padding:38px;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 90px rgba(0,0,0,.08);margin-bottom:24px}
-.seoHeroCard p{color:rgba(255,255,255,.72);font-size:18px;line-height:1.7;max-width:840px}
-.seoPageGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:24px}
-.compactSeoGrid{grid-template-columns:repeat(4,1fr)}
-.seoPageCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:24px;text-align:left;cursor:pointer;color:#111;font-family:inherit;transition:.25s ease;min-height:220px}
-.seoPageCard:hover{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
-.seoPageCard span{font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:#9b7b3f}
-.seoPageCard h3{font-size:24px;letter-spacing:-.04em;line-height:1.05;margin:14px 0 12px}
-.seoPageCard p{color:#666;line-height:1.6;font-size:14px}
-.seoPageCard strong{display:inline-flex;margin-top:10px;font-size:13px;color:#111}
-.exampleSeoGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
-.exampleSeoCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:20px;padding:16px 18px;font-weight:800;color:#333}
-.seoActionBar{display:flex;gap:12px;flex-wrap:wrap;margin:28px 0}
-.seoContentGrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:28px}
-.seoContentCard,.faqCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.04)}
-.seoContentCard p,.faqCard p{color:#666;line-height:1.7}
-.faqGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}
-.faqCard h3{margin:0 0 10px;font-size:20px;letter-spacing:-.03em}
-.relatedSeoBlock{margin-top:50px}
-
-@media(max-width:1100px){.toolGrid,.featureGrid,.seoPageGrid,.compactSeoGrid{grid-template-columns:repeat(2,1fr)}.pricingGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls,.seoContentGrid{grid-template-columns:1fr}.faqGrid,.exampleSeoGrid{grid-template-columns:1fr 1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{display:grid;grid-template-columns:1fr auto;gap:14px;padding:20px}.brand{grid-column:1;grid-row:1;justify-self:start}.accountBtn{grid-column:2;grid-row:1;justify-self:end;padding:10px 14px;font-size:14px}.navLinks{grid-column:1 / -1;grid-row:2;justify-content:flex-start;gap:12px}.hero,.offersSection,.pageSection,.footerSubscribe,.seoGrowthSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs,.generatorButtons,.seoPageGrid,.compactSeoGrid,.faqGrid,.exampleSeoGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}.seoHeroCard{padding:28px}.seoPageCard{min-height:auto}}
+.seoContent{margin-top:56px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:38px;padding:38px;box-shadow:0 30px 90px rgba(0,0,0,.04)}
+.seoContent h2{font-size:34px;line-height:1.05;margin-bottom:18px}
+.seoContent p{font-size:17px;line-height:1.85;color:#555;max-width:980px}
+.homeSeo{margin-top:38px}
+.seoCtaGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.seoCtaGrid button,.relatedTools button{background:#111;color:white;border:none;border-radius:18px;padding:16px 18px;font-weight:900;cursor:pointer;text-align:center}
+.dedicatedSeo{margin-top:0;margin-bottom:36px}
+.seoInfoGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:30px 0}
+.seoInfoCard{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:24px;padding:24px}
+.seoInfoCard h2{font-size:25px;margin-bottom:12px}
+.exampleBox,.faqBox{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:24px;padding:26px;margin-top:22px}
+.exampleBox ul{margin:18px 0 0;padding-left:20px;color:#444;line-height:1.9}
+.faqBox details{border-top:1px solid rgba(0,0,0,.08);padding:18px 0}
+.faqBox details:first-of-type{border-top:none}
+.faqBox summary{font-weight:900;cursor:pointer;font-size:17px}
+.faqBox p{margin:12px 0 0}
+.relatedTools{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.logoImageResult{padding:24px;border-bottom:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;align-items:center;gap:16px;background:white}
+.logoImageResult img{width:100%;max-width:420px;border-radius:24px;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 60px rgba(0,0,0,.08)}
+.logoImageResult button{background:#111;color:white;border:none;border-radius:999px;padding:12px 18px;font-weight:900;cursor:pointer}
+@media(max-width:1100px){.toolGrid,.featureGrid,.pricingGrid,.seoInfoGrid{grid-template-columns:repeat(2,1fr)}.seoCtaGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{flex-direction:column;gap:18px;padding:24px 20px 8px}.navLinks{justify-content:center}.hero,.offersSection,.pageSection,.footerSubscribe{padding-left:20px;padding-right:20px}.seoContent{padding:26px}.seoInfoGrid,.seoCtaGrid{grid-template-columns:1fr}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.logoPageGrid,.logoInputs,.generatorButtons{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}.logoPreview{font-size:40px;min-height:180px}}
 `;
