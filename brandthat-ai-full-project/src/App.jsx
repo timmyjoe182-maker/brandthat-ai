@@ -80,7 +80,7 @@ const tools = [
     platformLabel: "Logo style",
     platforms: ["Modern Minimal", "Luxury Wordmark", "Bold Monogram", "Editorial Serif", "Clean Tech", "Founder Brand", "Beauty / Wellness", "Restaurant / Hospitality", "Real Estate", "Social Media Icon"],
     placeholder: "Example: Brandthat.ai, a black-and-white AI creative studio for modern creators and brands.",
-    promptGuide: "Create modern logo concepts. Include logo directions, typography, icon/monogram ideas, color palette, usage notes, and a detailed image-generation prompt someone could use to create the logo."
+    promptGuide: "Create an actual modern logo image based on the user's brand name, word, sentence, or paragraph. The logo should feel premium, modern, clean, and ready for a website, social profile, or brand kit."
   }
 ];
 
@@ -124,6 +124,7 @@ export default function App() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoImage, setLogoImage] = useState("");
 
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -267,6 +268,7 @@ export default function App() {
     setSelectedPlatform(nextTool.platforms[0]);
     setPrompt("");
     setResult("");
+    setLogoImage("");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
 
     window.setTimeout(() => {
@@ -340,6 +342,46 @@ Rules:
       return;
     }
 
+    if (activeToolKey === "logo") {
+      setLoading(true);
+      setResult("");
+      setLogoImage("");
+
+      try {
+        const response = await fetch("/.netlify/functions/logo-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            logoStyle: selectedPlatform,
+            tone: creativeTone,
+            logoPrompt: prompt
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setResult(data.error || "Logo image generation failed. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        setLogoImage(data.image);
+        setResult("Your logo image has been generated. Use the download button to save it.");
+
+        if (!user) {
+          incrementVisitorFreeUse();
+        } else if (userPlan === "free") {
+          incrementDailyFreeUse();
+        }
+      } catch (error) {
+        setResult("Something went wrong creating the logo image. Please try again.");
+      }
+
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -401,6 +443,7 @@ ${prompt}`
   const clearGenerator = () => {
     setPrompt("");
     setResult("");
+    setLogoImage("");
   };
 
   return (
@@ -454,6 +497,7 @@ ${prompt}`
               copyToClipboard={copyToClipboard}
               shareOutput={shareOutput}
               clearGenerator={clearGenerator}
+              logoImage={logoImage}
             />
           </main>
 
@@ -533,6 +577,7 @@ ${prompt}`
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
             clearGenerator={clearGenerator}
+            logoImage={logoImage}
           />
         </section>
       )}
@@ -567,6 +612,7 @@ ${prompt}`
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
             clearGenerator={clearGenerator}
+            logoImage={logoImage}
           />
         </section>
       )}
@@ -652,7 +698,8 @@ function GeneratorCard({
   dailyRemaining,
   copyToClipboard,
   shareOutput,
-  clearGenerator
+  clearGenerator,
+  logoImage
 }) {
   return (
     <div className="generateCard">
@@ -686,12 +733,20 @@ function GeneratorCard({
       <textarea placeholder={activeTool.placeholder} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
 
       <div className="generatorButtons">
-        <button className="btn dark" onClick={generate}>{loading ? "Generating..." : `Generate ${activeTool.title}`}</button>
+        <button className="btn dark" onClick={generate}>{loading ? (activeTool.key === "logo" ? "Creating logo..." : "Generating...") : activeTool.key === "logo" ? "Generate Logo Image" : `Generate ${activeTool.title}`}</button>
         <button className="btn light" onClick={clearGenerator}>Clear</button>
       </div>
 
-      {result && (
+      {(result || logoImage) && (
         <div className="resultBox">
+          {logoImage && (
+            <div className="logoImageWrap">
+              <img src={logoImage} alt="Generated logo" className="generatedLogoImage" />
+              <a className="downloadLogoBtn" href={logoImage} download="brandthat-logo.png">
+                Download Logo
+              </a>
+            </div>
+          )}
           <div className="resultTop">
             <span>BRANDTHAT AI</span>
             <div className="resultActions compact">
@@ -762,6 +817,9 @@ textarea{height:180px;resize:none;line-height:1.6}
 .resultActions.compact{margin-top:0}
 .resultActions button,.resultTop button{background:white;border:1px solid rgba(0,0,0,.08);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer;color:#111}
 .resultContent{padding:24px;line-height:1.9;white-space:pre-wrap;font-size:15px}
+.logoImageWrap{padding:24px;background:white;border-bottom:1px solid rgba(0,0,0,.06);text-align:center}
+.generatedLogoImage{width:100%;max-width:440px;border-radius:28px;border:1px solid rgba(0,0,0,.08);box-shadow:0 24px 70px rgba(0,0,0,.10);display:block;margin:0 auto 16px}
+.downloadLogoBtn{display:inline-flex;align-items:center;justify-content:center;background:#111;color:white;text-decoration:none;font-weight:900;border-radius:999px;padding:12px 18px;font-size:13px}
 .logoPreview{min-height:240px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;letter-spacing:-.06em;border-radius:24px;background:#fafafa;border:1px solid rgba(0,0,0,.06);text-align:center;padding:20px}
 .logoBottom{margin-top:24px}
 .logoLead,.footerSubscribe p{font-size:18px;line-height:1.7;color:#666;margin:18px 0 26px}
