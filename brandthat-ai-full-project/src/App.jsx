@@ -670,19 +670,19 @@ Rules:
     }
 
     if (!user) {
-      openAuth("signup", "Start your free Brand Workspace to generate your first brand asset.");
+      openAuth("signup", "Create a free account to unlock your 1 free AI logo generation.");
       return;
     }
 
-    if (!activeBrand) {
+    if (activeTool.key !== "logo" && !activeBrand) {
       setPage("workspace");
-      setResult("Create a Brand Workspace first so your outputs can be saved to a brand.");
+      setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
       return;
     }
 
     if (isFree && dailyFreeCount >= 1) {
       setPage("pricing");
-      setResult("Your free daily brand generation has been used. Upgrade to keep building.");
+      setResult("Your free logo generation has been used. Subscribe to Pro for unlimited AI logo generations.");
       return;
     }
 
@@ -700,7 +700,7 @@ Rules:
         const image = await createLogoImage();
         setLogoImage(image);
         setResult(
-          `Your logo image has been generated for ${activeBrand.name}.\n\nBrand direction used:\n${prompt}\n\nSave it to your workspace to build your brand kit.`
+          `Your logo image has been generated.\n\nBrand direction used:\n${prompt}\n\nCreate or use a Brand Workspace if you want to save this logo into a full brand kit.`
         );
       } else {
         const response = await fetch("/.netlify/functions/generate", {
@@ -797,9 +797,7 @@ ${prompt}`
               <div className="eyebrow">AI BRAND WORKSPACE</div>
               <h1>Build your brand with AI.</h1>
               <p className="lead">Start with a logo, save your brand direction, then create captions, hooks, bios, launch copy, and strategy around one real brand workspace.</p>
-              <div className="freeStrip">
-                {!user ? "Start your free Brand Workspace" : `${userPlan.toUpperCase()} workspace active`}
-              </div>
+              
               <div className="heroCtas">
                 <button className="btn dark" onClick={() => setPage("workspace")}>Start Your Free Brand Workspace</button>
                 <button className="btn light" onClick={() => openSeoPage("seo-logo")}>Try AI Logo Generator</button>
@@ -915,7 +913,7 @@ ${prompt}`
               name="FREE"
               price="$0"
               desc="Start building your first brand workspace."
-              features={["1 Brand Workspace", "Daily AI Logo Concepts", "Caption Generator", "Hook Generator", "Brand Bio Generator", "Basic Exports"]}
+              features={["1 free AI logo generation after signup", "1 Brand Workspace", "Caption Generator", "Hook Generator", "Brand Bio Generator", "Basic Exports"]}
               onClick={() => setPage("workspace")}
             />
             <PriceCard
@@ -1353,9 +1351,7 @@ function GeneratorCard({
         <div>
           <div className="tinyTag">{activeTool.label}</div>
           <h2>{activeTool.title}</h2>
-          <div className="planIndicator">
-            {!user ? "Create a free Brand Workspace to start" : userPlan === "free" ? `${dailyRemaining} free generation left today` : `${userPlan.toUpperCase()} access active`}
-          </div>
+          
         </div>
         <div className="liveBadge">AI Powered</div>
       </div>
