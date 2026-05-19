@@ -1002,18 +1002,6 @@ ${prompt}`
         </div>
       )}
 
-      <button className="chatButton" onClick={() => setChatOpen(!chatOpen)}>AI Assistant</button>
-      {chatOpen && (
-        <div className="chatWidget">
-          <div className="chatHeader"><strong>Brandthat AI</strong><span>Need help getting started?</span></div>
-          <div className="chatBody">
-            <div className="chatBubble">Create a Brand Workspace first. Then generate and save logos, captions, hooks, bios, and launch content around that brand.</div>
-            <div className="chatBubble light">Free: 1 daily generation<br />Starter: unlimited text tools<br />Pro: unlimited logo images + brand kits</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function getSystemCardText(item) {
@@ -1525,14 +1513,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:20px;z-index:2000}
 .signupBox{max-width:460px;width:100%}
 .signupBox p{color:#666;line-height:1.7}
-.chatButton{position:fixed;bottom:24px;right:24px;background:#111;color:white;border:none;padding:16px 22px;border-radius:999px;font-weight:800;cursor:pointer;box-shadow:0 18px 40px rgba(0,0,0,.18);z-index:1000}
-.chatWidget{position:fixed;bottom:90px;right:24px;width:340px;background:white;border-radius:28px;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 80px rgba(0,0,0,.12);z-index:1000}
-.chatHeader{padding:20px;border-bottom:1px solid rgba(0,0,0,.06)}
-.chatHeader strong{display:block;margin-bottom:6px}
-.chatHeader span{font-size:14px;color:#666}
-.chatBody{padding:18px;display:flex;flex-direction:column;gap:12px}
-.chatBubble{background:#111;color:white;padding:14px 16px;border-radius:18px;line-height:1.6;font-size:14px}
-.chatBubble.light{background:#f5f5f5;color:#111}
 .seoHomeSection{max-width:1280px;margin:0 auto;padding:20px 6vw 100px}
 .seoHomeSection h2{max-width:940px;margin-bottom:22px}
 .seoHomeSection>p{font-size:19px;line-height:1.8;color:#666;max-width:900px}
