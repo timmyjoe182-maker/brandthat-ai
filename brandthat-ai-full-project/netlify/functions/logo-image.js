@@ -16,24 +16,25 @@ exports.handler = async (event) => {
     }
 
     const finalPrompt = `
-Create a modern, premium logo concept for Brandthat.ai's logo generator.
+Create a modern, professional logo image.
 
 Brand name:
 ${brandName || "Unnamed Brand"}
 
-User request:
+Logo request:
 ${logoPrompt}
 
-Style requirements:
-- Modern, professional, clean
-- High-end startup / brand identity quality
+Requirements:
+- Premium, modern, clean
 - Strong logo mark or wordmark
-- Must work as a website logo and social media profile image
-- Avoid messy details
-- Avoid mockup backgrounds
+- Minimal and brand-ready
+- Works as a website logo and social media profile image
 - Centered composition
-- Minimal, polished, brand-ready
-- If text is included, keep it clean and readable
+- Clean background
+- Avoid clutter
+- Avoid mockup scenes
+- Black and white unless the user asks for color
+- If text is included, keep it simple and readable
 `;
 
     const image = await client.images.generate({
