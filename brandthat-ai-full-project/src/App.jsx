@@ -238,7 +238,6 @@ export default function App() {
 
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
-  const [chatOpen, setChatOpen] = useState(false);
 
   const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
   const isFree = userPlan === "free";
@@ -1334,13 +1333,18 @@ function GeneratorCard({
   clearGenerator,
   saveCurrentOutput
 }) {
+  const examplePrompts = getExamplePrompts(activeTool.key);
+  const resultCards = formatResultCards(activeTool.key, result);
+
   return (
-    <div className="generateCard">
+    <div className="generateCard toolResultsV2">
       <div className="generateTop">
         <div>
           <div className="tinyTag">{activeTool.label}</div>
           <h2>{activeTool.title}</h2>
-          
+          <p className="toolSubline">
+            Create premium, ready-to-use brand assets in seconds.
+          </p>
         </div>
         <div className="liveBadge">AI Powered</div>
       </div>
@@ -1361,45 +1365,203 @@ function GeneratorCard({
         </label>
       </div>
 
-      <textarea placeholder={activeTool.placeholder} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <div className="exampleChips">
+        {examplePrompts.map((example) => (
+          <button key={example} onClick={() => setPrompt(example)}>
+            {example}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        placeholder={activeTool.placeholder}
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+      />
 
       <div className="generatorButtons">
-        <button className="btn dark" onClick={generate}>{loading ? "Generating..." : activeTool.key === "logo" ? "Generate Logo Image" : `Generate ${activeTool.shortTitle}`}</button>
+        <button className="btn dark" onClick={generate}>
+          {loading ? getLoadingText(activeTool.key) : activeTool.key === "logo" ? "Generate Logo Image" : `Generate ${activeTool.shortTitle}`}
+        </button>
         <button className="btn light" onClick={clearGenerator}>Clear</button>
       </div>
 
-      {logoImage && (
-        <div className="logoImageBox">
-          <img src={logoImage} alt="Generated logo" />
-          <div className="resultActions">
-            <a className="downloadLink" href={logoImage} download="brandthat-logo.png">Download Logo</a>
+      {loading && (
+        <div className="premiumLoading">
+          <div className="loadingPulse"></div>
+          <div>
+            <strong>{getLoadingText(activeTool.key)}</strong>
+            <span>Formatting your results into premium brand cards...</span>
           </div>
         </div>
       )}
 
-      {(result || logoImage) && (
-        <div className="resultActions resultMainActions">
-          <button onClick={saveCurrentOutput}>Save to Workspace</button>
-          {result && <button onClick={() => copyToClipboard(result)}>Copy</button>}
-          {result && <button onClick={() => shareOutput(result)}>Share</button>}
+      {logoImage && (
+        <div className="logoShowcase">
+          <div className="logoFrame">
+            <img src={logoImage} alt="Generated logo" />
+          </div>
+
+          <div className="brandPreviewCard">
+            <div className="tinyTag">LOGO CONCEPT</div>
+            <h3>Premium brand mark generated</h3>
+            <p>
+              Use this as your visual starting point, then save it into your
+              Brand Workspace to build a full identity system.
+            </p>
+
+            <div className="resultActions">
+              <a className="downloadLink" href={logoImage} download="brandthat-logo.png">
+                Download Logo
+              </a>
+              <button onClick={saveCurrentOutput}>Save to Workspace</button>
+            </div>
+          </div>
         </div>
       )}
 
       {result && (
-        <div className="resultBox">
+        <div className="resultBox premiumResults">
           <div className="resultTop">
             <span>BRANDTHAT AI OUTPUT</span>
+            <div className="resultActions">
+              <button onClick={saveCurrentOutput}>Save</button>
+              <button onClick={() => copyToClipboard(result)}>Copy All</button>
+              <button onClick={() => shareOutput(result)}>Share</button>
+            </div>
           </div>
-          <div className="visualOutput">
-            {result.split("\n").filter(Boolean).slice(0, 8).map((line, index) => (
-              <div className="outputCard" key={`${line}-${index}`}>{line}</div>
+
+          <div className="resultCardGrid">
+            {resultCards.map((card, index) => (
+              <div className="premiumResultCard" key={`${card.title}-${index}`}>
+                <div className="resultCardTop">
+                  <span>{card.label}</span>
+                  <button onClick={() => copyToClipboard(card.content)}>Copy</button>
+                </div>
+                <h3>{card.title}</h3>
+                <p>{card.content}</p>
+              </div>
             ))}
           </div>
-          <div className="resultContent">{result}</div>
+
+          <details className="fullOutputDetails">
+            <summary>View full raw output</summary>
+            <div className="resultContent">{result}</div>
+          </details>
         </div>
       )}
     </div>
   );
+}
+
+function getExamplePrompts(toolKey) {
+  const examples = {
+    logo: [
+      "Luxury coffee brand for modern creators",
+      "Minimal black-and-white logo for an AI startup",
+      "Premium ranch lifestyle brand with elegant typography",
+      "Bold fitness clothing brand logo"
+    ],
+    captions: [
+      "Launch caption for a new AI logo generator",
+      "Instagram caption for a luxury brand reveal",
+      "Behind-the-scenes caption for a creative business",
+      "Short polished caption for a product launch"
+    ],
+    hooks: [
+      "AI built this entire brand in 30 seconds",
+      "POV: your brand finally looks premium",
+      "This is why your logo looks forgettable",
+      "Nobody talks about this branding mistake"
+    ],
+    bios: [
+      "Bio for a luxury ranch lifestyle brand",
+      "Bio for an AI branding startup",
+      "Bio for a wedding photography business",
+      "Bio for a premium ecommerce brand"
+    ],
+    hashtags: [
+      "Luxury branding, AI tools, startup content",
+      "Ranch life, animals, lifestyle brand",
+      "AI logo generator, brand identity, creators",
+      "Small business marketing, social growth"
+    ],
+    email: [
+      "Launch email for a new AI branding tool",
+      "Welcome email for new Brandthat users",
+      "Promo email for a Pro subscription plan",
+      "Client announcement for a new service"
+    ],
+    strategy: [
+      "30-day TikTok strategy for an AI startup",
+      "Instagram growth strategy for a ranch brand",
+      "Content pillars for a luxury service business",
+      "Launch plan for a new online tool"
+    ],
+    brand: [
+      "Create a premium AI branding startup",
+      "Create a luxury candle company brand",
+      "Create a modern real estate brand",
+      "Create a ranch lifestyle media brand"
+    ]
+  };
+
+  return examples[toolKey] || examples.brand;
+}
+
+function getLoadingText(toolKey) {
+  const loading = {
+    logo: "Designing your logo concept...",
+    captions: "Writing premium captions...",
+    hooks: "Building scroll-stopping hooks...",
+    bios: "Crafting polished brand bios...",
+    hashtags: "Creating hashtag systems...",
+    email: "Writing high-converting email copy...",
+    strategy: "Building your content strategy...",
+    brand: "Creating your brand system..."
+  };
+
+  return loading[toolKey] || "Generating your brand asset...";
+}
+
+function formatResultCards(toolKey, result) {
+  if (!result) return [];
+
+  const cleanLines = result
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const fallbackCards = cleanLines.slice(0, 6).map((line, index) => ({
+    label: `OPTION ${index + 1}`,
+    title: getCardTitle(toolKey, index),
+    content: line
+  }));
+
+  return fallbackCards.length
+    ? fallbackCards
+    : [
+        {
+          label: "RESULT",
+          title: "Generated Brand Asset",
+          content: result
+        }
+      ];
+}
+
+function getCardTitle(toolKey, index) {
+  const titles = {
+    logo: ["Logo Direction", "Typography", "Color Palette", "Brand Feel", "Usage Notes", "Visual System"],
+    captions: ["Best Caption", "Short Version", "Premium Version", "CTA Version", "Storytelling Version", "Viral Version"],
+    hooks: ["1-Second Hook", "3-Second Hook", "5-Second Hook", "Curiosity Hook", "Bold Hook", "Premium Hook"],
+    bios: ["Instagram Bio", "TikTok Bio", "Website Bio", "LinkedIn Bio", "Short Bio", "Premium Bio"],
+    hashtags: ["Niche Tags", "Broad Reach", "Audience Tags", "Location Tags", "Viral Tags", "Brand Tags"],
+    email: ["Subject Line", "Preview Text", "Opening", "Body Copy", "CTA", "Sign-Off"],
+    strategy: ["Content Pillar", "Posting Idea", "Growth Tactic", "Hook Direction", "Platform Move", "Next Step"],
+    brand: ["Brand Name", "Positioning", "Tagline", "Audience", "Voice", "Launch Direction"]
+  };
+
+  return titles[toolKey]?.[index] || "Generated Option";
 }
 
 function PriceCard({ name, price, desc, features, featured, onClick }) {
@@ -1527,6 +1689,188 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoArticleBlock h2{font-size:34px;margin-bottom:14px}
 .examplePromptGrid,.faqGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
 .examplePromptGrid button{text-align:left;border-radius:18px;line-height:1.5}
+
+.toolResultsV2 .toolSubline{
+  color:#666;
+  line-height:1.6;
+  margin-top:10px;
+}
+
+.exampleChips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin:10px 0 18px;
+}
+
+.exampleChips button{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:11px 14px;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+  color:#111;
+}
+
+.exampleChips button:hover{
+  background:#111;
+  color:white;
+}
+
+.premiumLoading{
+  margin-top:20px;
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:22px;
+  padding:18px;
+  display:flex;
+  gap:14px;
+  align-items:center;
+}
+
+.premiumLoading span{
+  display:block;
+  color:#666;
+  margin-top:4px;
+  font-size:14px;
+}
+
+.loadingPulse{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#111;
+  animation:pulseBrandthat 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseBrandthat{
+  0%{transform:scale(.8);opacity:.45}
+  50%{transform:scale(1.25);opacity:1}
+  100%{transform:scale(.8);opacity:.45}
+}
+
+.logoShowcase{
+  margin-top:28px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  align-items:stretch;
+}
+
+.logoFrame{
+  background:#f7f4ed;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:30px;
+  padding:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.logoFrame img{
+  width:100%;
+  max-width:420px;
+  border-radius:22px;
+  box-shadow:0 18px 50px rgba(0,0,0,.08);
+}
+
+.brandPreviewCard{
+  background:#111;
+  color:white;
+  border-radius:30px;
+  padding:30px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.brandPreviewCard .tinyTag{
+  color:#d9bd77;
+}
+
+.brandPreviewCard h3{
+  font-size:32px;
+  letter-spacing:-.04em;
+  margin:0 0 14px;
+}
+
+.brandPreviewCard p{
+  color:rgba(255,255,255,.72);
+  line-height:1.7;
+}
+
+.brandPreviewCard .resultActions button{
+  background:white;
+  color:#111;
+}
+
+.premiumResults{
+  background:white;
+}
+
+.resultCardGrid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+  padding:22px;
+}
+
+.premiumResultCard{
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:24px;
+  padding:20px;
+  min-height:170px;
+}
+
+.resultCardTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.resultCardTop span{
+  font-size:11px;
+  letter-spacing:1.6px;
+  font-weight:900;
+  color:#9b7b3f;
+}
+
+.resultCardTop button{
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:7px 10px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.premiumResultCard h3{
+  font-size:22px;
+  letter-spacing:-.03em;
+  margin:0 0 10px;
+}
+
+.premiumResultCard p{
+  color:#555;
+  line-height:1.7;
+  white-space:pre-wrap;
+}
+
+.fullOutputDetails{
+  border-top:1px solid rgba(0,0,0,.08);
+  padding:18px 22px;
+}
+
+.fullOutputDetails summary{
+  font-weight:900;
+  cursor:pointer;
+}
+
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.examplePromptGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}.chatWidget{width:calc(100vw - 40px);right:20px;bottom:84px}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.examplePromptGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
