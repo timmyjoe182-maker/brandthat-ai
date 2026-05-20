@@ -1333,7 +1333,6 @@ function GeneratorCard({
   clearGenerator,
   saveCurrentOutput
 }) {
-  const examplePrompts = getExamplePrompts(activeTool.key);
   const resultCards = formatResultCards(activeTool.key, result);
 
   return (
@@ -1349,32 +1348,29 @@ function GeneratorCard({
         <div className="liveBadge">AI Powered</div>
       </div>
 
-      <div className="generatorControls">
+      <div className="generatorControls freeTypeControls">
         <label>
           <span>{activeTool.platformLabel}</span>
-          <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value)}>
-            {activeTool.platforms.map((option) => <option key={option}>{option}</option>)}
-          </select>
+          <input
+            value={selectedPlatform}
+            onChange={(e) => setSelectedPlatform(e.target.value)}
+            placeholder={activeTool.key === "logo" ? "Example: luxury monogram, modern tech, ranch lifestyle, black-and-white" : "Example: Instagram, TikTok, LinkedIn, website, launch email"}
+          />
         </label>
 
         <label>
           <span>Tone</span>
-          <select value={creativeTone} onChange={(e) => setCreativeTone(e.target.value)}>
-            {tones.map((tone) => <option key={tone}>{tone}</option>)}
-          </select>
+          <input
+            value={creativeTone}
+            onChange={(e) => setCreativeTone(e.target.value)}
+            placeholder="Example: premium, witty, luxury, emotional, bold, viral"
+          />
         </label>
       </div>
 
-      <div className="exampleChips">
-        {examplePrompts.map((example) => (
-          <button key={example} onClick={() => setPrompt(example)}>
-            {example}
-          </button>
-        ))}
-      </div>
-
       <textarea
-        placeholder={activeTool.placeholder}
+        className="mainPromptBox"
+        placeholder={activeTool.key === "logo" ? "Type anything you want. Example: Create a clean black-and-white logo for Brandthat.ai, a premium AI branding platform for creators and businesses. Make it modern, minimal, and strong as a favicon." : activeTool.placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
@@ -1717,6 +1713,22 @@ textarea{height:170px;resize:none;line-height:1.6}
 .exampleChips button:hover{
   background:#111;
   color:white;
+}
+
+
+.freeTypeControls input{
+  margin-top:10px;
+  background:#fafafa;
+}
+
+.mainPromptBox{
+  min-height:190px;
+  font-size:17px;
+}
+
+.toolResultsV2 textarea.mainPromptBox::placeholder,
+.toolResultsV2 input::placeholder{
+  color:#777;
 }
 
 .premiumLoading{
