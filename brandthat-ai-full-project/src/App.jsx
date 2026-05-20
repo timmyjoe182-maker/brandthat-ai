@@ -1644,26 +1644,28 @@ function SEOPage({
           <p>Describe what you want to create, choose a platform or style, select a tone, and Brandthat.ai generates a polished output you can copy, save, share, or build into your brand workspace.</p>
         </div>
 
-        <div className="seoArticleBlock">
-          <h2>Prompt starters built to get stronger results</h2>
-          <div className="examplePromptGrid">
-            {seoPage.examples.map((example) => (
-              <button
-                key={example}
-                onClick={() => {
-                  setPrompt(example);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              >
-                <span>Use this prompt</span>
-                {example}
-              </button>
+        <CreativeDirectionPanel
+          toolKey={seoPage.toolKey}
+          setPrompt={setPrompt}
+          setSelectedPlatform={setSelectedPlatform}
+          setCreativeTone={setCreativeTone}
+        />
+
+        <div className="seoArticleBlock seoUseCases">
+          <h2>Built for real brand moments</h2>
+          <div className="useCaseGrid">
+            {getUseCases(seoPage.toolKey).map((item) => (
+              <div className="useCaseCard" key={item.title}>
+                <span>{item.kicker}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="seoArticleBlock">
-          <h2>Frequently asked questions</h2>
+        <div className="seoArticleBlock faqCompact">
+          <h2>Quick answers</h2>
           <div className="faqGrid">
             {seoPage.faqs.map(([question, answer]) => (
               <div className="faqCard" key={question}>
@@ -1686,6 +1688,216 @@ function SEOPage({
       </div>
     </section>
   );
+}
+
+
+function CreativeDirectionPanel({ toolKey, setPrompt, setSelectedPlatform, setCreativeTone }) {
+  const directions = getCreativeDirections(toolKey);
+
+  return (
+    <div className="seoArticleBlock creativeDirectionsBlock">
+      <div className="creativeDirectionsTop">
+        <div>
+          <div className="tinyTag">CREATIVE DIRECTIONS</div>
+          <h2>Start with a style, then make it your own.</h2>
+        </div>
+        <p>Choose a direction to instantly shape the generator. No forced templates — just a clean starting point.</p>
+      </div>
+
+      <div className="creativeDirectionGrid">
+        {directions.map((direction) => (
+          <button
+            className="creativeDirectionCard"
+            key={direction.title}
+            onClick={() => {
+              setPrompt(direction.prompt);
+              setSelectedPlatform(direction.style || "");
+              setCreativeTone(direction.tone || "");
+              document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            <div className="directionPreview">
+              <span>{direction.initials}</span>
+            </div>
+            <div>
+              <h3>{direction.title}</h3>
+              <p>{direction.copy}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getCreativeDirections(toolKey) {
+  const directions = {
+    logo: [
+      {
+        initials: "LM",
+        title: "Luxury Minimal",
+        copy: "Clean typography, restraint, high-end spacing, premium neutral palette.",
+        style: "Luxury minimal wordmark with optional simple icon",
+        tone: "Premium, elegant, restrained",
+        prompt: "Create a luxury minimal logo for a premium brand. Use clean typography, strong spacing, a simple memorable mark, and a neutral high-end visual direction. Make it work as a website logo, social icon, and favicon."
+      },
+      {
+        initials: "VM",
+        title: "Vintage Mascot",
+        copy: "Character-driven, badge-ready, packaging-friendly, nostalgic but polished.",
+        style: "Vintage mascot logo with badge composition",
+        tone: "Warm, memorable, crafted",
+        prompt: "Create a vintage mascot logo for a brand. Use a memorable character mark, badge-ready composition, premium typography, and a polished packaging-ready feel. Keep it clean, not cartoonish."
+      },
+      {
+        initials: "TM",
+        title: "Tech Monogram",
+        copy: "Sharp lettermark, strong favicon use, modern SaaS/product identity.",
+        style: "Modern tech monogram and clean wordmark",
+        tone: "Modern, sharp, trustworthy",
+        prompt: "Create a modern tech monogram logo with a clean wordmark. Make it simple, scalable, favicon-ready, and suitable for an AI, SaaS, or startup brand."
+      },
+      {
+        initials: "BB",
+        title: "Boutique Brand",
+        copy: "Editorial, refined, soft luxury for lifestyle, beauty, ranch, or hospitality.",
+        style: "Boutique editorial brand mark",
+        tone: "Elegant, warm, premium",
+        prompt: "Create an elegant boutique logo for a premium lifestyle brand. Use refined typography, subtle symbolism, warm neutral direction, and a polished high-end feel."
+      }
+    ],
+    captions: [
+      {
+        initials: "SR",
+        title: "Story Reveal",
+        copy: "A polished caption that makes a launch, moment, or transformation feel intentional.",
+        style: "Instagram launch caption",
+        tone: "Premium, clear, story-driven",
+        prompt: "Write a polished Instagram caption for a brand reveal. Make it concise, premium, story-driven, and include a soft call to action."
+      },
+      {
+        initials: "CT",
+        title: "Clean CTA",
+        copy: "Short, direct, conversion-focused copy that still feels brand-safe.",
+        style: "Short social caption",
+        tone: "Direct, modern, confident",
+        prompt: "Write short social captions with clear calls to action. Keep them modern, confident, and easy to use."
+      },
+      {
+        initials: "BT",
+        title: "Behind the Brand",
+        copy: "Human, founder-led, and trust-building without sounding cheesy.",
+        style: "Founder caption",
+        tone: "Authentic, premium, warm",
+        prompt: "Write founder-style captions that explain the story behind a brand or product. Make them natural, polished, and trust-building."
+      },
+      {
+        initials: "VL",
+        title: "Viral Light",
+        copy: "Hooky and shareable, but still tasteful and premium.",
+        style: "Viral social caption",
+        tone: "Witty, sharp, not cheesy",
+        prompt: "Write engaging captions that feel hooky and shareable without sounding cheap or overly clickbait."
+      }
+    ],
+    hooks: [
+      {
+        initials: "POV",
+        title: "POV Hook",
+        copy: "Instantly places the viewer inside the transformation.",
+        style: "POV short-form hook",
+        tone: "Fast, visual, social-native",
+        prompt: "Create short POV-style hooks for a video. Give 1-second, 3-second, and 5-second options that feel natural and scroll-stopping."
+      },
+      {
+        initials: "BF",
+        title: "Before / After",
+        copy: "Built for transformation videos, redesigns, and reveal content.",
+        style: "Before and after hook",
+        tone: "Curious, premium, concise",
+        prompt: "Create before-and-after hooks for a transformation video. Make them curiosity-driven, concise, and premium."
+      },
+      {
+        initials: "MY",
+        title: "Myth Breaker",
+        copy: "Challenges a common assumption and earns the next few seconds.",
+        style: "Myth-busting hook",
+        tone: "Smart, direct, useful",
+        prompt: "Create short hooks that challenge a common belief in the niche. Make them useful, direct, and designed to stop the scroll."
+      },
+      {
+        initials: "FS",
+        title: "Founder Story",
+        copy: "A clean hook style for build-in-public and startup content.",
+        style: "Founder story hook",
+        tone: "Authentic, modern, ambitious",
+        prompt: "Create founder-story hooks for a build-in-public video. Make them ambitious, human, and concise."
+      }
+    ],
+    bios: [
+      {
+        initials: "IG",
+        title: "Instagram Bio",
+        copy: "Short, clear, personality-forward, built for profile conversion.",
+        style: "Instagram bio",
+        tone: "Clear, polished, modern",
+        prompt: "Create Instagram bio options for a brand. Make them short, clear, conversion-focused, and modern."
+      },
+      {
+        initials: "WEB",
+        title: "Website Bio",
+        copy: "More complete positioning for homepage, about section, or landing page.",
+        style: "Website brand bio",
+        tone: "Professional, premium, clear",
+        prompt: "Create website bio options for a brand. Explain what it does, who it helps, and why it matters in a polished way."
+      },
+      {
+        initials: "LI",
+        title: "LinkedIn Bio",
+        copy: "Professional, credible, and built for founders, teams, and services.",
+        style: "LinkedIn bio",
+        tone: "Professional, trustworthy, polished",
+        prompt: "Create LinkedIn bio options for a founder, brand, or business. Make them credible, concise, and professional."
+      },
+      {
+        initials: "CR",
+        title: "Creator Bio",
+        copy: "Personal brand energy with clarity, taste, and a strong hook.",
+        style: "Creator profile bio",
+        tone: "Human, confident, memorable",
+        prompt: "Create creator bio options that feel memorable, clear, and premium. Include short versions and slightly more detailed versions."
+      }
+    ]
+  };
+
+  return directions[toolKey] || directions.logo;
+}
+
+function getUseCases(toolKey) {
+  const useCases = {
+    logo: [
+      { kicker: "LAUNCH", title: "New brands", copy: "Create the first visual direction for a startup, product, studio, or creator brand." },
+      { kicker: "REFRESH", title: "Rebrands", copy: "Explore cleaner marks, stronger typography, and more premium identity directions." },
+      { kicker: "SOCIAL", title: "Profile-ready marks", copy: "Generate logo concepts that can work across websites, profile photos, favicons, and packaging." }
+    ],
+    captions: [
+      { kicker: "POST", title: "Daily content", copy: "Turn moments, launches, products, and behind-the-scenes clips into polished captions." },
+      { kicker: "BRAND", title: "Consistent voice", copy: "Keep captions aligned to the same tone as your workspace." },
+      { kicker: "CTA", title: "Better conversion", copy: "Create short captions that give people a reason to click, follow, save, or buy." }
+    ],
+    hooks: [
+      { kicker: "VIDEO", title: "Short-form starts", copy: "Create the first words people see before they decide to keep watching." },
+      { kicker: "RETENTION", title: "More watch time", copy: "Test multiple hook angles for the same clip before posting." },
+      { kicker: "REELS", title: "Cross-platform use", copy: "Use hooks for TikTok, Reels, Shorts, and Facebook Reels." }
+    ],
+    bios: [
+      { kicker: "PROFILE", title: "Social bios", copy: "Make Instagram, TikTok, and X profiles clearer and more compelling." },
+      { kicker: "WEBSITE", title: "About sections", copy: "Create polished website bios that explain what the brand does quickly." },
+      { kicker: "FOUNDER", title: "Personal brands", copy: "Write bios that feel credible, human, and specific." }
+    ]
+  };
+
+  return useCases[toolKey] || useCases.logo;
 }
 
 function ToolGrid({ activeToolKey, selectTool }) {
@@ -2150,16 +2362,30 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoHomeSection h2{max-width:940px;margin-bottom:22px}
 .seoHomeSection>p{font-size:19px;line-height:1.8;color:#666;max-width:900px}
 .seoInternalLinks{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
-.seoInternalLinks button,.examplePromptGrid button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:13px 16px;font-weight:800;cursor:pointer;color:#111}
+.seoInternalLinks button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:13px 16px;font-weight:800;cursor:pointer;color:#111}
 .seoTextGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
 .seoTextGrid div,.seoArticleBlock,.faqCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:26px}
 .seoTextGrid h3,.faqCard h3{font-size:20px;margin:0 0 10px;letter-spacing:-.03em}
 .seoTextGrid p,.seoArticle p,.faqCard p{color:#666;line-height:1.8}
 .seoArticle{margin-top:56px;display:flex;flex-direction:column;gap:22px}
 .seoArticleBlock h2{font-size:34px;margin-bottom:14px}
-.examplePromptGrid,.faqGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
-.examplePromptGrid button{text-align:left;border-radius:18px;line-height:1.5;display:flex;flex-direction:column;gap:8px}
-.examplePromptGrid button span{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
+.creativeDirectionsBlock{padding:30px;background:linear-gradient(180deg,#fff,#fbfaf7)}
+.creativeDirectionsTop{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:end;margin-bottom:22px}
+.creativeDirectionsTop p{margin:0;color:#666;line-height:1.7}
+.creativeDirectionGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.creativeDirectionCard{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:18px;text-align:left;color:#111;cursor:pointer;display:flex;flex-direction:column;gap:18px;min-height:220px;transition:.2s ease;font-family:inherit}
+.creativeDirectionCard:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
+.directionPreview{height:82px;border-radius:20px;background:radial-gradient(circle at 30% 20%,#fff 0,#f4efe4 38%,#111 39%,#111 40%,#f8f6f0 41%,#f8f6f0 100%);display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.06)}
+.directionPreview span{width:46px;height:46px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;letter-spacing:.04em}
+.creativeDirectionCard h3{font-size:20px;letter-spacing:-.04em;margin:0 0 8px}
+.creativeDirectionCard p{font-size:14px;line-height:1.55;margin:0;color:#666}
+.useCaseGrid,.faqGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.useCaseCard{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:22px;padding:20px}
+.useCaseCard span{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
+.useCaseCard h3{font-size:20px;margin:10px 0 8px;letter-spacing:-.03em}
+.useCaseCard p{font-size:15px;margin:0;color:#666;line-height:1.65}
+.faqCompact .faqGrid{grid-template-columns:repeat(3,1fr)}
+.faqCompact .faqCard{background:#fafafa;box-shadow:none}
 
 .toolResultsV2 .toolSubline{
   color:#666;
@@ -2396,5 +2622,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.examplePromptGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
