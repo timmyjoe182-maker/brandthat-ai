@@ -117,7 +117,7 @@ const seoPages = {
     eyebrow: "AI LOGO GENERATOR",
     h1: "AI Logo Generator for Modern Brands, Startups, and Creators",
     intro: "Create premium AI logo images, brand identity directions, palettes, typography, and launch-ready visual systems from one brand idea.",
-    examples: ["Minimal black-and-white AI logo for a creative studio", "Luxury ranch brand logo with a premium serif wordmark", "Modern coffee shop logo with a clean icon and warm typography"],
+    examples: ["Create a premium black-and-white logo for a modern AI branding platform named Brandthat.ai. Use a clean wordmark, strong favicon-ready icon, and luxury technology feel.", "Design a circular vintage mascot logo for a coffee brand. Include a wolf icon, cream and black palette, premium typography, and packaging-ready composition.", "Create an elegant ranch lifestyle logo with refined typography, subtle animal-inspired mark, warm neutral colors, and a high-end boutique brand feeling."],
     faqs: [
       ["Does Brandthat.ai create actual logo images?", "Yes. Pro unlocks unlimited AI logo image generation, while free users get daily logo concept access."],
       ["What should I type?", "Enter your brand name, audience, style, colors, and what you want the logo to feel like."],
@@ -130,7 +130,7 @@ const seoPages = {
     eyebrow: "INSTAGRAM CAPTION GENERATOR",
     h1: "Instagram Caption Generator for Brands and Creators",
     intro: "Write polished captions for Reels, carousels, launches, lifestyle posts, founder updates, and brand storytelling.",
-    examples: ["Caption for a behind-the-scenes ranch dinner routine", "Luxury product launch caption", "Founder story caption for a startup announcement"],
+    examples: ["Write 5 premium Instagram captions for launching a new AI logo generator. Include a short caption, storytelling caption, CTA caption, and polished founder-style caption.", "Create Instagram captions for a luxury brand reveal that feel high-end, modern, concise, and not cheesy.", "Write captions for a behind-the-scenes creative business post that builds trust, feels authentic, and encourages people to try the product."],
     faqs: [
       ["Can it write captions for Reels?", "Yes. It creates short, polished, CTA-driven captions for Reels and feed posts."],
       ["Can I choose tone?", "Yes. Choose modern, luxury, witty, professional, emotional, high-end, viral, and more."],
@@ -143,7 +143,7 @@ const seoPages = {
     eyebrow: "TIKTOK HOOK GENERATOR",
     h1: "TikTok Hook Generator for Short-Form Videos",
     intro: "Create quick on-video hooks for TikTok, Instagram Reels, YouTube Shorts, and short-form content.",
-    examples: ["POV: your logo finally looks like a real brand", "This is why your captions are not converting", "One small change made this Reel feel premium"],
+    examples: ["Generate 20 TikTok hooks for a video showing an AI tool turning a rough idea into a full brand in 30 seconds.", "Create short on-screen hooks for a before-and-after logo transformation video. Make them curiosity-driven and premium, not clickbait.", "Write 1-second, 3-second, and 5-second hooks for a founder building an AI startup live on the internet."],
     faqs: [
       ["What is a video hook?", "A hook is the first line or on-screen text that makes someone keep watching."],
       ["Can this work for Reels?", "Yes. It works for TikTok, Instagram Reels, YouTube Shorts, and Facebook Reels."],
@@ -156,7 +156,7 @@ const seoPages = {
     eyebrow: "BRAND BIO GENERATOR",
     h1: "Brand Bio Generator for Instagram, TikTok, LinkedIn, and Websites",
     intro: "Create clean brand bios that explain who you are, what you do, and why people should care.",
-    examples: ["Instagram bio for a luxury ranch brand", "LinkedIn bio for an AI startup founder", "Website bio for a premium local service brand"],
+    examples: ["Create 10 Instagram bio options for a premium AI branding platform that helps creators make logos, captions, hooks, and brand systems.", "Write website, Instagram, TikTok, and LinkedIn bios for a luxury ranch lifestyle brand with animals, storytelling, and high-end gifting.", "Create concise brand bios for a wedding photography and social media studio that offers photo, video, advertising, and content strategy."],
     faqs: [
       ["What makes a good brand bio?", "A good bio quickly explains who you help, what you offer, and why it matters."],
       ["Can it create multiple versions?", "Yes. It can create versions for different platforms and tones."],
@@ -1370,8 +1370,6 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
       <div className="tinyTag">START HERE</div>
       <h2>Create a Brand Workspace</h2>
       <p>Save the brand name, logo direction, brand tone, audience, and launch goal. Every generator can then create content around the same brand.</p>
-      {autoSaveStatus && <div className="autoSavePill">{autoSaveStatus}</div>}
-
       <div className="workspaceGrid">
         <input
           placeholder="Brand name"
@@ -1647,7 +1645,7 @@ function SEOPage({
         </div>
 
         <div className="seoArticleBlock">
-          <h2>Example prompts you can try</h2>
+          <h2>Prompt starters built to get stronger results</h2>
           <div className="examplePromptGrid">
             {seoPage.examples.map((example) => (
               <button
@@ -1657,6 +1655,7 @@ function SEOPage({
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
+                <span>Use this prompt</span>
                 {example}
               </button>
             ))}
@@ -2159,7 +2158,8 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoArticle{margin-top:56px;display:flex;flex-direction:column;gap:22px}
 .seoArticleBlock h2{font-size:34px;margin-bottom:14px}
 .examplePromptGrid,.faqGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
-.examplePromptGrid button{text-align:left;border-radius:18px;line-height:1.5}
+.examplePromptGrid button{text-align:left;border-radius:18px;line-height:1.5;display:flex;flex-direction:column;gap:8px}
+.examplePromptGrid button span{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
 
 .toolResultsV2 .toolSubline{
   color:#666;
