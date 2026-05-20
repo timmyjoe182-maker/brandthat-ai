@@ -1644,7 +1644,7 @@ function SEOPage({
           <p>Describe what you want to create, choose a platform or style, select a tone, and Brandthat.ai generates a polished output you can copy, save, share, or build into your brand workspace.</p>
         </div>
 
-        <CreativeDirectionPanel
+        <BrandEverywherePanel
           toolKey={seoPage.toolKey}
           setPrompt={setPrompt}
           setSelectedPlatform={setSelectedPlatform}
@@ -1691,36 +1691,83 @@ function SEOPage({
 }
 
 
-function CreativeDirectionPanel({ toolKey, setPrompt, setSelectedPlatform, setCreativeTone }) {
-  const directions = getCreativeDirections(toolKey);
+function BrandEverywherePanel({ toolKey, setPrompt, setSelectedPlatform, setCreativeTone }) {
+  const isLogo = toolKey === "logo";
+
+  const applyBrandSystemPrompt = () => {
+    const nextPrompt = isLogo
+      ? "Create a complete logo direction for a new brand. Include a clean primary logo, a simple icon mark, a favicon-ready version, social profile use, website header use, packaging/business card use, and a premium visual identity direction that can scale across every brand touchpoint."
+      : "Create brand-ready content that can be used across a website, social profile, launch post, email announcement, and brand workspace. Keep the output polished, practical, and easy to copy.";
+
+    setPrompt(nextPrompt);
+    setSelectedPlatform(isLogo ? "Complete brand identity system" : "Multi-platform brand system");
+    setCreativeTone("Premium, clear, modern, versatile");
+    document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const touchpoints = isLogo
+    ? [
+        ["01", "Logo mark", "Create the first visual anchor for the brand."],
+        ["02", "Website", "Use the identity across headers, landing pages, and CTAs."],
+        ["03", "Social", "Turn the mark into a profile image, launch post, and content system."],
+        ["04", "Brand kit", "Save colors, tone, direction, captions, hooks, and bios in one workspace."],
+      ]
+    : [
+        ["01", "Generate", "Create polished brand content from one prompt."],
+        ["02", "Save", "Store it inside the active Brand Workspace."],
+        ["03", "Reuse", "Turn one asset into posts, hooks, emails, and launch copy."],
+        ["04", "Export", "Build a simple brand kit users can keep and share."],
+      ];
 
   return (
-    <div className="seoArticleBlock creativeDirectionsBlock">
-      <div className="creativeDirectionsTop">
+    <div className="seoArticleBlock brandEverywhereBlock">
+      <div className="brandEverywhereHero">
         <div>
-          <div className="tinyTag">CREATIVE DIRECTIONS</div>
-          <h2>Choose a creative direction.</h2>
+          <div className="tinyTag">BRAND SYSTEM</div>
+          <h2>From first logo to full brand presence.</h2>
+          <p>
+            Start with one strong visual direction, then carry it into your website,
+            social profiles, launch content, and saved Brand Workspace.
+          </p>
+          <button className="btn dark" onClick={applyBrandSystemPrompt}>
+            Build a full brand direction
+          </button>
         </div>
-        <p>Clean, premium starting points that guide the AI without forcing a template.</p>
+
+        <div className="brandMockupStack" aria-label="Brand identity preview">
+          <div className="mockBrowser">
+            <div className="mockBrowserTop"><span></span><span></span><span></span></div>
+            <div className="mockBrowserNav">
+              <strong>Brand</strong>
+              <small>Home · Shop · About</small>
+            </div>
+            <div className="mockHeroLine"></div>
+            <div className="mockHeroLine short"></div>
+            <div className="mockButton"></div>
+          </div>
+
+          <div className="mockSocialCard">
+            <div className="mockAvatar">B</div>
+            <div>
+              <strong>Profile-ready</strong>
+              <span>Logo · Bio · Hooks · Captions</span>
+            </div>
+          </div>
+
+          <div className="mockKitCard">
+            <span>Brand Kit</span>
+            <div className="mockSwatches"><i></i><i></i><i></i></div>
+          </div>
+        </div>
       </div>
 
-      <div className="creativeDirectionGrid cleanDirections">
-        {directions.map((direction) => (
-          <button
-            className="creativeDirectionCard cleanDirectionCard"
-            key={direction.title}
-            onClick={() => {
-              setPrompt(direction.prompt);
-              setSelectedPlatform(direction.style || "");
-              setCreativeTone(direction.tone || "");
-              document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-          >
-            <span className="directionKicker">{direction.style || direction.title}</span>
-            <h3>{direction.title}</h3>
-            <p>{direction.copy}</p>
-            <div className="directionApply">Apply direction</div>
-          </button>
+      <div className="brandTouchpointGrid">
+        {touchpoints.map(([number, title, copy]) => (
+          <div className="brandTouchpoint" key={title}>
+            <span>{number}</span>
+            <h3>{title}</h3>
+            <p>{copy}</p>
+          </div>
         ))}
       </div>
     </div>
@@ -2366,6 +2413,33 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoTextGrid p,.seoArticle p,.faqCard p{color:#666;line-height:1.8}
 .seoArticle{margin-top:56px;display:flex;flex-direction:column;gap:22px}
 .seoArticleBlock h2{font-size:34px;margin-bottom:14px}
+.brandEverywhereBlock{background:white;padding:34px;overflow:hidden}
+.brandEverywhereHero{display:grid;grid-template-columns:1fr 440px;gap:34px;align-items:center}
+.brandEverywhereHero h2{max-width:620px}
+.brandEverywhereHero p{max-width:610px;color:#666;line-height:1.8;margin:18px 0 24px}
+.brandMockupStack{position:relative;min-height:360px;background:linear-gradient(135deg,#f7f4ed,#fff);border:1px solid rgba(0,0,0,.08);border-radius:34px;padding:24px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+.mockBrowser{background:white;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.08)}
+.mockBrowserTop{display:flex;gap:6px;margin-bottom:16px}
+.mockBrowserTop span{width:8px;height:8px;border-radius:50%;background:#ddd}
+.mockBrowserNav{display:flex;justify-content:space-between;gap:14px;align-items:center;border-bottom:1px solid rgba(0,0,0,.06);padding-bottom:14px;margin-bottom:20px}
+.mockBrowserNav strong{font-size:22px;letter-spacing:-.05em}
+.mockBrowserNav small{color:#777;font-weight:800}
+.mockHeroLine{height:28px;width:80%;background:#111;border-radius:999px;margin-bottom:12px}
+.mockHeroLine.short{width:54%;height:18px;background:#d7c8a8}
+.mockButton{width:120px;height:38px;background:#111;border-radius:999px;margin-top:24px}
+.mockSocialCard{position:absolute;left:38px;bottom:36px;background:#111;color:white;border-radius:24px;padding:16px 18px;display:flex;gap:12px;align-items:center;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.mockAvatar{width:46px;height:46px;border-radius:50%;background:white;color:#111;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
+.mockSocialCard span{display:block;color:rgba(255,255,255,.68);font-size:13px;margin-top:3px}
+.mockKitCard{position:absolute;right:26px;bottom:26px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;width:150px;box-shadow:0 20px 50px rgba(0,0,0,.08)}
+.mockKitCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
+.mockSwatches{display:flex;gap:8px;margin-top:16px}
+.mockSwatches i{width:26px;height:26px;border-radius:50%;background:#111;display:block}
+.mockSwatches i:nth-child(2){background:#d7c8a8}.mockSwatches i:nth-child(3){background:#f6f4ef;border:1px solid rgba(0,0,0,.08)}
+.brandTouchpointGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+.brandTouchpoint{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:24px;padding:22px}
+.brandTouchpoint span{font-size:11px;letter-spacing:2px;color:#9b7b3f;font-weight:900}
+.brandTouchpoint h3{font-size:21px;margin:12px 0 8px;letter-spacing:-.04em}
+.brandTouchpoint p{font-size:15px;color:#666;line-height:1.65;margin:0}
 .creativeDirectionsBlock{padding:34px;background:#fff}
 .creativeDirectionsTop{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:end;margin-bottom:24px}
 .creativeDirectionsTop p{margin:0;color:#666;line-height:1.7}
@@ -2621,5 +2695,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
