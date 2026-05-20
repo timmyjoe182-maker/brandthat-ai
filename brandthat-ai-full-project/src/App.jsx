@@ -244,6 +244,97 @@ export default function App() {
   const isStarter = userPlan === "starter";
   const isPro = userPlan === "pro";
 
+  const emptySavedBuckets = () => ({
+    captions: [],
+    hooks: [],
+    bios: [],
+    hashtags: [],
+    email: [],
+    strategy: [],
+    brand: [],
+    logos: [],
+  });
+
+  const mapWorkspaceRow = (row) => ({
+    id: row.id,
+    name: row.name || "Untitled Brand",
+    logoDirection: row.logo_direction || "",
+    description: row.description || "",
+    audience: row.audience || "",
+    tone: row.tone || "Modern",
+    style: row.style || "",
+    launchGoal: row.launch_goal || "",
+    saved: emptySavedBuckets(),
+    createdAt: row.created_at || new Date().toISOString(),
+  });
+
+  const mapGenerationRow = (row) => ({
+    id: row.id,
+    tool: row.tool,
+    title: row.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
+    content: row.content || "",
+    image: row.image_url || "",
+    createdAt: row.created_at || new Date().toISOString(),
+  });
+
+  const loadSavedWorkspaceData = async (currentUser) => {
+    if (!currentUser?.id) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("plan, daily_logo_uses, last_logo_use_date")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+      if (profile?.plan) {
+        localStorage.setItem("brandthat_plan", profile.plan);
+        setUserPlan(profile.plan);
+      }
+
+      const today = getTodayKey();
+      if (profile?.last_logo_use_date === today && Number.isFinite(Number(profile.daily_logo_uses))) {
+        setDailyFreeCount(Number(profile.daily_logo_uses));
+        localStorage.setItem("brandthat_daily_count", String(profile.daily_logo_uses));
+      }
+
+      const { data: workspaceRows, error: workspaceError } = await supabase
+        .from("brand_workspaces")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false });
+
+      if (workspaceError) throw workspaceError;
+
+      const { data: generationRows, error: generationError } = await supabase
+        .from("saved_generations")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false });
+
+      if (generationError) throw generationError;
+
+      const workspaceList = (workspaceRows || []).map(mapWorkspaceRow);
+      const workspaceById = Object.fromEntries(workspaceList.map((workspace) => [workspace.id, workspace]));
+
+      (generationRows || []).forEach((row) => {
+        const workspace = workspaceById[row.workspace_id];
+        if (!workspace) return;
+        const bucket = row.tool === "logo" ? "logos" : row.tool;
+        if (!workspace.saved[bucket]) workspace.saved[bucket] = [];
+        workspace.saved[bucket].push(mapGenerationRow(row));
+      });
+
+      if (workspaceList.length > 0) {
+        setBrandWorkspaces(workspaceList);
+        const existingActive = workspaceList.find((workspace) => workspace.id === activeBrandId);
+        setActiveBrandId(existingActive?.id || workspaceList[0].id);
+      }
+    } catch (error) {
+      console.warn("Could not load saved Brandthat workspaces:", error.message);
+    }
+  };
+
   useEffect(() => {
     const today = getTodayKey();
     const storedDate = localStorage.getItem("brandthat_daily_date");
@@ -267,13 +358,21 @@ export default function App() {
 
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
+      const currentUser = data.session?.user || null;
+      setUser(currentUser);
+      if (currentUser) loadSavedWorkspaceData(currentUser);
     };
 
     getSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+      if (currentUser) {
+        loadSavedWorkspaceData(currentUser);
+      } else {
+        setUserPlan("free");
+      }
     });
 
     const onPop = () => {
@@ -398,35 +497,52 @@ export default function App() {
     setLoading(false);
   };
 
-  const createWorkspace = () => {
+  const createWorkspace = async () => {
     if (!workspaceDraft.name.trim()) {
       alert("Add a brand name first.");
       return;
     }
 
-    const brand = {
+    const baseBrand = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       name: workspaceDraft.name.trim(),
       logoDirection: workspaceDraft.logoDirection.trim(),
       description: workspaceDraft.description.trim(),
       audience: workspaceDraft.audience.trim(),
-      tone: workspaceDraft.tone,
+      tone: workspaceDraft.tone || "Modern",
       style: workspaceDraft.style.trim(),
       launchGoal: workspaceDraft.launchGoal.trim(),
-      saved: {
-        captions: [],
-        hooks: [],
-        bios: [],
-        hashtags: [],
-        email: [],
-        strategy: [],
-        brand: [],
-        logos: [],
-      },
+      saved: emptySavedBuckets(),
       createdAt: new Date().toISOString(),
     };
 
-    const next = [brand, ...brandWorkspaces];
+    let brand = baseBrand;
+
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("brand_workspaces")
+          .insert({
+            user_id: user.id,
+            name: baseBrand.name,
+            description: baseBrand.description,
+            logo_direction: baseBrand.logoDirection,
+            audience: baseBrand.audience,
+            tone: baseBrand.tone,
+            style: baseBrand.style,
+            launch_goal: baseBrand.launchGoal,
+          })
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        brand = mapWorkspaceRow(data);
+      } catch (error) {
+        alert(`Could not save workspace to your account yet. Using local save for now. ${error.message || ""}`);
+      }
+    }
+
+    const next = [brand, ...brandWorkspaces.filter((item) => item.id !== brand.id)];
     setBrandWorkspaces(next);
     setActiveBrandId(brand.id);
     setPrompt(buildBrandPrompt(brand));
@@ -436,6 +552,15 @@ export default function App() {
     setResult("");
     setLogoImage("");
     setPage("logo");
+    setWorkspaceDraft({
+      name: "",
+      logoDirection: "",
+      description: "",
+      audience: "",
+      tone: "Modern",
+      style: "",
+      launchGoal: "",
+    });
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
 
@@ -444,20 +569,34 @@ export default function App() {
     if (!brand) return;
     setActiveBrandId(brand.id);
     setPrompt(buildBrandPrompt(brand));
+    setSelectedPlatform(brand.style || "");
     setCreativeTone(brand.tone || "");
     setResult("");
     setLogoImage("");
   };
 
-  const deleteBrand = (brandId) => {
+  const deleteBrand = async (brandId) => {
     const next = brandWorkspaces.filter((brand) => brand.id !== brandId);
     setBrandWorkspaces(next);
+
     if (activeBrandId === brandId) {
       setActiveBrandId(next[0]?.id || "");
     }
+
+    if (user?.id) {
+      try {
+        await supabase
+          .from("brand_workspaces")
+          .delete()
+          .eq("id", brandId)
+          .eq("user_id", user.id);
+      } catch (error) {
+        console.warn("Could not delete workspace from Supabase:", error.message);
+      }
+    }
   };
 
-  const saveCurrentOutput = () => {
+  const saveCurrentOutput = async () => {
     if (!activeBrand) {
       alert("Create a Brand Workspace first.");
       return;
@@ -469,7 +608,7 @@ export default function App() {
     }
 
     const bucket = activeTool.key === "logo" ? "logos" : activeTool.key;
-    const entry = {
+    let entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       tool: activeTool.key,
       title: `${activeTool.shortTitle} • ${new Date().toLocaleDateString()}`,
@@ -477,6 +616,28 @@ export default function App() {
       image: logoImage,
       createdAt: new Date().toISOString(),
     };
+
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("saved_generations")
+          .insert({
+            user_id: user.id,
+            workspace_id: activeBrand.id,
+            tool: activeTool.key,
+            title: entry.title,
+            content: entry.content,
+            image_url: entry.image,
+          })
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        entry = mapGenerationRow(data);
+      } catch (error) {
+        alert(`Could not save to your account yet. Saving locally for now. ${error.message || ""}`);
+      }
+    }
 
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
@@ -570,6 +731,16 @@ Launch goal: ${brand.launchGoal}`;
     const newCount = currentCount + 1;
     localStorage.setItem("brandthat_daily_count", String(newCount));
     setDailyFreeCount(newCount);
+
+    if (user?.id) {
+      supabase
+        .from("user_profiles")
+        .update({ daily_logo_uses: newCount, last_logo_use_date: today, updated_at: new Date().toISOString() })
+        .eq("id", user.id)
+        .then(({ error }) => {
+          if (error) console.warn("Could not update daily usage:", error.message);
+        });
+    }
   };
 
   const selectTool = (toolKey) => {
@@ -1123,6 +1294,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
       <div className="tinyTag">MY BRANDS</div>
       <h2>Saved Brand Workspaces</h2>
       <p>This is where users emotionally invest. Each brand can hold logos, captions, hooks, bios, and launch assets.</p>
+      <div className="accountSaveBadge">Saved to your account when logged in</div>
 
       {brandWorkspaces.length === 0 ? (
         <div className="emptyState">No brands yet. Create your first workspace.</div>
@@ -1910,6 +2082,10 @@ textarea{height:170px;resize:none;line-height:1.6}
   cursor:pointer;
 }
 
+
+.savedCloudNotice{background:#111;color:white;border-radius:22px;padding:16px 18px;margin-bottom:18px;line-height:1.6}
+.savedCloudNotice strong{display:block;margin-bottom:4px}
+.accountSaveBadge{display:inline-flex;align-items:center;gap:8px;background:#f0eadc;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#8a6b37;margin-top:10px}
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
 @media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.examplePromptGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
