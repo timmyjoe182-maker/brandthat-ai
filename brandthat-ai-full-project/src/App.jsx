@@ -1381,7 +1381,7 @@ function GeneratorCard({
           <input
             value={selectedPlatform}
             onChange={(e) => setSelectedPlatform(e.target.value)}
-            placeholder={activeTool.key === "logo" ? "Type any style: mascot, monogram, luxury, vintage, tech, ranch, fashion, badge, wordmark, icon, etc." : "Type anything: Instagram, TikTok, LinkedIn, website, email, launch, etc."}
+            placeholder={activeTool.key === "logo" ? "Style direction — mascot, monogram, luxury, vintage, tech, ranch, fashion, badge, wordmark, icon" : "Platform or format — Instagram, TikTok, LinkedIn, website, email, launch"}
           />
         </label>
 
@@ -1390,14 +1390,14 @@ function GeneratorCard({
           <input
             value={creativeTone}
             onChange={(e) => setCreativeTone(e.target.value)}
-            placeholder="Type any tone: premium, playful, bold, elegant, gritty, friendly, cinematic, luxury, etc."
+            placeholder="Tone — premium, playful, bold, elegant, gritty, friendly, cinematic, luxury"
           />
         </label>
       </div>
 
       <textarea
         className="mainPromptBox"
-        placeholder={activeTool.key === "logo" ? "Type exactly what you want. Example: Create a circular vintage mascot logo for a coffee brand with a wolf icon, cream and black colors, premium typography, and a clean favicon-ready version." : activeTool.placeholder}
+        placeholder={activeTool.key === "logo" ? "Describe the logo you want. Example: Create a circular vintage mascot logo for a coffee brand with a wolf icon, cream and black colors, premium typography, and a clean favicon-ready version." : activeTool.placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
