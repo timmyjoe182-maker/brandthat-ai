@@ -1699,15 +1699,15 @@ function CreativeDirectionPanel({ toolKey, setPrompt, setSelectedPlatform, setCr
       <div className="creativeDirectionsTop">
         <div>
           <div className="tinyTag">CREATIVE DIRECTIONS</div>
-          <h2>Start with a style, then make it your own.</h2>
+          <h2>Choose a creative direction.</h2>
         </div>
-        <p>Choose a direction to instantly shape the generator. No forced templates — just a clean starting point.</p>
+        <p>Clean, premium starting points that guide the AI without forcing a template.</p>
       </div>
 
-      <div className="creativeDirectionGrid">
+      <div className="creativeDirectionGrid cleanDirections">
         {directions.map((direction) => (
           <button
-            className="creativeDirectionCard"
+            className="creativeDirectionCard cleanDirectionCard"
             key={direction.title}
             onClick={() => {
               setPrompt(direction.prompt);
@@ -1716,13 +1716,10 @@ function CreativeDirectionPanel({ toolKey, setPrompt, setSelectedPlatform, setCr
               document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           >
-            <div className="directionPreview">
-              <span>{direction.initials}</span>
-            </div>
-            <div>
-              <h3>{direction.title}</h3>
-              <p>{direction.copy}</p>
-            </div>
+            <span className="directionKicker">{direction.style || direction.title}</span>
+            <h3>{direction.title}</h3>
+            <p>{direction.copy}</p>
+            <div className="directionApply">Apply direction</div>
           </button>
         ))}
       </div>
@@ -2369,16 +2366,18 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoTextGrid p,.seoArticle p,.faqCard p{color:#666;line-height:1.8}
 .seoArticle{margin-top:56px;display:flex;flex-direction:column;gap:22px}
 .seoArticleBlock h2{font-size:34px;margin-bottom:14px}
-.creativeDirectionsBlock{padding:30px;background:linear-gradient(180deg,#fff,#fbfaf7)}
-.creativeDirectionsTop{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:end;margin-bottom:22px}
+.creativeDirectionsBlock{padding:34px;background:#fff}
+.creativeDirectionsTop{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:end;margin-bottom:24px}
 .creativeDirectionsTop p{margin:0;color:#666;line-height:1.7}
 .creativeDirectionGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.creativeDirectionCard{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:18px;text-align:left;color:#111;cursor:pointer;display:flex;flex-direction:column;gap:18px;min-height:220px;transition:.2s ease;font-family:inherit}
-.creativeDirectionCard:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
-.directionPreview{height:82px;border-radius:20px;background:radial-gradient(circle at 30% 20%,#fff 0,#f4efe4 38%,#111 39%,#111 40%,#f8f6f0 41%,#f8f6f0 100%);display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.06)}
-.directionPreview span{width:46px;height:46px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;letter-spacing:.04em}
-.creativeDirectionCard h3{font-size:20px;letter-spacing:-.04em;margin:0 0 8px}
-.creativeDirectionCard p{font-size:14px;line-height:1.55;margin:0;color:#666}
+.creativeDirectionCard{background:#fbfaf7;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:22px;text-align:left;color:#111;cursor:pointer;display:flex;flex-direction:column;gap:12px;min-height:205px;transition:.2s ease;font-family:inherit}
+.creativeDirectionCard:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18);background:#fff}
+.cleanDirectionCard{position:relative;overflow:hidden}
+.cleanDirectionCard:before{content:"";position:absolute;left:22px;right:22px;top:0;height:3px;background:#111;border-radius:0 0 999px 999px;opacity:.9}
+.directionKicker{font-size:10px;line-height:1.4;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;min-height:28px;display:block;padding-top:6px}
+.creativeDirectionCard h3{font-size:22px;letter-spacing:-.05em;margin:4px 0 0}
+.creativeDirectionCard p{font-size:14px;line-height:1.6;margin:0;color:#666}
+.directionApply{margin-top:auto;display:inline-flex;width:max-content;border:1px solid rgba(0,0,0,.1);background:white;border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#111}
 .useCaseGrid,.faqGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
 .useCaseCard{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:22px;padding:20px}
 .useCaseCard span{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
