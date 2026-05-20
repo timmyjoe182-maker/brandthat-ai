@@ -215,8 +215,8 @@ export default function App() {
 
   const [activeToolKey, setActiveToolKey] = useState(getInitialToolFromPath());
   const activeTool = toolMap[activeToolKey] || tools[0];
-  const [selectedPlatform, setSelectedPlatform] = useState(activeTool.platforms[0]);
-  const [creativeTone, setCreativeTone] = useState("Modern");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [creativeTone, setCreativeTone] = useState("");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [logoImage, setLogoImage] = useState("");
@@ -431,8 +431,8 @@ export default function App() {
     setActiveBrandId(brand.id);
     setPrompt(buildBrandPrompt(brand));
     setActiveToolKey("logo");
-    setSelectedPlatform("Modern Minimal");
-    setCreativeTone(brand.tone || "Modern");
+    setSelectedPlatform(brand.style || "");
+    setCreativeTone(brand.tone || "");
     setResult("");
     setLogoImage("");
     setPage("logo");
@@ -444,7 +444,7 @@ export default function App() {
     if (!brand) return;
     setActiveBrandId(brand.id);
     setPrompt(buildBrandPrompt(brand));
-    setCreativeTone(brand.tone || "Modern");
+    setCreativeTone(brand.tone || "");
     setResult("");
     setLogoImage("");
   };
@@ -575,7 +575,7 @@ Launch goal: ${brand.launchGoal}`;
   const selectTool = (toolKey) => {
     const nextTool = toolMap[toolKey] || tools[0];
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(nextTool.platforms[0]);
+    setSelectedPlatform(activeBrand?.style || "");
     setPrompt(activeBrand ? buildBrandPrompt(activeBrand) : "");
     setResult("");
     setLogoImage("");
@@ -592,7 +592,7 @@ Launch goal: ${brand.launchGoal}`;
     window.history.pushState({}, "", seoPage.path);
     setPage(seoKey);
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(nextTool.platforms[0]);
+    setSelectedPlatform(activeBrand?.style || "");
     setPrompt(activeBrand ? buildBrandPrompt(activeBrand) : "");
     setResult("");
     setLogoImage("");
@@ -644,12 +644,39 @@ Rules:
   };
 
   const createLogoImage = async () => {
+    const enhancedLogoPrompt = `
+Create a high-quality professional logo.
+
+Brand/request:
+${prompt}
+
+Logo style direction:
+${selectedPlatform || "Use the best style for the user's request."}
+
+Tone / feeling:
+${creativeTone || "Premium, clean, memorable, and brand-appropriate."}
+
+Brand workspace context:
+${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
+
+Requirements:
+- Generate a polished logo concept suitable for a real business.
+- Adapt to any requested style: luxury, minimal, mascot, character, emblem, badge, monogram, wordmark, lettermark, icon, vintage, retro, tech, AI, fashion, ranch, real estate, restaurant, fitness, beauty, ecommerce, startup, creator brand, photography, construction, wellness, hospitality, or local service business.
+- If the user asks for a specific style, industry, animal, object, letter, color palette, era, mood, or reference direction, prioritize that request.
+- Prioritize strong composition, clean typography, scalability, contrast, and memorability.
+- The logo should work as a website logo, favicon, social profile image, business card mark, and brand identity anchor.
+- Avoid clutter, low-quality clipart, muddy details, and messy text.
+- Avoid misspelled text.
+- If text is included, keep it minimal, clean, and highly legible.
+- Make it feel premium, professional, and commercially usable.
+`;
+
     const response = await fetch("/.netlify/functions/logo-image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         brandName: activeBrand?.name || "",
-        logoPrompt: `${selectedPlatform}. ${creativeTone}. ${prompt}`
+        logoPrompt: enhancedLogoPrompt
       })
     });
 
@@ -1354,7 +1381,7 @@ function GeneratorCard({
           <input
             value={selectedPlatform}
             onChange={(e) => setSelectedPlatform(e.target.value)}
-            placeholder={activeTool.key === "logo" ? "Example: luxury monogram, modern tech, ranch lifestyle, black-and-white" : "Example: Instagram, TikTok, LinkedIn, website, launch email"}
+            placeholder={activeTool.key === "logo" ? "Type any style: mascot, monogram, luxury, vintage, tech, ranch, fashion, badge, wordmark, icon, etc." : "Type anything: Instagram, TikTok, LinkedIn, website, email, launch, etc."}
           />
         </label>
 
@@ -1363,14 +1390,14 @@ function GeneratorCard({
           <input
             value={creativeTone}
             onChange={(e) => setCreativeTone(e.target.value)}
-            placeholder="Example: premium, witty, luxury, emotional, bold, viral"
+            placeholder="Type any tone: premium, playful, bold, elegant, gritty, friendly, cinematic, luxury, etc."
           />
         </label>
       </div>
 
       <textarea
         className="mainPromptBox"
-        placeholder={activeTool.key === "logo" ? "Type anything you want. Example: Create a clean black-and-white logo for Brandthat.ai, a premium AI branding platform for creators and businesses. Make it modern, minimal, and strong as a favicon." : activeTool.placeholder}
+        placeholder={activeTool.key === "logo" ? "Type exactly what you want. Example: Create a circular vintage mascot logo for a coffee brand with a wolf icon, cream and black colors, premium typography, and a clean favicon-ready version." : activeTool.placeholder}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
