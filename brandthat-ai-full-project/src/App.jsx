@@ -226,18 +226,23 @@ export default function App() {
   const [activeBrandId, setActiveBrandId] = useState(localStorage.getItem("brandthat_active_brand_id") || "");
   const activeBrand = brandWorkspaces.find((brand) => brand.id === activeBrandId) || brandWorkspaces[0] || null;
 
-  const [workspaceDraft, setWorkspaceDraft] = useState({
-    name: "",
-    logoDirection: "",
-    description: "",
-    audience: "",
-    tone: "Modern",
-    style: "",
-    launchGoal: "",
-  });
+  const [workspaceDraft, setWorkspaceDraft] = useState(() =>
+    safeParse("brandthat_workspace_draft", {
+      name: "",
+      logoDirection: "",
+      description: "",
+      audience: "",
+      tone: "Modern",
+      style: "",
+      launchGoal: "",
+    })
+  );
 
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
+  const [appNotice, setAppNotice] = useState(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState("Draft ready");
+  const [favoriteIds, setFavoriteIds] = useState(() => safeParse("brandthat_favorite_ids", {}));
 
   const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
   const isFree = userPlan === "free";
@@ -274,6 +279,7 @@ export default function App() {
     title: row.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
     content: row.content || "",
     image: row.image_url || "",
+    favorite: Boolean(row.favorite),
     createdAt: row.created_at || new Date().toISOString(),
   });
 
@@ -393,10 +399,39 @@ export default function App() {
   }, [brandWorkspaces]);
 
   useEffect(() => {
+    localStorage.setItem("brandthat_favorite_ids", JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
+
+  useEffect(() => {
+    const draftHasContent = Object.values(workspaceDraft || {}).some((value) => String(value || "").trim());
+    if (!draftHasContent) return;
+
+    setAutoSaveStatus("Saving draft...");
+    const timer = setTimeout(() => {
+      localStorage.setItem("brandthat_workspace_draft", JSON.stringify(workspaceDraft));
+      setAutoSaveStatus("Draft autosaved");
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [workspaceDraft]);
+
+  useEffect(() => {
     if (activeBrand?.id) {
       localStorage.setItem("brandthat_active_brand_id", activeBrand.id);
     }
   }, [activeBrand?.id]);
+
+  const notify = (type, title, message = "") => {
+    setAppNotice({ type, title, message });
+    window.clearTimeout(window.brandthatNoticeTimer);
+    window.brandthatNoticeTimer = window.setTimeout(() => setAppNotice(null), 5200);
+  };
+
+  const handleAppError = (title, error, fallback = "Something went wrong. Please try again.") => {
+    const message = error?.message || fallback;
+    console.error(title, error);
+    notify("error", title, message);
+  };
 
   const openAuth = (mode = "signup", message = "") => {
     setAuthMode(mode);
@@ -484,14 +519,14 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Checkout failed.");
+        notify("error", "Checkout could not start", data.error || "Please try again in a moment.");
         setLoading(false);
         return;
       }
 
       window.location.href = data.url;
-    } catch {
-      alert("Checkout failed. Please try again.");
+    } catch (error) {
+      handleAppError("Checkout failed", error, "Please try again in a moment.");
     }
 
     setLoading(false);
@@ -499,7 +534,7 @@ export default function App() {
 
   const createWorkspace = async () => {
     if (!workspaceDraft.name.trim()) {
-      alert("Add a brand name first.");
+      notify("error", "Add a brand name first", "Your workspace needs a name before it can be saved.");
       return;
     }
 
@@ -538,7 +573,7 @@ export default function App() {
         if (error) throw error;
         brand = mapWorkspaceRow(data);
       } catch (error) {
-        alert(`Could not save workspace to your account yet. Using local save for now. ${error.message || ""}`);
+        notify("warning", "Workspace saved locally", `We could not save this to your account yet. ${error.message || ""}`);
       }
     }
 
@@ -561,6 +596,8 @@ export default function App() {
       style: "",
       launchGoal: "",
     });
+    localStorage.removeItem("brandthat_workspace_draft");
+    notify("success", "Workspace created", `${brand.name} is ready. Start generating brand assets.`);
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
 
@@ -598,12 +635,12 @@ export default function App() {
 
   const saveCurrentOutput = async () => {
     if (!activeBrand) {
-      alert("Create a Brand Workspace first.");
+      notify("error", "Create a Brand Workspace first", "Then you can save outputs, favorites, and brand kits to that workspace.");
       return;
     }
 
     if (!result && !logoImage) {
-      alert("Generate something first.");
+      notify("error", "Generate something first", "Once an output appears, you can save it to your workspace.");
       return;
     }
 
@@ -635,7 +672,7 @@ export default function App() {
         if (error) throw error;
         entry = mapGenerationRow(data);
       } catch (error) {
-        alert(`Could not save to your account yet. Saving locally for now. ${error.message || ""}`);
+        notify("warning", "Saved locally", `We could not save this to your account yet. ${error.message || ""}`);
       }
     }
 
@@ -652,6 +689,9 @@ export default function App() {
           : brand
       )
     );
+
+    notify("success", "Saved to workspace", `${entry.title} was added to ${activeBrand.name}.`);
+    return entry;
   };
 
   const buildWorkspaceKit = () => {
@@ -706,6 +746,91 @@ Generated with Brandthat.ai`;
     element.download = `${activeBrand?.name || "brandthat"}-brand-kit.txt`;
     element.click();
     URL.revokeObjectURL(url);
+    notify("success", "Brand kit downloaded", "Your workspace export is ready.");
+  };
+
+  const duplicateBrand = async (brandId) => {
+    const source = brandWorkspaces.find((brand) => brand.id === brandId);
+    if (!source) return;
+
+    const duplicateDraft = {
+      name: `${source.name} Copy`,
+      logoDirection: source.logoDirection || "",
+      description: source.description || "",
+      audience: source.audience || "",
+      tone: source.tone || "Modern",
+      style: source.style || "",
+      launchGoal: source.launchGoal || "",
+    };
+
+    const newBrand = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      ...duplicateDraft,
+      saved: emptySavedBuckets(),
+      createdAt: new Date().toISOString(),
+    };
+
+    let finalBrand = newBrand;
+
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("brand_workspaces")
+          .insert({
+            user_id: user.id,
+            name: duplicateDraft.name,
+            description: duplicateDraft.description,
+            logo_direction: duplicateDraft.logoDirection,
+            audience: duplicateDraft.audience,
+            tone: duplicateDraft.tone,
+            style: duplicateDraft.style,
+            launch_goal: duplicateDraft.launchGoal,
+          })
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        finalBrand = mapWorkspaceRow(data);
+      } catch (error) {
+        notify("warning", "Duplicated locally", `We could not sync the duplicate yet. ${error.message || ""}`);
+      }
+    }
+
+    setBrandWorkspaces((prev) => [finalBrand, ...prev]);
+    setActiveBrandId(finalBrand.id);
+    setPrompt(buildBrandPrompt(finalBrand));
+    notify("success", "Workspace duplicated", `${finalBrand.name} is ready to edit.`);
+  };
+
+  const toggleFavorite = (entryId) => {
+    if (!entryId) return;
+    setFavoriteIds((prev) => ({ ...prev, [entryId]: !prev[entryId] }));
+  };
+
+  const remixOutput = (entry) => {
+    if (!entry) return;
+    const tool = toolMap[entry.tool] || activeTool;
+    setActiveToolKey(tool.key);
+    setSelectedPlatform(activeBrand?.style || "");
+    setCreativeTone(activeBrand?.tone || "");
+    setPrompt(`Remix this ${tool.shortTitle || "brand asset"} into a stronger version:
+
+${entry.content || "Use the saved logo direction and improve it."}`);
+    setResult("");
+    setLogoImage("");
+    setPage(tool.key === "logo" ? "logo" : "studio");
+    setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
+  };
+
+  const getRecentGenerations = (limit = 8) => {
+    return brandWorkspaces
+      .flatMap((brand) =>
+        Object.entries(brand.saved || {}).flatMap(([bucket, items]) =>
+          (items || []).map((item) => ({ ...item, bucket, brandName: brand.name, workspaceId: brand.id }))
+        )
+      )
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, limit);
   };
 
   function buildBrandPrompt(brand) {
@@ -862,7 +987,7 @@ Requirements:
 
   const generate = async () => {
     if (!prompt.trim()) {
-      setResult(`Tell Brandthat what you want the ${activeTool.title} to create first.`);
+      notify("error", "Add a prompt first", `Tell Brandthat what you want the ${activeTool.title} to create.`);
       return;
     }
 
@@ -873,18 +998,21 @@ Requirements:
 
     if (activeTool.key !== "logo" && !activeBrand) {
       setPage("workspace");
+      notify("warning", "Create a workspace first", "Text tools are stronger when they are connected to a saved brand workspace.");
       setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
       return;
     }
 
     if (isFree && dailyFreeCount >= 1) {
       setPage("pricing");
+      notify("warning", "Free logo generation used", "Subscribe to Pro to unlock unlimited AI logo generations.");
       setResult("Your free logo generation has been used. Subscribe to Pro for unlimited AI logo generations.");
       return;
     }
 
     if (activeTool.key === "logo" && isStarter) {
       setPage("pricing");
+      notify("warning", "Logo generation is a Pro feature", "Starter includes unlimited text tools. Pro unlocks unlimited logo images.");
       setResult("AI logo image generation is included with Pro. Starter includes unlimited text generators and saved content history.");
       return;
     }
@@ -917,6 +1045,7 @@ ${prompt}`
 
       if (isFree) incrementDailyFreeUse();
     } catch (error) {
+      handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
       setResult(error.message || "Something went wrong. Please try again.");
     }
 
@@ -987,6 +1116,14 @@ ${prompt}`
         )}
       </nav>
 
+      {appNotice && (
+        <div className={`appNotice ${appNotice.type || "info"}`}>
+          <button aria-label="Close notification" onClick={() => setAppNotice(null)}>×</button>
+          <strong>{appNotice.title}</strong>
+          {appNotice.message && <span>{appNotice.message}</span>}
+        </div>
+      )}
+
       {page === "home" && (
         <>
           <main className="hero logoHero">
@@ -1005,6 +1142,7 @@ ${prompt}`
               workspaceDraft={workspaceDraft}
               setWorkspaceDraft={setWorkspaceDraft}
               createWorkspace={createWorkspace}
+              autoSaveStatus={autoSaveStatus}
             />
           </main>
 
@@ -1048,6 +1186,7 @@ ${prompt}`
               workspaceDraft={workspaceDraft}
               setWorkspaceDraft={setWorkspaceDraft}
               createWorkspace={createWorkspace}
+              autoSaveStatus={autoSaveStatus}
             />
 
             <WorkspaceLibrary
@@ -1055,13 +1194,21 @@ ${prompt}`
               activeBrand={activeBrand}
               selectBrand={selectBrand}
               deleteBrand={deleteBrand}
+              duplicateBrand={duplicateBrand}
               downloadBrandKit={downloadBrandKit}
               setPage={setPage}
             />
           </div>
 
           {activeBrand && (
-            <SavedAssets brand={activeBrand} copyToClipboard={copyToClipboard} />
+            <SavedAssets
+              brand={activeBrand}
+              recentGenerations={getRecentGenerations()}
+              favoriteIds={favoriteIds}
+              toggleFavorite={toggleFavorite}
+              remixOutput={remixOutput}
+              copyToClipboard={copyToClipboard}
+            />
           )}
         </section>
       )}
@@ -1164,6 +1311,8 @@ ${prompt}`
             shareOutput={shareOutput}
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
+            toggleFavorite={toggleFavorite}
+            remixOutput={remixOutput}
           />
         </section>
       )}
@@ -1215,12 +1364,13 @@ function getSystemCardText(item) {
   return copy[item] || "Build your brand faster with AI.";
 }
 
-function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace }) {
+function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, autoSaveStatus }) {
   return (
     <div className="workspaceCard">
       <div className="tinyTag">START HERE</div>
       <h2>Create a Brand Workspace</h2>
       <p>Save the brand name, logo direction, brand tone, audience, and launch goal. Every generator can then create content around the same brand.</p>
+      {autoSaveStatus && <div className="autoSavePill">{autoSaveStatus}</div>}
 
       <div className="workspaceGrid">
         <input
@@ -1288,13 +1438,12 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace }
   );
 }
 
-function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBrand, downloadBrandKit, setPage }) {
+function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBrand, duplicateBrand, downloadBrandKit, setPage }) {
   return (
     <div className="workspaceCard">
       <div className="tinyTag">MY BRANDS</div>
       <h2>Saved Brand Workspaces</h2>
-      <p>This is where users emotionally invest. Each brand can hold logos, captions, hooks, bios, and launch assets.</p>
-      <div className="accountSaveBadge">Saved to your account when logged in</div>
+      <p>Each workspace keeps its own logos, captions, hooks, bios, favorites, and launch assets.</p>
 
       {brandWorkspaces.length === 0 ? (
         <div className="emptyState">No brands yet. Create your first workspace.</div>
@@ -1306,7 +1455,10 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
                 <strong>{brand.name}</strong>
                 <span>{brand.tone} • {brand.audience || "Audience not set"}</span>
               </button>
-              <button className="miniDanger" onClick={() => deleteBrand(brand.id)}>Delete</button>
+              <div className="brandRowActions">
+                <button onClick={() => duplicateBrand(brand.id)}>Duplicate</button>
+                <button className="miniDanger" onClick={() => deleteBrand(brand.id)}>Delete</button>
+              </div>
             </div>
           ))}
         </div>
@@ -1320,7 +1472,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
   );
 }
 
-function SavedAssets({ brand, copyToClipboard }) {
+function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard }) {
   const buckets = [
     ["logos", "Saved Logos"],
     ["captions", "Saved Captions"],
@@ -1332,10 +1484,56 @@ function SavedAssets({ brand, copyToClipboard }) {
     ["brand", "Saved Brand Ideas"],
   ];
 
+  const favoriteItems = buckets
+    .flatMap(([key]) => (brand.saved?.[key] || []).map((item) => ({ ...item, bucket: key })))
+    .filter((item) => favoriteIds[item.id] || item.favorite);
+
+  const renderItem = (item) => (
+    <div className="savedItem" key={item.id}>
+      {item.image && <img src={item.image} alt={item.title} />}
+      <strong>{item.title}</strong>
+      {item.content && <p>{item.content.split("\n").filter(Boolean).slice(0, 2).join(" ").slice(0, 140)}{item.content.length > 140 ? "..." : ""}</p>}
+      <div className="savedItemActions">
+        <button onClick={() => toggleFavorite(item.id)}>{favoriteIds[item.id] || item.favorite ? "Favorited" : "Favorite"}</button>
+        {item.content && <button onClick={() => copyToClipboard(item.content)}>Copy</button>}
+        <button onClick={() => remixOutput(item)}>Remix</button>
+      </div>
+    </div>
+  );
+
   return (
     <section className="savedAssets">
       <div className="tinyTag">SAVED OUTPUTS</div>
       <h2>{brand.name} Brand Kit</h2>
+
+      <div className="recentPanel">
+        <div>
+          <h3>Recent Generations</h3>
+          <p>Your newest saved logos, captions, hooks, bios, and launch assets.</p>
+        </div>
+        <div className="recentList">
+          {recentGenerations.length === 0 ? (
+            <span>No recent generations yet.</span>
+          ) : (
+            recentGenerations.slice(0, 5).map((item) => (
+              <button key={item.id} onClick={() => remixOutput(item)}>
+                <strong>{item.title}</strong>
+                <span>{item.brandName}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {favoriteItems.length > 0 && (
+        <div className="favoritePanel">
+          <h3>Favorites</h3>
+          <div className="savedGrid compactSavedGrid">
+            {favoriteItems.slice(0, 4).map(renderItem)}
+          </div>
+        </div>
+      )}
+
       <div className="savedGrid">
         {buckets.map(([key, title]) => {
           const items = brand.saved?.[key] || [];
@@ -1345,13 +1543,7 @@ function SavedAssets({ brand, copyToClipboard }) {
               {items.length === 0 ? (
                 <p>No saved outputs yet.</p>
               ) : (
-                items.slice(0, 3).map((item) => (
-                  <div className="savedItem" key={item.id}>
-                    {item.image && <img src={item.image} alt={item.title} />}
-                    <strong>{item.title}</strong>
-                    {item.content && <button onClick={() => copyToClipboard(item.content)}>Copy</button>}
-                  </div>
-                ))
+                items.slice(0, 3).map(renderItem)
               )}
             </div>
           );
@@ -1413,6 +1605,8 @@ function SEOPage({
   shareOutput,
   clearGenerator,
   saveCurrentOutput,
+  toggleFavorite,
+  remixOutput,
   openSeoPage
 }) {
   return (
@@ -1441,6 +1635,8 @@ function SEOPage({
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
           saveCurrentOutput={saveCurrentOutput}
+          toggleFavorite={toggleFavorite}
+          remixOutput={remixOutput}
         />
       </div>
 
@@ -1530,19 +1726,28 @@ function GeneratorCard({
   copyToClipboard,
   shareOutput,
   clearGenerator,
-  saveCurrentOutput
+  saveCurrentOutput,
+  toggleFavorite,
+  remixOutput
 }) {
-  const resultCards = formatResultCards(activeTool.key, result);
+  const resultCards = formatSmartResultCards(activeTool.key, result);
+
+  const activeEntry = {
+    id: `active-${activeTool.key}`,
+    tool: activeTool.key,
+    title: `${activeTool.shortTitle} Draft`,
+    content: result,
+    image: logoImage,
+    createdAt: new Date().toISOString(),
+  };
 
   return (
-    <div className="generateCard toolResultsV2">
+    <div className={`generateCard toolResultsV2 ${activeTool.key}Generator`}>
       <div className="generateTop">
         <div>
           <div className="tinyTag">{activeTool.label}</div>
           <h2>{activeTool.title}</h2>
-          <p className="toolSubline">
-            Create premium, ready-to-use brand assets in seconds.
-          </p>
+          <p className="toolSubline">{getToolSubline(activeTool.key)}</p>
         </div>
         <div className="liveBadge">AI Powered</div>
       </div>
@@ -1553,7 +1758,7 @@ function GeneratorCard({
           <input
             value={selectedPlatform}
             onChange={(e) => setSelectedPlatform(e.target.value)}
-            placeholder={activeTool.key === "logo" ? "Style direction — mascot, monogram, luxury, vintage, tech, ranch, fashion, badge, wordmark, icon" : "Platform or format — Instagram, TikTok, LinkedIn, website, email, launch"}
+            placeholder={getStylePlaceholder(activeTool.key)}
           />
         </label>
 
@@ -1562,14 +1767,14 @@ function GeneratorCard({
           <input
             value={creativeTone}
             onChange={(e) => setCreativeTone(e.target.value)}
-            placeholder="Tone — premium, playful, bold, elegant, gritty, friendly, cinematic, luxury"
+            placeholder={getTonePlaceholder(activeTool.key)}
           />
         </label>
       </div>
 
       <textarea
         className="mainPromptBox"
-        placeholder={activeTool.key === "logo" ? "Describe the logo you want. Example: Create a circular vintage mascot logo for a coffee brand with a wolf icon, cream and black colors, premium typography, and a clean favicon-ready version." : activeTool.placeholder}
+        placeholder={getMainPromptPlaceholder(activeTool)}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
@@ -1586,7 +1791,7 @@ function GeneratorCard({
           <div className="loadingPulse"></div>
           <div>
             <strong>{getLoadingText(activeTool.key)}</strong>
-            <span>Formatting your results into premium brand cards...</span>
+            <span>{getLoadingSubtext(activeTool.key)}</span>
           </div>
         </div>
       )}
@@ -1600,16 +1805,12 @@ function GeneratorCard({
           <div className="brandPreviewCard">
             <div className="tinyTag">LOGO CONCEPT</div>
             <h3>Premium brand mark generated</h3>
-            <p>
-              Use this as your visual starting point, then save it into your
-              Brand Workspace to build a full identity system.
-            </p>
+            <p>Download the mark, save it to a workspace, or remix the prompt into a stronger direction.</p>
 
             <div className="resultActions">
-              <a className="downloadLink" href={logoImage} download="brandthat-logo.png">
-                Download Logo
-              </a>
-              <button onClick={saveCurrentOutput}>Save to Workspace</button>
+              <a className="downloadLink" href={logoImage} download="brandthat-logo.png">Download Logo</a>
+              <button onClick={saveCurrentOutput}>Save</button>
+              <button onClick={() => remixOutput(activeEntry)}>Remix</button>
             </div>
           </div>
         </div>
@@ -1618,20 +1819,24 @@ function GeneratorCard({
       {result && (
         <div className="resultBox premiumResults">
           <div className="resultTop">
-            <span>BRANDTHAT AI OUTPUT</span>
+            <span>{getResultHeader(activeTool.key)}</span>
             <div className="resultActions">
               <button onClick={saveCurrentOutput}>Save</button>
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
+              <button onClick={() => remixOutput(activeEntry)}>Remix</button>
               <button onClick={() => shareOutput(result)}>Share</button>
             </div>
           </div>
 
-          <div className="resultCardGrid">
+          <div className={`resultCardGrid ${activeTool.key}ResultGrid`}>
             {resultCards.map((card, index) => (
-              <div className="premiumResultCard" key={`${card.title}-${index}`}>
+              <div className={`premiumResultCard ${card.featured ? "featuredResultCard" : ""}`} key={`${card.title}-${index}`}>
                 <div className="resultCardTop">
                   <span>{card.label}</span>
-                  <button onClick={() => copyToClipboard(card.content)}>Copy</button>
+                  <div>
+                    <button onClick={() => copyToClipboard(card.content)}>Copy</button>
+                    <button onClick={() => setPrompt(`Improve this ${activeTool.shortTitle}:\n\n${card.content}`)}>Use</button>
+                  </div>
                 </div>
                 <h3>{card.title}</h3>
                 <p>{card.content}</p>
@@ -1649,59 +1854,53 @@ function GeneratorCard({
   );
 }
 
-function getExamplePrompts(toolKey) {
-  const examples = {
-    logo: [
-      "Luxury coffee brand for modern creators",
-      "Minimal black-and-white logo for an AI startup",
-      "Premium ranch lifestyle brand with elegant typography",
-      "Bold fitness clothing brand logo"
-    ],
-    captions: [
-      "Launch caption for a new AI logo generator",
-      "Instagram caption for a luxury brand reveal",
-      "Behind-the-scenes caption for a creative business",
-      "Short polished caption for a product launch"
-    ],
-    hooks: [
-      "AI built this entire brand in 30 seconds",
-      "POV: your brand finally looks premium",
-      "This is why your logo looks forgettable",
-      "Nobody talks about this branding mistake"
-    ],
-    bios: [
-      "Bio for a luxury ranch lifestyle brand",
-      "Bio for an AI branding startup",
-      "Bio for a wedding photography business",
-      "Bio for a premium ecommerce brand"
-    ],
-    hashtags: [
-      "Luxury branding, AI tools, startup content",
-      "Ranch life, animals, lifestyle brand",
-      "AI logo generator, brand identity, creators",
-      "Small business marketing, social growth"
-    ],
-    email: [
-      "Launch email for a new AI branding tool",
-      "Welcome email for new Brandthat users",
-      "Promo email for a Pro subscription plan",
-      "Client announcement for a new service"
-    ],
-    strategy: [
-      "30-day TikTok strategy for an AI startup",
-      "Instagram growth strategy for a ranch brand",
-      "Content pillars for a luxury service business",
-      "Launch plan for a new online tool"
-    ],
-    brand: [
-      "Create a premium AI branding startup",
-      "Create a luxury candle company brand",
-      "Create a modern real estate brand",
-      "Create a ranch lifestyle media brand"
-    ]
+function getToolSubline(toolKey) {
+  const lines = {
+    logo: "Describe any logo direction and Brandthat will turn it into a premium visual concept.",
+    captions: "Generate polished caption options formatted for social performance.",
+    hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
+    bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
+    hashtags: "Generate hashtag systems grouped by reach, niche, audience, and brand relevance.",
+    email: "Write complete email copy with subject lines, preview text, and calls to action.",
+    strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
+    brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction."
   };
+  return lines[toolKey] || "Create premium, ready-to-use brand assets in seconds.";
+}
 
-  return examples[toolKey] || examples.brand;
+function getStylePlaceholder(toolKey) {
+  const placeholders = {
+    logo: "Logo style, industry, icon, colors, era, layout, or reference direction",
+    captions: "Platform, post type, or format",
+    hooks: "Video platform, content type, or hook style",
+    bios: "Bio placement or profile type",
+    hashtags: "Platform, niche, location, or audience",
+    email: "Email type or campaign goal",
+    strategy: "Platform, campaign, or growth focus",
+    brand: "Brand category, market, or business type"
+  };
+  return placeholders[toolKey] || "Style, format, or direction";
+}
+
+function getTonePlaceholder(toolKey) {
+  const placeholders = {
+    logo: "Brand feeling, mood, audience perception, or personality",
+    captions: "Caption tone or voice",
+    hooks: "Hook energy or vibe",
+    bios: "Voice and personality",
+    hashtags: "Reach goal or audience feel",
+    email: "Email tone",
+    strategy: "Strategy tone or brand voice",
+    brand: "Brand personality"
+  };
+  return placeholders[toolKey] || "Tone or voice";
+}
+
+function getMainPromptPlaceholder(activeTool) {
+  if (activeTool.key === "logo") {
+    return "Describe the logo you want. Include the brand name, what it does, symbols or letters you want, colors, style, audience, and anything it should avoid.";
+  }
+  return activeTool.placeholder;
 }
 
 function getLoadingText(toolKey) {
@@ -1715,48 +1914,125 @@ function getLoadingText(toolKey) {
     strategy: "Building your content strategy...",
     brand: "Creating your brand system..."
   };
-
   return loading[toolKey] || "Generating your brand asset...";
 }
 
-function formatResultCards(toolKey, result) {
+function getLoadingSubtext(toolKey) {
+  const subtext = {
+    logo: "Balancing style, clarity, scalability, and brand memorability.",
+    captions: "Formatting options into usable caption cards.",
+    hooks: "Creating multiple retention-focused opening angles.",
+    bios: "Adapting the bio for different profile placements.",
+    hashtags: "Grouping hashtags by intent and discoverability.",
+    email: "Structuring subject, preview, body, and CTA.",
+    strategy: "Turning your goal into content pillars and action steps.",
+    brand: "Building identity, audience, positioning, and launch direction."
+  };
+  return subtext[toolKey] || "Formatting your results into premium brand cards.";
+}
+
+function formatSmartResultCards(toolKey, result) {
   if (!result) return [];
 
   const cleanLines = result
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
     .filter(Boolean);
 
-  const fallbackCards = cleanLines.slice(0, 6).map((line, index) => ({
-    label: `OPTION ${index + 1}`,
-    title: getCardTitle(toolKey, index),
-    content: line
-  }));
+  const schema = getResultSchema(toolKey);
+  const chunkSize = toolKey === "email" || toolKey === "strategy" ? 2 : 1;
 
-  return fallbackCards.length
-    ? fallbackCards
-    : [
-        {
-          label: "RESULT",
-          title: "Generated Brand Asset",
-          content: result
-        }
-      ];
+  const cards = schema.map((item, index) => {
+    const start = index * chunkSize;
+    const content = cleanLines.slice(start, start + chunkSize).join("\n") || cleanLines[index] || result;
+    return { ...item, content };
+  }).filter((card) => card.content);
+
+  return cards.slice(0, 8);
 }
 
-function getCardTitle(toolKey, index) {
-  const titles = {
-    logo: ["Logo Direction", "Typography", "Color Palette", "Brand Feel", "Usage Notes", "Visual System"],
-    captions: ["Best Caption", "Short Version", "Premium Version", "CTA Version", "Storytelling Version", "Viral Version"],
-    hooks: ["1-Second Hook", "3-Second Hook", "5-Second Hook", "Curiosity Hook", "Bold Hook", "Premium Hook"],
-    bios: ["Instagram Bio", "TikTok Bio", "Website Bio", "LinkedIn Bio", "Short Bio", "Premium Bio"],
-    hashtags: ["Niche Tags", "Broad Reach", "Audience Tags", "Location Tags", "Viral Tags", "Brand Tags"],
-    email: ["Subject Line", "Preview Text", "Opening", "Body Copy", "CTA", "Sign-Off"],
-    strategy: ["Content Pillar", "Posting Idea", "Growth Tactic", "Hook Direction", "Platform Move", "Next Step"],
-    brand: ["Brand Name", "Positioning", "Tagline", "Audience", "Voice", "Launch Direction"]
+function getResultSchema(toolKey) {
+  const schemas = {
+    logo: [
+      { label: "CONCEPT", title: "Logo Direction", featured: true },
+      { label: "TYPE", title: "Typography / Mark" },
+      { label: "COLOR", title: "Palette Direction" },
+      { label: "USE", title: "Best Use Case" },
+      { label: "SYSTEM", title: "Brand Identity Notes" },
+      { label: "NEXT", title: "Next Iteration" }
+    ],
+    captions: [
+      { label: "BEST", title: "Best Caption", featured: true },
+      { label: "SHORT", title: "Short Caption" },
+      { label: "PREMIUM", title: "Premium Caption" },
+      { label: "CTA", title: "Call-To-Action Caption" },
+      { label: "STORY", title: "Storytelling Caption" },
+      { label: "VIRAL", title: "Viral Caption" }
+    ],
+    hooks: [
+      { label: "1 SEC", title: "Instant Hook", featured: true },
+      { label: "3 SEC", title: "Curiosity Hook" },
+      { label: "5 SEC", title: "Retention Hook" },
+      { label: "BOLD", title: "Bold Hook" },
+      { label: "POV", title: "POV Hook" },
+      { label: "PREMIUM", title: "Polished Hook" }
+    ],
+    bios: [
+      { label: "IG", title: "Instagram Bio", featured: true },
+      { label: "TIKTOK", title: "TikTok Bio" },
+      { label: "SITE", title: "Website Bio" },
+      { label: "LINKEDIN", title: "LinkedIn Bio" },
+      { label: "SHORT", title: "Short Bio" },
+      { label: "PREMIUM", title: "Premium Bio" }
+    ],
+    hashtags: [
+      { label: "NICHE", title: "Niche Hashtags", featured: true },
+      { label: "REACH", title: "Broad Reach" },
+      { label: "AUDIENCE", title: "Audience Tags" },
+      { label: "LOCAL", title: "Location Tags" },
+      { label: "BRAND", title: "Brand Tags" },
+      { label: "VIRAL", title: "Trend Tags" }
+    ],
+    email: [
+      { label: "SUBJECT", title: "Subject Line", featured: true },
+      { label: "PREVIEW", title: "Preview Text" },
+      { label: "OPEN", title: "Opening" },
+      { label: "BODY", title: "Body Copy" },
+      { label: "CTA", title: "Call To Action" },
+      { label: "SIGNOFF", title: "Sign-Off" }
+    ],
+    strategy: [
+      { label: "PILLAR", title: "Content Pillar", featured: true },
+      { label: "CADENCE", title: "Posting Cadence" },
+      { label: "IDEA", title: "Content Idea" },
+      { label: "GROWTH", title: "Growth Tactic" },
+      { label: "HOOK", title: "Hook Direction" },
+      { label: "NEXT", title: "Next Step" }
+    ],
+    brand: [
+      { label: "NAME", title: "Brand Name", featured: true },
+      { label: "POSITION", title: "Positioning" },
+      { label: "TAGLINE", title: "Tagline" },
+      { label: "AUDIENCE", title: "Audience" },
+      { label: "VOICE", title: "Brand Voice" },
+      { label: "LAUNCH", title: "Launch Direction" }
+    ]
   };
+  return schemas[toolKey] || schemas.brand;
+}
 
-  return titles[toolKey]?.[index] || "Generated Option";
+function getResultHeader(toolKey) {
+  const headers = {
+    logo: "LOGO + BRAND DIRECTION",
+    captions: "CAPTION OPTIONS",
+    hooks: "HOOK OPTIONS",
+    bios: "BIO OPTIONS",
+    hashtags: "HASHTAG SYSTEM",
+    email: "EMAIL COPY",
+    strategy: "SOCIAL STRATEGY",
+    brand: "BRAND CREATION SYSTEM"
+  };
+  return headers[toolKey] || "BRANDTHAT AI OUTPUT";
 }
 
 function PriceCard({ name, price, desc, features, featured, onClick }) {
@@ -2086,6 +2362,39 @@ textarea{height:170px;resize:none;line-height:1.6}
 .savedCloudNotice{background:#111;color:white;border-radius:22px;padding:16px 18px;margin-bottom:18px;line-height:1.6}
 .savedCloudNotice strong{display:block;margin-bottom:4px}
 .accountSaveBadge{display:inline-flex;align-items:center;gap:8px;background:#f0eadc;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#8a6b37;margin-top:10px}
+
+.appNotice{max-width:1180px;margin:18px auto 0;padding:16px 48px 16px 18px;border-radius:20px;border:1px solid rgba(0,0,0,.08);background:white;box-shadow:0 18px 45px rgba(0,0,0,.08);position:relative;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.appNotice strong{font-size:15px}
+.appNotice span{color:#666;line-height:1.5}
+.appNotice button{position:absolute;right:14px;top:11px;border:none;background:transparent;font-size:22px;cursor:pointer;color:#111}
+.appNotice.error{border-color:rgba(180,0,0,.25);background:#fff7f7}
+.appNotice.warning{border-color:rgba(180,120,0,.25);background:#fffaf0}
+.appNotice.success{border-color:rgba(0,130,60,.22);background:#f4fff8}
+.autoSavePill{display:inline-flex;margin:-10px 0 16px;padding:9px 12px;border-radius:999px;background:#fafafa;border:1px solid rgba(0,0,0,.08);font-size:12px;font-weight:900;color:#8a6b37}
+.brandRowActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.brandRowActions button{border:none;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-weight:800;cursor:pointer;color:#111}
+.recentPanel,.favoritePanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:24px;margin:22px 0}
+.recentPanel{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:start}
+.recentPanel h3,.favoritePanel h3{margin:0 0 8px;font-size:24px;letter-spacing:-.03em}
+.recentPanel p{color:#666;line-height:1.6;margin:0}
+.recentList{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.recentList button{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:13px;text-align:left;cursor:pointer;color:#111}
+.recentList strong{display:block;margin-bottom:5px}
+.recentList span{font-size:13px;color:#666}
+.compactSavedGrid{margin-top:12px}
+.savedItem p{font-size:13px;line-height:1.6;color:#666;margin:8px 0 0}
+.savedItemActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.savedItemActions button{margin-top:0}
+.toolResultsV2 .toolSubline{color:#666;line-height:1.6;margin-top:10px;max-width:540px}
+.freeTypeControls input{margin-top:10px}
+.mainPromptBox{min-height:190px}
+.premiumLoading{margin-top:20px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;display:flex;gap:14px;align-items:center}
+.premiumLoading span{display:block;color:#666;margin-top:4px;font-size:14px}.loadingPulse{width:18px;height:18px;border-radius:50%;background:#111;animation:pulseBrandthat 1.2s infinite ease-in-out}
+@keyframes pulseBrandthat{0%{transform:scale(.8);opacity:.45}50%{transform:scale(1.25);opacity:1}100%{transform:scale(.8);opacity:.45}}
+.logoShowcase{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;padding:28px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:420px;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
+.brandPreviewCard{background:#111;color:white;border-radius:30px;padding:30px;display:flex;flex-direction:column;justify-content:center}.brandPreviewCard .tinyTag{color:#d9bd77}.brandPreviewCard h3{font-size:32px;letter-spacing:-.04em;margin:0 0 14px}.brandPreviewCard p{color:rgba(255,255,255,.72);line-height:1.7}.brandPreviewCard .resultActions button{background:white;color:#111}
+.premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
+
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
 @media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.examplePromptGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
