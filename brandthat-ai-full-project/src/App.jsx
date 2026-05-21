@@ -440,54 +440,112 @@ export default function App() {
   };
 
   const signUp = async () => {
-    if (!authEmail || !authPassword) {
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email || !authPassword) {
       setAuthMessage("Please enter your email and create a password.");
       return;
     }
 
     setLoading(true);
+    setAuthMessage("");
 
-    const { error } = await supabase.auth.signUp({
-      email: authEmail,
+    const { data, error } = await supabase.auth.signUp({
+      email,
       password: authPassword,
       options: { emailRedirectTo: "https://brandthat.ai" }
     });
 
     if (error) {
-      setAuthMessage(error.message);
+      const message = error.message?.toLowerCase() || "";
+
+      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+        setAuthMode("login");
+        setAuthMessage("This email already has a Brandthat account. Please log in instead.");
+      } else {
+        setAuthMessage(error.message || "Signup failed. Please try again.");
+      }
+
+      setLoading(false);
+      return;
+    }
+
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setAuthMode("login");
+      setAuthMessage("This email already has a Brandthat account. Please log in instead.");
       setLoading(false);
       return;
     }
 
     localStorage.setItem("brandthat_plan", "free");
     setUserPlan("free");
-    setAuthMessage("Verification email sent. Please check your inbox.");
+    setAuthMode("login");
+    setAuthMessage("Account created. Check your inbox to confirm your email, then log in.");
     setLoading(false);
   };
 
   const logIn = async () => {
-    if (!authEmail || !authPassword) {
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email || !authPassword) {
       setAuthMessage("Please enter your email and password.");
       return;
     }
 
     setLoading(true);
+    setAuthMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: authEmail,
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
       password: authPassword
     });
 
     if (error) {
-      setAuthMessage(error.message);
+      const message = error.message?.toLowerCase() || "";
+
+      if (message.includes("email not confirmed") || message.includes("confirm")) {
+        setAuthMessage("Your email still needs to be confirmed. Check your inbox or resend the confirmation email below.");
+      } else if (message.includes("invalid login") || message.includes("invalid credentials")) {
+        setAuthMessage("Login failed. Check your email and password, or create an account if you have not signed up yet.");
+      } else {
+        setAuthMessage(error.message || "Login failed. Please try again.");
+      }
+
       setLoading(false);
       return;
     }
 
+    setUser(data.user);
     setShowAuth(false);
     setAuthEmail("");
     setAuthPassword("");
     setAuthMessage("");
+    setLoading(false);
+  };
+
+  const resendConfirmation = async () => {
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email) {
+      setAuthMessage("Enter your email first, then resend confirmation.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: "https://brandthat.ai" }
+    });
+
+    if (error) {
+      setAuthMessage(error.message || "Could not resend confirmation. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    setAuthMessage("Confirmation email resent. Please check your inbox and spam folder.");
     setLoading(false);
   };
 
@@ -1335,7 +1393,7 @@ ${prompt}`
           <div className="signupBox">
             <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
             <h2>{authMode === "signup" ? "Start your Brand Workspace." : "Welcome back."}</h2>
-            <p>{authMode === "signup" ? "Create your free workspace. Free accounts get one daily brand generation." : "Log in to continue using your Brandthat workspace."}</p>
+            <p>{authMode === "signup" ? "Create your free Brandthat account. Already signed up? Switch to log in below." : "Log in to continue using your Brandthat workspace."}</p>
             <input placeholder="Email address" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
             <input placeholder="Password" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
             <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>{loading ? "Please wait..." : authMode === "signup" ? "Create workspace" : "Log in"}</button>
@@ -1344,6 +1402,11 @@ ${prompt}`
             </button>
             <button className="btn light full" onClick={() => setShowAuth(false)}>Cancel</button>
             {authMessage && <div className="verifyNote">{authMessage}</div>}
+            {authMessage.toLowerCase().includes("confirm") && (
+              <button className="btn light full" onClick={resendConfirmation}>
+                Resend confirmation email
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -2316,14 +2379,7 @@ body{margin:0}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .heroTop{max-width:760px;margin-bottom:50px}
 .eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
-h1{
-  font-size:88px;
-  line-height:.96;
-  letter-spacing:-.045em;
-  margin:0 0 24px;
-  font-kerning:normal;
-  text-rendering:optimizeLegibility;
-}
+h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
 .pageTitle{max-width:900px}
 .pageLead{font-size:20px;line-height:1.6;color:#666;max-width:760px;margin:0 0 32px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
