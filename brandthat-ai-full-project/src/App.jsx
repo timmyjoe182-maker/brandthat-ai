@@ -2676,8 +2676,7 @@ function getResultSchema(toolKey) {
 function parseCaptionOptions(result) {
   if (!result) return [];
   const lines = result
-    .split("
-")
+    .split("\n")
     .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
     .filter(Boolean);
 
