@@ -1090,33 +1090,27 @@ User topic/post description:
 ${prompt}
 
 Task:
-Generate exactly 50 relevant hashtags based only on what the user wrote.
+Generate exactly 50 highly relevant hashtags based only on what the user wrote.
 
-Format the response in clean copy-ready groups:
+Format:
+Return ONE clean copy-ready block only.
+Do not create categories.
+Do not add headings.
+Do not number anything.
+Do not explain anything.
+Do not mention Brandthat.ai.
 
-Broad Reach
-#tag #tag #tag
-
-Niche Specific
-#tag #tag #tag
-
-Audience + Community
-#tag #tag #tag
-
-Discovery / Viral Potential
-#tag #tag #tag
-
-Local / Contextual if relevant
-#tag #tag #tag
+Output example format:
+#tagone #tagtwo #tagthree #tagfour
 
 Rules:
-- Do not explain the hashtags.
-- Do not include numbering.
-- Do not mention Brandthat.ai.
-- Keep every hashtag relevant to the user's actual post/topic.
+- Exactly 50 hashtags.
+- Every hashtag must relate to the user's topic/post.
 - Use platform-aware hashtags for ${selectedPlatform || "the selected platform"}.
-- Avoid spammy unrelated tags.
-- Make the full output easy to copy and paste.
+- Mix broad, niche, community, and discovery hashtags naturally in one block.
+- Avoid random spam tags.
+- Avoid repeated hashtags.
+- Keep the output easy to copy and paste.
 `;
     }
 
@@ -2366,7 +2360,25 @@ function GeneratorCard({
         </div>
       )}
 
-      {result && (
+      {result && activeTool.key === "hashtags" && (
+        <div className="resultBox premiumResults simpleHashtagResult">
+          <div className="resultTop">
+            <span>50 COPY-READY HASHTAGS</span>
+            <div className="resultActions">
+              <button onClick={() => copyToClipboard(result)}>Copy Hashtags</button>
+              <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
+              <button onClick={() => shareOutput(result)}>Share</button>
+            </div>
+          </div>
+
+          <div className="hashtagSingleBox">
+            <div className="tinyTag">READY TO COPY</div>
+            <p>{result}</p>
+          </div>
+        </div>
+      )}
+
+      {result && activeTool.key !== "hashtags" && (
         <div className="resultBox premiumResults">
           <div className="resultTop">
             <span>{getResultHeader(activeTool.key)}</span>
@@ -2385,7 +2397,9 @@ function GeneratorCard({
                   <span>{card.label}</span>
                   <div>
                     <button onClick={() => copyToClipboard(card.content)}>Copy</button>
-                    <button onClick={() => setPrompt(`Improve this ${activeTool.shortTitle}:\n\n${card.content}`)}>Use</button>
+                    <button onClick={() => setPrompt(`Improve this ${activeTool.shortTitle}:
+
+${card.content}`)}>Use</button>
                   </div>
                 </div>
                 <h3>{card.title}</h3>
@@ -2462,7 +2476,7 @@ function getLoadingText(toolKey) {
     captions: "Writing premium captions...",
     hooks: "Building scroll-stopping hooks...",
     bios: "Crafting polished brand bios...",
-    hashtags: "Creating hashtag systems...",
+    hashtags: "Generating 50 hashtags...",
     email: "Writing high-converting email copy...",
     strategy: "Building your content strategy...",
     brand: "Creating your brand system..."
@@ -2476,7 +2490,7 @@ function getLoadingSubtext(toolKey) {
     captions: "Formatting options into usable caption cards.",
     hooks: "Creating multiple retention-focused opening angles.",
     bios: "Adapting the bio for different profile placements.",
-    hashtags: "Grouping hashtags by intent and discoverability.",
+    hashtags: "Creating one clean copy-ready hashtag block.",
     email: "Structuring subject, preview, body, and CTA.",
     strategy: "Turning your goal into content pillars and action steps.",
     brand: "Building identity, audience, positioning, and launch direction."
@@ -2613,7 +2627,7 @@ function getResultHeader(toolKey) {
     captions: "CAPTION OPTIONS",
     hooks: "HOOK OPTIONS",
     bios: "BIO OPTIONS",
-    hashtags: "COPY-READY HASHTAGS",
+    hashtags: "50 COPY-READY HASHTAGS",
     email: "EMAIL COPY",
     strategy: "SOCIAL STRATEGY",
     brand: "BRAND CREATION SYSTEM"
@@ -3041,6 +3055,11 @@ textarea{height:170px;resize:none;line-height:1.6}
 .brandPreviewCard{background:#111;color:white;border-radius:30px;padding:30px;display:flex;flex-direction:column;justify-content:center}.brandPreviewCard .tinyTag{color:#d9bd77}.brandPreviewCard h3{font-size:32px;letter-spacing:-.04em;margin:0 0 14px}.brandPreviewCard p{color:rgba(255,255,255,.72);line-height:1.7}.brandPreviewCard .resultActions button{background:white;color:#111}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 
+
+.simpleHashtagResult .resultTop{align-items:center}
+.hashtagSingleBox{padding:30px;background:#111;color:white;border-radius:0 0 24px 24px}
+.hashtagSingleBox .tinyTag{color:#d9bd77;margin-bottom:14px}
+.hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
 @media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
 `;
