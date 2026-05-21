@@ -5,7 +5,7 @@ const PLAN_COPY = {
   free: {
     name: "Free",
     badge: "Free Workspace",
-    description: "Free hashtag generator, 1 logo generation after signup, 1 Brand Workspace, and basic brand tools.",
+    description: "Free caption and hashtag generators, 1 logo generation after signup, 1 Brand Workspace, and basic brand tools.",
   },
   starter: {
     name: "Starter",
@@ -33,14 +33,14 @@ const tools = [
   },
   {
     key: "captions",
-    title: "Caption Generator",
+    title: "Free Caption Generator",
     shortTitle: "Captions",
-    desc: "Premium captions for Instagram, TikTok, LinkedIn, X, and more.",
-    label: "CAPTION GENERATOR",
-    platformLabel: "Platform",
+    desc: "Choose a platform, describe the post, and get 10 clean caption options instantly.",
+    label: "FREE CAPTION GENERATOR",
+    platformLabel: "Social platform",
     platforms: ["Instagram", "TikTok", "Facebook", "LinkedIn", "X / Twitter", "YouTube Shorts", "Pinterest"],
-    placeholder: "Example: Write a caption for a video of our goats running to dinner at the ranch.",
-    promptGuide: "Create premium social captions. Give short, polished, hook-driven, CTA, and brand storytelling options."
+    placeholder: "Example: A sunset ranch dinner with miniature cows, alpacas, and a calm luxury countryside feel.",
+    promptGuide: "Generate exactly 10 useful social captions. The user chooses a social platform and describes the post. Return captions only, no long explanation. Make the captions copy-ready and relevant to what the user typed."
   },
   {
     key: "hooks",
@@ -1036,11 +1036,10 @@ Launch goal: ${brand.launchGoal}`;
 
   const selectTool = (toolKey) => {
     const nextTool = toolMap[toolKey] || tools[0];
-    const isHashtagTool = nextTool.key === "hashtags";
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(isHashtagTool ? "" : activeBrand?.style || "");
-    setCreativeTone(isHashtagTool ? "" : activeBrand?.tone || "");
-    setPrompt(isHashtagTool ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
+    setSelectedPlatform("");
+    setCreativeTone("");
+    setPrompt("");
     setResult("");
     setLogoImage("");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
@@ -1053,13 +1052,12 @@ Launch goal: ${brand.launchGoal}`;
     if (!seoPage) return;
     const nextTool = toolMap[seoPage.toolKey] || tools[0];
 
-    const isHashtagTool = nextTool.key === "hashtags";
     window.history.pushState({}, "", seoPage.path);
     setPage(seoKey);
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(isHashtagTool ? "" : activeBrand?.style || "");
-    setCreativeTone(isHashtagTool ? "" : activeBrand?.tone || "");
-    setPrompt(isHashtagTool ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
+    setSelectedPlatform("");
+    setCreativeTone("");
+    setPrompt("");
     setResult("");
     setLogoImage("");
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
@@ -1078,6 +1076,35 @@ Visual style: ${activeBrand.style}
 Launch goal: ${activeBrand.launchGoal}
 `
       : "";
+
+    if (activeTool.key === "captions") {
+      return `
+You are Brandthat.ai's free caption generator.
+
+User platform:
+${selectedPlatform || "General social media"}
+
+User post/topic description:
+${prompt}
+
+Task:
+Generate exactly 10 different captions based only on what the user wrote.
+
+Format:
+Return ONLY a numbered list from 1 to 10.
+Do not add headings.
+Do not explain anything.
+Do not mention Brandthat.ai unless the user specifically asks for that brand.
+
+Rules:
+- Exactly 10 captions.
+- Every caption must relate directly to the user's post/topic.
+- Make them platform-aware for ${selectedPlatform || "the selected platform"}.
+- Include a mix of short, polished, warm, clever, CTA, and storytelling styles.
+- Avoid cheesy filler.
+- Keep each caption copy-ready.
+`;
+    }
 
     if (activeTool.key === "hashtags") {
       return `
@@ -1203,14 +1230,14 @@ Requirements:
       return;
     }
 
-    const isFreeHashtagTool = activeTool.key === "hashtags";
+    const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions";
 
-    if (!currentUser && !isFreeHashtagTool) {
+    if (!currentUser && !isFreeSimpleTool) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
       return;
     }
 
-    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && !activeBrand) {
+    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && !activeBrand) {
       setPage("workspace");
       notify("warning", "Create a workspace first", "Text tools are stronger when they are connected to a saved brand workspace.");
       setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
@@ -1295,11 +1322,9 @@ ${prompt}`
   };
 
   const clearGenerator = () => {
-    setPrompt(activeTool.key === "hashtags" ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
-    if (activeTool.key === "hashtags") {
-      setSelectedPlatform("");
-      setCreativeTone("");
-    }
+    setPrompt("");
+    setSelectedPlatform("");
+    setCreativeTone("");
     setResult("");
     setLogoImage("");
   };
@@ -1477,14 +1502,14 @@ ${prompt}`
               name="FREE"
               price="$0"
               desc="Try Brandthat and create quick social assets."
-              features={["Free hashtag generator", "1 AI logo generation after signup", "1 Brand Workspace", "Basic captions/hooks/bios", "Save starter brand direction", "Basic brand kit export"]}
+              features={["Free caption generator", "Free hashtag generator", "1 AI logo generation after signup", "1 Brand Workspace", "Basic hooks/bios", "Basic brand kit export"]}
               onClick={() => setPage("workspace")}
             />
             <PriceCard
               name="STARTER"
               price="$10"
               desc="For creators and businesses building real brand assets every month."
-              features={["10 AI logo generations per month", "Unlimited captions/hooks/bios", "Unlimited hashtag sets", "Saved workspaces and history", "Social strategy tools", "Downloadable brand kits"]}
+              features={["10 AI logo generations per month", "Unlimited hooks/bios/email/strategy", "Saved workspaces and history", "Social strategy tools", "Downloadable brand kits", "Priority saved assets"]}
               onClick={() => startCheckout("starter")}
             />
             <PriceCard
@@ -1492,7 +1517,7 @@ ${prompt}`
               price="$20"
               featured
               desc="For power users who want unlimited brand and logo creation."
-              features={["Unlimited AI logo generations", "Unlimited text and hashtag tools", "Full saved Brand Workspaces", "Downloadable brand kits", "Priority logo generations", "Future premium visual tools"]}
+              features={["Unlimited AI logo generations", "Unlimited text tools", "Full saved Brand Workspaces", "Downloadable brand kits", "Priority logo generations", "Future premium visual tools"]}
               onClick={() => startCheckout("pro")}
             />
           </div>
@@ -2274,7 +2299,7 @@ function GeneratorCard({
         </div>
         <div className="generatorBadges">
           <div className="liveBadge">AI Powered</div>
-          {activeTool.key === "hashtags" && <div className="liveBadge freeToolBadge">Free Tool</div>}
+          {(activeTool.key === "hashtags" || activeTool.key === "captions") && <div className="liveBadge freeToolBadge">Free Tool</div>}
           {activeTool.key === "logo" && userPlan === "starter" && <div className="liveBadge">{starterLogoRemaining} Starter logos left</div>}
           {activeTool.key === "logo" && userPlan === "free" && <div className="liveBadge">{dailyRemaining} free logo left</div>}
         </div>
@@ -2283,7 +2308,7 @@ function GeneratorCard({
       <div className="generatorControls freeTypeControls">
         <label>
           <span>{activeTool.platformLabel}</span>
-          {activeTool.key === "hashtags" ? (
+          {(activeTool.key === "hashtags" || activeTool.key === "captions") ? (
             <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value)}>
               <option value="">Choose social media</option>
               {activeTool.platforms.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -2297,7 +2322,7 @@ function GeneratorCard({
           )}
         </label>
 
-        {activeTool.key !== "hashtags" && (
+        {activeTool.key !== "hashtags" && activeTool.key !== "captions" && (
           <label>
             <span>Tone</span>
             <input
@@ -2378,7 +2403,31 @@ function GeneratorCard({
         </div>
       )}
 
-      {result && activeTool.key !== "hashtags" && (
+
+      {result && activeTool.key === "captions" && (
+        <div className="resultBox premiumResults simpleCaptionResult">
+          <div className="resultTop">
+            <span>10 COPY-READY CAPTIONS</span>
+            <div className="resultActions">
+              <button onClick={() => copyToClipboard(result)}>Copy All</button>
+              <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
+              <button onClick={() => shareOutput(result)}>Share</button>
+            </div>
+          </div>
+
+          <div className="captionListBox">
+            {parseCaptionOptions(result).map((caption, index) => (
+              <div className="captionOptionRow" key={`${caption}-${index}`}>
+                <div className="captionNumber">{index + 1}</div>
+                <p>{caption}</p>
+                <button onClick={() => copyToClipboard(caption)}>Copy</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {result && activeTool.key !== "hashtags" && activeTool.key !== "captions" && (
         <div className="resultBox premiumResults">
           <div className="resultTop">
             <span>{getResultHeader(activeTool.key)}</span>
@@ -2435,7 +2484,7 @@ function getToolSubline(toolKey) {
 function getStylePlaceholder(toolKey) {
   const placeholders = {
     logo: "Logo style, industry, icon, colors, era, layout, or reference direction",
-    captions: "Platform, post type, or format",
+    captions: "Choose social media",
     hooks: "Video platform, content type, or hook style",
     bios: "Bio placement or profile type",
     hashtags: "Choose social media",
@@ -2449,7 +2498,7 @@ function getStylePlaceholder(toolKey) {
 function getTonePlaceholder(toolKey) {
   const placeholders = {
     logo: "Brand feeling, mood, audience perception, or personality",
-    captions: "Caption tone or voice",
+    captions: "",
     hooks: "Hook energy or vibe",
     bios: "Voice and personality",
     hashtags: "",
@@ -2464,6 +2513,9 @@ function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
     return "Describe the logo you want. Include the brand name, what it does, symbols or letters you want, colors, style, audience, and anything it should avoid.";
   }
+  if (activeTool.key === "captions") {
+    return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
+  }
   if (activeTool.key === "hashtags") {
     return "Describe what you need hashtags for. Example: Sunset dinner at a California ranch with miniature cows, alpacas, and luxury countryside lifestyle content.";
   }
@@ -2473,7 +2525,7 @@ function getMainPromptPlaceholder(activeTool) {
 function getLoadingText(toolKey) {
   const loading = {
     logo: "Designing your logo concept...",
-    captions: "Writing premium captions...",
+    captions: "Generating 10 captions...",
     hooks: "Building scroll-stopping hooks...",
     bios: "Crafting polished brand bios...",
     hashtags: "Generating 50 hashtags...",
@@ -2487,7 +2539,7 @@ function getLoadingText(toolKey) {
 function getLoadingSubtext(toolKey) {
   const subtext = {
     logo: "Balancing style, clarity, scalability, and brand memorability.",
-    captions: "Formatting options into usable caption cards.",
+    captions: "Creating ten clean options for your selected platform.",
     hooks: "Creating multiple retention-focused opening angles.",
     bios: "Adapting the bio for different profile placements.",
     hashtags: "Creating one clean copy-ready hashtag block.",
@@ -2621,10 +2673,28 @@ function getResultSchema(toolKey) {
   return schemas[toolKey] || schemas.brand;
 }
 
+function parseCaptionOptions(result) {
+  if (!result) return [];
+  const lines = result
+    .split("
+")
+    .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
+    .filter(Boolean);
+
+  if (lines.length >= 10) return lines.slice(0, 10);
+
+  const sentenceSplit = result
+    .split(/(?<=\.)\s+(?=[A-Z#"'])/)
+    .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
+    .filter(Boolean);
+
+  return sentenceSplit.slice(0, 10).length ? sentenceSplit.slice(0, 10) : [result];
+}
+
 function getResultHeader(toolKey) {
   const headers = {
     logo: "LOGO + BRAND DIRECTION",
-    captions: "CAPTION OPTIONS",
+    captions: "10 COPY-READY CAPTIONS",
     hooks: "HOOK OPTIONS",
     bios: "BIO OPTIONS",
     hashtags: "50 COPY-READY HASHTAGS",
@@ -3060,6 +3130,13 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagSingleBox{padding:30px;background:#111;color:white;border-radius:0 0 24px 24px}
 .hashtagSingleBox .tinyTag{color:#d9bd77;margin-bottom:14px}
 .hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
+
+.captionListBox{padding:22px;display:flex;flex-direction:column;gap:12px}
+.captionOptionRow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:16px}
+.captionNumber{width:34px;height:34px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+.captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
+.captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
+
 @media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}textarea{height:160px}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
 `;
