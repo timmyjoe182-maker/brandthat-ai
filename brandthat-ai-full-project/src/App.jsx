@@ -2165,7 +2165,9 @@ function GeneratorCard({
   toggleFavorite,
   remixOutput
 }) {
-  const resultCards = formatSmartResultCards(activeTool.key, result);
+  const resultCards = activeTool.key === "logo"
+    ? getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage })
+    : formatSmartResultCards(activeTool.key, result);
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -2222,11 +2224,18 @@ function GeneratorCard({
       </div>
 
       {loading && (
-        <div className="premiumLoading">
+        <div className={activeTool.key === "logo" ? "premiumLoading logoLoadingV3" : "premiumLoading"}>
           <div className="loadingPulse"></div>
           <div>
             <strong>{getLoadingText(activeTool.key)}</strong>
             <span>{getLoadingSubtext(activeTool.key)}</span>
+            {activeTool.key === "logo" && (
+              <div className="logoLoadingSteps">
+                <span>Preparing brand prompt</span>
+                <span>Designing logo concept</span>
+                <span>Finalizing image</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2364,6 +2373,39 @@ function getLoadingSubtext(toolKey) {
     brand: "Building identity, audience, positioning, and launch direction."
   };
   return subtext[toolKey] || "Formatting your results into premium brand cards.";
+}
+
+
+function getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage }) {
+  const style = selectedPlatform?.trim() || "Best-fit visual direction";
+  const tone = creativeTone?.trim() || "Premium, clean, memorable, and brand-appropriate";
+  const request = prompt?.trim() || "The user's logo request";
+
+  return [
+    {
+      label: "CREATED",
+      title: "Logo Created",
+      featured: true,
+      content: logoImage
+        ? "Your logo image has been generated successfully. Download it, save it to a workspace, or remix the direction into another version."
+        : "Your logo direction is ready. Generate the image to create a visual concept."
+    },
+    {
+      label: "DIRECTION",
+      title: "Brand Direction Used",
+      content: `${request}\n\nStyle: ${style}\nTone: ${tone}`
+    },
+    {
+      label: "USE",
+      title: "Best Uses",
+      content: "Website header, social profile image, favicon, business card, proposal cover, packaging direction, and brand kit starter asset."
+    },
+    {
+      label: "NEXT",
+      title: "Next Step",
+      content: "Save this logo to your Brand Workspace, download the image, or click Remix to create a sharper variation with a more specific style direction."
+    }
+  ];
 }
 
 function formatSmartResultCards(toolKey, result) {
@@ -2723,6 +2765,13 @@ textarea{height:170px;resize:none;line-height:1.6}
   100%{transform:scale(.8);opacity:.45}
 }
 
+
+.logoLoadingV3{align-items:flex-start}
+.logoLoadingSteps{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.logoLoadingSteps span{display:inline-flex!important;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;color:#555!important;font-size:12px!important;font-weight:800}
+.logoResultGrid{grid-template-columns:repeat(2,1fr)}
+.logoResultGrid .premiumResultCard{min-height:150px}
+.logoResultGrid .featuredResultCard{grid-row:span 1}
 .logoShowcase{
   margin-top:28px;
   display:grid;
