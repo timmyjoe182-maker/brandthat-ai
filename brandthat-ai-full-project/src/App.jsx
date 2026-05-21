@@ -212,6 +212,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
+  const [pendingAuthAction, setPendingAuthAction] = useState(null);
 
   const [activeToolKey, setActiveToolKey] = useState(getInitialToolFromPath());
   const activeTool = toolMap[activeToolKey] || tools[0];
@@ -433,10 +434,29 @@ export default function App() {
     notify("error", title, message);
   };
 
-  const openAuth = (mode = "signup", message = "") => {
+  const openAuth = (mode = "login", message = "", action = null) => {
     setAuthMode(mode);
     setAuthMessage(message);
+    setPendingAuthAction(action);
     setShowAuth(true);
+  };
+
+  const finishAuthSuccess = (loggedInUser) => {
+    setUser(loggedInUser);
+    setShowAuth(false);
+    setAuthEmail("");
+    setAuthPassword("");
+    setAuthMessage("");
+
+    const action = pendingAuthAction;
+    setPendingAuthAction(null);
+
+    if (action === "generate") {
+      notify("success", "You're logged in", "Generating your brand asset now.");
+      setTimeout(() => generate(loggedInUser), 150);
+    } else {
+      notify("success", "Logged in", "Welcome back to your Brandthat workspace.");
+    }
   };
 
   const signUp = async () => {
@@ -454,7 +474,7 @@ export default function App() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password: authPassword,
-        options: { emailRedirectTo: "https://brandthat.ai" }
+        options: { emailRedirectTo: window.location.origin }
       });
 
       if (error) {
@@ -462,7 +482,7 @@ export default function App() {
 
         if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
           setAuthMode("login");
-          setAuthMessage("That email is already connected to a Brandthat account. Log in below instead.");
+          setAuthMessage("This email already has a Brandthat account. Log in with your password instead.");
         } else {
           setAuthMessage(error.message || "Signup failed. Please try again.");
         }
@@ -473,7 +493,7 @@ export default function App() {
 
       if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
         setAuthMode("login");
-        setAuthMessage("That email is already connected to a Brandthat account. Log in below instead.");
+        setAuthMessage("This email already has a Brandthat account. Log in with your password instead.");
         setLoading(false);
         return;
       }
@@ -482,15 +502,10 @@ export default function App() {
       setUserPlan("free");
 
       if (data?.session?.user) {
-        setUser(data.session.user);
-        setShowAuth(false);
-        setAuthEmail("");
-        setAuthPassword("");
-        setAuthMessage("");
-        notify("success", "Welcome to Brandthat", "Your free workspace is ready.");
+        finishAuthSuccess(data.session.user);
       } else {
         setAuthMode("login");
-        setAuthMessage("Account created. Check your inbox or spam folder for the confirmation email, then log in.");
+        setAuthMessage("Account created. Check your inbox and spam folder to confirm your email, then log in here. If no email arrives, check Supabase Auth email settings.");
       }
     } catch (error) {
       setAuthMessage("Something went wrong creating your account. Please try again.");
@@ -520,9 +535,9 @@ export default function App() {
         const message = error.message?.toLowerCase() || "";
 
         if (message.includes("email not confirmed") || message.includes("confirm")) {
-          setAuthMessage("Your account exists, but the email is not confirmed yet. Use the button below to resend the confirmation email, then check inbox and spam.");
+          setAuthMessage("This account exists, but the email is not confirmed yet. Check your inbox and spam folder. If no email arrives, the Supabase email settings need to be checked.");
         } else if (message.includes("invalid login") || message.includes("invalid credentials")) {
-          setAuthMessage("That email/password did not match. Try again, or use ‘Email me a login link’ below.");
+          setAuthMessage("That email/password did not match. If this is your account, try the correct password. If you never created one, switch to Create account.");
         } else {
           setAuthMessage(error.message || "Login failed. Please try again.");
         }
@@ -531,12 +546,7 @@ export default function App() {
         return;
       }
 
-      setUser(data.user);
-      setShowAuth(false);
-      setAuthEmail("");
-      setAuthPassword("");
-      setAuthMessage("");
-      notify("success", "Logged in", "Welcome back to your Brandthat workspace.");
+      finishAuthSuccess(data.user);
     } catch (error) {
       setAuthMessage("Something went wrong logging in. Please try again.");
     }
@@ -616,7 +626,7 @@ export default function App() {
 
     if (!currentUser?.email) {
       localStorage.setItem("brandthat_pending_plan", plan);
-      openAuth("signup", "Create a free Brand Workspace first, then continue to checkout.");
+      openAuth("login", "Log in or create a free Brandthat account first, then continue to checkout.");
       return;
     }
 
@@ -1099,14 +1109,15 @@ Requirements:
     return data.image;
   };
 
-  const generate = async () => {
+  const generate = async (overrideUser = null) => {
+    const currentUser = overrideUser || user;
     if (!prompt.trim()) {
       notify("error", "Add a prompt first", `Tell Brandthat what you want the ${activeTool.title} to create.`);
       return;
     }
 
-    if (!user) {
-      openAuth("signup", "Create a free account to unlock your 1 free AI logo generation.");
+    if (!currentUser) {
+      openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
       return;
     }
 
@@ -1463,11 +1474,11 @@ ${prompt}`
             </div>
 
             <div className="tinyTag">{authMode === "signup" ? "NEW ACCOUNT" : "WELCOME BACK"}</div>
-            <h2>{authMode === "signup" ? "Create your Brandthat account." : "Log in to Brandthat."}</h2>
+            <h2>{authMode === "signup" ? "Create your account." : "Welcome back."}</h2>
             <p>
               {authMode === "signup"
-                ? "Save your logo generations, brand workspaces, captions, hooks, bios, and brand kits. Already have an account? Use Log in above."
-                : "Use your email and password, or send yourself a secure login link if you forgot your password or need fast access."}
+                ? "Create one account to save your workspaces, logo generations, captions, hooks, bios, and brand kits."
+                : "Log in with the email and password you used when creating your Brandthat account."}
             </p>
 
             <input
@@ -1488,19 +1499,19 @@ ${prompt}`
               {loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}
             </button>
 
-            <button className="btn light full" onClick={sendMagicLink}>
-              Email me a login link
-            </button>
-
-            {authMessage && <div className="verifyNote authMessageBox">{authMessage}</div>}
-
-            {(authMode === "login" || authMessage.toLowerCase().includes("confirm")) && (
-              <button className="btn light full" onClick={resendConfirmation}>
-                Resend confirmation email
+            {authMode === "login" ? (
+              <button className="btn light full" onClick={() => { setAuthMode("signup"); setAuthMessage(""); }}>
+                New here? Create an account
+              </button>
+            ) : (
+              <button className="btn light full" onClick={() => { setAuthMode("login"); setAuthMessage(""); }}>
+                Already have an account? Log in
               </button>
             )}
 
-            <button className="btn light full" onClick={() => setShowAuth(false)}>Cancel</button>
+            {authMessage && <div className="verifyNote authMessageBox">{authMessage}</div>}
+
+            <button className="btn light full" onClick={() => { setShowAuth(false); setPendingAuthAction(null); }}>Cancel</button>
           </div>
         </div>
       )}
