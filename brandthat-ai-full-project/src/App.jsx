@@ -443,44 +443,59 @@ export default function App() {
     const email = authEmail.trim().toLowerCase();
 
     if (!email || !authPassword) {
-      setAuthMessage("Please enter your email and create a password.");
+      setAuthMessage("Enter your email and create a password to make your free Brandthat account.");
       return;
     }
 
     setLoading(true);
     setAuthMessage("");
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: authPassword,
-      options: { emailRedirectTo: "https://brandthat.ai" }
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: authPassword,
+        options: { emailRedirectTo: "https://brandthat.ai" }
+      });
 
-    if (error) {
-      const message = error.message?.toLowerCase() || "";
+      if (error) {
+        const message = error.message?.toLowerCase() || "";
 
-      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        setAuthMode("login");
-        setAuthMessage("This email already has a Brandthat account. Please log in instead.");
-      } else {
-        setAuthMessage(error.message || "Signup failed. Please try again.");
+        if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+          setAuthMode("login");
+          setAuthMessage("That email is already connected to a Brandthat account. Log in below instead.");
+        } else {
+          setAuthMessage(error.message || "Signup failed. Please try again.");
+        }
+
+        setLoading(false);
+        return;
       }
 
-      setLoading(false);
-      return;
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setAuthMode("login");
+        setAuthMessage("That email is already connected to a Brandthat account. Log in below instead.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("brandthat_plan", "free");
+      setUserPlan("free");
+
+      if (data?.session?.user) {
+        setUser(data.session.user);
+        setShowAuth(false);
+        setAuthEmail("");
+        setAuthPassword("");
+        setAuthMessage("");
+        notify("success", "Welcome to Brandthat", "Your free workspace is ready.");
+      } else {
+        setAuthMode("login");
+        setAuthMessage("Account created. Check your inbox or spam folder for the confirmation email, then log in.");
+      }
+    } catch (error) {
+      setAuthMessage("Something went wrong creating your account. Please try again.");
     }
 
-    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      setAuthMode("login");
-      setAuthMessage("This email already has a Brandthat account. Please log in instead.");
-      setLoading(false);
-      return;
-    }
-
-    localStorage.setItem("brandthat_plan", "free");
-    setUserPlan("free");
-    setAuthMode("login");
-    setAuthMessage("Account created. Check your inbox to confirm your email, then log in.");
     setLoading(false);
   };
 
@@ -488,38 +503,78 @@ export default function App() {
     const email = authEmail.trim().toLowerCase();
 
     if (!email || !authPassword) {
-      setAuthMessage("Please enter your email and password.");
+      setAuthMessage("Enter your email and password to log in.");
       return;
     }
 
     setLoading(true);
     setAuthMessage("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: authPassword
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: authPassword
+      });
 
-    if (error) {
-      const message = error.message?.toLowerCase() || "";
+      if (error) {
+        const message = error.message?.toLowerCase() || "";
 
-      if (message.includes("email not confirmed") || message.includes("confirm")) {
-        setAuthMessage("Your email still needs to be confirmed. Check your inbox or resend the confirmation email below.");
-      } else if (message.includes("invalid login") || message.includes("invalid credentials")) {
-        setAuthMessage("Login failed. Check your email and password, or create an account if you have not signed up yet.");
-      } else {
-        setAuthMessage(error.message || "Login failed. Please try again.");
+        if (message.includes("email not confirmed") || message.includes("confirm")) {
+          setAuthMessage("Your account exists, but the email is not confirmed yet. Use the button below to resend the confirmation email, then check inbox and spam.");
+        } else if (message.includes("invalid login") || message.includes("invalid credentials")) {
+          setAuthMessage("That email/password did not match. Try again, or use ‘Email me a login link’ below.");
+        } else {
+          setAuthMessage(error.message || "Login failed. Please try again.");
+        }
+
+        setLoading(false);
+        return;
       }
 
-      setLoading(false);
+      setUser(data.user);
+      setShowAuth(false);
+      setAuthEmail("");
+      setAuthPassword("");
+      setAuthMessage("");
+      notify("success", "Logged in", "Welcome back to your Brandthat workspace.");
+    } catch (error) {
+      setAuthMessage("Something went wrong logging in. Please try again.");
+    }
+
+    setLoading(false);
+  };
+
+  const sendMagicLink = async () => {
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email) {
+      setAuthMessage("Enter your email first, then we can send a login link.");
       return;
     }
 
-    setUser(data.user);
-    setShowAuth(false);
-    setAuthEmail("");
-    setAuthPassword("");
+    setLoading(true);
     setAuthMessage("");
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: "https://brandthat.ai"
+        }
+      });
+
+      if (error) {
+        setAuthMessage(error.message || "Could not send login link. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      setAuthMode("login");
+      setAuthMessage("Login link sent. Check your inbox and spam folder. Open the link on this device to continue.");
+    } catch (error) {
+      setAuthMessage("Could not send login link. Please try again.");
+    }
+
     setLoading(false);
   };
 
@@ -527,31 +582,32 @@ export default function App() {
     const email = authEmail.trim().toLowerCase();
 
     if (!email) {
-      setAuthMessage("Enter your email first, then resend confirmation.");
+      setAuthMessage("Enter your email first, then we can resend confirmation.");
       return;
     }
 
     setLoading(true);
+    setAuthMessage("");
 
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: { emailRedirectTo: "https://brandthat.ai" }
-    });
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: "https://brandthat.ai" }
+      });
 
-    if (error) {
-      setAuthMessage(error.message || "Could not resend confirmation. Please try again.");
-      setLoading(false);
-      return;
+      if (error) {
+        setAuthMessage(error.message || "Could not resend confirmation. Try the login link instead.");
+        setLoading(false);
+        return;
+      }
+
+      setAuthMessage("Confirmation email sent again. Check your inbox and spam folder.");
+    } catch (error) {
+      setAuthMessage("Could not resend confirmation. Try the login link instead.");
     }
 
-    setAuthMessage("Confirmation email resent. Please check your inbox and spam folder.");
     setLoading(false);
-  };
-
-  const logOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
   };
 
   const startCheckout = async (plan) => {
@@ -1390,23 +1446,61 @@ ${prompt}`
 
             {showAuth && (
         <div className="modal">
-          <div className="signupBox">
-            <div className="tinyTag">{authMode === "signup" ? "CREATE ACCOUNT" : "LOG IN"}</div>
-            <h2>{authMode === "signup" ? "Start your Brand Workspace." : "Welcome back."}</h2>
-            <p>{authMode === "signup" ? "Create your free Brandthat account. Already signed up? Switch to log in below." : "Log in to continue using your Brandthat workspace."}</p>
-            <input placeholder="Email address" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
-            <input placeholder="Password" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
-            <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>{loading ? "Please wait..." : authMode === "signup" ? "Create workspace" : "Log in"}</button>
-            <button className="btn light full" onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthMessage(""); }}>
-              {authMode === "signup" ? "Already have an account? Log in" : "Create a new account"}
+          <div className="signupBox authBoxClean">
+            <div className="authSwitch">
+              <button
+                className={authMode === "login" ? "active" : ""}
+                onClick={() => { setAuthMode("login"); setAuthMessage(""); }}
+              >
+                Log in
+              </button>
+              <button
+                className={authMode === "signup" ? "active" : ""}
+                onClick={() => { setAuthMode("signup"); setAuthMessage(""); }}
+              >
+                Create account
+              </button>
+            </div>
+
+            <div className="tinyTag">{authMode === "signup" ? "NEW ACCOUNT" : "WELCOME BACK"}</div>
+            <h2>{authMode === "signup" ? "Create your Brandthat account." : "Log in to Brandthat."}</h2>
+            <p>
+              {authMode === "signup"
+                ? "Save your logo generations, brand workspaces, captions, hooks, bios, and brand kits. Already have an account? Use Log in above."
+                : "Use your email and password, or send yourself a secure login link if you forgot your password or need fast access."}
+            </p>
+
+            <input
+              placeholder="Email address"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              autoComplete="email"
+            />
+            <input
+              placeholder={authMode === "signup" ? "Create a password" : "Password"}
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              autoComplete={authMode === "signup" ? "new-password" : "current-password"}
+            />
+
+            <button className="btn dark full" onClick={authMode === "signup" ? signUp : logIn}>
+              {loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}
             </button>
-            <button className="btn light full" onClick={() => setShowAuth(false)}>Cancel</button>
-            {authMessage && <div className="verifyNote">{authMessage}</div>}
-            {authMessage.toLowerCase().includes("confirm") && (
+
+            <button className="btn light full" onClick={sendMagicLink}>
+              Email me a login link
+            </button>
+
+            {authMessage && <div className="verifyNote authMessageBox">{authMessage}</div>}
+
+            {(authMode === "login" || authMessage.toLowerCase().includes("confirm")) && (
               <button className="btn light full" onClick={resendConfirmation}>
                 Resend confirmation email
               </button>
             )}
+
+            <button className="btn light full" onClick={() => setShowAuth(false)}>Cancel</button>
           </div>
         </div>
       )}
@@ -2464,6 +2558,12 @@ textarea{height:170px;resize:none;line-height:1.6}
 .footerForm .btn{margin-top:8px;width:100%}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:20px;z-index:2000}
 .signupBox{max-width:460px;width:100%}
+
+.authBoxClean{max-width:500px}
+.authSwitch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f6f4ef;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px;margin-bottom:22px}
+.authSwitch button{border:none;background:transparent;border-radius:999px;padding:12px 14px;font-weight:900;cursor:pointer;color:#666}
+.authSwitch button.active{background:#111;color:white;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.authMessageBox{background:#f8f2e6;border:1px solid rgba(155,123,63,.24);border-radius:18px;padding:14px 16px;line-height:1.55}
 .signupBox p{color:#666;line-height:1.7}
 .seoHomeSection{max-width:1280px;margin:0 auto;padding:20px 6vw 100px}
 .seoHomeSection h2{max-width:940px;margin-bottom:22px}
