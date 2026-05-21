@@ -1036,9 +1036,11 @@ Launch goal: ${brand.launchGoal}`;
 
   const selectTool = (toolKey) => {
     const nextTool = toolMap[toolKey] || tools[0];
+    const isHashtagTool = nextTool.key === "hashtags";
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(activeBrand?.style || "");
-    setPrompt(activeBrand ? buildBrandPrompt(activeBrand) : "");
+    setSelectedPlatform(isHashtagTool ? "" : activeBrand?.style || "");
+    setCreativeTone(isHashtagTool ? "" : activeBrand?.tone || "");
+    setPrompt(isHashtagTool ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
     setResult("");
     setLogoImage("");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
@@ -1051,11 +1053,13 @@ Launch goal: ${brand.launchGoal}`;
     if (!seoPage) return;
     const nextTool = toolMap[seoPage.toolKey] || tools[0];
 
+    const isHashtagTool = nextTool.key === "hashtags";
     window.history.pushState({}, "", seoPage.path);
     setPage(seoKey);
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform(activeBrand?.style || "");
-    setPrompt(activeBrand ? buildBrandPrompt(activeBrand) : "");
+    setSelectedPlatform(isHashtagTool ? "" : activeBrand?.style || "");
+    setCreativeTone(isHashtagTool ? "" : activeBrand?.tone || "");
+    setPrompt(isHashtagTool ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
     setResult("");
     setLogoImage("");
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
@@ -1074,6 +1078,47 @@ Visual style: ${activeBrand.style}
 Launch goal: ${activeBrand.launchGoal}
 `
       : "";
+
+    if (activeTool.key === "hashtags") {
+      return `
+You are Brandthat.ai's free hashtag generator.
+
+User platform:
+${selectedPlatform || "General social media"}
+
+User topic/post description:
+${prompt}
+
+Task:
+Generate exactly 50 relevant hashtags based only on what the user wrote.
+
+Format the response in clean copy-ready groups:
+
+Broad Reach
+#tag #tag #tag
+
+Niche Specific
+#tag #tag #tag
+
+Audience + Community
+#tag #tag #tag
+
+Discovery / Viral Potential
+#tag #tag #tag
+
+Local / Contextual if relevant
+#tag #tag #tag
+
+Rules:
+- Do not explain the hashtags.
+- Do not include numbering.
+- Do not mention Brandthat.ai.
+- Keep every hashtag relevant to the user's actual post/topic.
+- Use platform-aware hashtags for ${selectedPlatform || "the selected platform"}.
+- Avoid spammy unrelated tags.
+- Make the full output easy to copy and paste.
+`;
+    }
 
     return `
 You are Brandthat.ai, a premium AI brand workspace for creators, founders, businesses, and agencies.
@@ -1256,7 +1301,11 @@ ${prompt}`
   };
 
   const clearGenerator = () => {
-    setPrompt(activeBrand ? buildBrandPrompt(activeBrand) : "");
+    setPrompt(activeTool.key === "hashtags" ? "" : activeBrand ? buildBrandPrompt(activeBrand) : "");
+    if (activeTool.key === "hashtags") {
+      setSelectedPlatform("");
+      setCreativeTone("");
+    }
     setResult("");
     setLogoImage("");
   };
@@ -2254,14 +2303,16 @@ function GeneratorCard({
           )}
         </label>
 
-        <label>
-          <span>Tone</span>
-          <input
-            value={creativeTone}
-            onChange={(e) => setCreativeTone(e.target.value)}
-            placeholder={getTonePlaceholder(activeTool.key)}
-          />
-        </label>
+        {activeTool.key !== "hashtags" && (
+          <label>
+            <span>Tone</span>
+            <input
+              value={creativeTone}
+              onChange={(e) => setCreativeTone(e.target.value)}
+              placeholder={getTonePlaceholder(activeTool.key)}
+            />
+          </label>
+        )}
       </div>
 
       <textarea
@@ -2359,7 +2410,7 @@ function getToolSubline(toolKey) {
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
-    hashtags: "Choose a platform, describe the post or topic, and get clean copy-ready hashtags. No login required.",
+    hashtags: "Choose a platform, describe your post, and get 50 relevant copy-ready hashtags. No login required.",
     email: "Write complete email copy with subject lines, preview text, and calls to action.",
     strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
     brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction."
@@ -2387,7 +2438,7 @@ function getTonePlaceholder(toolKey) {
     captions: "Caption tone or voice",
     hooks: "Hook energy or vibe",
     bios: "Voice and personality",
-    hashtags: "Reach goal or audience feel",
+    hashtags: "",
     email: "Email tone",
     strategy: "Strategy tone or brand voice",
     brand: "Brand personality"
@@ -2400,7 +2451,7 @@ function getMainPromptPlaceholder(activeTool) {
     return "Describe the logo you want. Include the brand name, what it does, symbols or letters you want, colors, style, audience, and anything it should avoid.";
   }
   if (activeTool.key === "hashtags") {
-    return "What do you need hashtags for? Example: A reel of mini cows running through a pasture at sunset, luxury ranch lifestyle, Agua Dulce California.";
+    return "Describe what you need hashtags for. Example: Sunset dinner at a California ranch with miniature cows, alpacas, and luxury countryside lifestyle content.";
   }
   return activeTool.placeholder;
 }
@@ -2521,12 +2572,12 @@ function getResultSchema(toolKey) {
       { label: "PREMIUM", title: "Premium Bio" }
     ],
     hashtags: [
-      { label: "NICHE", title: "Niche Hashtags", featured: true },
-      { label: "REACH", title: "Broad Reach" },
-      { label: "AUDIENCE", title: "Audience Tags" },
-      { label: "LOCAL", title: "Location Tags" },
-      { label: "BRAND", title: "Brand Tags" },
-      { label: "VIRAL", title: "Trend Tags" }
+      { label: "REACH", title: "Broad Reach", featured: true },
+      { label: "NICHE", title: "Niche Specific" },
+      { label: "COMMUNITY", title: "Audience + Community" },
+      { label: "DISCOVERY", title: "Discovery / Viral Potential" },
+      { label: "LOCAL", title: "Local / Contextual" },
+      { label: "COPY", title: "All Hashtags" }
     ],
     email: [
       { label: "SUBJECT", title: "Subject Line", featured: true },
@@ -2596,7 +2647,7 @@ body{margin:0}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .heroTop{max-width:760px;margin-bottom:50px}
 .eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
-h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
+h1{font-size:88px;line-height:.96;letter-spacing:-.045em;margin:0 0 24px;font-kerning:normal;text-rendering:optimizeLegibility}
 .pageTitle{max-width:900px}
 .pageLead{font-size:20px;line-height:1.6;color:#666;max-width:760px;margin:0 0 32px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
@@ -2639,6 +2690,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,.08);padding:18px 20px;font-size:16px;background:#fafafa;font-family:inherit;margin-top:10px;color:#111}
 textarea{height:170px;resize:none;line-height:1.6}
 .generatorControls{display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:14px}
+.hashtagsGenerator .generatorControls{grid-template-columns:1fr}
 .generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
 .generatorButtons{display:grid;grid-template-columns:1fr 130px;gap:12px;margin-top:16px}
 .btn{border:none;border-radius:18px;padding:16px 24px;font-weight:800;cursor:pointer;font-size:15px;transition:.2s ease;display:inline-flex;align-items:center;justify-content:center}
