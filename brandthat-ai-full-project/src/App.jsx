@@ -554,6 +554,18 @@ export default function App() {
     setLoading(false);
   };
 
+  const logOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setShowAuth(false);
+      setPendingAuthAction(null);
+      notify("success", "Logged out", "You have been signed out of Brandthat.");
+    } catch (error) {
+      handleAppError("Logout failed", error, "Could not log out. Please refresh and try again.");
+    }
+  };
+
   const sendMagicLink = async () => {
     const email = authEmail.trim().toLowerCase();
 
