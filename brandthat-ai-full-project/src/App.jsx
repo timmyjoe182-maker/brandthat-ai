@@ -2316,7 +2316,14 @@ body{margin:0}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .heroTop{max-width:760px;margin-bottom:50px}
 .eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
-h1{font-size:88px;line-height:.92;letter-spacing:-.07em;margin:0 0 24px}
+h1{
+  font-size:88px;
+  line-height:.96;
+  letter-spacing:-.045em;
+  margin:0 0 24px;
+  font-kerning:normal;
+  text-rendering:optimizeLegibility;
+}
 .pageTitle{max-width:900px}
 .pageLead{font-size:20px;line-height:1.6;color:#666;max-width:760px;margin:0 0 32px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
