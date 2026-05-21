@@ -5,17 +5,17 @@ const PLAN_COPY = {
   free: {
     name: "Free",
     badge: "Free Workspace",
-    description: "1 Brand Workspace, daily AI logo concept, captions, hooks, bios, and basic exports.",
+    description: "Free hashtag generator, 1 logo generation after signup, 1 Brand Workspace, and basic brand tools.",
   },
   starter: {
     name: "Starter",
     badge: "$10/mo",
-    description: "Unlimited text generations, saved content history, social strategy tools, and better export layouts.",
+    description: "Unlimited text generations, saved content history, brand workspaces, and 10 AI logo generations per month.",
   },
   pro: {
     name: "Pro",
     badge: "$20/mo",
-    description: "Everything in Starter plus unlimited AI logo image generations, full brand kits, and priority visual tools.",
+    description: "Everything in Starter plus unlimited AI logo generations, full brand kits, and priority visual tools.",
   },
 };
 
@@ -66,14 +66,14 @@ const tools = [
   },
   {
     key: "hashtags",
-    title: "Hashtag Generator",
+    title: "Free Hashtag Generator",
     shortTitle: "Hashtags",
-    desc: "Smart hashtag systems designed for reach.",
-    label: "HASHTAG GENERATOR",
-    platformLabel: "Platform",
+    desc: "Choose a platform, describe what you need hashtagged, and get clean hashtag sets instantly.",
+    label: "FREE HASHTAG GENERATOR",
+    platformLabel: "Social platform",
     platforms: ["Instagram", "TikTok", "Facebook", "LinkedIn", "X / Twitter", "YouTube Shorts", "Pinterest"],
     placeholder: "Example: Mini cows, ranch life, goats, alpacas, luxury countryside content.",
-    promptGuide: "Generate hashtag sets grouped by niche, broad reach, audience, location, and viral/reach potential."
+    promptGuide: "Generate useful hashtags only. The user chooses a social platform and describes what needs hashtagged. Return clean hashtag groups for niche, audience, reach, location if relevant, and brand/community. Do not over-explain. Make the hashtags copy-ready."
   },
   {
     key: "email",
@@ -176,6 +176,10 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getMonthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
 function getStoredNumber(key, fallback = 0) {
   const value = Number(localStorage.getItem(key));
   return Number.isFinite(value) ? value : fallback;
@@ -206,6 +210,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
+  const [starterLogoCount, setStarterLogoCount] = useState(getStoredNumber("brandthat_starter_logo_count", 0));
 
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("signup");
@@ -246,6 +251,7 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState(() => safeParse("brandthat_favorite_ids", {}));
 
   const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
+  const starterLogoRemaining = Math.max(0, 10 - starterLogoCount);
   const isFree = userPlan === "free";
   const isStarter = userPlan === "starter";
   const isPro = userPlan === "pro";
@@ -350,6 +356,14 @@ export default function App() {
       localStorage.setItem("brandthat_daily_date", today);
       localStorage.setItem("brandthat_daily_count", "0");
       setDailyFreeCount(0);
+    }
+
+    const month = getMonthKey();
+    const storedMonth = localStorage.getItem("brandthat_starter_logo_month");
+    if (storedMonth !== month) {
+      localStorage.setItem("brandthat_starter_logo_month", month);
+      localStorage.setItem("brandthat_starter_logo_count", "0");
+      setStarterLogoCount(0);
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -1004,6 +1018,22 @@ Launch goal: ${brand.launchGoal}`;
     }
   };
 
+
+  const incrementStarterLogoUse = () => {
+    const month = getMonthKey();
+    const storedMonth = localStorage.getItem("brandthat_starter_logo_month");
+    let currentCount = starterLogoCount;
+
+    if (storedMonth !== month) {
+      currentCount = 0;
+      localStorage.setItem("brandthat_starter_logo_month", month);
+    }
+
+    const newCount = currentCount + 1;
+    localStorage.setItem("brandthat_starter_logo_count", String(newCount));
+    setStarterLogoCount(newCount);
+  };
+
   const selectTool = (toolKey) => {
     const nextTool = toolMap[toolKey] || tools[0];
     setActiveToolKey(nextTool.key);
@@ -1072,6 +1102,12 @@ Rules:
 - Avoid fluff.
 - Avoid saying "as an AI."
 - Be modern, premium, practical, and brand-aware.
+
+Special rule for the Hashtag Generator:
+- Keep it simple and instantly useful.
+- Return copy-ready hashtag groups only.
+- Include platform-aware hashtags for the selected social platform.
+- Do not force a brand workspace for hashtags.
 `;
   };
 
@@ -1128,29 +1164,31 @@ Requirements:
       return;
     }
 
-    if (!currentUser) {
+    const isFreeHashtagTool = activeTool.key === "hashtags";
+
+    if (!currentUser && !isFreeHashtagTool) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
       return;
     }
 
-    if (activeTool.key !== "logo" && !activeBrand) {
+    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && !activeBrand) {
       setPage("workspace");
       notify("warning", "Create a workspace first", "Text tools are stronger when they are connected to a saved brand workspace.");
       setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
       return;
     }
 
-    if (isFree && dailyFreeCount >= 1) {
+    if (activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
       setPage("pricing");
-      notify("warning", "Free logo generation used", "Subscribe to Pro to unlock unlimited AI logo generations.");
-      setResult("Your free logo generation has been used. Subscribe to Pro for unlimited AI logo generations.");
+      notify("warning", "Free logo generation used", "Starter includes 10 logo generations/month. Pro unlocks unlimited logo generations.");
+      setResult("Your free logo generation has been used. Upgrade to Starter for 10 logo generations/month or Pro for unlimited logo generations.");
       return;
     }
 
-    if (activeTool.key === "logo" && isStarter) {
+    if (activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
       setPage("pricing");
-      notify("warning", "Logo generation is a Pro feature", "Starter includes unlimited text tools. Pro unlocks unlimited logo images.");
-      setResult("AI logo image generation is included with Pro. Starter includes unlimited text generators and saved content history.");
+      notify("warning", "Starter logo limit reached", "Starter includes 10 logo generations/month. Upgrade to Pro for unlimited logo generations.");
+      setResult("You have used your 10 Starter logo generations this month. Upgrade to Pro for unlimited AI logo generation.");
       return;
     }
 
@@ -1180,7 +1218,8 @@ ${prompt}`
         setResult(data.text || "No response generated.");
       }
 
-      if (isFree) incrementDailyFreeUse();
+      if (activeTool.key === "logo" && isFree) incrementDailyFreeUse();
+      if (activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
     } catch (error) {
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
       setResult(error.message || "Something went wrong. Please try again.");
@@ -1367,6 +1406,7 @@ ${prompt}`
           user={user}
           userPlan={userPlan}
           dailyRemaining={dailyRemaining}
+          starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
@@ -1387,29 +1427,29 @@ ${prompt}`
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
           <h1 className="pageTitle">Build for free. Upgrade when your brand needs more.</h1>
-          <p className="pageLead">The free plan gives users a real workspace and one daily brand generation. Starter unlocks unlimited text tools. Pro unlocks the full brand system, including unlimited AI logo image generation.</p>
+          <p className="pageLead">Start free with simple hashtag creation and one logo generation after signup. Starter gives growing creators more brand building power with 10 logo generations per month. Pro is for users who want unlimited logo creation and the full brand workspace experience.</p>
 
           <div className="pricingGrid threePlans">
             <PriceCard
               name="FREE"
               price="$0"
-              desc="Start building your first brand workspace."
-              features={["1 free AI logo generation after signup", "1 Brand Workspace", "Caption Generator", "Hook Generator", "Brand Bio Generator", "Basic Exports"]}
+              desc="Try Brandthat and create quick social assets."
+              features={["Free hashtag generator", "1 AI logo generation after signup", "1 Brand Workspace", "Basic captions/hooks/bios", "Save starter brand direction", "Basic brand kit export"]}
               onClick={() => setPage("workspace")}
             />
             <PriceCard
               name="STARTER"
               price="$10"
-              desc="Unlimited text generations and saved content history."
-              features={["Unlimited text generations", "Unlimited captions/hooks/bios", "Saved content history", "Social strategy tools", "Better export layouts", "No unlimited logo generation"]}
+              desc="For creators and businesses building real brand assets every month."
+              features={["10 AI logo generations per month", "Unlimited captions/hooks/bios", "Unlimited hashtag sets", "Saved workspaces and history", "Social strategy tools", "Downloadable brand kits"]}
               onClick={() => startCheckout("starter")}
             />
             <PriceCard
               name="PRO"
               price="$20"
               featured
-              desc="The full Brandthat experience with unlimited AI logo images."
-              features={["Unlimited AI logo generations", "Premium logo quality", "Transparent PNG exports", "Full Brand Kits", "Priority generations", "Future visual tools"]}
+              desc="For power users who want unlimited brand and logo creation."
+              features={["Unlimited AI logo generations", "Unlimited text and hashtag tools", "Full saved Brand Workspaces", "Downloadable brand kits", "Priority logo generations", "Future premium visual tools"]}
               onClick={() => startCheckout("pro")}
             />
           </div>
@@ -1779,6 +1819,7 @@ function SEOPage({
   user,
   userPlan,
   dailyRemaining,
+  starterLogoRemaining,
   copyToClipboard,
   shareOutput,
   clearGenerator,
@@ -1809,6 +1850,7 @@ function SEOPage({
           user={user}
           userPlan={userPlan}
           dailyRemaining={dailyRemaining}
+          starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
@@ -2158,6 +2200,7 @@ function GeneratorCard({
   user,
   userPlan,
   dailyRemaining,
+  starterLogoRemaining,
   copyToClipboard,
   shareOutput,
   clearGenerator,
@@ -2186,17 +2229,29 @@ function GeneratorCard({
           <h2>{activeTool.title}</h2>
           <p className="toolSubline">{getToolSubline(activeTool.key)}</p>
         </div>
-        <div className="liveBadge">AI Powered</div>
+        <div className="generatorBadges">
+          <div className="liveBadge">AI Powered</div>
+          {activeTool.key === "hashtags" && <div className="liveBadge freeToolBadge">Free Tool</div>}
+          {activeTool.key === "logo" && userPlan === "starter" && <div className="liveBadge">{starterLogoRemaining} Starter logos left</div>}
+          {activeTool.key === "logo" && userPlan === "free" && <div className="liveBadge">{dailyRemaining} free logo left</div>}
+        </div>
       </div>
 
       <div className="generatorControls freeTypeControls">
         <label>
           <span>{activeTool.platformLabel}</span>
-          <input
-            value={selectedPlatform}
-            onChange={(e) => setSelectedPlatform(e.target.value)}
-            placeholder={getStylePlaceholder(activeTool.key)}
-          />
+          {activeTool.key === "hashtags" ? (
+            <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value)}>
+              <option value="">Choose social media</option>
+              {activeTool.platforms.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          ) : (
+            <input
+              value={selectedPlatform}
+              onChange={(e) => setSelectedPlatform(e.target.value)}
+              placeholder={getStylePlaceholder(activeTool.key)}
+            />
+          )}
         </label>
 
         <label>
@@ -2304,7 +2359,7 @@ function getToolSubline(toolKey) {
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
-    hashtags: "Generate hashtag systems grouped by reach, niche, audience, and brand relevance.",
+    hashtags: "Choose a platform, describe the post or topic, and get clean copy-ready hashtags. No login required.",
     email: "Write complete email copy with subject lines, preview text, and calls to action.",
     strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
     brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction."
@@ -2318,7 +2373,7 @@ function getStylePlaceholder(toolKey) {
     captions: "Platform, post type, or format",
     hooks: "Video platform, content type, or hook style",
     bios: "Bio placement or profile type",
-    hashtags: "Platform, niche, location, or audience",
+    hashtags: "Choose social media",
     email: "Email type or campaign goal",
     strategy: "Platform, campaign, or growth focus",
     brand: "Brand category, market, or business type"
@@ -2343,6 +2398,9 @@ function getTonePlaceholder(toolKey) {
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
     return "Describe the logo you want. Include the brand name, what it does, symbols or letters you want, colors, style, audience, and anything it should avoid.";
+  }
+  if (activeTool.key === "hashtags") {
+    return "What do you need hashtags for? Example: A reel of mini cows running through a pasture at sunset, luxury ranch lifestyle, Agua Dulce California.";
   }
   return activeTool.placeholder;
 }
@@ -2504,7 +2562,7 @@ function getResultHeader(toolKey) {
     captions: "CAPTION OPTIONS",
     hooks: "HOOK OPTIONS",
     bios: "BIO OPTIONS",
-    hashtags: "HASHTAG SYSTEM",
+    hashtags: "COPY-READY HASHTAGS",
     email: "EMAIL COPY",
     strategy: "SOCIAL STRATEGY",
     brand: "BRAND CREATION SYSTEM"
@@ -2573,6 +2631,8 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .systemCard p{color:#666;line-height:1.7}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:26px}
 .liveBadge,.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
+.generatorBadges{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.freeToolBadge{background:#111;color:white}
 .planIndicator,.planNotice,.verifyNote{margin-top:16px;font-size:13px;font-weight:700;color:#8a6b37}
 .activeBrandBar{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:14px 18px;margin-bottom:22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .activeBrandBar button{background:#111;color:white;border:none;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
