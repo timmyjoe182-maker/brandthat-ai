@@ -205,6 +205,52 @@ function getInitialToolFromPath() {
   return match?.toolKey || "logo";
 }
 
+
+function getCurrentSeoMeta(page) {
+  const seoPage = seoPages[page];
+
+  if (seoPage) {
+    const titles = {
+      "seo-logo": "AI Logo Generator | Brandthat.ai",
+      "seo-instagram": "Instagram Caption Generator | Brandthat.ai",
+      "seo-tiktok": "TikTok Hook Generator | Brandthat.ai",
+      "seo-bio": "Brand Bio Generator | Brandthat.ai",
+    };
+
+    const descriptions = {
+      "seo-logo": "Create premium AI logo images and brand identity directions for modern brands, startups, creators, and businesses with Brandthat.ai.",
+      "seo-instagram": "Generate clean, copy-ready Instagram captions for brands, creators, Reels, launches, products, and social posts with Brandthat.ai.",
+      "seo-tiktok": "Create TikTok hooks, Reels hooks, and short-form video openings designed to stop the scroll and improve retention with Brandthat.ai.",
+      "seo-bio": "Generate polished brand bios for Instagram, TikTok, LinkedIn, websites, creators, founders, and businesses with Brandthat.ai.",
+    };
+
+    return {
+      title: titles[page] || `${seoPage.h1} | Brandthat.ai`,
+      description: descriptions[page] || seoPage.intro,
+      canonical: `https://brandthat.ai${seoPage.path}`,
+    };
+  }
+
+  return {
+    title: "Brandthat.ai — AI Logo Generator, Caption Generator & Brand Workspace",
+    description: "Create logos, captions, hooks, hashtags, and full brand systems with AI. Brandthat.ai helps creators and businesses build modern brands faster.",
+    canonical: "https://brandthat.ai/",
+  };
+}
+
+function upsertMeta(selector, attributes) {
+  let element = document.head.querySelector(selector);
+
+  if (!element) {
+    element = document.createElement("meta");
+    document.head.appendChild(element);
+  }
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, value);
+  });
+}
+
 export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [user, setUser] = useState(null);
@@ -255,6 +301,51 @@ export default function App() {
   const isFree = userPlan === "free";
   const isStarter = userPlan === "starter";
   const isPro = userPlan === "pro";
+
+
+  useEffect(() => {
+    const meta = getCurrentSeoMeta(page);
+
+    document.title = meta.title;
+
+    let canonical = document.head.querySelector("link[rel='canonical']");
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", meta.canonical);
+
+    upsertMeta("meta[name='description']", {
+      name: "description",
+      content: meta.description,
+    });
+
+    upsertMeta("meta[property='og:title']", {
+      property: "og:title",
+      content: meta.title,
+    });
+
+    upsertMeta("meta[property='og:description']", {
+      property: "og:description",
+      content: meta.description,
+    });
+
+    upsertMeta("meta[property='og:url']", {
+      property: "og:url",
+      content: meta.canonical,
+    });
+
+    upsertMeta("meta[name='twitter:title']", {
+      name: "twitter:title",
+      content: meta.title,
+    });
+
+    upsertMeta("meta[name='twitter:description']", {
+      name: "twitter:description",
+      content: meta.description,
+    });
+  }, [page]);
 
   const emptySavedBuckets = () => ({
     captions: [],
@@ -1497,8 +1588,7 @@ ${prompt}`
           <h1 className="pageTitle">Build for free. Upgrade when your brand needs more.</h1>
           <p className="pageLead">Start free with simple hashtag creation and one logo generation after signup. Starter gives growing creators more brand building power with 10 logo generations per month. Pro is for users who want unlimited logo creation and the full brand workspace experience.</p>
 
-          <div className="pricingGrid threePlans">
-            <PriceCard
+          <div className="pricingGrid threePlans"><PriceCard
               name="FREE"
               price="$0"
               desc="Try Brandthat and create quick social assets."
