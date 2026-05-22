@@ -107,6 +107,39 @@ const tools = [
     platforms: ["New Business", "Creator Brand", "Product Brand", "Luxury Brand", "Local Business", "Agency / Studio", "Personal Brand", "Online Tool / SaaS"],
     placeholder: "Example: I want to create a premium AI tool that helps small businesses make content and branding faster.",
     promptGuide: "Help the user create a brand from a word, sentence, or paragraph. Include names, positioning, audience, tagline, voice, visual direction, offers, and launch direction."
+  },
+  {
+    key: "audit",
+    title: "Brand Audit Generator",
+    shortTitle: "Audit",
+    desc: "Audit a brand, offer, social profile, or website and get a sharper action plan.",
+    label: "BRAND AUDIT GENERATOR",
+    platformLabel: "Audit focus",
+    platforms: ["Full Brand", "Website", "Instagram Profile", "Offer", "Brand Name", "Positioning", "Launch Plan", "Content System"],
+    placeholder: "Example: Audit Brandthat.ai as an AI logo generator and brand workspace for creators, startups, and small businesses.",
+    promptGuide: "Audit the brand with strengths, weaknesses, positioning gaps, audience clarity, offer clarity, trust gaps, content opportunities, and prioritized next steps."
+  },
+  {
+    key: "campaign",
+    title: "Campaign Builder",
+    shortTitle: "Campaigns",
+    desc: "Build launch campaigns with angles, hooks, posts, emails, CTAs, and calendar ideas.",
+    label: "CAMPAIGN BUILDER",
+    platformLabel: "Campaign type",
+    platforms: ["Product Launch", "Brand Reveal", "Seasonal Promo", "Lead Magnet", "Founder Story", "Local Business Promo", "Content Series", "Multi-platform Launch"],
+    placeholder: "Example: Build a 14-day launch campaign for Brandthat.ai's AI logo generator.",
+    promptGuide: "Create a campaign with positioning, campaign promise, audience angle, content pillars, launch posts, hooks, emails, CTAs, and a simple content calendar."
+  },
+  {
+    key: "growth",
+    title: "Growth Roadmap Generator",
+    shortTitle: "Growth",
+    desc: "Create a practical follower-growth roadmap with posting frequency, content pillars, timing, and weekly actions.",
+    label: "GROWTH ROADMAP GENERATOR",
+    platformLabel: "Growth platform",
+    platforms: ["Instagram", "TikTok", "YouTube Shorts", "LinkedIn", "Facebook", "Pinterest", "Multi-platform"],
+    placeholder: "Example: Build a roadmap to reach 100K followers for an AI brand tool. Include what to post, when to post, how often, and weekly milestones.",
+    promptGuide: "Create a follower-growth roadmap with target milestones, posting cadence, content pillars, posting windows, hooks, weekly actions, engagement routines, collaborations, metrics, and realistic next steps."
   }
 ];
 
@@ -251,6 +284,74 @@ function upsertMeta(selector, attributes) {
   });
 }
 
+async function readJsonResponse(response) {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    if (!response.ok) {
+      throw new Error(text || "Request failed.");
+    }
+
+    return {};
+  }
+}
+
+function cleanGeneratedText(text = "") {
+  return String(text)
+    .replace(/\*\*/g, "")
+    .replace(/__+/g, "")
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getDefaultWorkspaceDraft() {
+  return {
+    name: "",
+    logoDirection: "",
+    description: "",
+    audience: "",
+    audiencePain: "",
+    offer: "",
+    differentiator: "",
+    competitors: "",
+    channels: "",
+    growthPlatform: "",
+    currentFollowers: "",
+    targetFollowers: "",
+    weeklyTime: "",
+    logoImage: "",
+    tone: "Modern",
+    style: "",
+    launchGoal: "",
+  };
+}
+
+function getBrandReadinessScore(brand) {
+  if (!brand) return 0;
+
+  const fields = [
+    "name",
+    "description",
+    "audience",
+    "audiencePain",
+    "offer",
+    "differentiator",
+    "tone",
+    "style",
+    "logoDirection",
+    "channels",
+    "launchGoal",
+    "growthPlatform",
+    "targetFollowers",
+  ];
+
+  const completed = fields.filter((field) => String(brand[field] || "").trim()).length;
+  return Math.round((completed / fields.length) * 100);
+}
+
 export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [user, setUser] = useState(null);
@@ -279,15 +380,7 @@ export default function App() {
   const activeBrand = brandWorkspaces.find((brand) => brand.id === activeBrandId) || brandWorkspaces[0] || null;
 
   const [workspaceDraft, setWorkspaceDraft] = useState(() =>
-    safeParse("brandthat_workspace_draft", {
-      name: "",
-      logoDirection: "",
-      description: "",
-      audience: "",
-      tone: "Modern",
-      style: "",
-      launchGoal: "",
-    })
+    safeParse("brandthat_workspace_draft", getDefaultWorkspaceDraft())
   );
 
   const [subscribeEmail, setSubscribeEmail] = useState("");
@@ -355,6 +448,9 @@ export default function App() {
     email: [],
     strategy: [],
     brand: [],
+    audit: [],
+    campaign: [],
+    growth: [],
     logos: [],
   });
 
@@ -364,6 +460,16 @@ export default function App() {
     logoDirection: row.logo_direction || "",
     description: row.description || "",
     audience: row.audience || "",
+    audiencePain: row.audience_pain || "",
+    offer: row.offer || "",
+    differentiator: row.differentiator || "",
+    competitors: row.competitors || "",
+    channels: row.channels || "",
+    growthPlatform: row.growth_platform || "",
+    currentFollowers: row.current_followers || "",
+    targetFollowers: row.target_followers || "",
+    weeklyTime: row.weekly_time || "",
+    logoImage: row.logo_image_url || "",
     tone: row.tone || "Modern",
     style: row.style || "",
     launchGoal: row.launch_goal || "",
@@ -757,7 +863,7 @@ export default function App() {
         body: JSON.stringify({ plan, email: currentUser.email })
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         notify("error", "Checkout could not start", data.error || "Please try again in a moment.");
@@ -785,6 +891,16 @@ export default function App() {
       logoDirection: workspaceDraft.logoDirection.trim(),
       description: workspaceDraft.description.trim(),
       audience: workspaceDraft.audience.trim(),
+      audiencePain: String(workspaceDraft.audiencePain || "").trim(),
+      offer: String(workspaceDraft.offer || "").trim(),
+      differentiator: String(workspaceDraft.differentiator || "").trim(),
+      competitors: String(workspaceDraft.competitors || "").trim(),
+      channels: String(workspaceDraft.channels || "").trim(),
+      growthPlatform: String(workspaceDraft.growthPlatform || "").trim(),
+      currentFollowers: String(workspaceDraft.currentFollowers || "").trim(),
+      targetFollowers: String(workspaceDraft.targetFollowers || "").trim(),
+      weeklyTime: String(workspaceDraft.weeklyTime || "").trim(),
+      logoImage: String(workspaceDraft.logoImage || "").trim(),
       tone: workspaceDraft.tone || "Modern",
       style: workspaceDraft.style.trim(),
       launchGoal: workspaceDraft.launchGoal.trim(),
@@ -828,15 +944,7 @@ export default function App() {
     setResult("");
     setLogoImage("");
     setPage("logo");
-    setWorkspaceDraft({
-      name: "",
-      logoDirection: "",
-      description: "",
-      audience: "",
-      tone: "Modern",
-      style: "",
-      launchGoal: "",
-    });
+    setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
     notify("success", "Workspace created", `${brand.name} is ready. Start generating brand assets.`);
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
@@ -922,6 +1030,7 @@ export default function App() {
         brand.id === activeBrand.id
           ? {
               ...brand,
+              logoImage: activeTool.key === "logo" && logoImage ? logoImage : brand.logoImage,
               saved: {
                 ...brand.saved,
                 [bucket]: [entry, ...(brand.saved?.[bucket] || [])],
@@ -933,6 +1042,42 @@ export default function App() {
 
     notify("success", "Saved to workspace", `${entry.title} was added to ${activeBrand.name}.`);
     return entry;
+  };
+
+  const setLogoAsBrandProfile = async () => {
+    if (!activeBrand) {
+      notify("error", "Create a Brand Workspace first", "Then you can set a generated logo as the brand profile image.");
+      return;
+    }
+
+    if (!logoImage) {
+      notify("error", "Generate a logo first", "Once a logo appears, you can set it as this workspace's brand image.");
+      return;
+    }
+
+    setBrandWorkspaces((prev) =>
+      prev.map((brand) =>
+        brand.id === activeBrand.id
+          ? { ...brand, logoImage }
+          : brand
+      )
+    );
+
+    if (user?.id) {
+      try {
+        const { error } = await supabase
+          .from("brand_workspaces")
+          .update({ logo_image_url: logoImage, updated_at: new Date().toISOString() })
+          .eq("id", activeBrand.id)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.warn("Could not sync brand profile logo:", error.message);
+      }
+    }
+
+    notify("success", "Brand logo updated", `${activeBrand.name} now uses this generated logo as its workspace image.`);
   };
 
   const buildWorkspaceKit = () => {
@@ -957,14 +1102,44 @@ ${activeBrand.description || "Not added yet."}
 Audience:
 ${activeBrand.audience || "Not added yet."}
 
+Audience Pain / Desire:
+${activeBrand.audiencePain || "Not added yet."}
+
+Core Offer:
+${activeBrand.offer || "Not added yet."}
+
+Differentiator:
+${activeBrand.differentiator || "Not added yet."}
+
+Competitors / References:
+${activeBrand.competitors || "Not added yet."}
+
 Brand Tone:
 ${activeBrand.tone}
 
 Visual Style:
 ${activeBrand.style || "Not added yet."}
 
+Primary Channels:
+${activeBrand.channels || "Not added yet."}
+
+Growth Platform:
+${activeBrand.growthPlatform || "Not added yet."}
+
+Current Followers:
+${activeBrand.currentFollowers || "Not added yet."}
+
+Target Followers:
+${activeBrand.targetFollowers || "Not added yet."}
+
+Weekly Time Available:
+${activeBrand.weeklyTime || "Not added yet."}
+
 Launch Goal:
 ${activeBrand.launchGoal || "Not added yet."}
+
+Brand Readiness Score:
+${getBrandReadinessScore(activeBrand)}%
 
 SAVED CAPTIONS:
 ${captions}
@@ -974,6 +1149,15 @@ ${hooks}
 
 SAVED BIOS:
 ${bios}
+
+SAVED CAMPAIGNS:
+${saved.campaign?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved campaigns yet."}
+
+SAVED AUDITS:
+${saved.audit?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved audits yet."}
+
+SAVED GROWTH ROADMAPS:
+${saved.growth?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved growth roadmaps yet."}
 
 Generated with Brandthat.ai`;
   };
@@ -999,6 +1183,16 @@ Generated with Brandthat.ai`;
       logoDirection: source.logoDirection || "",
       description: source.description || "",
       audience: source.audience || "",
+      audiencePain: source.audiencePain || "",
+      offer: source.offer || "",
+      differentiator: source.differentiator || "",
+      competitors: source.competitors || "",
+      channels: source.channels || "",
+      growthPlatform: source.growthPlatform || "",
+      currentFollowers: source.currentFollowers || "",
+      targetFollowers: source.targetFollowers || "",
+      weeklyTime: source.weeklyTime || "",
+      logoImage: source.logoImage || "",
       tone: source.tone || "Modern",
       style: source.style || "",
       launchGoal: source.launchGoal || "",
@@ -1078,10 +1272,20 @@ ${entry.content || "Use the saved logo direction and improve it."}`);
     return `Brand name: ${brand.name}
 Brand description: ${brand.description}
 Audience: ${brand.audience}
+Audience pain/desire: ${brand.audiencePain || "Not provided"}
+Core offer: ${brand.offer || "Not provided"}
+Differentiator: ${brand.differentiator || "Not provided"}
+Competitors/references: ${brand.competitors || "Not provided"}
 Brand tone: ${brand.tone}
 Logo direction: ${brand.logoDirection}
 Visual style: ${brand.style}
-Launch goal: ${brand.launchGoal}`;
+Primary channels: ${brand.channels || "Not provided"}
+Growth platform: ${brand.growthPlatform || "Not provided"}
+Current followers: ${brand.currentFollowers || "Not provided"}
+Target followers: ${brand.targetFollowers || "Not provided"}
+Weekly time available: ${brand.weeklyTime || "Not provided"}
+Launch goal: ${brand.launchGoal}
+Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   }
 
   const incrementDailyFreeUse = () => {
@@ -1162,9 +1366,19 @@ Brand name: ${activeBrand.name}
 Logo direction: ${activeBrand.logoDirection}
 Description: ${activeBrand.description}
 Audience: ${activeBrand.audience}
+Audience pain/desire: ${activeBrand.audiencePain || "Not provided"}
+Core offer: ${activeBrand.offer || "Not provided"}
+Differentiator: ${activeBrand.differentiator || "Not provided"}
+Competitors/references: ${activeBrand.competitors || "Not provided"}
 Brand tone: ${activeBrand.tone}
 Visual style: ${activeBrand.style}
+Primary channels: ${activeBrand.channels || "Not provided"}
+Growth platform: ${activeBrand.growthPlatform || "Not provided"}
+Current followers: ${activeBrand.currentFollowers || "Not provided"}
+Target followers: ${activeBrand.targetFollowers || "Not provided"}
+Weekly time available: ${activeBrand.weeklyTime || "Not provided"}
 Launch goal: ${activeBrand.launchGoal}
+Brand readiness score: ${getBrandReadinessScore(activeBrand)}%
 `
       : "";
 
@@ -1232,13 +1446,16 @@ Rules:
 `;
     }
 
-    if (["hooks", "bios", "email", "strategy", "brand"].includes(activeTool.key)) {
+    if (["hooks", "bios", "email", "strategy", "brand", "audit", "campaign", "growth"].includes(activeTool.key)) {
       const toolInstructions = {
         hooks: "Generate exactly 10 short-form video hooks. Make them scroll-stopping, specific, and usable as on-screen text for the selected platform.",
         bios: "Generate exactly 10 polished bio options. Make them clear, concise, profile-ready, and specific to the user's brand or idea.",
         email: "Generate exactly 10 complete email options. Each option must include a subject line, short preview text, concise body copy, and a clear CTA. Make the emails accurate to the user's request and ready to send after light editing.",
         strategy: "Generate exactly 10 practical social strategy ideas. Each option should be specific, actionable, and useful for the selected platform or campaign.",
-        brand: "Generate exactly 10 brand creation directions. Each option should include a brand name or concept, positioning, audience, and launch angle."
+        brand: "Generate exactly 10 brand creation directions. Each option should include a brand name or concept, positioning, audience, and launch angle.",
+        audit: "Create a premium brand audit. Include strengths, weaknesses, positioning gaps, audience clarity, offer clarity, trust gaps, content gaps, visual identity opportunities, and a prioritized action plan.",
+        campaign: "Create a complete campaign system. Include campaign promise, audience angle, creative direction, hooks, captions, email ideas, CTA options, and a 14-day content calendar.",
+        growth: "Create a detailed follower-growth roadmap. If the user says 100K followers, build a 30/60/90-day plan with posting frequency, best posting windows, content pillars, weekly schedule, daily engagement routine, collaboration ideas, milestone targets, metrics to track, and what to post on each platform."
       };
 
       return `
@@ -1267,10 +1484,12 @@ Do not mention Brandthat.ai unless the user specifically asks for that brand.
 Rules:
 - Exactly 10 results.
 - Every result must directly relate to what the user typed.
-- Make each result copy-ready and practical.
+- Make each result copy-ready, practical, and strategically useful.
 - Avoid generic filler and cheesy phrasing.
 - Keep the output fast, clean, and easy to scan.
 - If generating emails, make the email content specific, accurate, and complete enough to use.
+- If auditing or building a campaign, give direct recommendations and next actions, not vague advice.
+- If creating a growth roadmap, make the schedule realistic, specific, and organized by daily, weekly, 30-day, 60-day, and 90-day actions.
 `;
     }
 
@@ -1338,7 +1557,7 @@ Requirements:
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(data.error || "Logo image generation failed.");
@@ -1404,8 +1623,11 @@ ${prompt}`
           })
         });
 
-        const data = await response.json();
-        setResult(data.text || "No response generated.");
+        const data = await readJsonResponse(response);
+        if (!response.ok) {
+          throw new Error(data.error || "Generation failed.");
+        }
+        setResult(cleanGeneratedText(data.text || "No response generated."));
       }
 
       if (activeTool.key === "logo" && isFree) incrementDailyFreeUse();
@@ -1517,8 +1739,8 @@ ${prompt}`
           <section className="brandSystemSection">
             <div className="tinyTag">BRAND WORKFLOW</div>
             <h2>Everything revolves around your brand workspace.</h2>
-            <div className="systemGrid">
-              {["AI Logo Generator", "Brand Identity", "Social Content", "Launch Assets", "Brand Voice", "Marketing System"].map((item) => (
+          <div className="systemGrid">
+              {["AI Logo Generator", "Brand Identity", "Social Content", "Launch Assets", "Brand Voice", "Marketing System", "Brand Audit", "Campaign Builder", "Growth Roadmap"].map((item) => (
                 <div className="systemCard" key={item}>
                   <span>{item}</span>
                   <p>{getSystemCardText(item)}</p>
@@ -1602,8 +1824,9 @@ ${prompt}`
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
-          saveCurrentOutput={saveCurrentOutput}
-          openSeoPage={openSeoPage}
+              saveCurrentOutput={saveCurrentOutput}
+              setLogoAsBrandProfile={setLogoAsBrandProfile}
+              openSeoPage={openSeoPage}
         />
       )}
 
@@ -1656,6 +1879,8 @@ ${prompt}`
           {activeBrand && (
             <div className="activeBrandBar">
               <strong>Active Brand:</strong> {activeBrand.name}
+              {activeBrand.logoImage && <img className="activeBrandLogo" src={activeBrand.logoImage} alt={`${activeBrand.name} logo`} />}
+              <span>{getBrandReadinessScore(activeBrand)}% ready</span>
               <button onClick={() => setPage("workspace")}>View Workspace</button>
             </div>
           )}
@@ -1679,6 +1904,7 @@ ${prompt}`
             shareOutput={shareOutput}
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
+            setLogoAsBrandProfile={setLogoAsBrandProfile}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
           />
@@ -1742,6 +1968,14 @@ ${prompt}`
               {loading ? "Please wait..." : authMode === "signup" ? "Create account" : "Log in"}
             </button>
 
+            <button className="btn light full" onClick={sendMagicLink}>
+              Send magic login link
+            </button>
+
+            <button className="btn light full" onClick={resendConfirmation}>
+              Resend confirmation email
+            </button>
+
             {authMode === "login" ? (
               <button className="btn light full" onClick={() => { setAuthMode("signup"); setAuthMessage(""); }}>
                 New here? Create an account
@@ -1770,6 +2004,10 @@ function getSystemCardText(item) {
     "Launch Assets": "Build emails, announcements, and go-to-market copy.",
     "Brand Voice": "Keep every output aligned to the same tone.",
     "Marketing System": "Turn your idea into a repeatable content engine.",
+    "Brand Audit": "Find positioning, offer, trust, content, and launch gaps.",
+    "Campaign Builder": "Create campaign angles, posts, emails, hooks, and CTAs.",
+    "Brand Readiness": "Score how complete your workspace is before you generate.",
+    "Growth Roadmap": "Turn goals like 100K followers into a weekly action plan.",
   };
 
   return copy[item] || "Build your brand faster with AI.";
@@ -1781,6 +2019,7 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
       <div className="tinyTag">START HERE</div>
       <h2>Create a Brand Workspace</h2>
       <p>Save the brand name, logo direction, brand tone, audience, and launch goal. Every generator can then create content around the same brand.</p>
+      <span className="autoSavePill">{autoSaveStatus}</span>
       <div className="workspaceGrid">
         <input
           placeholder="Brand name"
@@ -1801,6 +2040,83 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
         onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })}
       />
 
+      <div className="workspaceGrid">
+        <select
+          value={workspaceDraft.growthPlatform || ""}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, growthPlatform: e.target.value })}
+        >
+          <option value="">Primary growth platform</option>
+          <option value="Instagram">Instagram</option>
+          <option value="TikTok">TikTok</option>
+          <option value="YouTube Shorts">YouTube Shorts</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Pinterest">Pinterest</option>
+          <option value="Multi-platform">Multi-platform</option>
+        </select>
+        <input
+          placeholder="Main goal. Example: Reach 100K followers"
+          value={workspaceDraft.targetFollowers || workspaceDraft.launchGoal}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, targetFollowers: e.target.value, launchGoal: e.target.value })}
+        />
+      </div>
+
+      <div className="workspaceGrid">
+        <input
+          placeholder="Current followers. Example: 1,250"
+          value={workspaceDraft.currentFollowers || ""}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, currentFollowers: e.target.value })}
+        />
+        <input
+          placeholder="Weekly time available. Example: 5 hours/week"
+          value={workspaceDraft.weeklyTime || ""}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, weeklyTime: e.target.value })}
+        />
+      </div>
+
+      <details className="advancedWorkspaceFields">
+        <summary>Improve AI results with advanced brand details</summary>
+
+        <div className="workspaceGrid">
+          <textarea
+            placeholder="Audience or ideal customer. Optional, but useful for sharper output."
+            value={workspaceDraft.audience}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
+          />
+          <textarea
+            placeholder="Audience pain/desire. Example: Small businesses need better branding but do not have time or budget for a full agency."
+            value={workspaceDraft.audiencePain || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audiencePain: e.target.value })}
+          />
+        </div>
+
+        <div className="workspaceGrid">
+          <textarea
+            placeholder="Core offer. Example: AI tools that create logos, captions, hooks, bios, campaigns, and brand kits."
+            value={workspaceDraft.offer || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, offer: e.target.value })}
+          />
+          <textarea
+            placeholder="Differentiator. Example: Logo-first brand building with saved workspaces and launch-ready content."
+            value={workspaceDraft.differentiator || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, differentiator: e.target.value })}
+          />
+        </div>
+
+        <div className="workspaceGrid">
+          <input
+            placeholder="Competitors or references. Example: Canva, Looka, Jasper, Tailor Brands."
+            value={workspaceDraft.competitors || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })}
+          />
+          <input
+            placeholder="Primary channels. Example: Instagram, TikTok, website, email."
+            value={workspaceDraft.channels || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, channels: e.target.value })}
+          />
+        </div>
+      </details>
+
       <textarea
         placeholder="Logo direction. Example: Black-and-white, modern B monogram, clean premium technology feel, works as favicon and social profile image."
         value={workspaceDraft.logoDirection}
@@ -1808,11 +2124,6 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
       />
 
       <div className="workspaceGrid">
-        <input
-          placeholder="Audience"
-          value={workspaceDraft.audience}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
-        />
         <select
           value={workspaceDraft.style}
           onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, style: e.target.value })}
@@ -1861,8 +2172,9 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
           {brandWorkspaces.map((brand) => (
             <div className={activeBrand?.id === brand.id ? "brandRow activeBrandRow" : "brandRow"} key={brand.id}>
               <button onClick={() => selectBrand(brand.id)}>
+                {brand.logoImage && <img className="brandRowLogo" src={brand.logoImage} alt={`${brand.name} logo`} />}
                 <strong>{brand.name}</strong>
-                <span>{brand.tone} • {brand.audience || "Audience not set"}</span>
+                <span>{getBrandReadinessScore(brand)}% ready • {brand.tone} • {brand.audience || "Audience not set"}</span>
               </button>
               <div className="brandRowActions">
                 <button onClick={() => duplicateBrand(brand.id)}>Duplicate</button>
@@ -1870,6 +2182,16 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeBrand && (
+        <div className="brandReadinessPanel">
+          <div>
+            <span>Brand Readiness</span>
+            <strong>{getBrandReadinessScore(activeBrand)}%</strong>
+          </div>
+          <p>{activeBrand.differentiator || activeBrand.offer || activeBrand.description || "Add offer, audience, differentiator, channels, and launch details to make this workspace more powerful."}</p>
         </div>
       )}
 
@@ -1891,6 +2213,9 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
     ["email", "Saved Emails"],
     ["strategy", "Saved Strategy"],
     ["brand", "Saved Brand Ideas"],
+    ["audit", "Saved Audits"],
+    ["campaign", "Saved Campaigns"],
+    ["growth", "Saved Growth Roadmaps"],
   ];
 
   const favoriteItems = buckets
@@ -2015,6 +2340,7 @@ function SEOPage({
   shareOutput,
   clearGenerator,
   saveCurrentOutput,
+  setLogoAsBrandProfile,
   toggleFavorite,
   remixOutput,
   openSeoPage
@@ -2046,6 +2372,7 @@ function SEOPage({
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
           saveCurrentOutput={saveCurrentOutput}
+          setLogoAsBrandProfile={setLogoAsBrandProfile}
           toggleFavorite={toggleFavorite}
           remixOutput={remixOutput}
         />
@@ -2396,6 +2723,7 @@ function GeneratorCard({
   shareOutput,
   clearGenerator,
   saveCurrentOutput,
+  setLogoAsBrandProfile,
   toggleFavorite,
   remixOutput
 }) {
@@ -2502,6 +2830,7 @@ function GeneratorCard({
             <div className="resultActions">
               <a className="downloadLink" href={logoImage} download="brandthat-logo.png">Download Logo</a>
               <button onClick={saveCurrentOutput}>Save</button>
+              <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
               <button onClick={() => remixOutput(activeEntry)}>Remix</button>
             </div>
           </div>
@@ -2599,7 +2928,10 @@ function getToolSubline(toolKey) {
     hashtags: "Choose a platform, describe your post, and get 50 relevant copy-ready hashtags. No login required.",
     email: "Write complete email copy with subject lines, preview text, and calls to action.",
     strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
-    brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction."
+    brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction.",
+    audit: "Audit a brand, offer, profile, or website and get specific improvements.",
+    campaign: "Build a campaign with angles, posts, emails, hooks, CTAs, and a simple calendar.",
+    growth: "Create a realistic follower roadmap with posting cadence, timing, content pillars, and weekly milestones."
   };
   return lines[toolKey] || "Create premium, ready-to-use brand assets in seconds.";
 }
@@ -2613,7 +2945,10 @@ function getStylePlaceholder(toolKey) {
     hashtags: "Choose social media",
     email: "Email type or campaign goal",
     strategy: "Platform, campaign, or growth focus",
-    brand: "Brand category, market, or business type"
+    brand: "Brand category, market, or business type",
+    audit: "Website, offer, profile, positioning, launch plan, or full brand",
+    campaign: "Launch, promo, brand reveal, content series, or lead magnet",
+    growth: "Instagram, TikTok, YouTube Shorts, LinkedIn, or multi-platform"
   };
   return placeholders[toolKey] || "Style, format, or direction";
 }
@@ -2627,7 +2962,10 @@ function getTonePlaceholder(toolKey) {
     hashtags: "",
     email: "Email tone",
     strategy: "Strategy tone or brand voice",
-    brand: "Brand personality"
+    brand: "Brand personality",
+    audit: "Direct, premium, strategic, honest",
+    campaign: "Energetic, premium, conversion-focused, social-native",
+    growth: "Practical, ambitious, consistent, platform-native"
   };
   return placeholders[toolKey] || "Tone or voice";
 }
@@ -2654,7 +2992,10 @@ function getGenerateButtonText(toolKey, shortTitle) {
     hashtags: "Generate 50 Hashtags",
     email: "Generate 10 Emails",
     strategy: "Generate 10 Strategy Ideas",
-    brand: "Generate 10 Brand Directions"
+    brand: "Generate 10 Brand Directions",
+    audit: "Audit Brand",
+    campaign: "Build Campaign",
+    growth: "Build Growth Roadmap"
   };
   return labels[toolKey] || `Generate ${shortTitle}`;
 }
@@ -2666,7 +3007,10 @@ function getTenResultHeader(toolKey) {
     bios: "10 BIO OPTIONS",
     email: "10 EMAIL OPTIONS",
     strategy: "10 STRATEGY IDEAS",
-    brand: "10 BRAND DIRECTIONS"
+    brand: "10 BRAND DIRECTIONS",
+    audit: "BRAND AUDIT",
+    campaign: "CAMPAIGN PLAN",
+    growth: "GROWTH ROADMAP"
   };
   return headers[toolKey] || "10 GENERATED OPTIONS";
 }
@@ -2680,7 +3024,10 @@ function getLoadingText(toolKey) {
     hashtags: "Generating 50 hashtags...",
     email: "Generating 10 email options...",
     strategy: "Generating 10 strategy ideas...",
-    brand: "Generating 10 brand directions..."
+    brand: "Generating 10 brand directions...",
+    audit: "Auditing your brand...",
+    campaign: "Building your campaign...",
+    growth: "Building your growth roadmap..."
   };
   return loading[toolKey] || "Generating your brand asset...";
 }
@@ -2694,7 +3041,10 @@ function getLoadingSubtext(toolKey) {
     hashtags: "Creating one clean copy-ready hashtag block.",
     email: "Creating ten accurate emails with subject, preview, body, and CTA.",
     strategy: "Creating ten specific strategy moves you can use.",
-    brand: "Creating ten brand concepts with positioning and launch direction."
+    brand: "Creating ten brand concepts with positioning and launch direction.",
+    audit: "Finding positioning, trust, offer, content, and conversion gaps.",
+    campaign: "Creating angles, posts, emails, hooks, and launch actions.",
+    growth: "Mapping posting cadence, timing, content pillars, and milestone targets."
   };
   return subtext[toolKey] || "Formatting your results into premium brand cards.";
 }
@@ -2735,9 +3085,9 @@ function getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage 
 function formatSmartResultCards(toolKey, result) {
   if (!result) return [];
 
-  const cleanLines = result
+  const cleanLines = cleanGeneratedText(result)
     .split("\n")
-    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
+    .map((line) => line.replace(/^[-•*\d.)\s]+/, "").replace(/:$/, "").trim())
     .filter(Boolean);
 
   const schema = getResultSchema(toolKey);
@@ -2817,6 +3167,30 @@ function getResultSchema(toolKey) {
       { label: "AUDIENCE", title: "Audience" },
       { label: "VOICE", title: "Brand Voice" },
       { label: "LAUNCH", title: "Launch Direction" }
+    ],
+    audit: [
+      { label: "SCORE", title: "Brand Health", featured: true },
+      { label: "GAPS", title: "Positioning Gaps" },
+      { label: "OFFER", title: "Offer Clarity" },
+      { label: "TRUST", title: "Trust Builders" },
+      { label: "CONTENT", title: "Content Opportunities" },
+      { label: "NEXT", title: "Priority Actions" }
+    ],
+    campaign: [
+      { label: "PROMISE", title: "Campaign Promise", featured: true },
+      { label: "ANGLE", title: "Audience Angle" },
+      { label: "POSTS", title: "Social Posts" },
+      { label: "EMAIL", title: "Email Ideas" },
+      { label: "CTA", title: "CTA Direction" },
+      { label: "CALENDAR", title: "14-Day Calendar" }
+    ],
+    growth: [
+      { label: "GOAL", title: "Follower Goal", featured: true },
+      { label: "30 DAYS", title: "30-Day Plan" },
+      { label: "60 DAYS", title: "60-Day Plan" },
+      { label: "90 DAYS", title: "90-Day Plan" },
+      { label: "CADENCE", title: "Posting Cadence" },
+      { label: "METRICS", title: "Metrics To Track" }
     ]
   };
   return schemas[toolKey] || schemas.brand;
@@ -2825,27 +3199,27 @@ function getResultSchema(toolKey) {
 function parseTenOptions(result) {
   if (!result) return [];
 
-  const normalized = result.replace(/\r/g, "").trim();
+  const normalized = cleanGeneratedText(result).replace(/\r/g, "").trim();
   const matches = [...normalized.matchAll(/(?:^|\n)\s*(\d{1,2})[.)]\s+/g)];
 
   if (matches.length >= 2) {
     return matches.slice(0, 10).map((match, index) => {
       const start = match.index + match[0].length;
       const end = matches[index + 1]?.index ?? normalized.length;
-      return normalized.slice(start, end).trim();
+      return cleanGeneratedText(normalized.slice(start, end));
     }).filter(Boolean);
   }
 
   const lines = normalized
     .split("\n")
-    .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
+    .map((line) => cleanGeneratedText(line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "")))
     .filter(Boolean);
 
   if (lines.length >= 10) return lines.slice(0, 10);
 
   const sentenceSplit = normalized
     .split(/(?<=\.)\s+(?=[A-Z#"'])/)
-    .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
+    .map((line) => cleanGeneratedText(line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "")))
     .filter(Boolean);
 
   return sentenceSplit.slice(0, 10).length ? sentenceSplit.slice(0, 10) : [normalized];
@@ -2860,7 +3234,10 @@ function getResultHeader(toolKey) {
     hashtags: "50 COPY-READY HASHTAGS",
     email: "EMAIL COPY",
     strategy: "SOCIAL STRATEGY",
-    brand: "BRAND CREATION SYSTEM"
+    brand: "BRAND CREATION SYSTEM",
+    audit: "BRAND AUDIT",
+    campaign: "CAMPAIGN PLAN",
+    growth: "GROWTH ROADMAP"
   };
   return headers[toolKey] || "BRANDTHAT AI OUTPUT";
 }
@@ -2899,13 +3276,14 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
 .freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
 .heroCtas{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
-.generateCard,.workspaceCard,.signupBox{background:white;border-radius:38px;padding:34px;border:1px solid rgba(0,0,0,.08);box-shadow:0 30px 90px rgba(0,0,0,.06)}
+.generateCard,.workspaceCard,.signupBox{background:white;border-radius:18px;padding:28px;border:1px solid rgba(0,0,0,.08);box-shadow:none}
 .workspaceCard p{font-size:16px;line-height:1.7;color:#666}
 .workspaceGrid,.workspaceLayout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .workspaceActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
 .brandList{display:flex;flex-direction:column;gap:12px;margin-top:20px}
 .brandRow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:18px;padding:12px}
 .brandRow button:first-child{border:none;background:transparent;text-align:left;cursor:pointer}
+.brandRowLogo{width:42px;height:42px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:white;margin-right:10px;float:left}
 .brandRow strong{display:block}
 .brandRow span{display:block;color:#666;margin-top:4px}
 .activeBrandRow{border-color:#111}
@@ -2913,7 +3291,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .emptyState{background:#fafafa;border:1px dashed rgba(0,0,0,.18);border-radius:18px;padding:18px;color:#666;margin-top:16px}
 .savedAssets{margin-top:46px}
 .savedGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.savedBucket{background:white;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:18px}
+.savedBucket{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px}
 .savedBucket h3{margin:0 0 12px}
 .savedBucket p{color:#666}
 .savedItem{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:12px;margin-top:10px}
@@ -2921,7 +3299,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .savedItem button{margin-top:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-weight:800;cursor:pointer}
 .brandSystemSection{max-width:1280px;margin:0 auto;padding:40px 6vw 80px}
 .systemGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
-.systemCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:24px}
+.systemCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:22px}
 .systemCard span{font-weight:900;font-size:20px;letter-spacing:-.03em}
 .systemCard p{color:#666;line-height:1.7}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:26px}
@@ -2930,9 +3308,18 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .freeToolBadge{background:#111;color:white}
 .planIndicator,.planNotice,.verifyNote{margin-top:16px;font-size:13px;font-weight:700;color:#8a6b37}
 .activeBrandBar{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:14px 18px;margin-bottom:22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.activeBrandLogo{width:38px;height:38px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:#fafafa}
 .activeBrandBar button{background:#111;color:white;border:none;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
+.brandReadinessPanel{background:#fafafa;color:#111;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;margin-top:18px}
+.brandReadinessPanel div{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.brandReadinessPanel span{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.brandReadinessPanel strong{font-size:28px;letter-spacing:-.04em}
+.brandReadinessPanel p{color:#666;margin:10px 0 0;line-height:1.6}
 textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,.08);padding:18px 20px;font-size:16px;background:#fafafa;font-family:inherit;margin-top:10px;color:#111}
 textarea{height:170px;resize:none;line-height:1.6}
+.advancedWorkspaceFields{margin:14px 0;border:1px solid rgba(0,0,0,.08);border-radius:14px;background:#fafafa;padding:14px}
+.advancedWorkspaceFields summary{cursor:pointer;font-size:13px;font-weight:900;color:#8a6b37;text-transform:uppercase;letter-spacing:1px}
+.advancedWorkspaceFields[open]{background:white}
 .generatorControls{display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:14px}
 .hashtagsGenerator .generatorControls{grid-template-columns:1fr}
 .generatorControls.singleControl{grid-template-columns:1fr}
@@ -3293,7 +3680,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
 
 .captionListBox{padding:22px;display:flex;flex-direction:column;gap:12px}
-.captionOptionRow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:16px}
+.captionOptionRow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px}
 .captionNumber{width:34px;height:34px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
