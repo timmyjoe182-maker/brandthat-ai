@@ -1232,6 +1232,48 @@ Rules:
 `;
     }
 
+    if (["hooks", "bios", "email", "strategy", "brand"].includes(activeTool.key)) {
+      const toolInstructions = {
+        hooks: "Generate exactly 10 short-form video hooks. Make them scroll-stopping, specific, and usable as on-screen text for the selected platform.",
+        bios: "Generate exactly 10 polished bio options. Make them clear, concise, profile-ready, and specific to the user's brand or idea.",
+        email: "Generate exactly 10 complete email options. Each option must include a subject line, short preview text, concise body copy, and a clear CTA. Make the emails accurate to the user's request and ready to send after light editing.",
+        strategy: "Generate exactly 10 practical social strategy ideas. Each option should be specific, actionable, and useful for the selected platform or campaign.",
+        brand: "Generate exactly 10 brand creation directions. Each option should include a brand name or concept, positioning, audience, and launch angle."
+      };
+
+      return `
+You are Brandthat.ai, a premium AI brand workspace.
+
+Generator:
+${activeTool.title}
+
+Selected type/platform:
+${selectedPlatform || "Best fit for the user's request"}
+
+User request:
+${prompt}
+
+${workspaceContext}
+
+Task:
+${toolInstructions[activeTool.key]}
+
+Format:
+Return ONLY a numbered list from 1 to 10.
+Do not add a long intro.
+Do not add closing notes.
+Do not mention Brandthat.ai unless the user specifically asks for that brand.
+
+Rules:
+- Exactly 10 results.
+- Every result must directly relate to what the user typed.
+- Make each result copy-ready and practical.
+- Avoid generic filler and cheesy phrasing.
+- Keep the output fast, clean, and easy to scan.
+- If generating emails, make the email content specific, accurate, and complete enough to use.
+`;
+    }
+
     return `
 You are Brandthat.ai, a premium AI brand workspace for creators, founders, businesses, and agencies.
 
@@ -1243,9 +1285,6 @@ ${activeTool.promptGuide}
 
 Selected platform/style/type:
 ${selectedPlatform}
-
-Selected tone:
-${creativeTone}
 
 ${workspaceContext}
 
@@ -1259,12 +1298,6 @@ Rules:
 - Avoid fluff.
 - Avoid saying "as an AI."
 - Be modern, premium, practical, and brand-aware.
-
-Special rule for the Hashtag Generator:
-- Keep it simple and instantly useful.
-- Return copy-ready hashtag groups only.
-- Include platform-aware hashtags for the selected social platform.
-- Do not force a brand workspace for hashtags.
 `;
   };
 
@@ -2395,7 +2428,7 @@ function GeneratorCard({
         </div>
       </div>
 
-      <div className="generatorControls freeTypeControls">
+      <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
         <label>
           <span>{activeTool.platformLabel}</span>
           {(activeTool.key === "hashtags" || activeTool.key === "captions") ? (
@@ -2412,9 +2445,9 @@ function GeneratorCard({
           )}
         </label>
 
-        {activeTool.key !== "hashtags" && activeTool.key !== "captions" && (
+        {activeTool.key === "logo" && (
           <label>
-            <span>Tone</span>
+            <span>Logo feeling</span>
             <input
               value={creativeTone}
               onChange={(e) => setCreativeTone(e.target.value)}
@@ -2433,7 +2466,7 @@ function GeneratorCard({
 
       <div className="generatorButtons">
         <button className="btn dark" onClick={generate}>
-          {loading ? getLoadingText(activeTool.key) : activeTool.key === "logo" ? "Generate Logo Image" : `Generate ${activeTool.shortTitle}`}
+          {loading ? getLoadingText(activeTool.key) : getGenerateButtonText(activeTool.key, activeTool.shortTitle)}
         </button>
         <button className="btn light" onClick={clearGenerator}>Clear</button>
       </div>
@@ -2494,10 +2527,10 @@ function GeneratorCard({
       )}
 
 
-      {result && activeTool.key === "captions" && (
+      {result && activeTool.key !== "hashtags" && activeTool.key !== "logo" && (
         <div className="resultBox premiumResults simpleCaptionResult">
           <div className="resultTop">
-            <span>10 COPY-READY CAPTIONS</span>
+            <span>{getTenResultHeader(activeTool.key)}</span>
             <div className="resultActions">
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
@@ -2506,18 +2539,18 @@ function GeneratorCard({
           </div>
 
           <div className="captionListBox">
-            {parseCaptionOptions(result).map((caption, index) => (
-              <div className="captionOptionRow" key={`${caption}-${index}`}>
+            {parseTenOptions(result).map((item, index) => (
+              <div className="captionOptionRow" key={`${item}-${index}`}>
                 <div className="captionNumber">{index + 1}</div>
-                <p>{caption}</p>
-                <button onClick={() => copyToClipboard(caption)}>Copy</button>
+                <p>{item}</p>
+                <button onClick={() => copyToClipboard(item)}>Copy</button>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {result && activeTool.key !== "hashtags" && activeTool.key !== "captions" && (
+      {result && activeTool.key === "logo" && (
         <div className="resultBox premiumResults">
           <div className="resultTop">
             <span>{getResultHeader(activeTool.key)}</span>
@@ -2612,16 +2645,42 @@ function getMainPromptPlaceholder(activeTool) {
   return activeTool.placeholder;
 }
 
+function getGenerateButtonText(toolKey, shortTitle) {
+  const labels = {
+    logo: "Generate Logo Image",
+    captions: "Generate 10 Captions",
+    hooks: "Generate 10 Hooks",
+    bios: "Generate 10 Bios",
+    hashtags: "Generate 50 Hashtags",
+    email: "Generate 10 Emails",
+    strategy: "Generate 10 Strategy Ideas",
+    brand: "Generate 10 Brand Directions"
+  };
+  return labels[toolKey] || `Generate ${shortTitle}`;
+}
+
+function getTenResultHeader(toolKey) {
+  const headers = {
+    captions: "10 COPY-READY CAPTIONS",
+    hooks: "10 HOOK OPTIONS",
+    bios: "10 BIO OPTIONS",
+    email: "10 EMAIL OPTIONS",
+    strategy: "10 STRATEGY IDEAS",
+    brand: "10 BRAND DIRECTIONS"
+  };
+  return headers[toolKey] || "10 GENERATED OPTIONS";
+}
+
 function getLoadingText(toolKey) {
   const loading = {
     logo: "Designing your logo concept...",
     captions: "Generating 10 captions...",
-    hooks: "Building scroll-stopping hooks...",
-    bios: "Crafting polished brand bios...",
+    hooks: "Generating 10 hooks...",
+    bios: "Generating 10 bios...",
     hashtags: "Generating 50 hashtags...",
-    email: "Writing high-converting email copy...",
-    strategy: "Building your content strategy...",
-    brand: "Creating your brand system..."
+    email: "Generating 10 email options...",
+    strategy: "Generating 10 strategy ideas...",
+    brand: "Generating 10 brand directions..."
   };
   return loading[toolKey] || "Generating your brand asset...";
 }
@@ -2630,12 +2689,12 @@ function getLoadingSubtext(toolKey) {
   const subtext = {
     logo: "Balancing style, clarity, scalability, and brand memorability.",
     captions: "Creating ten clean options for your selected platform.",
-    hooks: "Creating multiple retention-focused opening angles.",
-    bios: "Adapting the bio for different profile placements.",
+    hooks: "Creating ten quick, platform-aware hook options.",
+    bios: "Creating ten polished profile-ready bio options.",
     hashtags: "Creating one clean copy-ready hashtag block.",
-    email: "Structuring subject, preview, body, and CTA.",
-    strategy: "Turning your goal into content pillars and action steps.",
-    brand: "Building identity, audience, positioning, and launch direction."
+    email: "Creating ten accurate emails with subject, preview, body, and CTA.",
+    strategy: "Creating ten specific strategy moves you can use.",
+    brand: "Creating ten brand concepts with positioning and launch direction."
   };
   return subtext[toolKey] || "Formatting your results into premium brand cards.";
 }
@@ -2763,21 +2822,33 @@ function getResultSchema(toolKey) {
   return schemas[toolKey] || schemas.brand;
 }
 
-function parseCaptionOptions(result) {
+function parseTenOptions(result) {
   if (!result) return [];
-  const lines = result
+
+  const normalized = result.replace(/\r/g, "").trim();
+  const matches = [...normalized.matchAll(/(?:^|\n)\s*(\d{1,2})[.)]\s+/g)];
+
+  if (matches.length >= 2) {
+    return matches.slice(0, 10).map((match, index) => {
+      const start = match.index + match[0].length;
+      const end = matches[index + 1]?.index ?? normalized.length;
+      return normalized.slice(start, end).trim();
+    }).filter(Boolean);
+  }
+
+  const lines = normalized
     .split("\n")
     .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
     .filter(Boolean);
 
   if (lines.length >= 10) return lines.slice(0, 10);
 
-  const sentenceSplit = result
+  const sentenceSplit = normalized
     .split(/(?<=\.)\s+(?=[A-Z#"'])/)
     .map((line) => line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "").trim())
     .filter(Boolean);
 
-  return sentenceSplit.slice(0, 10).length ? sentenceSplit.slice(0, 10) : [result];
+  return sentenceSplit.slice(0, 10).length ? sentenceSplit.slice(0, 10) : [normalized];
 }
 
 function getResultHeader(toolKey) {
@@ -2864,6 +2935,7 @@ textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,
 textarea{height:170px;resize:none;line-height:1.6}
 .generatorControls{display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:14px}
 .hashtagsGenerator .generatorControls{grid-template-columns:1fr}
+.generatorControls.singleControl{grid-template-columns:1fr}
 .generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
 .generatorButtons{display:grid;grid-template-columns:1fr 130px;gap:12px;margin-top:16px}
 .btn{border:none;border-radius:18px;padding:16px 24px;font-weight:800;cursor:pointer;font-size:15px;transition:.2s ease;display:inline-flex;align-items:center;justify-content:center}
