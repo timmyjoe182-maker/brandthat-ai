@@ -1686,8 +1686,8 @@ ${prompt}
 Logo style direction:
 ${selectedPlatform || "Use the best style for the user's request."}
 
-Tone / feeling:
-${creativeTone || "Premium, clean, memorable, and brand-appropriate."}
+Brand name / required text / keywords:
+${creativeTone || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
 
 Brand workspace context:
 ${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
@@ -2897,11 +2897,12 @@ function GeneratorCard({
           <h2>{activeTool.title}</h2>
           <p className="toolSubline">{getToolSubline(activeTool.key)}</p>
         </div>
-        <div className="generatorMeta">
-          {(activeTool.key === "hashtags" || activeTool.key === "captions") && <span>Free tool</span>}
-          {activeTool.key === "logo" && userPlan === "starter" && <span>{starterLogoRemaining} starter logos remaining</span>}
-          {activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && <span>Workspace-ready</span>}
-        </div>
+        {activeTool.key !== "logo" && (
+          <div className="generatorMeta">
+            {(activeTool.key === "hashtags" || activeTool.key === "captions") && <span>Free tool</span>}
+            {activeTool.key !== "hashtags" && activeTool.key !== "captions" && <span>Workspace-ready</span>}
+          </div>
+        )}
       </div>
 
       <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
@@ -2923,7 +2924,7 @@ function GeneratorCard({
 
         {activeTool.key === "logo" && (
           <label>
-            <span>Logo feeling</span>
+            <span>Brand name / keywords</span>
             <input
               value={creativeTone}
               onChange={(e) => setCreativeTone(e.target.value)}
@@ -3103,7 +3104,7 @@ function getStylePlaceholder(toolKey) {
 
 function getTonePlaceholder(toolKey) {
   const placeholders = {
-    logo: "Brand feeling, mood, audience perception, or personality",
+    logo: "Brand name, initials, tagline, or must-use words",
     captions: "",
     hooks: "Hook energy or vibe",
     bios: "Voice and personality",
@@ -3200,7 +3201,7 @@ function getLoadingSubtext(toolKey) {
 
 function getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage }) {
   const style = selectedPlatform?.trim() || "Best-fit visual direction";
-  const tone = creativeTone?.trim() || "Premium, clean, memorable, and brand-appropriate";
+  const brandKeywords = creativeTone?.trim() || "Use the brand name, initials, tagline, or required words from the prompt if provided";
   const request = prompt?.trim() || "The user's logo request";
 
   return [
@@ -3215,7 +3216,7 @@ function getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage 
     {
       label: "DIRECTION",
       title: "Brand Direction Used",
-      content: `${request}\n\nStyle: ${style}\nTone: ${tone}`
+      content: `${request}\n\nStyle: ${style}\nBrand name / keywords: ${brandKeywords}`
     },
     {
       label: "USE",
