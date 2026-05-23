@@ -792,7 +792,7 @@ export default function App() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: "https://brandthat.ai"
+          emailRedirectTo: window.location.origin
         }
       });
 
@@ -826,7 +826,7 @@ export default function App() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email,
-        options: { emailRedirectTo: "https://brandthat.ai" }
+        options: { emailRedirectTo: window.location.origin }
       });
 
       if (error) {
@@ -1490,6 +1490,8 @@ Rules:
 - If generating emails, make the email content specific, accurate, and complete enough to use.
 - If auditing or building a campaign, give direct recommendations and next actions, not vague advice.
 - If creating a growth roadmap, make the schedule realistic, specific, and organized by daily, weekly, 30-day, 60-day, and 90-day actions.
+- Do not use Markdown bold markers like **text**.
+- Do not use decorative symbols, asterisks, emoji, or spammy formatting.
 `;
     }
 
@@ -1516,6 +1518,8 @@ Rules:
 - Make the output easy to copy and use immediately.
 - Avoid fluff.
 - Avoid saying "as an AI."
+- Do not use Markdown bold markers like **text**.
+- Do not use decorative symbols, asterisks, emoji, or spammy formatting.
 - Be modern, premium, practical, and brand-aware.
 `;
   };
@@ -1690,7 +1694,7 @@ ${prompt}`
       <style>{css}</style>
 
       <nav className="nav">
-        <button className="brand" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); }}>Brandthat</button>
+        <button className="brand" onClick={() => { setActiveToolKey("logo"); setPage("home"); window.history.pushState({}, "", "/"); }}>Brandthat</button>
 
         <div className="navLinks">
           <button onClick={() => setPage("workspace")}>Workspace</button>
@@ -1718,23 +1722,63 @@ ${prompt}`
         <>
           <main className="hero logoHero">
             <div className="heroTop">
-              <div className="eyebrow">AI BRAND WORKSPACE</div>
-              <h1>Build your brand with AI.</h1>
-              <p className="lead">Start with a logo, save your brand direction, then create captions, hooks, bios, launch copy, and strategy around one real brand workspace.</p>
+              <div className="eyebrow">AI LOGO GENERATOR + FREE BRAND TOOLS</div>
+              <h1>Create a logo. Build the brand around it.</h1>
+              <p className="lead">Start with a premium AI logo, then use free captions and hashtags to test your brand in public. When you are ready, save everything into a Brand Workspace.</p>
               
               <div className="heroCtas">
-                <button className="btn dark" onClick={() => setPage("workspace")}>Start Your Free Brand Workspace</button>
-                <button className="btn light" onClick={() => openSeoPage("seo-logo")}>Try AI Logo Generator</button>
+                <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Try AI Logo Generator</button>
+                <button className="btn light" onClick={() => selectTool("captions")}>Free Caption Generator</button>
+                <button className="btn light" onClick={() => selectTool("hashtags")}>Free Hashtag Generator</button>
               </div>
             </div>
 
-            <WorkspaceCreator
-              workspaceDraft={workspaceDraft}
-              setWorkspaceDraft={setWorkspaceDraft}
-              createWorkspace={createWorkspace}
-              autoSaveStatus={autoSaveStatus}
+            <GeneratorCard
+              activeTool={activeToolKey === "logo" ? activeTool : toolMap.logo}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              selectedPlatform={selectedPlatform}
+              setSelectedPlatform={setSelectedPlatform}
+              creativeTone={creativeTone}
+              setCreativeTone={setCreativeTone}
+              generate={generate}
+              loading={loading}
+              result={result}
+              logoImage={logoImage}
+              user={user}
+              userPlan={userPlan}
+              dailyRemaining={dailyRemaining}
+              starterLogoRemaining={starterLogoRemaining}
+              copyToClipboard={copyToClipboard}
+              shareOutput={shareOutput}
+              clearGenerator={clearGenerator}
+              saveCurrentOutput={saveCurrentOutput}
+              setLogoAsBrandProfile={setLogoAsBrandProfile}
+              toggleFavorite={toggleFavorite}
+              remixOutput={remixOutput}
             />
           </main>
+
+          <section className="freeToolsSection">
+            <div>
+              <div className="tinyTag">FREE TOOLS</div>
+              <h2>Use the free tools first. Save the full brand when it starts working.</h2>
+            </div>
+            <div className="freeToolCards">
+              <button onClick={() => selectTool("captions")}>
+                <strong>Caption Generator</strong>
+                <span>10 copy-ready captions for any platform.</span>
+              </button>
+              <button onClick={() => selectTool("hashtags")}>
+                <strong>Hashtag Generator</strong>
+                <span>50 relevant hashtags in one clean block.</span>
+              </button>
+              <button onClick={() => selectTool("growth")}>
+                <strong>Growth Roadmap</strong>
+                <span>Turn goals like 100K followers into a practical plan.</span>
+              </button>
+            </div>
+          </section>
 
           <section className="brandSystemSection">
             <div className="tinyTag">BRAND WORKFLOW</div>
@@ -1999,9 +2043,9 @@ ${prompt}`
 function getSystemCardText(item) {
   const copy = {
     "AI Logo Generator": "Create the first visual anchor for your brand.",
-    "Brand Identity": "Save tone, audience, visual style, and positioning.",
+    "Brand Identity": "Save the brand name, voice, logo direction, and growth goal.",
     "Social Content": "Generate captions, hooks, hashtags, and bios.",
-    "Launch Assets": "Build emails, announcements, and go-to-market copy.",
+    "Launch Assets": "Build emails, announcements, offers, and campaign copy.",
     "Brand Voice": "Keep every output aligned to the same tone.",
     "Marketing System": "Turn your idea into a repeatable content engine.",
     "Brand Audit": "Find positioning, offer, trust, content, and launch gaps.",
@@ -2018,7 +2062,7 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
     <div className="workspaceCard">
       <div className="tinyTag">START HERE</div>
       <h2>Create a Brand Workspace</h2>
-      <p>Save the brand name, logo direction, brand tone, audience, and launch goal. Every generator can then create content around the same brand.</p>
+      <p>Save the basics once, then every tool can reuse the same brand name, voice, logo, and growth goal.</p>
       <span className="autoSavePill">{autoSaveStatus}</span>
       <div className="workspaceGrid">
         <input
@@ -2026,12 +2070,15 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
           value={workspaceDraft.name}
           onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
         />
-        <select
-          value={workspaceDraft.tone}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, tone: e.target.value })}
-        >
-          {tones.map((tone) => <option key={tone}>{tone}</option>)}
-        </select>
+        <label className="workspaceFieldLabel">
+          <span>Brand voice</span>
+          <select
+            value={workspaceDraft.tone}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, tone: e.target.value })}
+          >
+            {tones.map((tone) => <option key={tone}>{tone}</option>)}
+          </select>
+        </label>
       </div>
 
       <textarea
@@ -2061,21 +2108,14 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
         />
       </div>
 
-      <div className="workspaceGrid">
-        <input
-          placeholder="Current followers. Example: 1,250"
-          value={workspaceDraft.currentFollowers || ""}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, currentFollowers: e.target.value })}
-        />
-        <input
-          placeholder="Weekly time available. Example: 5 hours/week"
-          value={workspaceDraft.weeklyTime || ""}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, weeklyTime: e.target.value })}
-        />
-      </div>
+      <textarea
+        placeholder="Logo direction. Example: Black-and-white, modern B monogram, clean premium technology feel, works as favicon and social profile image."
+        value={workspaceDraft.logoDirection}
+        onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, logoDirection: e.target.value })}
+      />
 
       <details className="advancedWorkspaceFields">
-        <summary>Improve AI results with advanced brand details</summary>
+        <summary>Optional details for sharper AI results</summary>
 
         <div className="workspaceGrid">
           <textarea
@@ -2105,6 +2145,19 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
 
         <div className="workspaceGrid">
           <input
+            placeholder="Current followers. Example: 1,250"
+            value={workspaceDraft.currentFollowers || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, currentFollowers: e.target.value })}
+          />
+          <input
+            placeholder="Weekly time available. Example: 5 hours/week"
+            value={workspaceDraft.weeklyTime || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, weeklyTime: e.target.value })}
+          />
+        </div>
+
+        <div className="workspaceGrid">
+          <input
             placeholder="Competitors or references. Example: Canva, Looka, Jasper, Tailor Brands."
             value={workspaceDraft.competitors || ""}
             onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })}
@@ -2116,42 +2169,6 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
           />
         </div>
       </details>
-
-      <textarea
-        placeholder="Logo direction. Example: Black-and-white, modern B monogram, clean premium technology feel, works as favicon and social profile image."
-        value={workspaceDraft.logoDirection}
-        onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, logoDirection: e.target.value })}
-      />
-
-      <div className="workspaceGrid">
-        <select
-          value={workspaceDraft.style}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, style: e.target.value })}
-        >
-          <option value="">Select Brand Style</option>
-          <option value="Modern Minimal">Modern Minimal</option>
-          <option value="Luxury">Luxury</option>
-          <option value="Bold Startup">Bold Startup</option>
-          <option value="Corporate">Corporate</option>
-          <option value="Playful">Playful</option>
-          <option value="Tech">Tech</option>
-          <option value="Elegant">Elegant</option>
-          <option value="Organic">Organic</option>
-          <option value="Streetwear">Streetwear</option>
-          <option value="Futuristic">Futuristic</option>
-          <option value="Black and White">Black and White</option>
-          <option value="Premium Editorial">Premium Editorial</option>
-          <option value="Rustic">Rustic</option>
-          <option value="Creative Agency">Creative Agency</option>
-          <option value="Luxury Fashion">Luxury Fashion</option>
-        </select>
-      </div>
-
-      <input
-        placeholder="Launch goal"
-        value={workspaceDraft.launchGoal}
-        onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, launchGoal: e.target.value })}
-      />
 
       <button className="btn dark full" onClick={createWorkspace}>Create Brand Workspace</button>
     </div>
@@ -3276,6 +3293,11 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
 .freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
 .heroCtas{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.freeToolsSection{max-width:1280px;margin:0 auto;padding:28px 6vw 72px;display:grid;grid-template-columns:.9fr 1.1fr;gap:24px;align-items:start}
+.freeToolCards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.freeToolCards button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;text-align:left;color:#111;cursor:pointer;font-family:inherit}
+.freeToolCards strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
+.freeToolCards span{display:block;color:#666;line-height:1.55;font-size:14px}
 .generateCard,.workspaceCard,.signupBox{background:white;border-radius:18px;padding:28px;border:1px solid rgba(0,0,0,.08);box-shadow:none}
 .workspaceCard p{font-size:16px;line-height:1.7;color:#666}
 .workspaceGrid,.workspaceLayout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
@@ -3317,6 +3339,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .brandReadinessPanel p{color:#666;margin:10px 0 0;line-height:1.6}
 textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,.08);padding:18px 20px;font-size:16px;background:#fafafa;font-family:inherit;margin-top:10px;color:#111}
 textarea{height:170px;resize:none;line-height:1.6}
+.workspaceFieldLabel span{display:block;font-size:11px;font-weight:900;letter-spacing:1.5px;color:#8a6b37;text-transform:uppercase;margin:0 0 0 8px}
 .advancedWorkspaceFields{margin:14px 0;border:1px solid rgba(0,0,0,.08);border-radius:14px;background:#fafafa;padding:14px}
 .advancedWorkspaceFields summary{cursor:pointer;font-size:13px;font-weight:900;color:#8a6b37;text-transform:uppercase;letter-spacing:1px}
 .advancedWorkspaceFields[open]{background:white}
@@ -3685,6 +3708,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
 `;

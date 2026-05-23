@@ -4,14 +4,26 @@ exports.handler = async (event) => {
   try {
     const { email, password } = JSON.parse(event.body);
 
+    if (!email || !password) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Email and password are required." }),
+      };
+    }
+
     const supabase = createClient(
-      "https://vfnkmabnocbwawbdvxfo.supabase.co",
-      "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk"
+      process.env.SUPABASE_URL || "https://vfnkmabnocbwawbdvxfo.supabase.co",
+      process.env.SUPABASE_ANON_KEY || "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk"
     );
 
+    const origin = event.headers.origin || "https://brandthat.ai";
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: String(email).trim().toLowerCase(),
       password,
+      options: {
+        emailRedirectTo: origin,
+      },
     });
 
     if (error) {
