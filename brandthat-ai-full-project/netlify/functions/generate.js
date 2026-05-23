@@ -4,6 +4,16 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function cleanGeneratedText(text = "") {
+  return String(text)
+    .replace(/\*\*/g, "")
+    .replace(/__+/g, "")
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 exports.handler = async (event) => {
   try {
     const { prompt } = JSON.parse(event.body || "{}");
@@ -92,7 +102,7 @@ Rules:
     return {
       statusCode: 200,
       body: JSON.stringify({
-        text: completion.choices[0].message.content,
+        text: cleanGeneratedText(completion.choices[0].message.content),
       }),
     };
   } catch (error) {
