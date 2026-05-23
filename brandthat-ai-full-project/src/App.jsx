@@ -1729,14 +1729,14 @@ Requirements:
       return;
     }
 
-    const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions" || activeTool.key === "growth";
+    const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions";
 
     if (!currentUser && !isFreeSimpleTool) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
       return;
     }
 
-    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && activeTool.key !== "growth" && !activeBrand) {
+    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && !activeBrand) {
       setPage("workspace");
       notify("warning", "Create a workspace first", "Text tools are stronger when they are connected to a saved brand workspace.");
       setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
@@ -2876,8 +2876,6 @@ function GeneratorCard({
   const resultCards = activeTool.key === "logo"
     ? getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage })
     : formatSmartResultCards(activeTool.key, result);
-  const hashtagList = activeTool.key === "hashtags" ? parseHashtags(result) : [];
-  const roadmapItems = activeTool.key === "growth" ? parseRoadmapSections(result) : [];
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -2998,45 +2996,13 @@ function GeneratorCard({
 
           <div className="hashtagSingleBox">
             <div className="tinyTag">READY TO COPY</div>
-            {hashtagList.length > 0 ? (
-              <div className="hashtagCloud">
-                {hashtagList.map((tag) => <button key={tag} onClick={() => copyToClipboard(tag)}>{tag}</button>)}
-              </div>
-            ) : (
-              <p>{result}</p>
-            )}
+            <p>{result}</p>
           </div>
         </div>
       )}
 
 
-      {result && activeTool.key === "growth" && (
-        <div className="resultBox premiumResults roadmapResult">
-          <div className="resultTop">
-            <span>GROWTH ROADMAP</span>
-            <div className="resultActions">
-              <button onClick={() => copyToClipboard(result)}>Copy Roadmap</button>
-              <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
-              <button onClick={() => shareOutput(result)}>Share</button>
-            </div>
-          </div>
-
-          <div className="roadmapList">
-            {roadmapItems.map((item, index) => (
-              <div className="roadmapStep" key={`${item.title}-${index}`}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.copy}</p>
-                  <button onClick={() => copyToClipboard(`${item.title}\n${item.copy}`)}>Copy</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {result && activeTool.key !== "hashtags" && activeTool.key !== "logo" && activeTool.key !== "growth" && (
+      {result && activeTool.key !== "hashtags" && activeTool.key !== "logo" && (
         <div className="resultBox premiumResults simpleCaptionResult">
           <div className="resultTop">
             <span>{getTenResultHeader(activeTool.key)}</span>
@@ -3403,41 +3369,6 @@ function parseTenOptions(result) {
     .filter(Boolean);
 
   return sentenceSplit.slice(0, 10).length ? sentenceSplit.slice(0, 10) : [normalized];
-}
-
-function parseHashtags(result) {
-  return Array.from(new Set((cleanGeneratedText(result).match(/#[a-zA-Z0-9_]+/g) || [])
-    .map((tag) => tag.trim())
-    .filter(Boolean)))
-    .slice(0, 50);
-}
-
-function parseRoadmapSections(result) {
-  const options = parseTenOptions(result)
-    .map((item) => cleanGeneratedText(item))
-    .filter(Boolean);
-
-  if (options.length > 1) {
-    return options.slice(0, 8).map((item) => {
-      const [rawTitle, ...rest] = item.split(":");
-      const title = rest.length ? rawTitle.trim() : "Action Step";
-      const copy = rest.length ? rest.join(":").trim() : item;
-      return { title: title || "Action Step", copy };
-    });
-  }
-
-  const blocks = cleanGeneratedText(result)
-    .split(/\n(?=[A-Z0-9][^\n]{2,80}:)/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-  return (blocks.length ? blocks : [cleanGeneratedText(result)]).slice(0, 8).map((block) => {
-    const [rawTitle, ...rest] = block.split(":");
-    return {
-      title: rest.length ? rawTitle.trim() : "Growth Plan",
-      copy: rest.length ? rest.join(":").trim() : block,
-    };
-  });
 }
 
 function getResultHeader(toolKey) {
@@ -3900,14 +3831,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagSingleBox{padding:30px;background:#111;color:white;border-radius:0 0 24px 24px}
 .hashtagSingleBox .tinyTag{color:#d9bd77;margin-bottom:14px}
 .hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
-.hashtagCloud{display:flex;flex-wrap:wrap;gap:10px}
-.hashtagCloud button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:white;border-radius:999px;padding:10px 12px;font-weight:800;cursor:pointer;font-size:14px}
-.roadmapList{padding:22px;display:grid;gap:14px}
-.roadmapStep{display:grid;grid-template-columns:54px 1fr;gap:16px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px}
-.roadmapStep>span{width:38px;height:38px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
-.roadmapStep h3{font-size:20px;letter-spacing:-.03em;margin:3px 0 8px}
-.roadmapStep p{margin:0;color:#555;line-height:1.7;white-space:pre-wrap}
-.roadmapStep button{margin-top:12px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 .captionListBox{padding:22px;display:flex;flex-direction:column;gap:12px}
 .captionOptionRow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px}
