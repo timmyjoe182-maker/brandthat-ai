@@ -39,17 +39,13 @@ exports.handler = async (event) => {
 
     const finalPrompt = buildLogoPrompt({ logoPrompt, brandName });
 
-    const model = process.env.LOGO_IMAGE_MODEL || "dall-e-3";
+    const model = process.env.LOGO_IMAGE_MODEL || "gpt-image-1";
     const imageOptions = {
       model,
       prompt: finalPrompt,
       size: "1024x1024",
       n: 1,
     };
-
-    if (model === "dall-e-3") {
-      imageOptions.quality = "standard";
-    }
 
     const image = await client.images.generate(imageOptions);
 
