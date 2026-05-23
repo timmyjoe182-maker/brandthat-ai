@@ -1709,6 +1709,8 @@ Requirements:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         brandName: creativeTone || activeBrand?.name || "",
+        logoStyle: selectedPlatform || "",
+        userPrompt: prompt,
         logoPrompt: enhancedLogoPrompt
       })
     });
@@ -3707,7 +3709,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 .logoFrame img{
   width:100%;
-  max-width:420px;
+  max-width:560px;
   border-radius:22px;
   box-shadow:0 18px 50px rgba(0,0,0,.08);
 }
@@ -3840,7 +3842,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumLoading{margin-top:20px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;display:flex;gap:14px;align-items:center}
 .premiumLoading span{display:block;color:#666;margin-top:4px;font-size:14px}.loadingPulse{width:18px;height:18px;border-radius:50%;background:#111;animation:pulseBrandthat 1.2s infinite ease-in-out}
 @keyframes pulseBrandthat{0%{transform:scale(.8);opacity:.45}50%{transform:scale(1.25);opacity:1}100%{transform:scale(.8);opacity:.45}}
-.logoShowcase{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;padding:28px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:420px;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
+.logoShowcase{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;padding:28px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:560px;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
 .brandPreviewCard{background:#111;color:white;border-radius:30px;padding:30px;display:flex;flex-direction:column;justify-content:center}.brandPreviewCard .tinyTag{color:#d9bd77}.brandPreviewCard h3{font-size:32px;letter-spacing:-.04em;margin:0 0 14px}.brandPreviewCard p{color:rgba(255,255,255,.72);line-height:1.7}.brandPreviewCard .resultActions button{background:white;color:#111}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 

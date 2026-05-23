@@ -41,24 +41,141 @@ function hashString(value = "") {
   }, 2166136261);
 }
 
-function getLogoWords({ brandName, logoPrompt }) {
-  const source = String(brandName || logoPrompt || "Brand").trim();
+function getLogoWords({ brandName, logoPrompt, logoStyle, userPrompt }) {
+  const source = `${brandName || ""} ${logoStyle || ""} ${userPrompt || ""}`.trim() || String(logoPrompt || "Brand");
   const cleaned = source
-    .replace(/logo|brand|create|make|for|a |an |the /gi, " ")
+    .replace(/\b(logo|brand|create|make|for|with|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high)\b/gi, " ")
     .replace(/[^a-zA-Z0-9\s&]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   const words = cleaned.split(" ").filter(Boolean);
-  const displayName = words.slice(0, 3).join(" ") || "Brand";
+  const brandWords = String(brandName || "")
+    .replace(/[^a-zA-Z0-9\s&]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+  const displayName = (brandWords.length ? brandWords.slice(0, 3) : words.slice(0, 3)).join(" ") || "Brand";
   const initials = words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "B";
 
-  return { displayName, initials };
+  return { displayName, initials, words, source };
 }
 
-function buildFallbackLogo({ logoPrompt, brandName }) {
-  const { displayName, initials } = getLogoWords({ brandName, logoPrompt });
-  const hash = hashString(`${brandName} ${logoPrompt}`);
+function hasWord(words, options) {
+  return options.some((option) => words.some((word) => word.toLowerCase().includes(option)));
+}
+
+function getSubject(words) {
+  const hasHippo = hasWord(words, ["hippo", "hippos"]);
+  const hasFootball = hasWord(words, ["football", "fantasy"]);
+  if (hasHippo && hasFootball) return "hippo-football";
+  if (hasHippo) return "hippo";
+  if (hasFootball) return "football";
+  if (hasWord(words, ["cow", "cattle", "ranch"])) return "ranch";
+  if (hasWord(words, ["coffee", "cafe"])) return "coffee";
+  if (hasWord(words, ["real", "estate", "home", "house"])) return "realestate";
+  if (hasWord(words, ["beauty", "wellness", "spa"])) return "wellness";
+  if (hasWord(words, ["ai", "tech", "software", "saas"])) return "tech";
+  return "abstract";
+}
+
+function buildSubjectMark({ subject, ink, accent, paper, initials }) {
+  if (subject === "hippo-football") {
+    return `
+      <ellipse cx="512" cy="356" rx="226" ry="158" fill="${ink}"/>
+      <path d="M312 316 Q512 168 712 316 Q684 220 512 198 Q340 220 312 316 Z" fill="${accent}"/>
+      <path d="M344 318 Q512 230 680 318" fill="none" stroke="${paper}" stroke-width="14" stroke-linecap="round"/>
+      <path d="M512 190 V300 M460 214 L460 294 M564 214 L564 294" stroke="${paper}" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="370" cy="250" r="50" fill="${ink}"/>
+      <circle cx="654" cy="250" r="50" fill="${ink}"/>
+      <ellipse cx="512" cy="418" rx="174" ry="92" fill="${paper}" opacity="0.97"/>
+      <circle cx="454" cy="398" r="14" fill="${ink}"/>
+      <circle cx="570" cy="398" r="14" fill="${ink}"/>
+      <path d="M452 454 Q512 486 572 454" fill="none" stroke="${ink}" stroke-width="15" stroke-linecap="round"/>
+      <text x="512" y="610" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="76" font-weight="900" fill="${ink}" letter-spacing="2">${escapeXml(initials.slice(0, 3))}</text>
+    `;
+  }
+
+  if (subject === "hippo") {
+    return `
+      <ellipse cx="512" cy="352" rx="210" ry="154" fill="${ink}"/>
+      <circle cx="380" cy="236" r="54" fill="${ink}"/>
+      <circle cx="644" cy="236" r="54" fill="${ink}"/>
+      <circle cx="398" cy="247" r="24" fill="${accent}"/>
+      <circle cx="626" cy="247" r="24" fill="${accent}"/>
+      <ellipse cx="512" cy="406" rx="170" ry="92" fill="${paper}" opacity="0.96"/>
+      <circle cx="456" cy="390" r="14" fill="${ink}"/>
+      <circle cx="568" cy="390" r="14" fill="${ink}"/>
+      <path d="M455 446 Q512 482 569 446" fill="none" stroke="${ink}" stroke-width="15" stroke-linecap="round"/>
+      <path d="M318 352 Q512 170 706 352" fill="none" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+    `;
+  }
+
+  if (subject === "football") {
+    return `
+      <ellipse cx="512" cy="350" rx="244" ry="138" fill="${ink}" transform="rotate(-12 512 350)"/>
+      <path d="M326 389 Q512 258 698 311" fill="none" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+      <path d="M468 315 L558 386" stroke="${paper}" stroke-width="13" stroke-linecap="round"/>
+      <path d="M486 327 L463 356 M508 344 L485 373 M530 361 L507 390" stroke="${paper}" stroke-width="8" stroke-linecap="round"/>
+      <text x="512" y="382" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="76" font-weight="900" fill="${paper}" letter-spacing="2">${escapeXml(initials.slice(0, 3))}</text>
+    `;
+  }
+
+  if (subject === "ranch") {
+    return `
+      <circle cx="512" cy="346" r="184" fill="${ink}"/>
+      <path d="M370 378 Q512 230 654 378" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      <path d="M420 416 Q512 352 604 416" fill="none" stroke="${paper}" stroke-width="16" stroke-linecap="round"/>
+      <circle cx="462" cy="334" r="18" fill="${paper}"/>
+      <circle cx="562" cy="334" r="18" fill="${paper}"/>
+    `;
+  }
+
+  if (subject === "coffee") {
+    return `
+      <circle cx="512" cy="350" r="190" fill="${ink}"/>
+      <path d="M420 320 H570 Q628 320 628 378 Q628 436 570 436 H420 Z" fill="${paper}"/>
+      <path d="M572 348 H620 Q660 348 660 386 Q660 424 620 424 H574" fill="none" stroke="${paper}" stroke-width="20"/>
+      <path d="M444 286 Q470 250 448 218 M512 286 Q540 248 516 214 M580 286 Q606 250 584 218" stroke="${accent}" stroke-width="12" stroke-linecap="round"/>
+    `;
+  }
+
+  if (subject === "realestate") {
+    return `
+      <rect x="344" y="338" width="336" height="198" rx="18" fill="${ink}"/>
+      <path d="M318 350 L512 206 L706 350" fill="none" stroke="${accent}" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="468" y="420" width="88" height="116" rx="8" fill="${paper}"/>
+    `;
+  }
+
+  if (subject === "wellness") {
+    return `
+      <circle cx="512" cy="356" r="184" fill="${ink}"/>
+      <path d="M512 254 C620 282 660 402 512 506 C364 402 404 282 512 254 Z" fill="${paper}"/>
+      <path d="M512 276 C470 344 472 420 512 492 C552 420 554 344 512 276 Z" fill="${accent}"/>
+    `;
+  }
+
+  if (subject === "tech") {
+    return `
+      <rect x="340" y="178" width="344" height="344" rx="74" fill="${ink}"/>
+      <path d="M418 352 H606 M512 258 V446 M430 270 L594 434 M594 270 L430 434" stroke="${accent}" stroke-width="20" stroke-linecap="round"/>
+      <circle cx="512" cy="352" r="62" fill="${paper}"/>
+      <text x="512" y="378" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="46" font-weight="900" fill="${ink}">${escapeXml(initials.slice(0, 2))}</text>
+    `;
+  }
+
+  return `
+    <path d="M512 156 L734 284 L734 540 L512 668 L290 540 L290 284 Z" fill="${ink}"/>
+    <path d="M512 220 L678 316 L678 508 L512 604 L346 508 L346 316 Z" fill="none" stroke="${accent}" stroke-width="16"/>
+    <text x="512" y="440" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="118" font-weight="900" fill="${paper}" letter-spacing="4">${escapeXml(initials.slice(0, 3))}</text>
+  `;
+}
+
+function buildFallbackLogo({ logoPrompt, brandName, logoStyle, userPrompt }) {
+  const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, userPrompt });
+  const hash = hashString(`${brandName} ${logoStyle} ${userPrompt} ${logoPrompt}`);
   const palettes = [
     ["#111111", "#f7f4ed", "#9b7b3f"],
     ["#10231f", "#f5f1e8", "#c7a45a"],
@@ -68,35 +185,27 @@ function buildFallbackLogo({ logoPrompt, brandName }) {
     ["#0f172a", "#f8fafc", "#38bdf8"],
   ];
   const [ink, paper, accent] = palettes[hash % palettes.length];
-  const shapes = ["circle", "shield", "diamond"];
-  const shape = shapes[hash % shapes.length];
+  const subject = getSubject(words);
   const safeName = escapeXml(displayName);
-  const safeInitials = escapeXml(initials.slice(0, 3));
+  const subjectMark = buildSubjectMark({ subject, ink, accent, paper, initials });
+  const nameWords = displayName.toLowerCase().split(/\s+/);
+  const subtitleWords = words
+    .filter((word) => !nameWords.includes(word.toLowerCase()))
+    .filter((word) => word.length > 2)
+    .filter((word, index, list) => list.findIndex((item) => item.toLowerCase() === word.toLowerCase()) === index)
+    .slice(0, 4);
   const subtitle = escapeXml(
-    String(logoPrompt || "")
-      .replace(/[^a-zA-Z0-9\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .split(" ")
-      .slice(0, 5)
-      .join(" ")
+    (subtitleWords.join(" ") || subject.replace("-", " "))
       .toUpperCase()
   );
 
-  const mark = {
-    circle: `<circle cx="512" cy="378" r="154" fill="${ink}"/><circle cx="512" cy="378" r="126" fill="none" stroke="${accent}" stroke-width="10"/>`,
-    shield: `<path d="M512 208 L666 266 L636 464 Q512 560 388 464 L358 266 Z" fill="${ink}"/><path d="M512 244 L626 287 L603 444 Q512 514 421 444 L398 287 Z" fill="none" stroke="${accent}" stroke-width="10"/>`,
-    diamond: `<path d="M512 202 L688 378 L512 554 L336 378 Z" fill="${ink}"/><path d="M512 250 L640 378 L512 506 L384 378 Z" fill="none" stroke="${accent}" stroke-width="10"/>`,
-  }[shape];
-
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
     <rect width="1024" height="1024" fill="${paper}"/>
-    <rect x="86" y="86" width="852" height="852" rx="56" fill="none" stroke="${ink}" stroke-opacity="0.08" stroke-width="3"/>
-    ${mark}
-    <text x="512" y="410" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="92" font-weight="900" fill="${paper}" letter-spacing="4">${safeInitials}</text>
-    <text x="512" y="696" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="72" font-weight="900" fill="${ink}" letter-spacing="-2">${safeName}</text>
-    <line x1="342" y1="742" x2="682" y2="742" stroke="${accent}" stroke-width="8" stroke-linecap="round"/>
-    <text x="512" y="802" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="${ink}" opacity="0.62" letter-spacing="6">${subtitle || "BRAND MARK"}</text>
+    <rect x="52" y="52" width="920" height="920" rx="78" fill="none" stroke="${ink}" stroke-opacity="0.08" stroke-width="4"/>
+    ${subjectMark}
+    <text x="512" y="730" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" fill="${ink}" letter-spacing="-3">${safeName}</text>
+    <line x1="274" y1="782" x2="750" y2="782" stroke="${accent}" stroke-width="10" stroke-linecap="round"/>
+    <text x="512" y="850" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="27" font-weight="900" fill="${ink}" opacity="0.64" letter-spacing="5">${subtitle || "CUSTOM LOGO MARK"}</text>
   </svg>`;
 
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
@@ -126,7 +235,7 @@ exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
 
   try {
-    const { logoPrompt, brandName } = JSON.parse(event.body || "{}");
+    const { logoPrompt, brandName, logoStyle, userPrompt } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
       return {
@@ -150,7 +259,7 @@ exports.handler = async (event, context) => {
       };
     } catch (imageError) {
       clearTimeout(timeout);
-      const image = buildFallbackLogo({ logoPrompt, brandName });
+      const image = buildFallbackLogo({ logoPrompt, brandName, logoStyle, userPrompt });
 
       return {
         statusCode: 200,
