@@ -27,12 +27,17 @@
   </url>
 
   <url>
-    <loc>https://brandthat.ai/social-strategy-generator</loc>
+    <loc>https://brandthat.ai/free-hashtag-generator</loc>
+    <priority>0.90</priority>
+  </url>
+
+  <url>
+    <loc>https://brandthat.ai/growth-roadmap-generator</loc>
     <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://brandthat.ai/hashtag-generator</loc>
+    <loc>https://brandthat.ai/social-strategy-generator</loc>
     <priority>0.85</priority>
   </url>
 

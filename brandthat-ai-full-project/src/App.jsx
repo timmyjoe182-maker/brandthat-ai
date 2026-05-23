@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient.js";
 
 const PLAN_COPY = {
@@ -195,6 +195,71 @@ const seoPages = {
       ["Can it create multiple versions?", "Yes. It can create versions for different platforms and tones."],
       ["Can it help with personal brands?", "Yes. It works for founders, creators, and business profiles."]
     ]
+  },
+  "seo-hashtag": {
+    path: "/free-hashtag-generator",
+    toolKey: "hashtags",
+    eyebrow: "FREE HASHTAG GENERATOR",
+    h1: "Free Hashtag Generator for Instagram, TikTok, LinkedIn, and Social Posts",
+    intro: "Generate 50 clean, relevant hashtags for your post, video, brand, launch, or niche without logging in.",
+    examples: ["Generate 50 hashtags for a luxury ranch lifestyle post with mini cows, alpacas, gifting, and countryside content.", "Create relevant hashtags for an AI logo generator launch on Instagram and TikTok.", "Generate hashtags for a small business behind-the-scenes video, mixing niche, community, and discovery tags."],
+    faqs: [
+      ["Is the hashtag generator free?", "Yes. You can generate hashtags without creating an account."],
+      ["How many hashtags does it create?", "It creates 50 copy-ready hashtags in one clean block."],
+      ["Does it work for TikTok and Instagram?", "Yes. Choose the platform and describe the post so the hashtags match the channel."]
+    ]
+  },
+  "seo-growth": {
+    path: "/growth-roadmap-generator",
+    toolKey: "growth",
+    eyebrow: "GROWTH ROADMAP GENERATOR",
+    h1: "Growth Roadmap Generator for Reaching 10K, 100K, or 1M Followers",
+    intro: "Turn a follower goal into a practical posting plan with content pillars, weekly cadence, posting windows, milestones, and growth actions.",
+    examples: ["Build a roadmap to reach 100K followers for an AI branding tool on Instagram and TikTok.", "Create a 90-day growth roadmap for a ranch lifestyle brand posting animal videos and luxury countryside content.", "Plan weekly content, posting times, hooks, and collaborations for a founder trying to grow to 10K followers."],
+    faqs: [
+      ["Can it plan for 100K followers?", "Yes. Add your current follower count, platform, niche, and target, then generate a realistic roadmap."],
+      ["Does it tell me when to post?", "Yes. It can suggest cadence, posting windows, weekly actions, and what to test."],
+      ["Is it only for influencers?", "No. It works for creators, founders, local businesses, startups, and brand accounts."]
+    ]
+  },
+  "seo-strategy": {
+    path: "/social-strategy-generator",
+    toolKey: "strategy",
+    eyebrow: "SOCIAL STRATEGY GENERATOR",
+    h1: "Social Strategy Generator for Brands, Creators, and Small Businesses",
+    intro: "Create content pillars, posting ideas, platform strategy, growth tactics, and next steps from one brand or campaign idea.",
+    examples: ["Create a social strategy for an AI logo generator targeting creators and small businesses.", "Build content pillars for a ranch lifestyle brand growing on Instagram and TikTok.", "Create a multi-platform strategy for a local business launch."],
+    faqs: [
+      ["What does a social strategy include?", "It can include content pillars, posting ideas, cadence, hooks, platform tactics, and next steps."],
+      ["Can it work for more than one platform?", "Yes. Choose one platform or ask for a multi-platform strategy."],
+      ["Can it use my saved workspace?", "Yes. Logged-in users can connect strategy outputs to a Brand Workspace."]
+    ]
+  },
+  "seo-email": {
+    path: "/email-copy-generator",
+    toolKey: "email",
+    eyebrow: "EMAIL COPY GENERATOR",
+    h1: "Email Copy Generator for Launches, Promos, Newsletters, and Updates",
+    intro: "Generate subject lines, preview text, email body copy, CTAs, and follow-up emails for brand and business campaigns.",
+    examples: ["Write a launch email for an AI logo generator with subject lines, preview text, body, and CTA.", "Create a promotional email for a local business spring offer.", "Write a newsletter announcing a new brand workspace feature."],
+    faqs: [
+      ["What email types can it write?", "Launch emails, promo emails, newsletters, welcome emails, follow-ups, and client announcements."],
+      ["Does it include subject lines?", "Yes. It can include subject lines, preview text, body copy, and CTAs."],
+      ["Can it match a brand voice?", "Yes. Use a Brand Workspace or describe the tone you want."]
+    ]
+  },
+  "seo-brand": {
+    path: "/brand-creation-generator",
+    toolKey: "brand",
+    eyebrow: "BRAND CREATION GENERATOR",
+    h1: "Brand Creation Generator for Names, Positioning, Voice, and Launch Ideas",
+    intro: "Turn a rough business idea into brand names, positioning, taglines, offer direction, voice, and a launch plan.",
+    examples: ["Create brand names and positioning for a premium AI branding tool.", "Build a brand concept for a luxury ranch gifting business.", "Generate names, taglines, and launch angles for a local service business."],
+    faqs: [
+      ["Can it generate brand names?", "Yes. It can create names, taglines, positioning, voice, and launch direction."],
+      ["Can I use it for a personal brand?", "Yes. It works for founders, creators, agencies, local businesses, and product brands."],
+      ["Can I save the brand?", "Yes. You can turn the output into a Brand Workspace and build assets from there."]
+    ]
   }
 };
 
@@ -248,6 +313,11 @@ function getCurrentSeoMeta(page) {
       "seo-instagram": "Instagram Caption Generator | Brandthat.ai",
       "seo-tiktok": "TikTok Hook Generator | Brandthat.ai",
       "seo-bio": "Brand Bio Generator | Brandthat.ai",
+      "seo-hashtag": "Free Hashtag Generator | Brandthat.ai",
+      "seo-growth": "Growth Roadmap Generator | Brandthat.ai",
+      "seo-strategy": "Social Strategy Generator | Brandthat.ai",
+      "seo-email": "Email Copy Generator | Brandthat.ai",
+      "seo-brand": "Brand Creation Generator | Brandthat.ai",
     };
 
     const descriptions = {
@@ -255,6 +325,11 @@ function getCurrentSeoMeta(page) {
       "seo-instagram": "Generate clean, copy-ready Instagram captions for brands, creators, Reels, launches, products, and social posts with Brandthat.ai.",
       "seo-tiktok": "Create TikTok hooks, Reels hooks, and short-form video openings designed to stop the scroll and improve retention with Brandthat.ai.",
       "seo-bio": "Generate polished brand bios for Instagram, TikTok, LinkedIn, websites, creators, founders, and businesses with Brandthat.ai.",
+      "seo-hashtag": "Use Brandthat.ai's free hashtag generator to create 50 relevant hashtags for Instagram, TikTok, LinkedIn, Pinterest, and social posts.",
+      "seo-growth": "Create a practical follower growth roadmap with posting frequency, content pillars, posting windows, weekly actions, and milestones.",
+      "seo-strategy": "Generate social strategy, content pillars, posting ideas, growth tactics, and platform-specific content plans with Brandthat.ai.",
+      "seo-email": "Generate email copy for launches, promos, newsletters, follow-ups, and announcements with subject lines, preview text, body, and CTA.",
+      "seo-brand": "Generate brand names, positioning, taglines, voice, offer direction, and launch ideas for creators, founders, and small businesses.",
     };
 
     return {
@@ -265,10 +340,51 @@ function getCurrentSeoMeta(page) {
   }
 
   return {
-    title: "Brandthat.ai — AI Logo Generator, Caption Generator & Brand Workspace",
-    description: "Create logos, captions, hooks, hashtags, and full brand systems with AI. Brandthat.ai helps creators and businesses build modern brands faster.",
+    title: "Brandthat.ai | AI Logo Generator, Free Caption Generator & Brand Workspace",
+    description: "Create AI logos, free captions, free hashtags, growth roadmaps, and brand workspaces. Brandthat.ai helps creators, startups, and small businesses build brands faster.",
     canonical: "https://brandthat.ai/",
   };
+}
+
+function getSeoSchema(page, meta) {
+  const seoPage = seoPages[page];
+  const appSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "Brandthat.ai",
+    url: "https://brandthat.ai/",
+    applicationCategory: "DesignApplication",
+    operatingSystem: "Web",
+    description: meta.description,
+    offers: [
+      { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
+      { "@type": "Offer", name: "Starter", price: "10", priceCurrency: "USD" },
+      { "@type": "Offer", name: "Pro", price: "20", priceCurrency: "USD" }
+    ],
+    featureList: [
+      "AI logo generator",
+      "Free caption generator",
+      "Free hashtag generator",
+      "Brand workspace",
+      "Growth roadmap generator",
+      "Brand bio generator"
+    ]
+  };
+
+  if (!seoPage) return appSchema;
+
+  return [appSchema, {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: seoPage.faqs.map(([question, answer]) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: answer
+      }
+    }))
+  }];
 }
 
 function upsertMeta(selector, attributes) {
@@ -282,6 +398,19 @@ function upsertMeta(selector, attributes) {
   Object.entries(attributes).forEach(([key, value]) => {
     element.setAttribute(key, value);
   });
+}
+
+function upsertJsonLd(schema) {
+  let element = document.head.querySelector("script[data-brandthat-schema='primary']");
+
+  if (!element) {
+    element = document.createElement("script");
+    element.type = "application/ld+json";
+    element.setAttribute("data-brandthat-schema", "primary");
+    document.head.appendChild(element);
+  }
+
+  element.textContent = JSON.stringify(schema);
 }
 
 async function readJsonResponse(response) {
@@ -414,6 +543,16 @@ export default function App() {
       content: meta.description,
     });
 
+    upsertMeta("meta[name='keywords']", {
+      name: "keywords",
+      content: "AI logo generator, free caption generator, free hashtag generator, brand workspace, brand kit generator, Instagram caption generator, TikTok hook generator, growth roadmap generator, brand bio generator",
+    });
+
+    upsertMeta("meta[property='og:type']", {
+      property: "og:type",
+      content: "website",
+    });
+
     upsertMeta("meta[property='og:title']", {
       property: "og:title",
       content: meta.title,
@@ -434,10 +573,17 @@ export default function App() {
       content: meta.title,
     });
 
+    upsertMeta("meta[name='twitter:card']", {
+      name: "twitter:card",
+      content: "summary_large_image",
+    });
+
     upsertMeta("meta[name='twitter:description']", {
       name: "twitter:description",
       content: meta.description,
     });
+
+    upsertJsonLd(getSeoSchema(page, meta));
   }, [page]);
 
   const emptySavedBuckets = () => ({
@@ -632,6 +778,12 @@ export default function App() {
       localStorage.setItem("brandthat_active_brand_id", activeBrand.id);
     }
   }, [activeBrand?.id]);
+
+  useEffect(() => {
+    if (page === "home" && activeToolKey !== "logo") {
+      setActiveToolKey("logo");
+    }
+  }, [page, activeToolKey]);
 
   const notify = (type, title, message = "") => {
     setAppNotice({ type, title, message });
@@ -1780,31 +1932,6 @@ ${prompt}`
             </div>
           </section>
 
-          <section className="brandSystemSection">
-            <div className="tinyTag">BRAND WORKFLOW</div>
-            <h2>Everything revolves around your brand workspace.</h2>
-          <div className="systemGrid">
-              {["AI Logo Generator", "Brand Identity", "Social Content", "Launch Assets", "Brand Voice", "Marketing System", "Brand Audit", "Campaign Builder", "Growth Roadmap"].map((item) => (
-                <div className="systemCard" key={item}>
-                  <span>{item}</span>
-                  <p>{getSystemCardText(item)}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="offersSection">
-            <div className="offersTop">
-              <div>
-                <div className="tinyTag">AVAILABLE TOOLS</div>
-                <h2>Generate every asset your brand needs.</h2>
-              </div>
-              <div className="offerBadge">Click a tool to start</div>
-            </div>
-
-            <ToolGrid activeToolKey={activeToolKey} selectTool={selectTool} />
-          </section>
-
           <HomepageSEOContent openSeoPage={openSeoPage} />
         </>
       )}
@@ -2307,29 +2434,31 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
 function HomepageSEOContent({ openSeoPage }) {
   return (
     <section className="seoHomeSection">
-      <div className="tinyTag">AI BRANDING TOOLS BUILT FOR SEARCH, SPEED, AND SOCIAL CONTENT</div>
-      <h2>Brandthat.ai helps creators and businesses turn ideas into logos, captions, hooks, bios, and launch-ready brand content.</h2>
+      <div className="tinyTag">AI BRANDING TOOLS</div>
+      <h2>Brandthat.ai helps creators and small businesses create logos, captions, hashtags, and brand kits faster.</h2>
       <p>
-        Brandthat.ai is built for modern creators, founders, small businesses, agencies, and social teams that need brand assets fast without sounding generic. Start with the AI Logo Generator, then build the captions, hooks, bios, email copy, and social strategy around the brand you are creating.
+        Start with the AI Logo Generator, use the free caption and hashtag generators to publish faster, then save your strongest work into a Brand Workspace when you are ready to build a complete brand system.
       </p>
       <div className="seoInternalLinks">
         <button onClick={() => openSeoPage("seo-logo")}>AI Logo Generator</button>
         <button onClick={() => openSeoPage("seo-instagram")}>Instagram Caption Generator</button>
+        <button onClick={() => openSeoPage("seo-hashtag")}>Free Hashtag Generator</button>
+        <button onClick={() => openSeoPage("seo-growth")}>Growth Roadmap Generator</button>
         <button onClick={() => openSeoPage("seo-tiktok")}>TikTok Hook Generator</button>
         <button onClick={() => openSeoPage("seo-bio")}>Brand Bio Generator</button>
       </div>
-      <div className="seoTextGrid">
-        <div>
-          <h3>Why Brandthat.ai exists</h3>
-          <p>Most AI writing tools are too broad, too generic, or too corporate. Brandthat.ai focuses on the brand assets modern businesses need every day: logos, captions, hooks, bios, emails, and strategy.</p>
-        </div>
+      <div className="seoTextGrid simpleSeoGrid">
         <div>
           <h3>Logo-first brand building</h3>
-          <p>The logo generator is the center of the experience. Once a brand has a visual direction, Brandthat.ai helps support it with social content, launch copy, and brand messaging.</p>
+          <p>Create a visual direction first, then build matching captions, bios, hashtags, hooks, emails, and launch copy around the same brand.</p>
         </div>
         <div>
-          <h3>Built for momentum</h3>
-          <p>Use it to create a brand from scratch, improve a social profile, write better captions, generate hooks, or create marketing copy without hiring a full creative team.</p>
+          <h3>Free tools people can use immediately</h3>
+          <p>The caption generator and hashtag generator help creators test ideas quickly before creating a saved workspace.</p>
+        </div>
+        <div>
+          <h3>Simple workspace when it matters</h3>
+          <p>Save the brand name, voice, logo, and growth goal so every future output feels more consistent.</p>
         </div>
       </div>
     </section>
@@ -2765,11 +2894,11 @@ function GeneratorCard({
           <h2>{activeTool.title}</h2>
           <p className="toolSubline">{getToolSubline(activeTool.key)}</p>
         </div>
-        <div className="generatorBadges">
-          <div className="liveBadge">AI Powered</div>
-          {(activeTool.key === "hashtags" || activeTool.key === "captions") && <div className="liveBadge freeToolBadge">Free Tool</div>}
-          {activeTool.key === "logo" && userPlan === "starter" && <div className="liveBadge">{starterLogoRemaining} Starter logos left</div>}
-          {activeTool.key === "logo" && userPlan === "free" && <div className="liveBadge">{dailyRemaining} free logo left</div>}
+        <div className="generatorMeta">
+          {(activeTool.key === "hashtags" || activeTool.key === "captions") && <span>Free tool</span>}
+          {activeTool.key === "logo" && userPlan === "starter" && <span>{starterLogoRemaining} starter logos remaining</span>}
+          {activeTool.key === "logo" && userPlan === "free" && <span>Free logo preview</span>}
+          {activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && <span>Workspace-ready</span>}
         </div>
       </div>
 
@@ -3293,7 +3422,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
 .freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
 .heroCtas{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
-.freeToolsSection{max-width:1280px;margin:0 auto;padding:28px 6vw 72px;display:grid;grid-template-columns:.9fr 1.1fr;gap:24px;align-items:start}
+.freeToolsSection{max-width:1280px;margin:0 auto;padding:18px 6vw 54px;display:grid;grid-template-columns:.9fr 1.1fr;gap:24px;align-items:start}
 .freeToolCards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .freeToolCards button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;text-align:left;color:#111;cursor:pointer;font-family:inherit}
 .freeToolCards strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
@@ -3325,9 +3454,9 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .systemCard span{font-weight:900;font-size:20px;letter-spacing:-.03em}
 .systemCard p{color:#666;line-height:1.7}
 .generateTop{display:flex;justify-content:space-between;gap:20px;margin-bottom:26px}
-.liveBadge,.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
-.generatorBadges{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
-.freeToolBadge{background:#111;color:white}
+.offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
+.generatorMeta{display:flex;align-items:flex-start;justify-content:flex-end;min-width:120px;color:#777;font-size:12px;font-weight:800;text-align:right;line-height:1.4;padding-top:6px}
+.generatorMeta span{max-width:150px}
 .planIndicator,.planNotice,.verifyNote{margin-top:16px;font-size:13px;font-weight:700;color:#8a6b37}
 .activeBrandBar{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:14px 18px;margin-bottom:22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .activeBrandLogo{width:38px;height:38px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:#fafafa}
@@ -3403,6 +3532,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .seoInternalLinks{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
 .seoInternalLinks button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:13px 16px;font-weight:800;cursor:pointer;color:#111}
 .seoTextGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+.simpleSeoGrid{margin-top:24px}
 .seoTextGrid div,.seoArticleBlock,.faqCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:26px}
 .seoTextGrid h3,.faqCard h3{font-size:20px;margin:0 0 10px;letter-spacing:-.03em}
 .seoTextGrid p,.seoArticle p,.faqCard p{color:#666;line-height:1.8}
