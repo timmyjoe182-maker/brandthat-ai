@@ -49,7 +49,6 @@ exports.handler = async (event) => {
 
     if (model === "dall-e-3") {
       imageOptions.quality = "standard";
-      imageOptions.response_format = "url";
     }
 
     const image = await client.images.generate(imageOptions);
