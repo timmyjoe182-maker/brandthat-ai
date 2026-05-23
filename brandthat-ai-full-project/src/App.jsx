@@ -4,18 +4,18 @@ import { supabase } from "./supabaseClient.js";
 const PLAN_COPY = {
   free: {
     name: "Free",
-    badge: "Free Workspace",
-    description: "Free caption and hashtag generators, 1 logo generation after signup, 1 Brand Workspace, and basic brand tools.",
+    badge: "Free Tools",
+    description: "Free caption, hashtag, hook, bio, email, strategy, brand, campaign, and growth tools. Logo generation and saved workspaces require an account or paid plan.",
   },
   starter: {
     name: "Starter",
     badge: "$10/mo",
-    description: "Unlimited text generations, saved content history, brand workspaces, and 10 AI logo generations per month.",
+    description: "Everything free plus saved Brand Workspaces, content history, brand kit exports, and 10 AI logo generations per month.",
   },
   pro: {
     name: "Pro",
     badge: "$20/mo",
-    description: "Everything in Starter plus unlimited AI logo generations, full brand kits, and priority visual tools.",
+    description: "Everything in Starter plus unlimited AI logo generations and the full saved Brand Workspace experience.",
   },
 };
 
@@ -2015,29 +2015,29 @@ ${prompt}`
       {page === "pricing" && (
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
-          <h1 className="pageTitle">Build for free. Upgrade when your brand needs more.</h1>
-          <p className="pageLead">Start free with simple hashtag creation and one logo generation after signup. Starter gives growing creators more brand building power with 10 logo generations per month. Pro is for users who want unlimited logo creation and the full brand workspace experience.</p>
+          <h1 className="pageTitle">Use the text tools free. Upgrade for logos and workspaces.</h1>
+          <p className="pageLead">Captions, hashtags, hooks, bios, email copy, strategy, campaigns, and growth roadmaps are free to use. Paid plans are for AI logo generation, saved Brand Workspaces, history, and downloadable brand kits.</p>
 
           <div className="pricingGrid threePlans"><PriceCard
               name="FREE"
               price="$0"
-              desc="Try Brandthat and create quick social assets."
-              features={["Free caption generator", "Free hashtag generator", "1 AI logo generation after signup", "1 Brand Workspace", "Basic hooks/bios", "Basic brand kit export"]}
-              onClick={() => setPage("workspace")}
+              desc="Use the free text tools without building a workspace."
+              features={["Free caption generator", "Free hashtag generator", "Free hooks and bios", "Free email and strategy tools", "Free campaign and growth roadmap tools", "Logo generation not included"]}
+              onClick={() => setPage("features")}
             />
             <PriceCard
               name="STARTER"
               price="$10"
-              desc="For creators and businesses building real brand assets every month."
-              features={["10 AI logo generations per month", "Unlimited hooks/bios/email/strategy", "Saved workspaces and history", "Social strategy tools", "Downloadable brand kits", "Priority saved assets"]}
+              desc="For creators who want saved brands and monthly logo generation."
+              features={["10 AI logo generations per month", "Saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Set generated logo as brand profile", "All text tools remain free"]}
               onClick={() => startCheckout("starter")}
             />
             <PriceCard
               name="PRO"
               price="$20"
               featured
-              desc="For power users who want unlimited brand and logo creation."
-              features={["Unlimited AI logo generations", "Unlimited text tools", "Full saved Brand Workspaces", "Downloadable brand kits", "Priority logo generations", "Future premium visual tools"]}
+              desc="For power users who want unlimited logos and the full workspace."
+              features={["Unlimited AI logo generations", "Unlimited saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Priority logo generation", "All text tools remain free"]}
               onClick={() => startCheckout("pro")}
             />
           </div>
