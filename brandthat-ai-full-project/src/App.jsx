@@ -22,9 +22,9 @@ const PLAN_COPY = {
 const tools = [
   {
     key: "logo",
-    title: "AI Logo Generator",
+    title: "Create Your AI Logo",
     shortTitle: "Logos",
-    desc: "Create premium logo images and modern identity directions.",
+    desc: "Generate a clean logo concept and identity direction for your brand.",
     label: "AI LOGO GENERATOR",
     platformLabel: "Logo style",
     platforms: ["Modern Minimal", "Luxury Wordmark", "Bold Monogram", "Editorial Serif", "Clean Tech", "Founder Brand", "Beauty / Wellness", "Restaurant / Hospitality", "Real Estate", "Social Media Icon"],
@@ -148,8 +148,8 @@ const seoPages = {
     path: "/ai-logo-generator",
     toolKey: "logo",
     eyebrow: "AI LOGO GENERATOR",
-    h1: "AI Logo Generator for Modern Brands, Startups, and Creators",
-    intro: "Create premium AI logo images, brand identity directions, palettes, typography, and launch-ready visual systems from one brand idea.",
+    h1: "Create an AI Logo for Your Brand",
+    intro: "Generate a clean logo image, brand direction, palette, typography, and profile-ready visual system from one simple brand idea.",
     examples: ["Create a premium black-and-white logo for a modern AI branding platform named Brandthat.ai. Use a clean wordmark, strong favicon-ready icon, and luxury technology feel.", "Design a circular vintage mascot logo for a coffee brand. Include a wolf icon, cream and black palette, premium typography, and packaging-ready composition.", "Create an elegant ranch lifestyle logo with refined typography, subtle animal-inspired mark, warm neutral colors, and a high-end boutique brand feeling."],
     faqs: [
       ["Does Brandthat.ai create actual logo images?", "Yes. Pro unlocks unlimited AI logo image generation, while free users get daily logo concept access."],
@@ -1875,8 +1875,11 @@ ${prompt}`
           <main className="hero logoHero">
             <div className="heroTop">
               <div className="eyebrow">AI LOGO GENERATOR + FREE BRAND TOOLS</div>
-              <h1>Create a logo. Build the brand around it.</h1>
-              <p className="lead">Start with a premium AI logo, then use free captions and hashtags to test your brand in public. When you are ready, save everything into a Brand Workspace.</p>
+              <h1 className="heroTitle">
+                <span>Create the logo.</span>
+                <span>Build the brand.</span>
+              </h1>
+              <p className="lead">Start with a clean AI logo, then create the captions, hashtags, and growth plan that help the brand show up everywhere.</p>
               
               <div className="heroCtas">
                 <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Try AI Logo Generator</button>
@@ -2897,7 +2900,6 @@ function GeneratorCard({
         <div className="generatorMeta">
           {(activeTool.key === "hashtags" || activeTool.key === "captions") && <span>Free tool</span>}
           {activeTool.key === "logo" && userPlan === "starter" && <span>{starterLogoRemaining} starter logos remaining</span>}
-          {activeTool.key === "logo" && userPlan === "free" && <span>Free logo preview</span>}
           {activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && <span>Workspace-ready</span>}
         </div>
       </div>
@@ -3067,7 +3069,7 @@ ${card.content}`)}>Use</button>
 
 function getToolSubline(toolKey) {
   const lines = {
-    logo: "Describe any logo direction and Brandthat will turn it into a premium visual concept.",
+    logo: "Describe the brand, style, and feeling. Brandthat will generate a clean logo concept and identity direction.",
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
@@ -3415,6 +3417,8 @@ body{margin:0}
 .heroTop{max-width:760px;margin-bottom:50px}
 .eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
 h1{font-size:88px;line-height:.96;letter-spacing:-.045em;margin:0 0 24px;font-kerning:normal;text-rendering:optimizeLegibility}
+.heroTitle{font-size:84px;line-height:.98;letter-spacing:-.045em;max-width:720px}
+.heroTitle span{display:block}
 .pageTitle{max-width:900px}
 .pageLead{font-size:20px;line-height:1.6;color:#666;max-width:760px;margin:0 0 32px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
@@ -3839,5 +3843,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
 `;
