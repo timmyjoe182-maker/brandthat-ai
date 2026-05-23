@@ -1708,7 +1708,7 @@ Requirements:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        brandName: activeBrand?.name || "",
+        brandName: creativeTone || activeBrand?.name || "",
         logoPrompt: enhancedLogoPrompt
       })
     });
@@ -1717,6 +1717,10 @@ Requirements:
 
     if (!response.ok) {
       throw new Error(data.error || "Logo image generation failed.");
+    }
+
+    if (!data.image) {
+      throw new Error("Logo image generation finished without an image. Please try a more specific logo prompt.");
     }
 
     return data.image;
@@ -1790,7 +1794,12 @@ ${prompt}`
       if (activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
     } catch (error) {
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
-      setResult(error.message || "Something went wrong. Please try again.");
+      if (activeTool.key === "logo") {
+        setResult("");
+        setLogoImage("");
+      } else {
+        setResult(error.message || "Something went wrong. Please try again.");
+      }
     }
 
     setLoading(false);
