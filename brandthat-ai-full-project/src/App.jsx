@@ -1723,7 +1723,11 @@ Requirements:
       throw new Error("Logo image generation finished without an image. Please try a more specific logo prompt.");
     }
 
-    return data.image;
+    return {
+      image: data.image,
+      source: data.source || "openai",
+      note: data.note || "",
+    };
   };
 
   const generate = async (overrideUser = null) => {
@@ -1766,10 +1770,10 @@ Requirements:
 
     try {
       if (activeTool.key === "logo") {
-        const image = await createLogoImage();
-        setLogoImage(image);
+        const logoResult = await createLogoImage();
+        setLogoImage(logoResult.image);
         setResult(
-          `Your logo image has been generated.\n\nBrand direction used:\n${prompt}\n\nCreate or use a Brand Workspace if you want to save this logo into a full brand kit.`
+          `${logoResult.source === "instant-svg" ? "Your logo image was generated instantly." : "Your logo image has been generated."}\n\nBrand direction used:\n${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Create or use a Brand Workspace if you want to save this logo into a full brand kit.`
         );
       } else {
         const response = await fetch("/.netlify/functions/generate", {
