@@ -436,6 +436,77 @@ function cleanGeneratedText(text = "") {
     .trim();
 }
 
+function trackBrandthatEvent(name, properties = {}) {
+  try {
+    const event = {
+      name,
+      properties,
+      createdAt: new Date().toISOString(),
+    };
+    const existing = safeParse("brandthat_analytics_events", []);
+    localStorage.setItem("brandthat_analytics_events", JSON.stringify([event, ...existing].slice(0, 100)));
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: name, ...properties });
+
+    if (typeof window.gtag === "function") {
+      window.gtag("event", name, properties);
+    }
+  } catch {
+    // Analytics should never block product actions.
+  }
+}
+
+function getAssetFileName(name = "brandthat-logo", image = "") {
+  const extension = image.startsWith("data:image/svg") ? "svg" : "png";
+  const cleanName = String(name || "brandthat-logo")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${cleanName || "brandthat-logo"}.${extension}`;
+}
+
+async function getImageObjectUrl(image = "", forceFetch = false) {
+  if (!image) return "";
+
+  if (image.startsWith("data:") || forceFetch) {
+    try {
+      const response = await fetch(image);
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    } catch {
+      return image;
+    }
+  }
+
+  return image;
+}
+
+async function openGeneratedImage(image = "") {
+  const url = await getImageObjectUrl(image, true);
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+  trackBrandthatEvent("logo_opened_full_size");
+}
+
+async function downloadGeneratedImage(image = "", name = "brandthat-logo") {
+  const url = await getImageObjectUrl(image, true);
+  if (!url) return;
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = getAssetFileName(name, image);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  if (url.startsWith("blob:")) {
+    setTimeout(() => URL.revokeObjectURL(url), 2500);
+  }
+
+  trackBrandthatEvent("logo_downloaded", { name });
+}
+
 function getDefaultWorkspaceDraft() {
   return {
     name: "",
@@ -996,6 +1067,7 @@ export default function App() {
   };
 
   const startCheckout = async (plan) => {
+    trackBrandthatEvent("checkout_clicked", { plan });
     const { data } = await supabase.auth.getUser();
     const currentUser = data?.user || user;
 
@@ -1098,6 +1170,7 @@ export default function App() {
     setPage("logo");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
+    trackBrandthatEvent("workspace_created", { hasLogoDirection: Boolean(baseBrand.logoDirection), goal: baseBrand.targetFollowers || baseBrand.launchGoal || "" });
     notify("success", "Workspace created", `${brand.name} is ready. Start generating brand assets.`);
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
@@ -1193,6 +1266,7 @@ export default function App() {
     );
 
     notify("success", "Saved to workspace", `${entry.title} was added to ${activeBrand.name}.`);
+    trackBrandthatEvent("asset_saved", { tool: activeTool.key, hasImage: Boolean(entry.image) });
     return entry;
   };
 
@@ -1230,6 +1304,39 @@ export default function App() {
     }
 
     notify("success", "Brand logo updated", `${activeBrand.name} now uses this generated logo as its workspace image.`);
+    trackBrandthatEvent("brand_logo_set", { source: "current_generation" });
+  };
+
+  const setSavedLogoAsBrandProfile = async (entry) => {
+    if (!activeBrand || !entry?.image) {
+      notify("error", "No saved logo selected", "Choose a saved logo with an image first.");
+      return;
+    }
+
+    setBrandWorkspaces((prev) =>
+      prev.map((brand) =>
+        brand.id === activeBrand.id
+          ? { ...brand, logoImage: entry.image }
+          : brand
+      )
+    );
+
+    if (user?.id) {
+      try {
+        const { error } = await supabase
+          .from("brand_workspaces")
+          .update({ logo_image_url: entry.image, updated_at: new Date().toISOString() })
+          .eq("id", activeBrand.id)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.warn("Could not sync saved brand logo:", error.message);
+      }
+    }
+
+    notify("success", "Brand logo updated", `${activeBrand.name} now uses ${entry.title || "this saved logo"}.`);
+    trackBrandthatEvent("brand_logo_set", { source: "saved_logo" });
   };
 
   const buildWorkspaceKit = () => {
@@ -1777,6 +1884,7 @@ Requirements:
         setResult(
           `${logoResult.source === "instant-svg" ? "Your logo image was generated instantly." : "Your logo image has been generated."}\n\nBrand direction used:\n${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Create or use a Brand Workspace if you want to save this logo into a full brand kit.`
         );
+        trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
       } else {
         const response = await fetch("/.netlify/functions/generate", {
           method: "POST",
@@ -1794,6 +1902,7 @@ ${prompt}`
           throw new Error(data.error || "Generation failed.");
         }
         setResult(cleanGeneratedText(data.text || "No response generated."));
+        trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
       }
 
       if (activeTool.key === "logo" && isFree) incrementDailyFreeUse();
@@ -1822,6 +1931,7 @@ ${prompt}`
       document.execCommand("copy");
       document.body.removeChild(temporary);
     }
+    trackBrandthatEvent("copy_to_clipboard", { tool: activeTool.key, characters: String(text || "").length });
   };
 
   const shareOutput = async (text) => {
@@ -1987,6 +2097,7 @@ ${prompt}`
               toggleFavorite={toggleFavorite}
               remixOutput={remixOutput}
               copyToClipboard={copyToClipboard}
+              setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
             />
           )}
         </section>
@@ -2365,7 +2476,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
   );
 }
 
-function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard }) {
+function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard, setSavedLogoAsBrandProfile }) {
   const buckets = [
     ["logos", "Saved Logos"],
     ["captions", "Saved Captions"],
@@ -2383,6 +2494,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
   const favoriteItems = buckets
     .flatMap(([key]) => (brand.saved?.[key] || []).map((item) => ({ ...item, bucket: key })))
     .filter((item) => favoriteIds[item.id] || item.favorite);
+  const savedLogos = (brand.saved?.logos || []).filter((item) => item.image);
 
   const renderItem = (item) => (
     <div className="savedItem" key={item.id}>
@@ -2401,6 +2513,34 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
     <section className="savedAssets">
       <div className="tinyTag">SAVED OUTPUTS</div>
       <h2>{brand.name} Brand Kit</h2>
+
+      {savedLogos.length > 0 && (
+        <div className="logoLibraryPanel">
+          <div className="logoLibraryTop">
+            <div>
+              <h3>Logo Library</h3>
+              <p>Compare generated logos, open them full size, download files, or choose the active workspace logo.</p>
+            </div>
+            {brand.logoImage && <img src={brand.logoImage} alt={`${brand.name} active logo`} />}
+          </div>
+          <div className="logoLibraryGrid">
+            {savedLogos.slice(0, 8).map((item) => (
+              <div className={brand.logoImage === item.image ? "logoLibraryItem activeLogoLibraryItem" : "logoLibraryItem"} key={item.id}>
+                <button className="logoPreviewButton" onClick={() => openGeneratedImage(item.image)}>
+                  <img src={item.image} alt={item.title} />
+                </button>
+                <strong>{item.title}</strong>
+                <div>
+                  <button onClick={() => downloadGeneratedImage(item.image, item.title)}>Download</button>
+                  <button onClick={() => openGeneratedImage(item.image)}>Open</button>
+                  <button onClick={() => setSavedLogoAsBrandProfile(item)}>Use as Brand Logo</button>
+                  <button onClick={() => remixOutput(item)}>Remix</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="recentPanel">
         <div>
@@ -2902,27 +3042,9 @@ function GeneratorCard({
     createdAt: new Date().toISOString(),
   };
 
-  const getLogoBlobUrl = async (forceFetch = false) => {
-    if (!logoImage) return "";
-
-    if (logoImage.startsWith("data:") || forceFetch) {
-      try {
-        const response = await fetch(logoImage);
-        const blob = await response.blob();
-        return URL.createObjectURL(blob);
-      } catch {
-        return logoImage;
-      }
-    }
-
-    return logoImage;
-  };
-
   const openLogoImage = async () => {
     try {
-      const url = await getLogoBlobUrl(true);
-      if (!url) return;
-      window.open(url, "_blank", "noopener,noreferrer");
+      await openGeneratedImage(logoImage);
     } catch {
       copyToClipboard(logoImage);
     }
@@ -2930,19 +3052,7 @@ function GeneratorCard({
 
   const downloadLogoImage = async () => {
     try {
-      const url = await getLogoBlobUrl(true);
-      if (!url) return;
-      const extension = logoImage.startsWith("data:image/svg") ? "svg" : "png";
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(creativeTone || "brandthat-logo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "brandthat-logo"}.${extension}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      if (url.startsWith("blob:")) {
-        setTimeout(() => URL.revokeObjectURL(url), 2500);
-      }
+      await downloadGeneratedImage(logoImage, creativeTone || "brandthat-logo");
     } catch {
       copyToClipboard(logoImage);
     }
@@ -3483,6 +3593,19 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .savedItem{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:12px;margin-top:10px}
 .savedItem img{width:100%;border-radius:12px;margin-bottom:10px}
 .savedItem button{margin-top:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-weight:800;cursor:pointer}
+.logoLibraryPanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:22px;margin:22px 0}
+.logoLibraryTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
+.logoLibraryTop h3{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}
+.logoLibraryTop p{color:#666;line-height:1.6;margin:0;max-width:620px}
+.logoLibraryTop img{width:68px;height:68px;object-fit:cover;border:1px solid rgba(0,0,0,.08);border-radius:14px;background:#fafafa}
+.logoLibraryGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.logoLibraryItem{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:12px}
+.activeLogoLibraryItem{border-color:#111;box-shadow:inset 0 0 0 1px #111}
+.logoPreviewButton{width:100%;aspect-ratio:1;border:1px solid rgba(0,0,0,.06);border-radius:14px;background:white;padding:10px;cursor:pointer}
+.logoPreviewButton img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.logoLibraryItem strong{display:block;margin:10px 0;font-size:14px;line-height:1.3}
+.logoLibraryItem div{display:flex;flex-wrap:wrap;gap:7px}
+.logoLibraryItem div button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 9px;font-size:12px;font-weight:800;cursor:pointer;color:#111}
 .brandSystemSection{max-width:1280px;margin:0 auto;padding:40px 6vw 80px}
 .systemGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
 .systemCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:22px}
@@ -3922,6 +4045,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards{grid-template-columns:1fr}.offersTop,.generateTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
 `;

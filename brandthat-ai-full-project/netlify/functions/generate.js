@@ -1,18 +1,27 @@
-import OpenAI from "openai";
+const OpenAI = require("openai");
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function json(statusCode, payload) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  };
+}
+
 exports.handler = async (event) => {
   try {
     const { prompt } = JSON.parse(event.body || "{}");
 
-    if (!prompt) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ text: "Please enter what you want Brandthat AI to create." }),
-      };
+    if (!process.env.OPENAI_API_KEY) {
+      return json(500, { error: "OpenAI API key is missing." });
+    }
+
+    if (!String(prompt || "").trim()) {
+      return json(400, { error: "Please enter what you want Brandthat AI to create." });
     }
 
     const systemPrompt = `
@@ -89,18 +98,13 @@ Rules:
       temperature: 0.8,
     });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        text: completion.choices[0].message.content,
-      }),
-    };
+    return json(200, {
+      text: completion.choices?.[0]?.message?.content || "",
+    });
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        text: error.message || "Something went wrong.",
-      }),
-    };
+    return json(500, {
+      error: error.message || "Something went wrong.",
+      text: error.message || "Something went wrong.",
+    });
   }
 };
