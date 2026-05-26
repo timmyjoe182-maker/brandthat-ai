@@ -2891,9 +2891,7 @@ function GeneratorCard({
   toggleFavorite,
   remixOutput
 }) {
-  const resultCards = activeTool.key === "logo"
-    ? getLogoResultCards({ prompt, selectedPlatform, creativeTone, logoImage })
-    : formatSmartResultCards(activeTool.key, result);
+  const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -2902,6 +2900,52 @@ function GeneratorCard({
     content: result,
     image: logoImage,
     createdAt: new Date().toISOString(),
+  };
+
+  const getLogoBlobUrl = async (forceFetch = false) => {
+    if (!logoImage) return "";
+
+    if (logoImage.startsWith("data:") || forceFetch) {
+      try {
+        const response = await fetch(logoImage);
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      } catch {
+        return logoImage;
+      }
+    }
+
+    return logoImage;
+  };
+
+  const openLogoImage = async () => {
+    try {
+      const url = await getLogoBlobUrl(true);
+      if (!url) return;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      copyToClipboard(logoImage);
+    }
+  };
+
+  const downloadLogoImage = async () => {
+    try {
+      const url = await getLogoBlobUrl(true);
+      if (!url) return;
+      const extension = logoImage.startsWith("data:image/svg") ? "svg" : "png";
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${(creativeTone || "brandthat-logo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "brandthat-logo"}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      if (url.startsWith("blob:")) {
+        setTimeout(() => URL.revokeObjectURL(url), 2500);
+      }
+    } catch {
+      copyToClipboard(logoImage);
+    }
   };
 
   return (
@@ -2988,11 +3032,12 @@ function GeneratorCard({
 
           <div className="brandPreviewCard">
             <div className="tinyTag">LOGO CONCEPT</div>
-            <h3>Premium brand mark generated</h3>
-            <p>Download the mark, save it to a workspace, or remix the prompt into a stronger direction.</p>
+            <h3>Your logo is ready</h3>
+            <p>Open it full size, download it, save it to a workspace, or set it as the active brand logo.</p>
 
-            <div className="resultActions">
-              <a className="downloadLink" href={logoImage} download="brandthat-logo.png">Download Logo</a>
+            <div className="logoActionStack">
+              <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
+              <button onClick={openLogoImage}>Open Full Size</button>
               <button onClick={saveCurrentOutput}>Save</button>
               <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
               <button onClick={() => remixOutput(activeEntry)}>Remix</button>
@@ -3044,40 +3089,10 @@ function GeneratorCard({
       )}
 
       {result && activeTool.key === "logo" && (
-        <div className="resultBox premiumResults">
-          <div className="resultTop">
-            <span>{getResultHeader(activeTool.key)}</span>
-            <div className="resultActions">
-              <button onClick={saveCurrentOutput}>Save</button>
-              <button onClick={() => copyToClipboard(result)}>Copy All</button>
-              <button onClick={() => remixOutput(activeEntry)}>Remix</button>
-              <button onClick={() => shareOutput(result)}>Share</button>
-            </div>
-          </div>
-
-          <div className={`resultCardGrid ${activeTool.key}ResultGrid`}>
-            {resultCards.map((card, index) => (
-              <div className={`premiumResultCard ${card.featured ? "featuredResultCard" : ""}`} key={`${card.title}-${index}`}>
-                <div className="resultCardTop">
-                  <span>{card.label}</span>
-                  <div>
-                    <button onClick={() => copyToClipboard(card.content)}>Copy</button>
-                    <button onClick={() => setPrompt(`Improve this ${activeTool.shortTitle}:
-
-${card.content}`)}>Use</button>
-                  </div>
-                </div>
-                <h3>{card.title}</h3>
-                <p>{card.content}</p>
-              </div>
-            ))}
-          </div>
-
-          <details className="fullOutputDetails">
-            <summary>View full raw output</summary>
-            <div className="resultContent">{result}</div>
-          </details>
-        </div>
+        <details className="logoGenerationDetails">
+          <summary>Generation details</summary>
+          <div>{result}</div>
+        </details>
       )}
     </div>
   );
@@ -3692,7 +3707,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .logoShowcase{
   margin-top:28px;
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:minmax(420px,1.35fr) minmax(280px,.65fr);
   gap:20px;
   align-items:stretch;
 }
@@ -3701,7 +3716,8 @@ textarea{height:170px;resize:none;line-height:1.6}
   background:#f7f4ed;
   border:1px solid rgba(0,0,0,.08);
   border-radius:30px;
-  padding:28px;
+  min-height:620px;
+  padding:18px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -3709,7 +3725,9 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 .logoFrame img{
   width:100%;
-  max-width:560px;
+  max-width:720px;
+  max-height:720px;
+  object-fit:contain;
   border-radius:22px;
   box-shadow:0 18px 50px rgba(0,0,0,.08);
 }
@@ -3742,6 +3760,52 @@ textarea{height:170px;resize:none;line-height:1.6}
 .brandPreviewCard .resultActions button{
   background:white;
   color:#111;
+}
+
+.logoActionStack{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:10px;
+  margin-top:20px;
+}
+
+.logoActionStack button{
+  background:white;
+  color:#111;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  padding:11px 15px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.logoActionStack .downloadLink{
+  background:white;
+  color:#111;
+  border:none;
+  text-decoration:none;
+  margin-top:0;
+}
+
+.logoGenerationDetails{
+  margin-top:18px;
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:22px;
+  padding:16px 18px;
+}
+
+.logoGenerationDetails summary{
+  cursor:pointer;
+  font-weight:900;
+}
+
+.logoGenerationDetails div{
+  margin-top:14px;
+  color:#555;
+  line-height:1.7;
+  white-space:pre-wrap;
 }
 
 .premiumResults{
@@ -3842,7 +3906,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumLoading{margin-top:20px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;display:flex;gap:14px;align-items:center}
 .premiumLoading span{display:block;color:#666;margin-top:4px;font-size:14px}.loadingPulse{width:18px;height:18px;border-radius:50%;background:#111;animation:pulseBrandthat 1.2s infinite ease-in-out}
 @keyframes pulseBrandthat{0%{transform:scale(.8);opacity:.45}50%{transform:scale(1.25);opacity:1}100%{transform:scale(.8);opacity:.45}}
-.logoShowcase{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;padding:28px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:560px;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
+.logoShowcase{margin-top:28px;display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.65fr);gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;min-height:620px;padding:18px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:720px;max-height:720px;object-fit:contain;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
 .brandPreviewCard{background:#111;color:white;border-radius:30px;padding:30px;display:flex;flex-direction:column;justify-content:center}.brandPreviewCard .tinyTag{color:#d9bd77}.brandPreviewCard h3{font-size:32px;letter-spacing:-.04em;margin:0 0 14px}.brandPreviewCard p{color:rgba(255,255,255,.72);line-height:1.7}.brandPreviewCard .resultActions button{background:white;color:#111}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 

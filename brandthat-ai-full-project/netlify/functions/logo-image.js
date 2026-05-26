@@ -17,10 +17,11 @@ ${logoPrompt}
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
 - Follow the user's request exactly when they describe an industry, mascot, object, color, letter, style, or mood.
-- Use a clean centered composition on a simple background.
+- Use a large, clean centered composition on a simple background.
 - Create a strong logo mark, emblem, mascot, monogram, wordmark, or icon depending on the request.
+- Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
-- Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, clutter, tiny decorative details, and messy text.
+- Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, framed cards, tiny thumbnails, clutter, tiny decorative details, and messy text.
 - If text appears, keep it short and highly legible.
 - If the user asks for color, use color. Otherwise choose a clean professional palette.
 `;
