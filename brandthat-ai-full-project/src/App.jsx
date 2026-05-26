@@ -570,10 +570,16 @@ export default function App() {
   const activeTool = toolMap[activeToolKey] || tools[0];
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [creativeTone, setCreativeTone] = useState("");
+  const [logoIndustry, setLogoIndustry] = useState("");
+  const [logoSymbol, setLogoSymbol] = useState("");
+  const [logoColors, setLogoColors] = useState("");
+  const [logoAvoid, setLogoAvoid] = useState("");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [logoImage, setLogoImage] = useState("");
+  const [logoImageSource, setLogoImageSource] = useState("");
   const [loading, setLoading] = useState(false);
+  const [recentLogoResults, setRecentLogoResults] = useState(() => safeParse("brandthat_recent_logo_results", []));
 
   const [brandWorkspaces, setBrandWorkspaces] = useState(() => safeParse("brandthat_brand_workspaces", []));
   const [activeBrandId, setActiveBrandId] = useState(localStorage.getItem("brandthat_active_brand_id") || "");
@@ -830,6 +836,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("brandthat_favorite_ids", JSON.stringify(favoriteIds));
   }, [favoriteIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("brandthat_recent_logo_results", JSON.stringify(recentLogoResults.slice(0, 4)));
+    } catch {
+      localStorage.removeItem("brandthat_recent_logo_results");
+    }
+  }, [recentLogoResults]);
+
+  useEffect(() => {
+    if (page === "home" && activeToolKey !== "logo") {
+      setActiveToolKey("logo");
+    }
+  }, [page, activeToolKey]);
 
   useEffect(() => {
     const draftHasContent = Object.values(workspaceDraft || {}).some((value) => String(value || "").trim());
@@ -1164,9 +1184,14 @@ export default function App() {
     setPrompt(buildBrandPrompt(brand));
     setActiveToolKey("logo");
     setSelectedPlatform(brand.style || "");
-    setCreativeTone(brand.tone || "");
+    setCreativeTone(brand.name || "");
+    setLogoIndustry(brand.description || "");
+    setLogoSymbol(brand.logoDirection || "");
+    setLogoColors("");
+    setLogoAvoid("");
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
     setPage("logo");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
@@ -1181,9 +1206,14 @@ export default function App() {
     setActiveBrandId(brand.id);
     setPrompt(buildBrandPrompt(brand));
     setSelectedPlatform(brand.style || "");
-    setCreativeTone(brand.tone || "");
+    setCreativeTone(brand.name || "");
+    setLogoIndustry(brand.description || "");
+    setLogoSymbol(brand.logoDirection || "");
+    setLogoColors("");
+    setLogoAvoid("");
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
   };
 
   const deleteBrand = async (brandId) => {
@@ -1506,12 +1536,13 @@ Generated with Brandthat.ai`;
     const tool = toolMap[entry.tool] || activeTool;
     setActiveToolKey(tool.key);
     setSelectedPlatform(activeBrand?.style || "");
-    setCreativeTone(activeBrand?.tone || "");
+    setCreativeTone(activeBrand?.name || "");
     setPrompt(`Remix this ${tool.shortTitle || "brand asset"} into a stronger version:
 
 ${entry.content || "Use the saved logo direction and improve it."}`);
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
     setPage(tool.key === "logo" ? "logo" : "studio");
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
@@ -1593,9 +1624,14 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setActiveToolKey(nextTool.key);
     setSelectedPlatform("");
     setCreativeTone("");
+    setLogoIndustry("");
+    setLogoSymbol("");
+    setLogoColors("");
+    setLogoAvoid("");
     setPrompt("");
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
     window.history.pushState({}, "", "/");
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -1611,9 +1647,14 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setActiveToolKey(nextTool.key);
     setSelectedPlatform("");
     setCreativeTone("");
+    setLogoIndustry("");
+    setLogoSymbol("");
+    setLogoColors("");
+    setLogoAvoid("");
     setPrompt("");
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
@@ -1790,11 +1831,23 @@ Create a high-quality professional logo.
 Brand/request:
 ${prompt}
 
+Brand name / words to include:
+${creativeTone || activeBrand?.name || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
+
+Industry or niche:
+${logoIndustry || "Infer the industry or niche from the user's request."}
+
 Logo style direction:
 ${selectedPlatform || "Use the best style for the user's request."}
 
-Brand name / required text / keywords:
-${creativeTone || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
+Symbol, mascot, or icon request:
+${logoSymbol || "Infer the best symbol, mascot, lettermark, or icon from the user's request."}
+
+Color direction:
+${logoColors || "Choose a strong professional palette unless the user requested colors."}
+
+Avoid:
+${logoAvoid || "Avoid anything that conflicts with the user's request."}
 
 Brand workspace context:
 ${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
@@ -1817,6 +1870,10 @@ Requirements:
       body: JSON.stringify({
         brandName: creativeTone || activeBrand?.name || "",
         logoStyle: selectedPlatform || "",
+        logoIndustry,
+        logoSymbol,
+        logoColors,
+        logoAvoid,
         userPrompt: prompt,
         logoPrompt: enhancedLogoPrompt
       })
@@ -1841,7 +1898,9 @@ Requirements:
 
   const generate = async (overrideUser = null) => {
     const currentUser = overrideUser || user;
-    if (!prompt.trim()) {
+    const hasLogoFields = activeTool.key === "logo" && [creativeTone, logoIndustry, selectedPlatform, logoSymbol, logoColors, logoAvoid, prompt].some((value) => String(value || "").trim());
+
+    if (!prompt.trim() && !hasLogoFields) {
       notify("error", "Add a prompt first", `Tell Brandthat what you want the ${activeTool.title} to create.`);
       return;
     }
@@ -1876,13 +1935,32 @@ Requirements:
 
     setLoading(true);
     setLogoImage("");
+    setLogoImageSource("");
 
     try {
       if (activeTool.key === "logo") {
         const logoResult = await createLogoImage();
+        const logoTitle = creativeTone || prompt.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
+        const logoEntry = {
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+          title: logoTitle,
+          image: logoResult.image,
+          source: logoResult.source || "openai",
+          prompt,
+          brandName: creativeTone,
+          style: selectedPlatform,
+          industry: logoIndustry,
+          symbol: logoSymbol,
+          colors: logoColors,
+          avoid: logoAvoid,
+          createdAt: new Date().toISOString(),
+        };
+
         setLogoImage(logoResult.image);
+        setLogoImageSource(logoResult.source || "openai");
+        setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
-          `${logoResult.source === "instant-svg" ? "Your logo image was generated instantly." : "Your logo image has been generated."}\n\nBrand direction used:\n${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Create or use a Brand Workspace if you want to save this logo into a full brand kit.`
+          `${logoResult.source === "instant-svg" ? "Instant logo preview created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${creativeTone || "Not provided"}\nIndustry: ${logoIndustry || "Not provided"}\nStyle: ${selectedPlatform || "Not provided"}\nSymbol or mascot: ${logoSymbol || "Not provided"}\nColors: ${logoColors || "Not provided"}\nAvoid: ${logoAvoid || "Not provided"}\nNotes: ${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
         );
         trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
       } else {
@@ -1912,6 +1990,7 @@ ${prompt}`
       if (activeTool.key === "logo") {
         setResult("");
         setLogoImage("");
+        setLogoImageSource("");
       } else {
         setResult(error.message || "Something went wrong. Please try again.");
       }
@@ -1952,8 +2031,30 @@ ${prompt}`
     setPrompt("");
     setSelectedPlatform("");
     setCreativeTone("");
+    setLogoIndustry("");
+    setLogoSymbol("");
+    setLogoColors("");
+    setLogoAvoid("");
     setResult("");
     setLogoImage("");
+    setLogoImageSource("");
+  };
+
+  const restoreRecentLogo = (entry) => {
+    if (!entry?.image) return;
+    setActiveToolKey("logo");
+    setCreativeTone(entry.brandName || entry.title || "");
+    setSelectedPlatform(entry.style || "");
+    setLogoIndustry(entry.industry || "");
+    setLogoSymbol(entry.symbol || "");
+    setLogoColors(entry.colors || "");
+    setLogoAvoid(entry.avoid || "");
+    setPrompt(entry.prompt || "");
+    setLogoImage(entry.image);
+    setLogoImageSource(entry.source || "openai");
+    setResult(
+      `${entry.source === "instant-svg" ? "Instant logo preview restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
+    );
   };
 
   const subscribe = () => {
@@ -2021,10 +2122,21 @@ ${prompt}`
               setSelectedPlatform={setSelectedPlatform}
               creativeTone={creativeTone}
               setCreativeTone={setCreativeTone}
+              logoIndustry={logoIndustry}
+              setLogoIndustry={setLogoIndustry}
+              logoSymbol={logoSymbol}
+              setLogoSymbol={setLogoSymbol}
+              logoColors={logoColors}
+              setLogoColors={setLogoColors}
+              logoAvoid={logoAvoid}
+              setLogoAvoid={setLogoAvoid}
               generate={generate}
               loading={loading}
               result={result}
               logoImage={logoImage}
+              logoImageSource={logoImageSource}
+              recentLogoResults={recentLogoResults}
+              restoreRecentLogo={restoreRecentLogo}
               user={user}
               userPlan={userPlan}
               dailyRemaining={dailyRemaining}
@@ -2113,10 +2225,21 @@ ${prompt}`
           setSelectedPlatform={setSelectedPlatform}
           creativeTone={creativeTone}
           setCreativeTone={setCreativeTone}
+          logoIndustry={logoIndustry}
+          setLogoIndustry={setLogoIndustry}
+          logoSymbol={logoSymbol}
+          setLogoSymbol={setLogoSymbol}
+          logoColors={logoColors}
+          setLogoColors={setLogoColors}
+          logoAvoid={logoAvoid}
+          setLogoAvoid={setLogoAvoid}
           generate={generate}
           loading={loading}
           result={result}
           logoImage={logoImage}
+          logoImageSource={logoImageSource}
+          recentLogoResults={recentLogoResults}
+          restoreRecentLogo={restoreRecentLogo}
           user={user}
           userPlan={userPlan}
           dailyRemaining={dailyRemaining}
@@ -2193,10 +2316,21 @@ ${prompt}`
             setSelectedPlatform={setSelectedPlatform}
             creativeTone={creativeTone}
             setCreativeTone={setCreativeTone}
+            logoIndustry={logoIndustry}
+            setLogoIndustry={setLogoIndustry}
+            logoSymbol={logoSymbol}
+            setLogoSymbol={setLogoSymbol}
+            logoColors={logoColors}
+            setLogoColors={setLogoColors}
+            logoAvoid={logoAvoid}
+            setLogoAvoid={setLogoAvoid}
             generate={generate}
             loading={loading}
             result={result}
             logoImage={logoImage}
+            logoImageSource={logoImageSource}
+            recentLogoResults={recentLogoResults}
+            restoreRecentLogo={restoreRecentLogo}
             user={user}
             userPlan={userPlan}
             dailyRemaining={dailyRemaining}
@@ -2632,10 +2766,21 @@ function SEOPage({
   setSelectedPlatform,
   creativeTone,
   setCreativeTone,
+  logoIndustry,
+  setLogoIndustry,
+  logoSymbol,
+  setLogoSymbol,
+  logoColors,
+  setLogoColors,
+  logoAvoid,
+  setLogoAvoid,
   generate,
   loading,
   result,
   logoImage,
+  logoImageSource,
+  recentLogoResults,
+  restoreRecentLogo,
   user,
   userPlan,
   dailyRemaining,
@@ -2664,10 +2809,21 @@ function SEOPage({
           setSelectedPlatform={setSelectedPlatform}
           creativeTone={creativeTone}
           setCreativeTone={setCreativeTone}
+          logoIndustry={logoIndustry}
+          setLogoIndustry={setLogoIndustry}
+          logoSymbol={logoSymbol}
+          setLogoSymbol={setLogoSymbol}
+          logoColors={logoColors}
+          setLogoColors={setLogoColors}
+          logoAvoid={logoAvoid}
+          setLogoAvoid={setLogoAvoid}
           generate={generate}
           loading={loading}
           result={result}
           logoImage={logoImage}
+          logoImageSource={logoImageSource}
+          recentLogoResults={recentLogoResults}
+          restoreRecentLogo={restoreRecentLogo}
           user={user}
           userPlan={userPlan}
           dailyRemaining={dailyRemaining}
@@ -3015,10 +3171,21 @@ function GeneratorCard({
   setSelectedPlatform,
   creativeTone,
   setCreativeTone,
+  logoIndustry = "",
+  setLogoIndustry = () => {},
+  logoSymbol = "",
+  setLogoSymbol = () => {},
+  logoColors = "",
+  setLogoColors = () => {},
+  logoAvoid = "",
+  setLogoAvoid = () => {},
   generate,
   loading,
   result,
   logoImage,
+  logoImageSource = "",
+  recentLogoResults = [],
+  restoreRecentLogo = () => {},
   user,
   userPlan,
   dailyRemaining,
@@ -3074,41 +3241,94 @@ function GeneratorCard({
         )}
       </div>
 
-      <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
-        <label>
-          <span>{activeTool.platformLabel}</span>
-          {(activeTool.key === "hashtags" || activeTool.key === "captions") ? (
-            <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value)}>
-              <option value="">Choose social media</option>
-              {activeTool.platforms.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          ) : (
-            <input
-              value={selectedPlatform}
-              onChange={(e) => setSelectedPlatform(e.target.value)}
-              placeholder={getStylePlaceholder(activeTool.key)}
-            />
-          )}
-        </label>
-
-        {activeTool.key === "logo" && (
+      {activeTool.key === "logo" ? (
+        <div className="logoStudioFields">
           <label>
-            <span>Brand name / keywords</span>
+            <span>Brand name</span>
             <input
               value={creativeTone}
               onChange={(e) => setCreativeTone(e.target.value)}
-              placeholder={getTonePlaceholder(activeTool.key)}
+              placeholder="Example: Ugly Hippos"
             />
           </label>
-        )}
-      </div>
+          <label>
+            <span>Industry / niche</span>
+            <input
+              value={logoIndustry}
+              onChange={(e) => setLogoIndustry(e.target.value)}
+              placeholder="Example: fantasy football league"
+            />
+          </label>
+          <label>
+            <span>Logo style</span>
+            <input
+              value={selectedPlatform}
+              onChange={(e) => setSelectedPlatform(e.target.value)}
+              placeholder="Example: bold mascot badge, modern sports"
+            />
+          </label>
+          <label>
+            <span>Symbol / mascot</span>
+            <input
+              value={logoSymbol}
+              onChange={(e) => setLogoSymbol(e.target.value)}
+              placeholder="Example: angry hippo holding a football"
+            />
+          </label>
+          <label>
+            <span>Colors</span>
+            <input
+              value={logoColors}
+              onChange={(e) => setLogoColors(e.target.value)}
+              placeholder="Example: dark green, gold, cream"
+            />
+          </label>
+          <label>
+            <span>Avoid</span>
+            <input
+              value={logoAvoid}
+              onChange={(e) => setLogoAvoid(e.target.value)}
+              placeholder="Example: tiny icon, generic football only"
+            />
+          </label>
+          <label className="logoStudioNotes">
+            <span>Extra direction</span>
+            <textarea
+              className="mainPromptBox"
+              placeholder={getMainPromptPlaceholder(activeTool)}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+          </label>
+        </div>
+      ) : (
+        <>
+          <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
+            <label>
+              <span>{activeTool.platformLabel}</span>
+              {(activeTool.key === "hashtags" || activeTool.key === "captions") ? (
+                <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value)}>
+                  <option value="">Choose social media</option>
+                  {activeTool.platforms.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              ) : (
+                <input
+                  value={selectedPlatform}
+                  onChange={(e) => setSelectedPlatform(e.target.value)}
+                  placeholder={getStylePlaceholder(activeTool.key)}
+                />
+              )}
+            </label>
+          </div>
 
-      <textarea
-        className="mainPromptBox"
-        placeholder={getMainPromptPlaceholder(activeTool)}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-      />
+          <textarea
+            className="mainPromptBox"
+            placeholder={getMainPromptPlaceholder(activeTool)}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+        </>
+      )}
 
       <div className="generatorButtons">
         <button className="btn dark" onClick={generate}>
@@ -3135,23 +3355,67 @@ function GeneratorCard({
       )}
 
       {logoImage && (
-        <div className="logoShowcase">
-          <div className="logoFrame">
-            <img src={logoImage} alt="Generated logo" />
+        <>
+          <div className="logoShowcase">
+            <div className="logoFrame">
+              <img src={logoImage} alt="Generated logo" />
+            </div>
+
+            <div className="brandPreviewCard">
+              <div className="tinyTag">LOGO CONCEPT</div>
+              <span className={logoImageSource === "instant-svg" ? "logoSourceBadge instant" : "logoSourceBadge"}>
+                {logoImageSource === "instant-svg" ? "Instant preview" : "AI image"}
+              </span>
+              <h3>Your logo is ready</h3>
+              <p>
+                {logoImageSource === "instant-svg"
+                  ? "This instant preview is downloadable and usable. Generate again when you want another AI image attempt."
+                  : "Open it full size, download it, save it to a workspace, or set it as the active brand logo."}
+              </p>
+
+              <div className="logoActionStack">
+                <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
+                <button onClick={openLogoImage}>Open Full Size</button>
+                <button onClick={saveCurrentOutput}>Save to Workspace</button>
+                <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
+                <button onClick={generate}>Generate Another Version</button>
+              </div>
+            </div>
           </div>
 
-          <div className="brandPreviewCard">
-            <div className="tinyTag">LOGO CONCEPT</div>
-            <h3>Your logo is ready</h3>
-            <p>Open it full size, download it, save it to a workspace, or set it as the active brand logo.</p>
+          <LogoVariantPreview
+            image={logoImage}
+            brandName={creativeTone || "Brand"}
+            logoImageSource={logoImageSource}
+            openLogoImage={openLogoImage}
+          />
+        </>
+      )}
 
-            <div className="logoActionStack">
-              <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
-              <button onClick={openLogoImage}>Open Full Size</button>
-              <button onClick={saveCurrentOutput}>Save</button>
-              <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
-              <button onClick={() => remixOutput(activeEntry)}>Remix</button>
+      {activeTool.key === "logo" && recentLogoResults.length > 0 && (
+        <div className="recentLogoStrip">
+          <div className="recentLogoHeader">
+            <div>
+              <div className="tinyTag">RECENT LOGOS</div>
+              <h3>Logo history</h3>
             </div>
+            <span>{recentLogoResults.length} saved in this browser</span>
+          </div>
+          <div className="recentLogoGrid">
+            {recentLogoResults.slice(0, 6).map((item) => (
+              <div className="recentLogoCard" key={item.id}>
+                <button className="recentLogoThumb" onClick={() => restoreRecentLogo(item)}>
+                  <img src={item.image} alt={item.title || "Generated logo"} />
+                </button>
+                <strong>{item.title || "Logo concept"}</strong>
+                <span>{item.source === "instant-svg" ? "Instant preview" : "AI image"}</span>
+                <div>
+                  <button onClick={() => restoreRecentLogo(item)}>Use</button>
+                  <button onClick={() => openGeneratedImage(item.image)}>Open</button>
+                  <button onClick={() => downloadGeneratedImage(item.image, item.title || "brandthat-logo")}>Download</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -3208,9 +3472,42 @@ function GeneratorCard({
   );
 }
 
+function LogoVariantPreview({ image, brandName, logoImageSource, openLogoImage }) {
+  return (
+    <div className="logoVariantPanel">
+      <div className="recentLogoHeader">
+        <div>
+          <div className="tinyTag">PREVIEW FORMATS</div>
+          <h3>See how this logo works</h3>
+        </div>
+        <span>{logoImageSource === "instant-svg" ? "Instant preview" : "AI generated"}</span>
+      </div>
+
+      <div className="logoVariantGrid">
+        <button className="logoVariantCard primary" onClick={openLogoImage}>
+          <span>Primary logo</span>
+          <img src={image} alt={`${brandName} primary logo preview`} />
+        </button>
+        <button className="logoVariantCard iconOnly" onClick={openLogoImage}>
+          <span>Icon mark</span>
+          <img src={image} alt={`${brandName} icon preview`} />
+        </button>
+        <button className="logoVariantCard wordmark" onClick={openLogoImage}>
+          <span>Wordmark</span>
+          <strong>{brandName}</strong>
+        </button>
+        <button className="logoVariantCard social" onClick={openLogoImage}>
+          <span>Social profile</span>
+          <div><img src={image} alt={`${brandName} social profile preview`} /></div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function getToolSubline(toolKey) {
   const lines = {
-    logo: "Describe the brand, style, and feeling. Brandthat will generate a clean logo concept and identity direction.",
+    logo: "Add the brand name, niche, style, symbol, colors, and what to avoid. Brandthat will create a usable logo image.",
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
@@ -3261,7 +3558,7 @@ function getTonePlaceholder(toolKey) {
 
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
-    return "Describe the logo you want. Include the brand name, what it does, symbols or letters you want, colors, style, audience, and anything it should avoid.";
+    return "Add anything extra the fields do not cover. Example: make the hippo look competitive, use a fantasy football badge layout, and keep the words easy to read.";
   }
   if (activeTool.key === "captions") {
     return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
@@ -3634,6 +3931,11 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagsGenerator .generatorControls{grid-template-columns:1fr}
 .generatorControls.singleControl{grid-template-columns:1fr}
 .generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
+.logoStudioFields{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
+.logoStudioFields label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
+.logoStudioFields input,.logoStudioFields textarea{margin-top:10px}
+.logoStudioNotes{grid-column:1 / -1}
+.logoStudioNotes textarea{min-height:180px}
 .generatorButtons{display:grid;grid-template-columns:1fr 130px;gap:12px;margin-top:16px}
 .btn{border:none;border-radius:18px;padding:16px 24px;font-weight:800;cursor:pointer;font-size:15px;transition:.2s ease;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{transform:translateY(-2px);opacity:.96}
@@ -3869,6 +4171,23 @@ textarea{height:170px;resize:none;line-height:1.6}
   color:#d9bd77;
 }
 
+.logoSourceBadge{
+  display:inline-flex;
+  width:max-content;
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:999px;
+  padding:8px 11px;
+  color:white;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:18px;
+}
+
+.logoSourceBadge.instant{
+  background:#fff;
+  color:#111;
+}
+
 .brandPreviewCard h3{
   font-size:32px;
   letter-spacing:-.04em;
@@ -3929,6 +4248,152 @@ textarea{height:170px;resize:none;line-height:1.6}
   color:#555;
   line-height:1.7;
   white-space:pre-wrap;
+}
+
+.logoVariantPanel,.recentLogoStrip{
+  margin-top:20px;
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:24px;
+  padding:20px;
+}
+
+.recentLogoHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:16px;
+}
+
+.recentLogoHeader h3{
+  margin:0;
+  font-size:24px;
+  letter-spacing:-.03em;
+}
+
+.recentLogoHeader span{
+  color:#666;
+  font-weight:800;
+  font-size:13px;
+}
+
+.logoVariantGrid,.recentLogoGrid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+
+.logoVariantCard{
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  background:#fafafa;
+  min-height:210px;
+  padding:14px;
+  cursor:pointer;
+  text-align:left;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  color:#111;
+  font-family:inherit;
+}
+
+.logoVariantCard span,.recentLogoCard span{
+  color:#8a6b37;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+}
+
+.logoVariantCard img{
+  width:100%;
+  max-height:150px;
+  object-fit:contain;
+  margin:auto;
+  border-radius:12px;
+}
+
+.logoVariantCard.iconOnly img{
+  aspect-ratio:1;
+  border-radius:50%;
+  background:white;
+  padding:12px;
+}
+
+.logoVariantCard.wordmark{
+  background:#111;
+  color:white;
+}
+
+.logoVariantCard.wordmark strong{
+  font-size:30px;
+  letter-spacing:-.05em;
+  line-height:1;
+}
+
+.logoVariantCard.social div{
+  width:132px;
+  height:132px;
+  border-radius:50%;
+  overflow:hidden;
+  background:white;
+  margin:auto;
+  border:1px solid rgba(0,0,0,.08);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.logoVariantCard.social img{
+  width:118px;
+  height:118px;
+  object-fit:contain;
+}
+
+.recentLogoCard{
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:12px;
+}
+
+.recentLogoThumb{
+  border:1px solid rgba(0,0,0,.06);
+  border-radius:14px;
+  background:white;
+  width:100%;
+  aspect-ratio:1;
+  padding:10px;
+  cursor:pointer;
+}
+
+.recentLogoThumb img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+.recentLogoCard strong{
+  display:block;
+  margin:10px 0 4px;
+}
+
+.recentLogoCard div{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.recentLogoCard button:not(.recentLogoThumb){
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:8px 10px;
+  font-weight:900;
+  cursor:pointer;
 }
 
 .premiumResults{
@@ -4045,6 +4510,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
 `;

@@ -4,19 +4,37 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-function buildLogoPrompt({ logoPrompt, brandName }) {
+function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
   return `
 Create one finished, usable logo image.
 
-Brand name or keywords:
+Brand name or required words:
 ${brandName || "Use the brand name, initials, or keywords from the request."}
 
-User request:
+Industry or niche:
+${logoIndustry || "Infer the business, sport, creator niche, product category, or community from the request."}
+
+Logo style:
+${logoStyle || "Choose the best style for the request."}
+
+Symbol, mascot, or icon:
+${logoSymbol || "Infer the most relevant symbol, mascot, animal, object, lettermark, or icon from the request."}
+
+Color direction:
+${logoColors || "Choose a strong professional palette unless the user requested colors."}
+
+Avoid:
+${logoAvoid || "Avoid anything that conflicts with the user's request."}
+
+Extra user notes:
+${userPrompt || "No extra notes."}
+
+Full request:
 ${logoPrompt}
 
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
-- Follow the user's request exactly when they describe an industry, mascot, object, color, letter, style, or mood.
+- Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
 - Use a large, clean centered composition on a simple background.
 - Create a strong logo mark, emblem, mascot, monogram, wordmark, or icon depending on the request.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
@@ -42,10 +60,10 @@ function hashString(value = "") {
   }, 2166136261);
 }
 
-function getLogoWords({ brandName, logoPrompt, logoStyle, userPrompt }) {
-  const source = `${brandName || ""} ${logoStyle || ""} ${userPrompt || ""}`.trim() || String(logoPrompt || "Brand");
+function getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+  const source = `${brandName || ""} ${logoIndustry || ""} ${logoStyle || ""} ${logoSymbol || ""} ${logoColors || ""} ${userPrompt || ""}`.trim() || String(logoPrompt || "Brand");
   const cleaned = source
-    .replace(/\b(logo|brand|create|make|for|with|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high)\b/gi, " ")
+    .replace(/\b(logo|brand|create|make|for|with|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high|avoid)\b/gi, " ")
     .replace(/[^a-zA-Z0-9\s&]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -174,9 +192,19 @@ function buildSubjectMark({ subject, ink, accent, paper, initials }) {
   `;
 }
 
-function buildFallbackLogo({ logoPrompt, brandName, logoStyle, userPrompt }) {
-  const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, userPrompt });
-  const hash = hashString(`${brandName} ${logoStyle} ${userPrompt} ${logoPrompt}`);
+function getRequestedColors(value = "") {
+  const text = String(value).toLowerCase();
+  if (text.includes("green") && text.includes("gold")) return ["#0f2a22", "#f7f2e8", "#c9a449"];
+  if (text.includes("black") && text.includes("white")) return ["#101010", "#ffffff", "#777777"];
+  if (text.includes("blue")) return ["#0f172a", "#f8fafc", "#38bdf8"];
+  if (text.includes("red")) return ["#1a1010", "#fff8f3", "#e0502f"];
+  if (text.includes("purple")) return ["#21152f", "#faf7ff", "#a78bfa"];
+  return null;
+}
+
+function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+  const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt}`);
   const palettes = [
     ["#111111", "#f7f4ed", "#9b7b3f"],
     ["#10231f", "#f5f1e8", "#c7a45a"],
@@ -185,7 +213,7 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, userPrompt }) {
     ["#24342f", "#fbfaf6", "#7c9a6d"],
     ["#0f172a", "#f8fafc", "#38bdf8"],
   ];
-  const [ink, paper, accent] = palettes[hash % palettes.length];
+  const [ink, paper, accent] = getRequestedColors(logoColors) || palettes[hash % palettes.length];
   const subject = getSubject(words);
   const safeName = escapeXml(displayName);
   const subjectMark = buildSubjectMark({ subject, ink, accent, paper, initials });
@@ -236,7 +264,7 @@ exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
 
   try {
-    const { logoPrompt, brandName, logoStyle, userPrompt } = JSON.parse(event.body || "{}");
+    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
       return {
@@ -245,7 +273,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName });
+    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
     const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -260,14 +288,14 @@ exports.handler = async (event, context) => {
       };
     } catch (imageError) {
       clearTimeout(timeout);
-      const image = buildFallbackLogo({ logoPrompt, brandName, logoStyle, userPrompt });
+      const image = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
           image,
           source: "instant-svg",
-          note: "OpenAI image generation was unavailable or too slow, so Brandthat created an instant logo image instead.",
+          note: "The full AI image model was unavailable or too slow, so Brandthat created an instant downloadable logo preview from your exact fields. Generate again for another AI image attempt.",
         }),
       };
     }
