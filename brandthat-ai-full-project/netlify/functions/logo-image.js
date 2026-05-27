@@ -118,7 +118,23 @@ function getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymb
 }
 
 function hasWord(words, options) {
-  return options.some((option) => words.some((word) => word.toLowerCase().includes(option)));
+  const exactOnly = new Set(["ai", "auto", "car", "law", "real", "app", "co"]);
+  const normalized = words
+    .map((word) => word.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .filter(Boolean);
+
+  return options.some((option) => {
+    const cleanOption = String(option).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!cleanOption) return false;
+
+    return normalized.some((word) => {
+      if (word === cleanOption || word === `${cleanOption}s`) return true;
+      if (exactOnly.has(cleanOption)) return false;
+      if (cleanOption.length >= 5 && word.startsWith(cleanOption)) return true;
+      if (cleanOption.length >= 6 && word.includes(cleanOption)) return true;
+      return false;
+    });
+  });
 }
 
 function getSubject(words) {
@@ -128,40 +144,42 @@ function getSubject(words) {
   if (hasHippo) return "hippo";
   if (hasFootball) return "football";
   if (hasWord(words, ["stucco", "plaster", "plastering", "drywall", "rendering", "skim", "venetian"])) return "plastering";
-  if (hasWord(words, ["law", "legal", "attorney", "lawyer", "firm"])) return "law";
-  if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
   if (hasWord(words, ["wedding", "photo", "photography", "video", "film", "cinema", "rose"])) return "wedding-photo";
+  if (hasWord(words, ["insurance", "insured", "coverage", "policy", "risk"])) return "insurance";
+  if (hasWord(words, ["security", "secure", "guard", "protection", "cybersecurity", "surveillance"])) return "security";
+  if (hasWord(words, ["cannabis", "dispensary", "hemp", "cbd"])) return "cannabis";
+  if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
+  if (hasWord(words, ["tattoo", "ink", "flash"])) return "tattoo";
+  if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
+  if (hasWord(words, ["real", "estate", "realtor", "realty", "brokerage", "home", "house", "property"])) return "realestate";
+  if (hasWord(words, ["law", "legal", "attorney", "lawyer", "firm"])) return "law";
+  if (hasWord(words, ["beauty", "wellness", "spa", "skincare", "cosmetic", "cosmetics", "aesthetic", "aesthetics", "flower", "flowers", "floral", "florals"])) return "wellness";
+  if (hasWord(words, ["pet", "dog", "cat", "veterinary", "vet", "grooming", "animal", "paw", "paws"])) return "pet";
+  if (hasWord(words, ["kids", "kid", "toy", "toys", "daycare", "childcare", "children", "academy", "tutor", "learning", "school", "education"])) return "education";
+  if (hasWord(words, ["lawn", "landscape", "landscaping", "garden", "tree"])) return "landscaping";
   if (hasWord(words, ["fitness", "gym", "training", "trainer", "strength"])) return "fitness";
   if (hasWord(words, ["pizza", "pizzeria", "slice", "pepperoni"])) return "pizza";
   if (hasWord(words, ["restaurant", "food", "kitchen", "chef", "diner", "grill", "bakery", "taco", "burger", "sushi", "catering"])) return "restaurant";
+  if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
+  if (hasWord(words, ["travel", "hotel", "resort", "vacation", "tour", "airbnb", "hospitality", "rental", "rentals", "stay"])) return "travel";
   if (hasWord(words, ["car", "auto", "automotive", "mechanic", "garage", "detailing", "tire", "truck"])) return "automotive";
-  if (hasWord(words, ["doctor", "medical", "clinic", "health", "care", "therapy", "chiropractic", "dental", "dentist", "orthodontic"])) return "healthcare";
+  if (hasWord(words, ["doctor", "medical", "clinic", "health", "healthcare", "therapy", "chiropractic", "dental", "dentist", "orthodontic"])) return "healthcare";
   if (hasWord(words, ["bank", "finance", "financial", "wealth", "advisor", "accounting", "tax", "capital", "fund"])) return "finance";
-  if (hasWord(words, ["school", "education", "academy", "tutor", "learning", "childcare", "daycare"])) return "education";
-  if (hasWord(words, ["music", "band", "studio", "audio", "sound", "record", "podcast", "dj"])) return "music";
+  if (hasWord(words, ["music", "band", "audio", "sound", "record", "recording", "podcast", "dj"])) return "music";
+  if (hasWord(words, ["electrical", "electrician", "power", "solar", "energy", "lighting"])) return "electrical";
   if (hasWord(words, ["ai", "tech", "software", "saas", "app", "platform"])) return "tech";
-  if (hasWord(words, ["insurance", "insured", "coverage", "policy", "risk"])) return "insurance";
+  if (hasWord(words, ["electric"])) return "electrical";
   if (hasWord(words, ["marketing", "agency", "advertising", "creative", "media", "branding"])) return "agency";
-  if (hasWord(words, ["security", "secure", "guard", "protection", "cybersecurity", "surveillance"])) return "security";
   if (hasWord(words, ["logistics", "shipping", "freight", "delivery", "courier", "moving", "transport"])) return "logistics";
   if (hasWord(words, ["gaming", "esports", "game", "streamer", "streaming", "twitch"])) return "gaming";
   if (hasWord(words, ["architect", "architecture", "interior", "interiors", "spatial", "spaces"])) return "architecture";
-  if (hasWord(words, ["cannabis", "dispensary", "hemp", "cbd"])) return "cannabis";
-  if (hasWord(words, ["pet", "dog", "cat", "veterinary", "vet", "grooming", "animal"])) return "pet";
   if (hasWord(words, ["fashion", "clothing", "apparel", "boutique", "jewelry", "watch", "shoe", "streetwear"])) return "fashion";
   if (hasWord(words, ["cleaning", "maid", "janitorial", "wash", "pressure", "laundry"])) return "cleaning";
   if (hasWord(words, ["plumbing", "plumber", "pipe", "water", "drain"])) return "plumbing";
-  if (hasWord(words, ["electric", "electrical", "electrician", "power", "solar", "energy", "lighting"])) return "electrical";
   if (hasWord(words, ["construction", "builder", "contractor", "remodel", "renovation", "concrete", "masonry"])) return "construction";
-  if (hasWord(words, ["travel", "hotel", "resort", "vacation", "tour", "airbnb", "hospitality"])) return "travel";
   if (hasWord(words, ["nonprofit", "charity", "foundation", "community", "church", "ministry"])) return "nonprofit";
-  if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
-  if (hasWord(words, ["landscape", "lawn", "garden", "tree"])) return "landscaping";
-  if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
   if (hasWord(words, ["cow", "cattle", "ranch", "alpaca", "horse", "horses", "private", "pasture", "equestrian"])) return "ranch";
   if (hasWord(words, ["coffee", "cafe"])) return "coffee";
-  if (hasWord(words, ["real", "estate", "home", "house"])) return "realestate";
-  if (hasWord(words, ["beauty", "wellness", "spa"])) return "wellness";
   return "abstract";
 }
 
@@ -239,6 +257,7 @@ const DEFAULT_SUBJECT_STYLE_OVERRIDES = {
   gaming: ["streetwear", "futuristic", "brutalist"],
   architecture: ["minimal", "luxury", "corporate"],
   cannabis: ["minimal", "feminine", "vintage"],
+  tattoo: ["tattoo", "vintage", "brutalist"],
 };
 
 const SUBJECT_STYLE_OVERRIDES = {
@@ -384,7 +403,7 @@ function selectTypography({ subject, styles }) {
   const primary = styles[0]?.key || "minimal";
   if (["law", "finance", "insurance"].includes(subject)) return TYPOGRAPHY_SYSTEMS.authoritySerif;
   if (primary === "luxury" || subject === "ranch") return TYPOGRAPHY_SYSTEMS.luxurySerif;
-  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
+  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security", "tattoo"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
   if (["pizza", "restaurant", "coffee"].includes(subject)) return TYPOGRAPHY_SYSTEMS.hospitalitySans;
   if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) return TYPOGRAPHY_SYSTEMS.editorialSerif;
   if (["pet", "education", "nonprofit"].includes(subject) || primary === "playful") return TYPOGRAPHY_SYSTEMS.playfulRounded;
@@ -571,9 +590,25 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
 
 function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "" }) {
   const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
+  const aliases = {
+    realestate: ["real estate", "property", "home", "house", "brokerage", "realtor"],
+    law: ["law", "legal", "counsel", "attorney"],
+    finance: ["finance", "wealth", "capital", "tax", "ledger", "money"],
+    wellness: ["wellness", "beauty", "spa", "skincare", "leaf", "calm"],
+    tech: ["ai", "tech", "software", "saas", "neural", "platform"],
+    healthcare: ["health", "clinic", "medical", "dental", "care", "therapy"],
+    fitness: ["fitness", "strength", "training", "athletic", "body", "performance", "motion"],
+    automotive: ["automotive", "auto", "car", "garage", "detailing", "road", "wrench"],
+    music: ["music", "sound", "audio", "podcast", "waveform", "record", "studio"],
+    landscaping: ["landscape", "lawn", "garden", "tree", "leaf"],
+    logistics: ["logistics", "shipping", "delivery", "route", "freight"],
+    security: ["security", "secure", "lock", "protection", "sentinel"],
+    tattoo: ["tattoo", "ink", "flash", "ornamental"],
+  }[subject] || [subject.replace("-", " "), subject.split("-")[0]];
+  const subjectMatches = aliases.some((alias) => text.includes(alias));
   let score = 60;
-  if (concept.source === "library") score += SCORING_WEIGHTS.conceptLibraryBoost;
-  if (text.includes(subject.replace("-", " "))) score += SCORING_WEIGHTS.subjectMatch;
+  if (concept.source === "library") score += SCORING_WEIGHTS.conceptLibraryBoost + 8;
+  if (subjectMatches) score += SCORING_WEIGHTS.subjectMatch;
   if (logoSymbol && text.includes(logoSymbol.toLowerCase().split(/\s+/)[0])) score += SCORING_WEIGHTS.requestedSymbolMatch;
   styles.forEach((style, index) => {
     if (text.includes(style.key)) score += SCORING_WEIGHTS.styleMatch - index;
@@ -581,13 +616,13 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
       if (text.includes(trait)) score += 2;
     });
   });
-  if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only)/.test(text)) score += SCORING_WEIGHTS.genericPenalty;
+  if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol)/.test(text)) score += SCORING_WEIGHTS.genericPenalty;
   if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable|negative|hidden|reduced|brandable)/.test(text)) score += SCORING_WEIGHTS.readabilityAndScalability;
   const shieldOrBadge = /(shield|badge|crest)/.test(text);
   const shieldFriendly = ["law", "finance", "insurance", "ranch", "football", "hippo-football", "education", "security"].includes(subject);
   if (shieldOrBadge && !shieldFriendly && !/(shield|badge|crest)/.test(logoSymbol.toLowerCase())) score -= 9;
   if (/(monogram|initials)/.test(text) && !/(monogram|initial|letter)/.test(logoSymbol.toLowerCase())) score -= subject === "abstract" ? 0 : 5;
-  if (subject !== "abstract" && !text.includes(subject.replace("-", " ")) && !text.includes(subject.split("-")[0])) score -= 8;
+  if (subject !== "abstract" && !subjectMatches) score -= 8;
   if (concept.source === "icon" && concept.iconSystem?.mode) score += 5;
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {
@@ -881,6 +916,11 @@ function getConceptLibrary(subject, profile) {
       ["Botanical Leaf Seal", "cannabis leaf simplified into a premium botanical emblem", "quiet serif or wellness sans", "deep green, cream, muted gold", "emblem above name", "It reflects the category clearly while avoiding head-shop clutter."],
       ["Dispensary Monogram", "initials with a subtle leaf vein and sun arc", "premium modern serif", "forest green, ivory, copper", "monogram-led lockup", "It feels elevated, regulated, and retail-ready."],
       ["Hemp Line Mark", "single leaf line and circle of care", "clean wellness typography", "sage, cream, charcoal", "simple icon-left logo", "It keeps the plant cue refined and scalable."],
+    ],
+    tattoo: [
+      ["Flash Rose Dagger", "traditional tattoo rose and dagger simplified into a bold ink mark", "ornamental vintage display type", "black, cream, red accent", "large flash-style symbol above wordmark", "It reads tattoo studio instantly without becoming a messy illustration."],
+      ["Ink Needle Crest", "needle, ink drop, and banner geometry reduced into a shop crest", "bold tattoo display lettering", "charcoal, ivory, oxblood", "crest with readable name", "It feels like a real tattoo shop identity and works on signage."],
+      ["Blackwork Monogram", "initials built from sharp linework and subtle flash rays", "heavy handcrafted wordmark", "black, white, muted red", "monogram-led logo", "It gives the studio a custom mark that avoids generic skull clipart."],
     ],
   };
 
@@ -1208,6 +1248,16 @@ function getBrandableSubjectMark({ subject, ink, accent, paper, initials, varian
         <path d="M512 252 C552 352 622 386 704 374 C642 438 612 508 620 584 C564 522 512 498 512 498 C512 498 460 522 404 584 C412 508 382 438 320 374 C402 386 472 352 512 252 Z" fill="${paper}"/>
         <path d="M512 306 V560" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
         <path d="M370 620 H654" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "tattoo") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 208 C590 306 662 354 758 372 C672 426 628 510 640 612 C572 548 512 526 512 526 C512 526 452 548 384 612 C396 510 352 426 266 372 C362 354 434 306 512 208 Z" fill="${ink}"/>
+        <path d="M512 300 L560 408 L678 420 L586 492 L616 606 L512 546 L408 606 L438 492 L346 420 L464 408 Z" fill="${paper}"/>
+        <path d="M378 638 H646" stroke="${accent}" stroke-width="20" stroke-linecap="round"/>
       </g>
     `;
   }
@@ -1816,6 +1866,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     gaming: "gaming brand",
     architecture: "architecture studio",
     cannabis: "botanical brand",
+    tattoo: "tattoo studio",
     football: "fantasy football",
     hippo: "mascot brand",
   }[subject];
