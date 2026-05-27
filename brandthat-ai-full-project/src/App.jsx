@@ -608,6 +608,38 @@ function getBrandReadinessScore(brand) {
   return Math.round((completed / fields.length) * 100);
 }
 
+function countSavedAssets(brand) {
+  if (!brand?.saved) return 0;
+  return Object.values(brand.saved).reduce((total, items) => total + (Array.isArray(items) ? items.length : 0), 0);
+}
+
+function getWorkspaceGoalLine(brand) {
+  const goal = brand?.targetFollowers || brand?.launchGoal || "";
+  const platform = brand?.growthPlatform || brand?.channels || "";
+
+  if (goal && platform) return `${platform} • ${goal}`;
+  if (goal) return goal;
+  if (platform) return platform;
+  return "Goal not set";
+}
+
+function getWorkspaceNextStep(brand) {
+  if (!brand) return "Create a workspace to keep your logos, content, and growth assets together.";
+  if (!brand.logoImage) return "Generate or set a logo so this workspace has a visual anchor.";
+  if (!String(brand.description || "").trim()) return "Add a one-sentence brand description so every tool understands the brand.";
+  if (!String(brand.targetFollowers || brand.launchGoal || "").trim()) return "Add one clear growth goal so Brandthat can build better roadmaps.";
+  if (countSavedAssets(brand) === 0) return "Save your first logo, caption, hook, hashtag set, or roadmap to start building the kit.";
+  return "Keep saving the strongest outputs and export the brand kit when you are ready.";
+}
+
+function getWorkspaceSnapshot(brand) {
+  return [
+    ["Logo", brand?.logoImage ? "Set" : "Needed"],
+    ["Saved", `${countSavedAssets(brand)} assets`],
+    ["Goal", getWorkspaceGoalLine(brand)],
+  ];
+}
+
 export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [user, setUser] = useState(null);
@@ -711,6 +743,26 @@ export default function App() {
       content: meta.canonical,
     });
 
+    upsertMeta("meta[property='og:image']", {
+      property: "og:image",
+      content: "https://brandthat.ai/og-image.png",
+    });
+
+    upsertMeta("meta[property='og:image:width']", {
+      property: "og:image:width",
+      content: "1200",
+    });
+
+    upsertMeta("meta[property='og:image:height']", {
+      property: "og:image:height",
+      content: "1200",
+    });
+
+    upsertMeta("meta[property='og:site_name']", {
+      property: "og:site_name",
+      content: "Brandthat.ai",
+    });
+
     upsertMeta("meta[name='twitter:title']", {
       name: "twitter:title",
       content: meta.title,
@@ -724,6 +776,11 @@ export default function App() {
     upsertMeta("meta[name='twitter:description']", {
       name: "twitter:description",
       content: meta.description,
+    });
+
+    upsertMeta("meta[name='twitter:image']", {
+      name: "twitter:image",
+      content: "https://brandthat.ai/og-image.png",
     });
 
     upsertJsonLd(getSeoSchema(page, meta));
@@ -2623,7 +2680,7 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
       />
 
       <details className="advancedWorkspaceFields">
-        <summary>Optional details for sharper AI results</summary>
+        <summary>Advanced context</summary>
 
         <div className="workspaceGrid">
           <textarea
@@ -2699,7 +2756,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
               <button onClick={() => selectBrand(brand.id)}>
                 {brand.logoImage && <img className="brandRowLogo" src={brand.logoImage} alt={`${brand.name} logo`} />}
                 <strong>{brand.name}</strong>
-                <span>{getBrandReadinessScore(brand)}% ready • {brand.tone} • {brand.audience || "Audience not set"}</span>
+                <span>{getBrandReadinessScore(brand)}% ready • {brand.tone} • {getWorkspaceGoalLine(brand)}</span>
               </button>
               <div className="brandRowActions">
                 <button onClick={() => duplicateBrand(brand.id)}>Duplicate</button>
@@ -2712,11 +2769,22 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
 
       {activeBrand && (
         <div className="brandReadinessPanel">
-          <div>
-            <span>Brand Readiness</span>
+          <div className="brandReadinessTop">
+            <div>
+              <span>Active workspace</span>
+              <strong>{activeBrand.name}</strong>
+            </div>
             <strong>{getBrandReadinessScore(activeBrand)}%</strong>
           </div>
-          <p>{activeBrand.differentiator || activeBrand.offer || activeBrand.description || "Add offer, audience, differentiator, channels, and launch details to make this workspace more powerful."}</p>
+          <div className="workspaceSnapshot">
+            {getWorkspaceSnapshot(activeBrand).map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <p>{getWorkspaceNextStep(activeBrand)}</p>
         </div>
       )}
 
@@ -4081,9 +4149,15 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .activeBrandLogo{width:38px;height:38px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:#fafafa}
 .activeBrandBar button{background:#111;color:white;border:none;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
 .brandReadinessPanel{background:#fafafa;color:#111;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;margin-top:18px}
-.brandReadinessPanel div{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.brandReadinessTop{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.brandReadinessTop>div{display:flex;flex-direction:column;gap:4px}
 .brandReadinessPanel span{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a6b37;font-weight:900}
-.brandReadinessPanel strong{font-size:28px;letter-spacing:-.04em}
+.brandReadinessPanel strong{font-size:20px;letter-spacing:-.03em}
+.brandReadinessTop>strong{font-size:32px;letter-spacing:-.05em}
+.workspaceSnapshot{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.workspaceSnapshot div{background:white;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:12px;display:block;min-width:0}
+.workspaceSnapshot span{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.workspaceSnapshot strong{display:block;font-size:15px;letter-spacing:0;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brandReadinessPanel p{color:#666;margin:10px 0 0;line-height:1.6}
 textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,.08);padding:18px 20px;font-size:16px;background:#fafafa;font-family:inherit;margin-top:10px;color:#111}
 textarea{height:170px;resize:none;line-height:1.6}
@@ -4749,5 +4823,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
 `;
