@@ -57,6 +57,8 @@ Design requirements:
 - Use a large, clean centered composition on a simple background.
 - Create a strong logo mark, emblem, mascot, wordmark, tool mark, trade mark, lettermark, or icon depending on the request.
 - Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
+- Make the icon feel designed, not clipart: reduce literal objects into one ownable silhouette, use negative space, hidden symbolism, geometric tension, and custom category cues.
+- Prefer one strong brandable idea over multiple decorative objects. No stock-style icon mashups.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
@@ -374,11 +376,58 @@ function selectPalette({ subject, styles, logoColors }) {
   return styles[0]?.palette || "black, white, one meaningful accent";
 }
 
-function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette }) {
+const ICON_CREATIVITY_SYSTEMS = {
+  negativeSpace: {
+    mode: "negative-space",
+    label: "single ownable silhouette with negative-space category cue",
+    rules: ["one dominant shape", "category appears through cutout/absence", "no object pileups", "works as favicon"],
+  },
+  monogramFusion: {
+    mode: "monogram-fusion",
+    label: "custom letterform fused with industry symbol",
+    rules: ["initials become the icon", "symbol is embedded, not placed beside it", "balanced symmetry", "readable at small sizes"],
+  },
+  abstractSystem: {
+    mode: "abstract-system",
+    label: "geometric mark built from category movement and brand personality",
+    rules: ["abstract but meaningful", "distinct proportions", "no generic AI sparkle", "clean vector geometry"],
+  },
+  editorialEmblem: {
+    mode: "editorial-emblem",
+    label: "premium emblem using refined line, space, and restraint",
+    rules: ["quiet luxury", "thin accent detail", "no mascot clutter", "strong silhouette"],
+  },
+  mascotReduction: {
+    mode: "mascot-reduction",
+    label: "simplified mascot/object reduced to a brandable symbol",
+    rules: ["mascot is iconic, not cartoon clipart", "large simple shapes", "minimal details", "strong expression"],
+  },
+};
+
+function selectIconSystem({ subject, styles, logoSymbol = "" }) {
+  const styleKeys = styles.map((style) => style.key);
+  const symbolText = logoSymbol.toLowerCase();
+  if (/(mascot|animal|character|hippo|horse|dog|cat)/.test(symbolText) || ["hippo", "hippo-football", "pet"].includes(subject)) {
+    return ICON_CREATIVITY_SYSTEMS.mascotReduction;
+  }
+  if (["luxury", "fashion", "feminine"].some((key) => styleKeys.includes(key)) || ["wedding-photo", "ranch", "fashion"].includes(subject)) {
+    return ICON_CREATIVITY_SYSTEMS.editorialEmblem;
+  }
+  if (["tech", "finance", "law"].includes(subject) || styleKeys.includes("futuristic")) {
+    return ICON_CREATIVITY_SYSTEMS.abstractSystem;
+  }
+  if (["pizza", "restaurant", "coffee", "plastering", "construction", "automotive", "fitness", "surf"].includes(subject)) {
+    return ICON_CREATIVITY_SYSTEMS.negativeSpace;
+  }
+  return ICON_CREATIVITY_SYSTEMS.monogramFusion;
+}
+
+function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem }) {
   const base = getConceptLibrary(subject, profile).map(([name, symbol, type, basePalette, layout, whyFits]) => ({
     name,
     style: styles[0]?.key || "professional",
     symbol: logoSymbol || symbol,
+    iconSystem,
     typography: typography?.label || type,
     typographySystem: typography,
     palette: logoColors || palette || basePalette,
@@ -392,6 +441,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       name: `${titleCase(style.key)} Signature Mark`,
       style: style.key,
       symbol: logoSymbol || `a meaning-first ${subject.replace("-", " ")} symbol using ${style.traits.join(", ")} design cues`,
+      iconSystem,
       typography: typography?.label || style.typography,
       typographySystem: typography,
       palette: logoColors || style.palette,
@@ -403,6 +453,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       name: `${titleCase(style.key)} Wordmark System`,
       style: style.key,
       symbol: logoSymbol || `subtle embedded symbol from the brand meaning, integrated into the wordmark`,
+      iconSystem,
       typography: typography?.label || style.typography,
       typographySystem: typography,
       palette: logoColors || style.palette,
@@ -416,6 +467,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     name: `${titleCase(subject.replace("-", " "))} ${titleCase(layout)}`,
     style: styles[index % styles.length]?.key || "professional",
     symbol: logoSymbol || `distinct ${subject.replace("-", " ")} visual cue built for ${layout}`,
+    iconSystem,
     typography: typography?.label || "clean readable brand wordmark",
     typographySystem: typography,
     palette,
@@ -458,8 +510,9 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source });
   const typography = selectTypography({ subject, styles });
   const palette = selectPalette({ subject, styles, logoColors });
+  const iconSystem = selectIconSystem({ subject, styles, logoSymbol });
   const audience = selectAudience({ subject, positioning });
-  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette });
+  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem });
   const scored = pool
     .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid }) }))
     .sort((a, b) => b.score - a.score);
@@ -475,6 +528,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     name: concept.name,
     style: concept.style,
     symbol: concept.symbol,
+    iconSystem: concept.iconSystem,
     typography: concept.typography,
     typographySystem: concept.typographySystem,
     palette: concept.palette,
@@ -490,6 +544,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     positioning,
     typography: typography.label,
     typographySystem: typography,
+    iconSystem,
     palette,
     targetAudience: audience,
     concepts,
@@ -501,6 +556,8 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
       typographySelection: typography.label,
       typographyHierarchy: typography.hierarchy,
       iconGeneration: concepts.map((concept) => concept.symbol),
+      iconCreativitySystem: iconSystem.label,
+      iconRules: iconSystem.rules,
       layoutGeneration: concepts.map((concept) => concept.layout),
       colorPaletteGeneration: palette,
       refinementScoring: "20+ concepts scored for readability, memorability, uniqueness, scalability, professionalism, icon balance, typography balance, and anti-generic quality.",
@@ -666,6 +723,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     pipeline: pipeline.pipeline,
     scores: pipeline.scores,
     typographySystem: pipeline.typographySystem,
+    iconSystem: pipeline.iconSystem,
   };
 }
 
@@ -770,7 +828,143 @@ function getPlasteringMark({ ink, accent, paper, initials, variant = 0, profile 
   `;
 }
 
-function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, profile = {} }) {
+function getBrandableSubjectMark({ subject, ink, accent, paper, initials, variant = 0, iconSystem = ICON_CREATIVITY_SYSTEMS.negativeSpace }) {
+  const mode = iconSystem.mode || "negative-space";
+
+  if (subject === "pizza") {
+    if (variant === 1 || mode === "editorial-emblem") {
+      return `
+        <g transform="translate(0 -18)">
+          <circle cx="512" cy="400" r="196" fill="${ink}"/>
+          <path d="M512 238 A162 162 0 1 1 350 400 L512 400 Z" fill="${paper}"/>
+          <path d="M512 288 L662 566 H362 Z" fill="${ink}"/>
+          <path d="M418 520 Q512 470 606 520" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+          <circle cx="486" cy="392" r="17" fill="${accent}"/>
+          <circle cx="552" cy="462" r="15" fill="${accent}"/>
+          <path d="M512 238 C560 274 594 314 612 360" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 198 C642 276 728 410 758 586 H266 C296 410 382 276 512 198 Z" fill="${ink}"/>
+        <path d="M512 274 C604 344 658 442 682 548 H342 C366 442 420 344 512 274 Z" fill="${paper}"/>
+        <path d="M374 542 C448 498 576 498 650 542" fill="none" stroke="${accent}" stroke-width="25" stroke-linecap="round"/>
+        <circle cx="470" cy="398" r="24" fill="${accent}"/>
+        <circle cx="568" cy="462" r="21" fill="${accent}"/>
+        <circle cx="444" cy="492" r="17" fill="${accent}"/>
+      </g>
+    `;
+  }
+
+  if (subject === "restaurant") {
+    return `
+      <g transform="translate(0 -18)">
+        <circle cx="512" cy="404" r="196" fill="${ink}"/>
+        <circle cx="512" cy="404" r="122" fill="${paper}"/>
+        <path d="M512 282 C574 312 604 360 604 416 C558 388 512 382 420 420 C438 356 470 310 512 282 Z" fill="${accent}"/>
+        <path d="M382 568 C454 524 570 524 642 568" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M396 288 V506" stroke="${paper}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M628 284 V506 C704 440 704 348 628 284 Z" fill="${paper}"/>
+      </g>
+    `;
+  }
+
+  if (subject === "tech") {
+    return `
+      <g transform="translate(0 -18)">
+        <rect x="320" y="206" width="384" height="384" rx="96" fill="${ink}"/>
+        <path d="M402 402 C454 314 570 286 646 350 C574 350 524 390 498 468 C464 440 432 418 402 402 Z" fill="${paper}"/>
+        <circle cx="420" cy="402" r="19" fill="${accent}"/>
+        <circle cx="646" cy="350" r="19" fill="${accent}"/>
+        <circle cx="498" cy="468" r="19" fill="${accent}"/>
+        <path d="M420 402 L646 350 L498 468 Z" fill="none" stroke="${accent}" stroke-width="15" stroke-linejoin="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "law" || subject === "finance") {
+    return `
+      <g transform="translate(0 -20)">
+        <path d="M512 206 L724 322 V538 L512 650 L300 538 V322 Z" fill="${ink}"/>
+        <path d="M386 342 H638 M422 402 H602 M456 462 H568" stroke="${paper}" stroke-width="26" stroke-linecap="round"/>
+        <path d="M512 276 V568" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        <path d="M390 588 H634" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "fashion" || subject === "wedding-photo" || subject === "wellness") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 214 C646 314 674 470 512 618 C350 470 378 314 512 214 Z" fill="${ink}"/>
+        <path d="M512 264 C566 344 574 460 512 552 C450 460 458 344 512 264 Z" fill="${paper}"/>
+        <path d="M414 416 C470 350 554 350 610 416" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        <path d="M430 604 C490 562 534 562 594 604" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "ranch") {
+    return `
+      <g transform="translate(0 -20)">
+        <path d="M290 514 C374 346 506 272 704 312 C640 380 574 442 542 562 C458 502 374 492 290 514 Z" fill="${ink}"/>
+        <path d="M384 424 C466 350 564 332 666 360" fill="none" stroke="${accent}" stroke-width="21" stroke-linecap="round"/>
+        <path d="M414 338 L486 246 L514 378 M594 338 L702 266 L658 408" fill="none" stroke="${ink}" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M336 608 H704" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "plastering" || subject === "construction") {
+    return `
+      <g transform="translate(0 -16)">
+        <path d="M274 498 C400 326 562 280 754 344 C654 412 550 472 438 588 C378 548 324 518 274 498 Z" fill="${ink}"/>
+        <path d="M334 482 C458 392 586 358 724 382" fill="none" stroke="${accent}" stroke-width="26" stroke-linecap="round"/>
+        <path d="M602 270 L750 418 L704 464 L556 316 Z" fill="${paper}"/>
+        <path d="M730 398 L836 292" stroke="${ink}" stroke-width="36" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "automotive") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M276 480 C356 326 500 286 666 356 C724 380 766 422 804 478 C706 450 606 452 512 520 C430 470 350 464 276 480 Z" fill="${ink}"/>
+        <path d="M352 460 C450 382 578 364 704 410" fill="none" stroke="${accent}" stroke-width="25" stroke-linecap="round"/>
+        <circle cx="412" cy="540" r="38" fill="${paper}" stroke="${ink}" stroke-width="20"/>
+        <circle cx="662" cy="540" r="38" fill="${paper}" stroke="${ink}" stroke-width="20"/>
+      </g>
+    `;
+  }
+
+  if (subject === "fitness") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M322 522 C414 324 600 280 730 438 C636 412 566 446 520 562 C458 496 390 492 322 522 Z" fill="${ink}"/>
+        <path d="M392 476 L474 356 L538 500 L626 388" fill="none" stroke="${accent}" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M350 612 H700" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (variant === 2 || mode === "monogram-fusion") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 204 L708 316 V544 L512 656 L316 544 V316 Z" fill="${ink}"/>
+        <path d="M394 478 C440 366 584 338 650 426 C588 420 548 452 512 536 C476 474 434 462 394 478 Z" fill="${paper}"/>
+        <text x="512" y="444" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="102" font-weight="900" fill="${accent}" letter-spacing="1">${escapeXml(initials.slice(0, 2))}</text>
+      </g>
+    `;
+  }
+
+  return null;
+}
+
+function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, profile = {}, iconSystem = ICON_CREATIVITY_SYSTEMS.negativeSpace }) {
+  const brandableMark = getBrandableSubjectMark({ subject, ink, accent, paper, initials, variant, iconSystem });
+  if (brandableMark) return brandableMark;
+
   if (subject === "plastering") {
     return getPlasteringMark({ ink, accent, paper, initials, variant, profile });
   }
@@ -1248,7 +1442,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const paperToken = "var(--logo-paper)";
   const accentToken = "var(--logo-accent)";
   const subjectVariant = subject === "plastering" ? variant % 6 : (hash + variant) % 3;
-  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials, variant: subjectVariant, profile });
+  const iconSystem = concept.iconSystem || creativeDirector.iconSystem || selectIconSystem({ subject, styles: creativeDirector.styles || [], logoSymbol });
+  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials, variant: subjectVariant, profile, iconSystem });
   const nameWords = displayName.toLowerCase().split(/\s+/);
   const subtitleWords = words
     .filter((word) => !nameWords.includes(word.toLowerCase()))
