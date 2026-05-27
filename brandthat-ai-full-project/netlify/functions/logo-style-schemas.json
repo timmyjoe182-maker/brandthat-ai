@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "pipelineStages": [
+    "brandAnalysis",
+    "industryDetection",
+    "styleDetection",
+    "typographySelection",
+    "iconGeneration",
+    "layoutGeneration",
+    "colorPaletteGeneration",
+    "refinementScoring",
+    "exportFormatting"
+  ],
+  "styles": [
+    {
+      "key": "luxury",
+      "keywords": ["luxury", "premium", "high-end", "elegant", "exclusive", "private", "boutique"],
+      "typography": "refined serif or elegant high-contrast sans",
+      "palette": "black, ivory, muted gold",
+      "traits": ["restrained", "spacious", "premium"]
+    },
+    {
+      "key": "minimal",
+      "keywords": ["minimal", "simple", "clean", "quiet", "modern"],
+      "typography": "clean geometric sans",
+      "palette": "black, white, one subtle accent",
+      "traits": ["simple", "scalable", "clear"]
+    },
+    {
+      "key": "corporate",
+      "keywords": ["corporate", "professional", "trust", "consulting", "enterprise"],
+      "typography": "stable professional sans or serif",
+      "palette": "navy, white, neutral accent",
+      "traits": ["credible", "balanced", "formal"]
+    },
+    {
+      "key": "futuristic",
+      "keywords": ["futuristic", "future", "cyber", "ai", "tech", "saas", "software"],
+      "typography": "sharp geometric sans",
+      "palette": "deep navy, white, electric blue",
+      "traits": ["technical", "intelligent", "precise"]
+    },
+    {
+      "key": "playful",
+      "keywords": ["playful", "fun", "kid", "cute", "friendly", "bright"],
+      "typography": "rounded friendly sans",
+      "palette": "warm bright colors with professional contrast",
+      "traits": ["warm", "memorable", "approachable"]
+    },
+    {
+      "key": "streetwear",
+      "keywords": ["streetwear", "street", "urban", "label", "drop", "merch"],
+      "typography": "bold display or condensed label type",
+      "palette": "black, white, sharp accent",
+      "traits": ["bold", "cultural", "wearable"]
+    },
+    {
+      "key": "western",
+      "keywords": ["ranch", "western", "horse", "cattle", "alpaca", "farm", "heritage"],
+      "typography": "heritage serif or refined western display",
+      "palette": "deep green, cream, brass",
+      "traits": ["heritage", "land-based", "crafted"]
+    },
+    {
+      "key": "construction",
+      "keywords": ["construction", "contractor", "builder", "roof", "plaster", "stucco", "trade", "service"],
+      "typography": "bold local-service sans",
+      "palette": "charcoal, white, trade accent",
+      "traits": ["durable", "practical", "trustworthy"]
+    },
+    {
+      "key": "feminine",
+      "keywords": ["feminine", "beauty", "rose", "bridal", "wedding", "floral", "spa"],
+      "typography": "soft serif or elegant script-adjacent serif",
+      "palette": "ivory, charcoal, blush or rose gold",
+      "traits": ["soft", "elevated", "editorial"]
+    },
+    {
+      "key": "masculine",
+      "keywords": ["masculine", "barber", "garage", "fitness", "strong", "rugged"],
+      "typography": "heavy sans or slab serif",
+      "palette": "black, steel, bold accent",
+      "traits": ["strong", "direct", "confident"]
+    },
+    {
+      "key": "vintage",
+      "keywords": ["vintage", "retro", "classic", "old school", "badge", "heritage"],
+      "typography": "vintage display or classic serif",
+      "palette": "cream, ink, muted warm accent",
+      "traits": ["nostalgic", "crafted", "badge-ready"]
+    },
+    {
+      "key": "brutalist",
+      "keywords": ["brutalist", "raw", "bold", "experimental"],
+      "typography": "heavy grotesk display",
+      "palette": "black, white, stark accent",
+      "traits": ["unusual", "strong", "editorial"]
+    },
+    {
+      "key": "fitness",
+      "keywords": ["fitness", "gym", "training", "athletic", "sport"],
+      "typography": "condensed athletic sans",
+      "palette": "black, white, energetic accent",
+      "traits": ["kinetic", "powerful", "motivating"]
+    },
+    {
+      "key": "fashion",
+      "keywords": ["fashion", "clothing", "apparel", "jewelry", "boutique"],
+      "typography": "editorial serif or luxury sans",
+      "palette": "black, ivory, champagne",
+      "traits": ["stylish", "refined", "wearable"]
+    },
+    {
+      "key": "finance",
+      "keywords": ["finance", "wealth", "capital", "advisor", "tax", "accounting"],
+      "typography": "precise serif or serious sans",
+      "palette": "navy, white, muted gold",
+      "traits": ["stable", "credible", "measured"]
+    },
+    {
+      "key": "law",
+      "keywords": ["law", "legal", "attorney", "lawyer"],
+      "typography": "authoritative serif",
+      "palette": "navy, ivory, brass",
+      "traits": ["trustworthy", "formal", "balanced"]
+    },
+    {
+      "key": "food",
+      "keywords": ["pizza", "restaurant", "food", "chef", "bakery", "taco", "burger", "coffee", "cafe"],
+      "typography": "warm hospitality type",
+      "palette": "food-specific warm palette",
+      "traits": ["appetizing", "human", "clear"]
+    },
+    {
+      "key": "y2k",
+      "keywords": ["y2k", "chrome", "bubble", "2000s", "retrofuture"],
+      "typography": "rounded futuristic display",
+      "palette": "silver, black, cyan or pink accent",
+      "traits": ["nostalgic", "digital", "expressive"]
+    },
+    {
+      "key": "tattoo",
+      "keywords": ["tattoo", "ink", "flash", "skull", "traditional"],
+      "typography": "bold ornamental display",
+      "palette": "black, cream, red accent",
+      "traits": ["illustrative", "crafted", "bold"]
+    }
+  ],
+  "subjectStyleOverrides": {
+    "pizza": ["food", "playful", "vintage"],
+    "restaurant": ["food", "luxury", "vintage"],
+    "law": ["law", "corporate", "luxury"],
+    "finance": ["finance", "corporate", "luxury"],
+    "tech": ["futuristic", "minimal", "corporate"],
+    "ranch": ["western", "luxury", "vintage"],
+    "plastering": ["construction", "minimal", "corporate"],
+    "construction": ["construction", "masculine", "corporate"],
+    "automotive": ["masculine", "vintage", "minimal"],
+    "fashion": ["fashion", "luxury", "minimal"],
+    "wedding-photo": ["feminine", "luxury", "minimal"],
+    "fitness": ["fitness", "masculine", "futuristic"],
+    "healthcare": ["corporate", "minimal", "feminine"],
+    "education": ["playful", "corporate", "minimal"],
+    "music": ["streetwear", "futuristic", "vintage"],
+    "pet": ["playful", "minimal", "feminine"],
+    "cleaning": ["minimal", "corporate", "playful"],
+    "plumbing": ["construction", "minimal", "corporate"],
+    "electrical": ["construction", "futuristic", "masculine"],
+    "travel": ["luxury", "minimal", "playful"],
+    "nonprofit": ["corporate", "playful", "minimal"]
+  },
+  "scoringWeights": {
+    "conceptLibraryBoost": 14,
+    "subjectMatch": 12,
+    "requestedSymbolMatch": 10,
+    "styleMatch": 8,
+    "readabilityAndScalability": 7,
+    "genericPenalty": -18,
+    "avoidWordPenalty": -12
+  },
+  "antiGenericRules": [
+    "Penalize random initials when the user gives a clear object, trade, or industry.",
+    "Penalize stock-style hexagons, shields, and gradients unless requested.",
+    "Prefer large category-specific symbols with readable wordmarks.",
+    "Keep the brand name legible and split long names into balanced lines."
+  ]
+}
