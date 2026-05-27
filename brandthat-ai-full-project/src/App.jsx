@@ -2100,7 +2100,7 @@ Requirements:
         setLogoVariations(logoResult.variations || []);
         setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
-          `${logoResult.source === "instant-svg" ? "Instant logo preview created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${creativeTone || "Not provided"}\nIndustry: ${logoIndustry || "Not provided"}\nStyle: ${selectedPlatform || "Not provided"}\nSymbol or mascot: ${logoSymbol || "Not provided"}\nColors: ${logoColors || "Not provided"}\nAvoid: ${logoAvoid || "Not provided"}\nNotes: ${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
+          `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${creativeTone || "Not provided"}\nIndustry: ${logoIndustry || "Not provided"}\nStyle: ${selectedPlatform || "Not provided"}\nSymbol or mascot: ${logoSymbol || "Not provided"}\nColors: ${logoColors || "Not provided"}\nAvoid: ${logoAvoid || "Not provided"}\nNotes: ${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
         );
         trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
       } else {
@@ -2201,7 +2201,7 @@ ${prompt}`
     setLogoTransparentSvg(entry.transparentSvg || entry.svg || "");
     setLogoVariations(entry.variations || []);
     setResult(
-      `${entry.source === "instant-svg" ? "Instant logo preview restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
+      `${entry.source === "instant-svg" ? "Editable vector logo restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
     );
   };
 
@@ -3548,12 +3548,12 @@ function GeneratorCard({
             <div className="brandPreviewCard">
               <div className="tinyTag">LOGO CONCEPT</div>
               <span className={logoImageSource === "instant-svg" ? "logoSourceBadge instant" : "logoSourceBadge"}>
-                {logoImageSource === "instant-svg" ? "Instant preview" : "AI image"}
+                {logoImageSource === "instant-svg" ? "Editable vector" : "AI image"}
               </span>
               <h3>Your logo is ready</h3>
               <p>
                 {logoImageSource === "instant-svg"
-                  ? "This instant preview is downloadable and usable. Generate again when you want another AI image attempt."
+                  ? "This editable vector logo is built from your brand name, niche, style, colors, and notes."
                   : "Open it full size, download it, save it to a workspace, or set it as the active brand logo."}
               </p>
 
@@ -3595,7 +3595,7 @@ function GeneratorCard({
                   <img src={item.image} alt={item.title || "Generated logo"} />
                 </button>
                 <strong>{item.title || "Logo concept"}</strong>
-                <span>{item.source === "instant-svg" ? "Instant preview" : "AI image"}</span>
+                <span>{item.source === "instant-svg" ? "Editable vector" : "AI image"}</span>
                 <div>
                   <button onClick={() => restoreRecentLogo(item)}>Use</button>
                   <button onClick={() => openGeneratedImage(item.image)}>Open</button>

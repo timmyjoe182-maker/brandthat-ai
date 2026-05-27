@@ -1,8 +1,11 @@
 const OpenAI = require("openai");
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAiClient() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
   return `
@@ -36,7 +39,9 @@ Design requirements:
 - Make the image itself the final logo concept, not an explanation.
 - Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
 - Use a large, clean centered composition on a simple background.
-- Create a strong logo mark, emblem, mascot, monogram, wordmark, or icon depending on the request.
+- Create a strong logo mark, emblem, mascot, wordmark, tool mark, trade mark, lettermark, or icon depending on the request.
+- Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
+- If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
 - Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, framed cards, tiny thumbnails, clutter, tiny decorative details, and messy text.
@@ -63,7 +68,7 @@ function hashString(value = "") {
 function getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
   const source = `${brandName || ""} ${logoIndustry || ""} ${logoStyle || ""} ${logoSymbol || ""} ${logoColors || ""} ${userPrompt || ""}`.trim() || String(logoPrompt || "Brand");
   const cleaned = source
-    .replace(/\b(logo|brand|create|make|for|with|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high|avoid)\b/gi, " ")
+    .replace(/\b(logo|brand|create|make|for|with|and|the|a|an|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high|avoid|business|company|service|services|theme|colors|color|black|white)\b/gi, " ")
     .replace(/[^a-zA-Z0-9\s&]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -91,6 +96,10 @@ function getSubject(words) {
   if (hasHippo && hasFootball) return "hippo-football";
   if (hasHippo) return "hippo";
   if (hasFootball) return "football";
+  if (hasWord(words, ["stucco", "plaster", "plastering", "drywall", "rendering", "skim", "venetian"])) return "plastering";
+  if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
+  if (hasWord(words, ["landscape", "lawn", "garden", "tree"])) return "landscaping";
+  if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
   if (hasWord(words, ["cow", "cattle", "ranch"])) return "ranch";
   if (hasWord(words, ["coffee", "cafe"])) return "coffee";
   if (hasWord(words, ["real", "estate", "home", "house"])) return "realestate";
@@ -99,7 +108,66 @@ function getSubject(words) {
   return "abstract";
 }
 
-function buildSubjectMark({ subject, ink, accent, paper, initials }) {
+function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0 }) {
+  if (subject === "plastering") {
+    if (variant === 1) {
+      return `
+        <path d="M244 392 C344 306 482 280 670 314 C602 370 490 412 324 452 Z" fill="${ink}"/>
+        <path d="M306 410 C442 354 552 342 680 356" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M608 220 L720 332 L690 362 L578 250 Z" fill="${ink}"/>
+        <path d="M702 314 L788 228 Q810 206 832 228 Q852 248 832 270 L746 356 Z" fill="${accent}"/>
+        <path d="M282 506 H742 M318 562 H706 M372 618 H650" stroke="${ink}" stroke-width="18" stroke-linecap="round" opacity=".9"/>
+      `;
+    }
+
+    if (variant === 2) {
+      return `
+        <rect x="292" y="226" width="440" height="300" rx="42" fill="${ink}"/>
+        <path d="M346 298 H678 M346 370 H678 M346 442 H612" stroke="${paper}" stroke-width="18" stroke-linecap="round" opacity=".94"/>
+        <path d="M328 592 C430 514 578 500 714 538" fill="none" stroke="${accent}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M610 540 L750 400 L802 452 L662 592 Z" fill="${paper}"/>
+        <path d="M748 400 L812 336 Q836 312 860 336 Q882 358 858 382 L794 448 Z" fill="${accent}"/>
+      `;
+    }
+
+    return `
+      <path d="M236 458 C366 324 548 278 784 324 C682 420 526 498 298 566 Z" fill="${ink}"/>
+      <path d="M292 484 C424 404 566 374 758 392" fill="none" stroke="${accent}" stroke-width="28" stroke-linecap="round"/>
+      <path d="M566 262 L704 400 L662 442 L524 304 Z" fill="${paper}"/>
+      <path d="M682 382 L792 272 Q824 240 856 272 Q886 302 854 334 L744 444 Z" fill="${ink}"/>
+      <path d="M318 608 H706" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+      <text x="512" y="680" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="58" font-weight="900" fill="${ink}" letter-spacing="3">${escapeXml(initials.slice(0, 3))}</text>
+    `;
+  }
+
+  if (subject === "roofing") {
+    return `
+      <path d="M244 430 L512 216 L780 430" fill="none" stroke="${ink}" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M332 454 H692 V590 H332 Z" fill="${ink}"/>
+      <path d="M390 500 H634 M390 548 H634" stroke="${paper}" stroke-width="16" stroke-linecap="round"/>
+      <path d="M244 430 L512 216 L780 430" fill="none" stroke="${accent}" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    `;
+  }
+
+  if (subject === "landscaping") {
+    return `
+      <circle cx="512" cy="390" r="168" fill="${ink}"/>
+      <path d="M512 246 C612 344 608 480 512 588 C416 480 412 344 512 246 Z" fill="${paper}"/>
+      <path d="M512 286 C468 390 472 492 512 568 C552 492 556 390 512 286 Z" fill="${accent}"/>
+      <path d="M352 602 C438 548 586 548 672 602" fill="none" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+    `;
+  }
+
+  if (subject === "barber") {
+    return `
+      <circle cx="512" cy="396" r="170" fill="${ink}"/>
+      <path d="M392 310 L642 560 M642 310 L392 560" stroke="${paper}" stroke-width="26" stroke-linecap="round"/>
+      <circle cx="390" cy="310" r="42" fill="none" stroke="${accent}" stroke-width="18"/>
+      <circle cx="636" cy="310" r="42" fill="none" stroke="${accent}" stroke-width="18"/>
+      <path d="M416 584 H608" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+    `;
+  }
+
   if (subject === "hippo-football") {
     return `
       <ellipse cx="512" cy="356" rx="226" ry="158" fill="${ink}"/>
@@ -185,10 +253,27 @@ function buildSubjectMark({ subject, ink, accent, paper, initials }) {
     `;
   }
 
+  if (variant === 1) {
+    return `
+      <circle cx="512" cy="388" r="176" fill="${ink}"/>
+      <path d="M368 394 C430 260 594 260 656 394 C608 516 416 516 368 394 Z" fill="${paper}"/>
+      <path d="M402 392 C464 332 560 332 622 392" fill="none" stroke="${accent}" stroke-width="20" stroke-linecap="round"/>
+      <text x="512" y="432" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="86" font-weight="900" fill="${ink}" letter-spacing="3">${escapeXml(initials.slice(0, 3))}</text>
+    `;
+  }
+
+  if (variant === 2) {
+    return `
+      <path d="M260 478 C388 260 636 260 764 478 C650 614 374 614 260 478 Z" fill="${ink}"/>
+      <path d="M340 462 C436 344 588 344 684 462" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+      <text x="512" y="498" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="112" font-weight="900" fill="${paper}" letter-spacing="4">${escapeXml(initials.slice(0, 3))}</text>
+    `;
+  }
+
   return `
-    <path d="M512 156 L734 284 L734 540 L512 668 L290 540 L290 284 Z" fill="${ink}"/>
-    <path d="M512 220 L678 316 L678 508 L512 604 L346 508 L346 316 Z" fill="none" stroke="${accent}" stroke-width="16"/>
-    <text x="512" y="440" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="118" font-weight="900" fill="${paper}" letter-spacing="4">${escapeXml(initials.slice(0, 3))}</text>
+    <rect x="312" y="184" width="400" height="400" rx="112" fill="${ink}"/>
+    <path d="M410 390 H614 M512 288 V492 M436 314 L588 466 M588 314 L436 466" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+    <text x="512" y="428" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="92" font-weight="900" fill="${paper}" letter-spacing="4">${escapeXml(initials.slice(0, 3))}</text>
   `;
 }
 
@@ -223,15 +308,24 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const inkToken = "var(--logo-ink)";
   const paperToken = "var(--logo-paper)";
   const accentToken = "var(--logo-accent)";
-  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials });
+  const subjectVariant = (hash + variant) % 3;
+  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials, variant: subjectVariant });
   const nameWords = displayName.toLowerCase().split(/\s+/);
   const subtitleWords = words
     .filter((word) => !nameWords.includes(word.toLowerCase()))
     .filter((word) => word.length > 2)
     .filter((word, index, list) => list.findIndex((item) => item.toLowerCase() === word.toLowerCase()) === index)
     .slice(0, 4);
+  const subjectSubtitle = {
+    plastering: "stucco plastering",
+    roofing: "roofing contractor",
+    landscaping: "landscape service",
+    barber: "barber studio",
+    realestate: "real estate",
+    "hippo-football": "fantasy football",
+  }[subject];
   const subtitle = escapeXml(
-    (subtitleWords.join(" ") || subject.replace("-", " "))
+    (subjectSubtitle || subtitleWords.join(" ") || subject.replace("-", " "))
       .toUpperCase()
   );
   const fontFamily = variant === 1
@@ -239,15 +333,19 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     : variant === 2
       ? "Arial Black, Arial, Helvetica, sans-serif"
       : "Inter, Arial, Helvetica, sans-serif";
-  const layout = variant % 3;
-  const markTransform = layout === 1 ? "translate(0 -32) scale(1.04)" : layout === 2 ? "translate(0 -18) scale(.96)" : "";
-  const nameY = layout === 1 ? 744 : layout === 2 ? 696 : 730;
+  const layout = (hash + variant) % 4;
+  const markTransform = layout === 1 ? "translate(0 -42) scale(1.05)" : layout === 2 ? "translate(0 -28) scale(.98)" : layout === 3 ? "translate(0 -12) scale(.9)" : "";
+  const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
   const lineY = nameY + 52;
   const subtitleY = lineY + 68;
+  const backgroundPattern = subject === "plastering"
+    ? `<path data-layer="texture" d="M110 170 C250 128 384 130 514 168 M630 850 C760 902 884 890 962 850 M116 792 C232 742 364 734 484 770" fill="none" stroke="${inkToken}" stroke-width="8" stroke-linecap="round" opacity=".05"/>`
+    : "";
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" data-brandthat-vector="true" data-layout="${layout}" style="--logo-ink:${ink};--logo-paper:${paper};--logo-accent:${accent};">
     ${transparent ? "" : `<rect data-layer="background" width="1024" height="1024" fill="${paperToken}"/>`}
-    <rect data-layer="frame" x="52" y="52" width="920" height="920" rx="78" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : "0.08"}" stroke-width="4"/>
+    ${backgroundPattern}
+    <rect data-layer="frame" x="52" y="52" width="920" height="920" rx="${subject === "plastering" ? "34" : "78"}" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : "0.08"}" stroke-width="4"/>
     <g data-layer="mark" transform="${markTransform}">
       ${subjectMark}
     </g>
@@ -286,6 +384,11 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
 }
 
 async function generateOpenAiLogo({ finalPrompt, signal }) {
+  const client = getOpenAiClient();
+  if (!client) {
+    throw new Error("OpenAI API key is not configured.");
+  }
+
   const model = process.env.LOGO_IMAGE_MODEL || "gpt-image-1";
   const image = await client.images.generate({
     model,
@@ -356,7 +459,7 @@ exports.handler = async (event, context) => {
           transparentSvg: vectorLogo.transparentSvg,
           variations: vectorLogo.variations,
           layers: vectorLogo.layers,
-          note: "The full AI image model was unavailable or too slow, so Brandthat created an instant downloadable logo preview from your exact fields. Generate again for another AI image attempt.",
+          note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
         }),
       };
     }
