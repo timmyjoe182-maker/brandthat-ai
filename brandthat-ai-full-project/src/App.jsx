@@ -507,6 +507,62 @@ async function downloadGeneratedImage(image = "", name = "brandthat-logo") {
   trackBrandthatEvent("logo_downloaded", { name });
 }
 
+function decodeSvgDataUrl(svgData = "") {
+  if (!svgData.startsWith("data:image/svg")) return "";
+  const encoded = svgData.split(",")[1] || "";
+  try {
+    return atob(encoded);
+  } catch {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      return "";
+    }
+  }
+}
+
+function encodeSvgDataUrl(svg = "") {
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+}
+
+function applyLogoEditor(svgData = "", editor = {}) {
+  const svg = decodeSvgDataUrl(svgData);
+  if (!svg) return svgData;
+
+  return encodeSvgDataUrl(
+    svg
+      .replace(/--logo-ink:[^;"]+/g, `--logo-ink:${editor.ink || "#111111"}`)
+      .replace(/--logo-paper:[^;"]+/g, `--logo-paper:${editor.paper || "#f7f4ed"}`)
+      .replace(/--logo-accent:[^;"]+/g, `--logo-accent:${editor.accent || "#9b7b3f"}`)
+      .replace(/font-family="[^"]+"/g, `font-family="${editor.font || "Inter, Arial, Helvetica, sans-serif"}"`)
+  );
+}
+
+async function downloadTransparentPng(svgData = "", name = "brandthat-logo") {
+  const svg = decodeSvgDataUrl(svgData);
+  if (!svg) return downloadGeneratedImage(svgData, name);
+
+  const transparentSvg = svg.replace(/<rect data-layer="background"[^>]*\/>\s*/g, "");
+  const imageUrl = encodeSvgDataUrl(transparentSvg);
+  const image = new Image();
+
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+    image.src = imageUrl;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const url = canvas.toDataURL("image/png");
+  await downloadGeneratedImage(url, `${name}-transparent`);
+}
+
 function getDefaultWorkspaceDraft() {
   return {
     name: "",
@@ -578,6 +634,16 @@ export default function App() {
   const [result, setResult] = useState("");
   const [logoImage, setLogoImage] = useState("");
   const [logoImageSource, setLogoImageSource] = useState("");
+  const [logoVectorImage, setLogoVectorImage] = useState("");
+  const [logoSvg, setLogoSvg] = useState("");
+  const [logoTransparentSvg, setLogoTransparentSvg] = useState("");
+  const [logoVariations, setLogoVariations] = useState([]);
+  const [logoEditor, setLogoEditor] = useState({
+    ink: "#111111",
+    paper: "#f7f4ed",
+    accent: "#9b7b3f",
+    font: "Inter, Arial, Helvetica, sans-serif",
+  });
   const [loading, setLoading] = useState(false);
   const [recentLogoResults, setRecentLogoResults] = useState(() => safeParse("brandthat_recent_logo_results", []));
 
@@ -1214,6 +1280,10 @@ export default function App() {
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoVectorImage("");
+    setLogoSvg("");
+    setLogoTransparentSvg("");
+    setLogoVariations([]);
   };
 
   const deleteBrand = async (brandId) => {
@@ -1893,6 +1963,11 @@ Requirements:
       image: data.image,
       source: data.source || "openai",
       note: data.note || "",
+      vectorImage: data.vectorImage || data.svg || data.image,
+      svg: data.svg || "",
+      transparentSvg: data.transparentSvg || data.svg || "",
+      variations: Array.isArray(data.variations) ? data.variations : [],
+      layers: Array.isArray(data.layers) ? data.layers : [],
     };
   };
 
@@ -1946,6 +2021,10 @@ Requirements:
           title: logoTitle,
           image: logoResult.image,
           source: logoResult.source || "openai",
+          vectorImage: logoResult.vectorImage || logoResult.image,
+          svg: logoResult.svg || "",
+          transparentSvg: logoResult.transparentSvg || "",
+          variations: logoResult.variations || [],
           prompt,
           brandName: creativeTone,
           style: selectedPlatform,
@@ -1958,6 +2037,10 @@ Requirements:
 
         setLogoImage(logoResult.image);
         setLogoImageSource(logoResult.source || "openai");
+        setLogoVectorImage(logoResult.vectorImage || logoResult.image);
+        setLogoSvg(logoResult.svg || "");
+        setLogoTransparentSvg(logoResult.transparentSvg || logoResult.svg || "");
+        setLogoVariations(logoResult.variations || []);
         setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
           `${logoResult.source === "instant-svg" ? "Instant logo preview created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${creativeTone || "Not provided"}\nIndustry: ${logoIndustry || "Not provided"}\nStyle: ${selectedPlatform || "Not provided"}\nSymbol or mascot: ${logoSymbol || "Not provided"}\nColors: ${logoColors || "Not provided"}\nAvoid: ${logoAvoid || "Not provided"}\nNotes: ${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
@@ -1991,6 +2074,10 @@ ${prompt}`
         setResult("");
         setLogoImage("");
         setLogoImageSource("");
+        setLogoVectorImage("");
+        setLogoSvg("");
+        setLogoTransparentSvg("");
+        setLogoVariations([]);
       } else {
         setResult(error.message || "Something went wrong. Please try again.");
       }
@@ -2052,6 +2139,10 @@ ${prompt}`
     setPrompt(entry.prompt || "");
     setLogoImage(entry.image);
     setLogoImageSource(entry.source || "openai");
+    setLogoVectorImage(entry.vectorImage || entry.image);
+    setLogoSvg(entry.svg || "");
+    setLogoTransparentSvg(entry.transparentSvg || entry.svg || "");
+    setLogoVariations(entry.variations || []);
     setResult(
       `${entry.source === "instant-svg" ? "Instant logo preview restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
     );
@@ -2134,7 +2225,16 @@ ${prompt}`
               loading={loading}
               result={result}
               logoImage={logoImage}
+              setLogoImage={setLogoImage}
               logoImageSource={logoImageSource}
+              logoVectorImage={logoVectorImage}
+              setLogoVectorImage={setLogoVectorImage}
+              logoSvg={logoSvg}
+              setLogoSvg={setLogoSvg}
+              logoTransparentSvg={logoTransparentSvg}
+              logoVariations={logoVariations}
+              logoEditor={logoEditor}
+              setLogoEditor={setLogoEditor}
               recentLogoResults={recentLogoResults}
               restoreRecentLogo={restoreRecentLogo}
               user={user}
@@ -2237,7 +2337,16 @@ ${prompt}`
           loading={loading}
           result={result}
           logoImage={logoImage}
+          setLogoImage={setLogoImage}
           logoImageSource={logoImageSource}
+          logoVectorImage={logoVectorImage}
+          setLogoVectorImage={setLogoVectorImage}
+          logoSvg={logoSvg}
+          setLogoSvg={setLogoSvg}
+          logoTransparentSvg={logoTransparentSvg}
+          logoVariations={logoVariations}
+          logoEditor={logoEditor}
+          setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
           restoreRecentLogo={restoreRecentLogo}
           user={user}
@@ -2328,7 +2437,16 @@ ${prompt}`
             loading={loading}
             result={result}
             logoImage={logoImage}
+            setLogoImage={setLogoImage}
             logoImageSource={logoImageSource}
+            logoVectorImage={logoVectorImage}
+            setLogoVectorImage={setLogoVectorImage}
+            logoSvg={logoSvg}
+            setLogoSvg={setLogoSvg}
+            logoTransparentSvg={logoTransparentSvg}
+            logoVariations={logoVariations}
+            logoEditor={logoEditor}
+            setLogoEditor={setLogoEditor}
             recentLogoResults={recentLogoResults}
             restoreRecentLogo={restoreRecentLogo}
             user={user}
@@ -2778,7 +2896,16 @@ function SEOPage({
   loading,
   result,
   logoImage,
+  setLogoImage,
   logoImageSource,
+  logoVectorImage,
+  setLogoVectorImage,
+  logoSvg,
+  setLogoSvg,
+  logoTransparentSvg,
+  logoVariations,
+  logoEditor,
+  setLogoEditor,
   recentLogoResults,
   restoreRecentLogo,
   user,
@@ -2821,7 +2948,16 @@ function SEOPage({
           loading={loading}
           result={result}
           logoImage={logoImage}
+          setLogoImage={setLogoImage}
           logoImageSource={logoImageSource}
+          logoVectorImage={logoVectorImage}
+          setLogoVectorImage={setLogoVectorImage}
+          logoSvg={logoSvg}
+          setLogoSvg={setLogoSvg}
+          logoTransparentSvg={logoTransparentSvg}
+          logoVariations={logoVariations}
+          logoEditor={logoEditor}
+          setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
           restoreRecentLogo={restoreRecentLogo}
           user={user}
@@ -3183,7 +3319,16 @@ function GeneratorCard({
   loading,
   result,
   logoImage,
+  setLogoImage = () => {},
   logoImageSource = "",
+  logoVectorImage = "",
+  setLogoVectorImage = () => {},
+  logoSvg = "",
+  setLogoSvg = () => {},
+  logoTransparentSvg = "",
+  logoVariations = [],
+  logoEditor = {},
+  setLogoEditor = () => {},
   recentLogoResults = [],
   restoreRecentLogo = () => {},
   user,
@@ -3224,6 +3369,9 @@ function GeneratorCard({
       copyToClipboard(logoImage);
     }
   };
+  const editableLogo = applyLogoEditor(logoSvg || logoVectorImage, logoEditor);
+  const editableTransparentLogo = applyLogoEditor(logoTransparentSvg || logoSvg || logoVectorImage, logoEditor);
+  const editorFileName = creativeTone || "brandthat-logo";
 
   return (
     <div className={`generateCard toolResultsV2 ${activeTool.key}Generator`}>
@@ -3242,65 +3390,33 @@ function GeneratorCard({
       </div>
 
       {activeTool.key === "logo" ? (
-        <div className="logoStudioFields">
-          <label>
-            <span>Brand name</span>
-            <input
-              value={creativeTone}
-              onChange={(e) => setCreativeTone(e.target.value)}
-              placeholder="Example: Ugly Hippos"
-            />
-          </label>
-          <label>
-            <span>Industry / niche</span>
-            <input
-              value={logoIndustry}
-              onChange={(e) => setLogoIndustry(e.target.value)}
-              placeholder="Example: fantasy football league"
-            />
-          </label>
-          <label>
-            <span>Logo style</span>
-            <input
-              value={selectedPlatform}
-              onChange={(e) => setSelectedPlatform(e.target.value)}
-              placeholder="Example: bold mascot badge, modern sports"
-            />
-          </label>
-          <label>
-            <span>Symbol / mascot</span>
-            <input
-              value={logoSymbol}
-              onChange={(e) => setLogoSymbol(e.target.value)}
-              placeholder="Example: angry hippo holding a football"
-            />
-          </label>
-          <label>
-            <span>Colors</span>
-            <input
-              value={logoColors}
-              onChange={(e) => setLogoColors(e.target.value)}
-              placeholder="Example: dark green, gold, cream"
-            />
-          </label>
-          <label>
-            <span>Avoid</span>
-            <input
-              value={logoAvoid}
-              onChange={(e) => setLogoAvoid(e.target.value)}
-              placeholder="Example: tiny icon, generic football only"
-            />
-          </label>
-          <label className="logoStudioNotes">
-            <span>Extra direction</span>
-            <textarea
-              className="mainPromptBox"
-              placeholder={getMainPromptPlaceholder(activeTool)}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-          </label>
-        </div>
+        <>
+          <div className="generatorControls freeTypeControls">
+            <label>
+              <span>Logo style</span>
+              <input
+                value={selectedPlatform}
+                onChange={(e) => setSelectedPlatform(e.target.value)}
+                placeholder="Style, industry, mascot, colors, or reference direction"
+              />
+            </label>
+            <label>
+              <span>Brand name / keywords</span>
+              <input
+                value={creativeTone}
+                onChange={(e) => setCreativeTone(e.target.value)}
+                placeholder="Brand name, initials, tagline, or words"
+              />
+            </label>
+          </div>
+
+          <textarea
+            className="mainPromptBox"
+            placeholder={getMainPromptPlaceholder(activeTool)}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+        </>
       ) : (
         <>
           <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
@@ -3376,6 +3492,8 @@ function GeneratorCard({
               <div className="logoActionStack">
                 <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
                 <button onClick={openLogoImage}>Open Full Size</button>
+                {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, `${editorFileName}-vector`)}>Download SVG</button>}
+                {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
                 <button onClick={saveCurrentOutput}>Save to Workspace</button>
                 <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
                 <button onClick={generate}>Generate Another Version</button>
@@ -3383,26 +3501,27 @@ function GeneratorCard({
             </div>
           </div>
 
-          <LogoVariantPreview
-            image={logoImage}
-            brandName={creativeTone || "Brand"}
-            logoImageSource={logoImageSource}
-            openLogoImage={openLogoImage}
-          />
+          {editableLogo && (
+            <LogoEditorPanel
+              editableLogo={editableLogo}
+              transparentLogo={editableTransparentLogo}
+              logoVariations={logoVariations}
+              logoEditor={logoEditor}
+              setLogoEditor={setLogoEditor}
+              setLogoImage={setLogoImage}
+              setLogoVectorImage={setLogoVectorImage}
+              setLogoSvg={setLogoSvg}
+              brandName={creativeTone || "Brand"}
+            />
+          )}
         </>
       )}
 
       {activeTool.key === "logo" && recentLogoResults.length > 0 && (
-        <div className="recentLogoStrip">
-          <div className="recentLogoHeader">
-            <div>
-              <div className="tinyTag">RECENT LOGOS</div>
-              <h3>Logo history</h3>
-            </div>
-            <span>{recentLogoResults.length} saved in this browser</span>
-          </div>
+        <details className="recentLogoStrip">
+          <summary>Recent logos</summary>
           <div className="recentLogoGrid">
-            {recentLogoResults.slice(0, 6).map((item) => (
+            {recentLogoResults.slice(0, 4).map((item) => (
               <div className="recentLogoCard" key={item.id}>
                 <button className="recentLogoThumb" onClick={() => restoreRecentLogo(item)}>
                   <img src={item.image} alt={item.title || "Generated logo"} />
@@ -3412,12 +3531,11 @@ function GeneratorCard({
                 <div>
                   <button onClick={() => restoreRecentLogo(item)}>Use</button>
                   <button onClick={() => openGeneratedImage(item.image)}>Open</button>
-                  <button onClick={() => downloadGeneratedImage(item.image, item.title || "brandthat-logo")}>Download</button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </details>
       )}
 
       {result && activeTool.key === "hashtags" && (
@@ -3472,42 +3590,88 @@ function GeneratorCard({
   );
 }
 
-function LogoVariantPreview({ image, brandName, logoImageSource, openLogoImage }) {
+function LogoEditorPanel({
+  editableLogo,
+  transparentLogo,
+  logoVariations = [],
+  logoEditor,
+  setLogoEditor,
+  setLogoImage,
+  setLogoVectorImage,
+  setLogoSvg,
+  brandName
+}) {
+  const updateEditor = (key, value) => {
+    setLogoEditor({ ...logoEditor, [key]: value });
+  };
+
+  const useVariation = (variation) => {
+    if (!variation?.image) return;
+    setLogoImage(variation.image);
+    setLogoVectorImage(variation.svg || variation.image);
+    setLogoSvg(variation.svg || variation.image);
+  };
+
   return (
-    <div className="logoVariantPanel">
+    <details className="logoVariantPanel">
+      <summary>Edit, export, and variations</summary>
       <div className="recentLogoHeader">
         <div>
-          <div className="tinyTag">PREVIEW FORMATS</div>
-          <h3>See how this logo works</h3>
+          <div className="tinyTag">LOGO EDITOR</div>
+          <h3>Fine-tune the vector version</h3>
         </div>
-        <span>{logoImageSource === "instant-svg" ? "Instant preview" : "AI generated"}</span>
+        <span>SVG and transparent PNG ready</span>
+      </div>
+
+      <div className="logoEditorGrid">
+        <div className="logoEditorPreview">
+          <img src={editableLogo} alt={`${brandName} editable vector logo`} />
+        </div>
+        <div className="logoEditorControls">
+          <label>
+            <span>Primary</span>
+            <input type="color" value={logoEditor.ink || "#111111"} onChange={(e) => updateEditor("ink", e.target.value)} />
+          </label>
+          <label>
+            <span>Background</span>
+            <input type="color" value={logoEditor.paper || "#f7f4ed"} onChange={(e) => updateEditor("paper", e.target.value)} />
+          </label>
+          <label>
+            <span>Accent</span>
+            <input type="color" value={logoEditor.accent || "#9b7b3f"} onChange={(e) => updateEditor("accent", e.target.value)} />
+          </label>
+          <label>
+            <span>Font</span>
+            <select value={logoEditor.font || "Inter, Arial, Helvetica, sans-serif"} onChange={(e) => updateEditor("font", e.target.value)}>
+              <option value="Inter, Arial, Helvetica, sans-serif">Modern Sans</option>
+              <option value="Georgia, Times New Roman, serif">Editorial Serif</option>
+              <option value="Arial Black, Arial, Helvetica, sans-serif">Bold Display</option>
+              <option value="Trebuchet MS, Arial, sans-serif">Friendly Sans</option>
+            </select>
+          </label>
+          <div className="logoEditorActions">
+            <button onClick={() => setLogoImage(editableLogo)}>Use Edited Version</button>
+            <button onClick={() => downloadGeneratedImage(editableLogo, `${brandName}-vector`)}>Download SVG</button>
+            <button onClick={() => downloadTransparentPng(transparentLogo || editableLogo, brandName)}>Transparent PNG</button>
+          </div>
+        </div>
       </div>
 
       <div className="logoVariantGrid">
-        <button className="logoVariantCard primary" onClick={openLogoImage}>
-          <span>Primary logo</span>
-          <img src={image} alt={`${brandName} primary logo preview`} />
-        </button>
-        <button className="logoVariantCard iconOnly" onClick={openLogoImage}>
-          <span>Icon mark</span>
-          <img src={image} alt={`${brandName} icon preview`} />
-        </button>
-        <button className="logoVariantCard wordmark" onClick={openLogoImage}>
-          <span>Wordmark</span>
-          <strong>{brandName}</strong>
-        </button>
-        <button className="logoVariantCard social" onClick={openLogoImage}>
-          <span>Social profile</span>
-          <div><img src={image} alt={`${brandName} social profile preview`} /></div>
-        </button>
+        {logoVariations.slice(0, 4).map((variation) => (
+          <button className="logoVariantCard primary" key={variation.id || variation.name} onClick={() => useVariation(variation)}>
+            <span>{variation.name || "Variation"}</span>
+            <img src={variation.image} alt={`${brandName} ${variation.name || "variation"}`} />
+          </button>
+        ))}
       </div>
-    </div>
+    </details>
   );
 }
 
 function getToolSubline(toolKey) {
   const lines = {
-    logo: "Add the brand name, niche, style, symbol, colors, and what to avoid. Brandthat will create a usable logo image.",
+    logo: "Describe the logo you want. Brandthat will turn the request into a logo image, vector file, transparent export, and editable variations.",
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
@@ -3558,7 +3722,7 @@ function getTonePlaceholder(toolKey) {
 
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
-    return "Add anything extra the fields do not cover. Example: make the hippo look competitive, use a fantasy football badge layout, and keep the words easy to read.";
+    return "Describe the logo you want. Include the brand name, industry, mascot or symbol, colors, style, and anything it should avoid.";
   }
   if (activeTool.key === "captions") {
     return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
@@ -4258,6 +4422,16 @@ textarea{height:170px;resize:none;line-height:1.6}
   padding:20px;
 }
 
+.logoVariantPanel summary,.recentLogoStrip summary{
+  cursor:pointer;
+  font-weight:900;
+  font-size:16px;
+}
+
+.logoVariantPanel[open] summary,.recentLogoStrip[open] summary{
+  margin-bottom:16px;
+}
+
 .recentLogoHeader{
   display:flex;
   align-items:flex-start;
@@ -4282,6 +4456,70 @@ textarea{height:170px;resize:none;line-height:1.6}
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:14px;
+}
+
+.logoEditorGrid{
+  display:grid;
+  grid-template-columns:minmax(260px,.9fr) 1.1fr;
+  gap:16px;
+  margin-bottom:18px;
+}
+
+.logoEditorPreview{
+  background:#f7f4ed;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  min-height:280px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+
+.logoEditorPreview img{
+  width:100%;
+  max-height:320px;
+  object-fit:contain;
+}
+
+.logoEditorControls{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  align-content:start;
+}
+
+.logoEditorControls label span{
+  display:block;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.4px;
+  color:#8a6b37;
+  text-transform:uppercase;
+  margin-left:8px;
+}
+
+.logoEditorControls input[type="color"]{
+  height:58px;
+  padding:8px;
+}
+
+.logoEditorActions{
+  grid-column:1 / -1;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:4px;
+}
+
+.logoEditorActions button{
+  background:#111;
+  color:white;
+  border:none;
+  border-radius:999px;
+  padding:11px 14px;
+  font-weight:900;
+  cursor:pointer;
 }
 
 .logoVariantCard{
@@ -4511,5 +4749,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
 `;

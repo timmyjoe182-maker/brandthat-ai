@@ -202,9 +202,13 @@ function getRequestedColors(value = "") {
   return null;
 }
 
-function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+function svgToDataUrl(svg) {
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant = 0, transparent = false }) {
   const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-  const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt}`);
+  const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt} ${variant}`);
   const palettes = [
     ["#111111", "#f7f4ed", "#9b7b3f"],
     ["#10231f", "#f5f1e8", "#c7a45a"],
@@ -213,10 +217,13 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
     ["#24342f", "#fbfaf6", "#7c9a6d"],
     ["#0f172a", "#f8fafc", "#38bdf8"],
   ];
-  const [ink, paper, accent] = getRequestedColors(logoColors) || palettes[hash % palettes.length];
+  const [ink, paper, accent] = getRequestedColors(logoColors) || palettes[(hash + variant) % palettes.length];
   const subject = getSubject(words);
   const safeName = escapeXml(displayName);
-  const subjectMark = buildSubjectMark({ subject, ink, accent, paper, initials });
+  const inkToken = "var(--logo-ink)";
+  const paperToken = "var(--logo-paper)";
+  const accentToken = "var(--logo-accent)";
+  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials });
   const nameWords = displayName.toLowerCase().split(/\s+/);
   const subtitleWords = words
     .filter((word) => !nameWords.includes(word.toLowerCase()))
@@ -227,17 +234,55 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
     (subtitleWords.join(" ") || subject.replace("-", " "))
       .toUpperCase()
   );
+  const fontFamily = variant === 1
+    ? "Georgia, Times New Roman, serif"
+    : variant === 2
+      ? "Arial Black, Arial, Helvetica, sans-serif"
+      : "Inter, Arial, Helvetica, sans-serif";
+  const layout = variant % 3;
+  const markTransform = layout === 1 ? "translate(0 -32) scale(1.04)" : layout === 2 ? "translate(0 -18) scale(.96)" : "";
+  const nameY = layout === 1 ? 744 : layout === 2 ? 696 : 730;
+  const lineY = nameY + 52;
+  const subtitleY = lineY + 68;
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-    <rect width="1024" height="1024" fill="${paper}"/>
-    <rect x="52" y="52" width="920" height="920" rx="78" fill="none" stroke="${ink}" stroke-opacity="0.08" stroke-width="4"/>
-    ${subjectMark}
-    <text x="512" y="730" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" fill="${ink}" letter-spacing="-3">${safeName}</text>
-    <line x1="274" y1="782" x2="750" y2="782" stroke="${accent}" stroke-width="10" stroke-linecap="round"/>
-    <text x="512" y="850" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="27" font-weight="900" fill="${ink}" opacity="0.64" letter-spacing="5">${subtitle || "CUSTOM LOGO MARK"}</text>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" data-brandthat-vector="true" data-layout="${layout}" style="--logo-ink:${ink};--logo-paper:${paper};--logo-accent:${accent};">
+    ${transparent ? "" : `<rect data-layer="background" width="1024" height="1024" fill="${paperToken}"/>`}
+    <rect data-layer="frame" x="52" y="52" width="920" height="920" rx="78" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : "0.08"}" stroke-width="4"/>
+    <g data-layer="mark" transform="${markTransform}">
+      ${subjectMark}
+    </g>
+    <text data-layer="wordmark" x="512" y="${nameY}" text-anchor="middle" font-family="${fontFamily}" font-size="${layout === 2 ? "72" : "82"}" font-weight="900" fill="${inkToken}" letter-spacing="-3">${safeName}</text>
+    <line data-layer="accent" x1="274" y1="${lineY}" x2="750" y2="${lineY}" stroke="${accentToken}" stroke-width="10" stroke-linecap="round"/>
+    <text data-layer="tagline" x="512" y="${subtitleY}" text-anchor="middle" font-family="${fontFamily}" font-size="27" font-weight="900" fill="${inkToken}" opacity="0.64" letter-spacing="5">${subtitle || "CUSTOM LOGO MARK"}</text>
   </svg>`;
+}
 
-  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0 });
+  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, transparent: true });
+  const variations = [0, 1, 2].map((variant) => {
+    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant });
+    return {
+      id: `variation-${variant + 1}`,
+      name: variant === 0 ? "Primary" : variant === 1 ? "Editorial" : "Bold",
+      image: svgToDataUrl(svg),
+      svg: svgToDataUrl(svg),
+    };
+  });
+
+  return {
+    image: svgToDataUrl(baseSvg),
+    svg: svgToDataUrl(baseSvg),
+    transparentSvg: svgToDataUrl(transparentSvg),
+    variations,
+    layers: [
+      { id: "background", name: "Background" },
+      { id: "mark", name: "Icon or mascot" },
+      { id: "wordmark", name: "Brand name" },
+      { id: "accent", name: "Accent line" },
+      { id: "tagline", name: "Tagline" },
+    ],
+  };
 }
 
 async function generateOpenAiLogo({ finalPrompt, signal }) {
@@ -274,6 +319,7 @@ exports.handler = async (event, context) => {
     }
 
     const finalPrompt = buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
     const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -284,17 +330,32 @@ exports.handler = async (event, context) => {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ image, source: "openai" }),
+        body: JSON.stringify({
+          image,
+          source: "openai",
+          vectorImage: vectorLogo.image,
+          svg: vectorLogo.svg,
+          transparentSvg: vectorLogo.transparentSvg,
+          variations: [
+            { id: "ai-primary", name: "AI Logo", image, svg: "" },
+            ...vectorLogo.variations,
+          ],
+          layers: vectorLogo.layers,
+        }),
       };
     } catch (imageError) {
       clearTimeout(timeout);
-      const image = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
-          image,
+          image: vectorLogo.image,
           source: "instant-svg",
+          vectorImage: vectorLogo.image,
+          svg: vectorLogo.svg,
+          transparentSvg: vectorLogo.transparentSvg,
+          variations: vectorLogo.variations,
+          layers: vectorLogo.layers,
           note: "The full AI image model was unavailable or too slow, so Brandthat created an instant downloadable logo preview from your exact fields. Generate again for another AI image attempt.",
         }),
       };
