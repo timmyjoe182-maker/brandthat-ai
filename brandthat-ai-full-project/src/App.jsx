@@ -3005,6 +3005,7 @@ function SEOPage({
   setLogoSvg,
   logoTransparentSvg,
   logoVariations,
+  logoCreativeBrief,
   logoEditor,
   setLogoEditor,
   recentLogoResults,
