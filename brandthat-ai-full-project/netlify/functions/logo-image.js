@@ -228,14 +228,116 @@ function inferPositioning({ subject, styles, source = "" }) {
   return "modern";
 }
 
+const TYPOGRAPHY_SYSTEMS = {
+  luxurySerif: {
+    label: "high-contrast editorial serif with generous tracking and small-caps support",
+    primaryFamily: "Georgia, 'Times New Roman', Times, serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 700,
+    trackingBase: 4,
+    subtitleTracking: 7,
+    lineGapRatio: 1.02,
+    caseMode: "upper",
+    maxLineChars: 13,
+    hierarchy: "mark first, restrained uppercase wordmark, quiet small-caps descriptor",
+  },
+  authoritySerif: {
+    label: "authoritative serif paired with precise sans small caps",
+    primaryFamily: "Georgia, 'Times New Roman', Times, serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 800,
+    trackingBase: 1,
+    subtitleTracking: 5,
+    lineGapRatio: 0.96,
+    caseMode: "title",
+    maxLineChars: 15,
+    hierarchy: "balanced institution-style wordmark with measured descriptor spacing",
+  },
+  geometricSans: {
+    label: "modern geometric sans with neutral spacing and crisp hierarchy",
+    primaryFamily: "Inter, Arial, Helvetica, sans-serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 850,
+    trackingBase: 0,
+    subtitleTracking: 5,
+    lineGapRatio: 0.92,
+    caseMode: "preserve",
+    maxLineChars: 16,
+    hierarchy: "large readable wordmark with clean tech/product spacing",
+  },
+  tradeSans: {
+    label: "bold trade sans with practical kerning and high small-size readability",
+    primaryFamily: "Arial Black, Arial, Helvetica, sans-serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 900,
+    trackingBase: -0.5,
+    subtitleTracking: 4,
+    lineGapRatio: 0.9,
+    caseMode: "title",
+    maxLineChars: 14,
+    hierarchy: "strong service-business wordmark with compact readable descriptor",
+  },
+  hospitalitySans: {
+    label: "warm hospitality sans with friendly width and appetizing spacing",
+    primaryFamily: "Trebuchet MS, Inter, Arial, Helvetica, sans-serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 900,
+    trackingBase: 0,
+    subtitleTracking: 4,
+    lineGapRatio: 0.92,
+    caseMode: "title",
+    maxLineChars: 14,
+    hierarchy: "approachable restaurant wordmark with clear category descriptor",
+  },
+  editorialSerif: {
+    label: "editorial serif with delicate hierarchy and refined support type",
+    primaryFamily: "Georgia, 'Times New Roman', Times, serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 700,
+    trackingBase: 2.5,
+    subtitleTracking: 6,
+    lineGapRatio: 1,
+    caseMode: "title",
+    maxLineChars: 14,
+    hierarchy: "fashion/editorial wordmark with airy premium spacing",
+  },
+  playfulRounded: {
+    label: "rounded friendly sans with relaxed spacing and strong legibility",
+    primaryFamily: "Trebuchet MS, Inter, Arial, Helvetica, sans-serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 900,
+    trackingBase: 0,
+    subtitleTracking: 4,
+    lineGapRatio: 0.94,
+    caseMode: "title",
+    maxLineChars: 13,
+    hierarchy: "friendly wordmark with readable rhythm and simple descriptor",
+  },
+  vintageDisplay: {
+    label: "heritage display serif with badge-ready spacing",
+    primaryFamily: "Georgia, 'Times New Roman', Times, serif",
+    supportFamily: "Inter, Arial, Helvetica, sans-serif",
+    weight: 800,
+    trackingBase: 1.5,
+    subtitleTracking: 6,
+    lineGapRatio: 0.96,
+    caseMode: "title",
+    maxLineChars: 13,
+    hierarchy: "classic badge wordmark with clear period-inspired support type",
+  },
+};
+
 function selectTypography({ subject, styles }) {
   const primary = styles[0]?.key || "minimal";
-  if (["law", "finance"].includes(subject) || primary === "luxury") return "refined serif headline with clean small caps support";
-  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness"].includes(subject)) return "bold readable sans with strong weight and tight spacing";
-  if (["pizza", "restaurant", "coffee"].includes(subject)) return "warm bold hospitality type with friendly rounded details";
-  if (["fashion", "wedding-photo", "wellness"].includes(subject)) return "editorial serif or elegant high-contrast wordmark";
-  if (["tech"].includes(subject)) return "modern geometric sans with crisp letterforms";
-  return styles[0]?.typography || "clean readable brand wordmark";
+  if (["law", "finance"].includes(subject)) return TYPOGRAPHY_SYSTEMS.authoritySerif;
+  if (primary === "luxury" || subject === "ranch") return TYPOGRAPHY_SYSTEMS.luxurySerif;
+  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
+  if (["pizza", "restaurant", "coffee"].includes(subject)) return TYPOGRAPHY_SYSTEMS.hospitalitySans;
+  if (["fashion", "wedding-photo", "wellness"].includes(subject)) return TYPOGRAPHY_SYSTEMS.editorialSerif;
+  if (["pet", "education", "nonprofit"].includes(subject) || primary === "playful") return TYPOGRAPHY_SYSTEMS.playfulRounded;
+  if (primary === "vintage" || primary === "western") return TYPOGRAPHY_SYSTEMS.vintageDisplay;
+  if (["tech"].includes(subject) || primary === "futuristic" || primary === "minimal") return TYPOGRAPHY_SYSTEMS.geometricSans;
+  return { ...TYPOGRAPHY_SYSTEMS.geometricSans, label: styles[0]?.typography || TYPOGRAPHY_SYSTEMS.geometricSans.label };
 }
 
 function selectAudience({ subject, positioning }) {
@@ -277,7 +379,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     name,
     style: styles[0]?.key || "professional",
     symbol: logoSymbol || symbol,
-    typography: typography || type,
+    typography: typography?.label || type,
+    typographySystem: typography,
     palette: logoColors || palette || basePalette,
     layout,
     whyFits,
@@ -289,7 +392,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       name: `${titleCase(style.key)} Signature Mark`,
       style: style.key,
       symbol: logoSymbol || `a meaning-first ${subject.replace("-", " ")} symbol using ${style.traits.join(", ")} design cues`,
-      typography: style.typography,
+      typography: typography?.label || style.typography,
+      typographySystem: typography,
       palette: logoColors || style.palette,
       layout: "large ownable icon above a highly readable wordmark",
       whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon.`,
@@ -299,7 +403,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       name: `${titleCase(style.key)} Wordmark System`,
       style: style.key,
       symbol: logoSymbol || `subtle embedded symbol from the brand meaning, integrated into the wordmark`,
-      typography: style.typography,
+      typography: typography?.label || style.typography,
+      typographySystem: typography,
       palette: logoColors || style.palette,
       layout: "wordmark-led logo with small supporting icon",
       whyFits: `It keeps the brand name readable while still reflecting the requested category and mood.`,
@@ -311,7 +416,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     name: `${titleCase(subject.replace("-", " "))} ${titleCase(layout)}`,
     style: styles[index % styles.length]?.key || "professional",
     symbol: logoSymbol || `distinct ${subject.replace("-", " ")} visual cue built for ${layout}`,
-    typography,
+    typography: typography?.label || "clean readable brand wordmark",
+    typographySystem: typography,
     palette,
     layout,
     whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo.`,
@@ -370,6 +476,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     style: concept.style,
     symbol: concept.symbol,
     typography: concept.typography,
+    typographySystem: concept.typographySystem,
     palette: concept.palette,
     layout: concept.layout,
     whyFits: concept.whyFits,
@@ -381,7 +488,8 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     category: subject,
     styles,
     positioning,
-    typography,
+    typography: typography.label,
+    typographySystem: typography,
     palette,
     targetAudience: audience,
     concepts,
@@ -390,7 +498,8 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
       brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning },
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
-      typographySelection: typography,
+      typographySelection: typography.label,
+      typographyHierarchy: typography.hierarchy,
       iconGeneration: concepts.map((concept) => concept.symbol),
       layoutGeneration: concepts.map((concept) => concept.layout),
       colorPaletteGeneration: palette,
@@ -556,6 +665,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     concepts: pipeline.concepts,
     pipeline: pipeline.pipeline,
     scores: pipeline.scores,
+    typographySystem: pipeline.typographySystem,
   };
 }
 
@@ -1069,29 +1179,52 @@ function splitDisplayName(value = "") {
   return [words.slice(0, midpoint).join(" "), words.slice(midpoint).join(" ")].filter(Boolean);
 }
 
-function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken }) {
-  const lines = splitDisplayName(displayName);
+function applyTypographyCase(value = "", typographySystem = TYPOGRAPHY_SYSTEMS.geometricSans) {
+  if (typographySystem.caseMode === "upper" && value.length <= 22) return value.toUpperCase();
+  if (typographySystem.caseMode === "title") return titleCase(value);
+  return value;
+}
+
+function getTypographyTracking({ longest, typographySystem }) {
+  const base = Number(typographySystem.trackingBase || 0);
+  if (longest > 22) return Math.min(0, base);
+  if (longest > 16) return Math.min(1, base);
+  if (longest <= 8) return base + 1.5;
+  return base;
+}
+
+function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem = TYPOGRAPHY_SYSTEMS.geometricSans }) {
+  const preferredChars = typographySystem.maxLineChars || 16;
+  const rawLines = splitDisplayName(displayName).flatMap((line) => {
+    if (line.length <= preferredChars + 5) return [line];
+    const words = line.split(/\s+/).filter(Boolean);
+    if (words.length <= 1) return [line];
+    const midpoint = Math.ceil(words.length / 2);
+    return [words.slice(0, midpoint).join(" "), words.slice(midpoint).join(" ")];
+  }).filter(Boolean).slice(0, 3);
+  const lines = rawLines.map((line) => applyTypographyCase(line, typographySystem));
   const longest = lines.reduce((max, line) => Math.max(max, line.length), 0);
   const baseSize = layout === 2 ? 72 : 82;
   const fontSize = Math.max(42, Math.min(baseSize, Math.floor(760 / Math.max(longest, 8))));
-  const letterSpacing = longest > 18 ? "-1" : "-3";
+  const letterSpacing = getTypographyTracking({ longest, typographySystem });
+  const weight = typographySystem.weight || 850;
 
   if (lines.length === 1) {
     return {
-      wordmark: `<text data-layer="wordmark" x="512" y="${nameY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="900" fill="${inkToken}" letter-spacing="${letterSpacing}">${escapeXml(lines[0])}</text>`,
+      wordmark: `<text data-layer="wordmark" x="512" y="${nameY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(lines[0])}</text>`,
       bottomY: nameY,
     };
   }
 
-  const gap = Math.max(44, Math.floor(fontSize * 0.92));
-  const firstY = nameY - Math.floor(gap / 2);
-  const secondY = nameY + Math.floor(gap / 2);
+  const gap = Math.max(42, Math.floor(fontSize * (typographySystem.lineGapRatio || 0.94)));
+  const firstY = nameY - Math.floor((gap * (lines.length - 1)) / 2);
+  const wordmark = lines.map((line, index) => {
+    const y = firstY + gap * index;
+    return `<text data-layer="wordmark" x="512" y="${y}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(line)}</text>`;
+  }).join("\n");
   return {
-    wordmark: `
-      <text data-layer="wordmark" x="512" y="${firstY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="900" fill="${inkToken}" letter-spacing="${letterSpacing}">${escapeXml(lines[0])}</text>
-      <text data-layer="wordmark" x="512" y="${secondY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="900" fill="${inkToken}" letter-spacing="${letterSpacing}">${escapeXml(lines[1])}</text>
-    `,
-    bottomY: secondY,
+    wordmark,
+    bottomY: firstY + gap * (lines.length - 1),
   };
 }
 
@@ -1153,15 +1286,13 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     (subjectSubtitle || subtitleWords.join(" ") || subject.replace("-", " "))
       .toUpperCase()
   );
-  const fontFamily = variant === 1
-    ? "Georgia, Times New Roman, serif"
-    : variant === 2
-      ? "Arial Black, Arial, Helvetica, sans-serif"
-      : "Inter, Arial, Helvetica, sans-serif";
+  const typographySystem = concept.typographySystem || creativeDirector.typographySystem || TYPOGRAPHY_SYSTEMS.geometricSans;
+  const fontFamily = typographySystem.primaryFamily || "Inter, Arial, Helvetica, sans-serif";
+  const supportFamily = typographySystem.supportFamily || fontFamily;
   const layout = subject === "plastering" ? variant % 4 : (hash + variant) % 4;
   const markTransform = layout === 1 ? "translate(0 -42) scale(1.05)" : layout === 2 ? "translate(0 -28) scale(.98)" : layout === 3 ? "translate(0 -12) scale(.94)" : "";
   const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
-  const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken });
+  const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem });
   const lineY = bottomY + 48;
   const subtitleY = lineY + 58;
   const backgroundPattern = subject === "plastering"
@@ -1177,7 +1308,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     </g>
     ${wordmark}
     <line data-layer="accent" x1="274" y1="${lineY}" x2="750" y2="${lineY}" stroke="${accentToken}" stroke-width="10" stroke-linecap="round"/>
-    <text data-layer="tagline" x="512" y="${subtitleY}" text-anchor="middle" font-family="${fontFamily}" font-size="27" font-weight="900" fill="${inkToken}" opacity="0.64" letter-spacing="5">${subtitle || "CUSTOM LOGO MARK"}</text>
+    <text data-layer="tagline" x="512" y="${subtitleY}" text-anchor="middle" font-family="${supportFamily}" font-size="25" font-weight="850" fill="${inkToken}" opacity="0.64" letter-spacing="${typographySystem.subtitleTracking || 5}" font-kerning="normal" text-rendering="geometricPrecision">${subtitle || "CUSTOM LOGO MARK"}</text>
   </svg>`;
 }
 
