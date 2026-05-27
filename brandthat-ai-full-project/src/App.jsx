@@ -670,6 +670,7 @@ export default function App() {
   const [logoSvg, setLogoSvg] = useState("");
   const [logoTransparentSvg, setLogoTransparentSvg] = useState("");
   const [logoVariations, setLogoVariations] = useState([]);
+  const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
     paper: "#f7f4ed",
@@ -1315,6 +1316,7 @@ export default function App() {
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoCreativeBrief(null);
     setPage("logo");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
@@ -1337,6 +1339,7 @@ export default function App() {
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoCreativeBrief(null);
     setLogoVectorImage("");
     setLogoSvg("");
     setLogoTransparentSvg("");
@@ -1670,6 +1673,7 @@ ${entry.content || "Use the saved logo direction and improve it."}`);
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoCreativeBrief(null);
     setPage(tool.key === "logo" ? "logo" : "studio");
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
@@ -1759,6 +1763,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoCreativeBrief(null);
     setPage(nextTool.key === "logo" ? "logo" : "studio");
     window.history.pushState({}, "", "/");
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -1951,30 +1956,38 @@ Rules:
 `;
   };
 
-  const createLogoImage = async () => {
+  const createLogoImage = async (overrides = {}) => {
+    const promptValue = overrides.prompt ?? prompt;
+    const brandNameValue = overrides.creativeTone ?? creativeTone;
+    const styleValue = overrides.selectedPlatform ?? selectedPlatform;
+    const industryValue = overrides.logoIndustry ?? logoIndustry;
+    const symbolValue = overrides.logoSymbol ?? logoSymbol;
+    const colorsValue = overrides.logoColors ?? logoColors;
+    const avoidValue = overrides.logoAvoid ?? logoAvoid;
+
     const enhancedLogoPrompt = `
 Create a high-quality professional logo.
 
 Brand/request:
-${prompt}
+${promptValue}
 
 Brand name / words to include:
-${creativeTone || activeBrand?.name || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
+${brandNameValue || activeBrand?.name || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
 
 Industry or niche:
-${logoIndustry || "Infer the industry or niche from the user's request."}
+${industryValue || "Infer the industry or niche from the user's request."}
 
 Logo style direction:
-${selectedPlatform || "Use the best style for the user's request."}
+${styleValue || "Use the best style for the user's request."}
 
 Symbol, mascot, or icon request:
-${logoSymbol || "Infer the best symbol, mascot, lettermark, or icon from the user's request."}
+${symbolValue || "Infer the best symbol, mascot, lettermark, or icon from the user's request."}
 
 Color direction:
-${logoColors || "Choose a strong professional palette unless the user requested colors."}
+${colorsValue || "Choose a strong professional palette unless the user requested colors."}
 
 Avoid:
-${logoAvoid || "Avoid anything that conflicts with the user's request."}
+${avoidValue || "Avoid anything that conflicts with the user's request."}
 
 Brand workspace context:
 ${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
@@ -1995,13 +2008,13 @@ Requirements:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        brandName: creativeTone || activeBrand?.name || "",
-        logoStyle: selectedPlatform || "",
-        logoIndustry,
-        logoSymbol,
-        logoColors,
-        logoAvoid,
-        userPrompt: prompt,
+        brandName: brandNameValue || activeBrand?.name || "",
+        logoStyle: styleValue || "",
+        logoIndustry: industryValue,
+        logoSymbol: symbolValue,
+        logoColors: colorsValue,
+        logoAvoid: avoidValue,
+        userPrompt: promptValue,
         logoPrompt: enhancedLogoPrompt
       })
     });
@@ -2024,15 +2037,23 @@ Requirements:
       svg: data.svg || "",
       transparentSvg: data.transparentSvg || data.svg || "",
       variations: Array.isArray(data.variations) ? data.variations : [],
+      creativeBrief: data.creativeBrief || null,
       layers: Array.isArray(data.layers) ? data.layers : [],
     };
   };
 
-  const generate = async (overrideUser = null) => {
+  const generate = async (overrideUser = null, logoOverrides = {}) => {
     const currentUser = overrideUser || user;
-    const hasLogoFields = activeTool.key === "logo" && [creativeTone, logoIndustry, selectedPlatform, logoSymbol, logoColors, logoAvoid, prompt].some((value) => String(value || "").trim());
+    const promptValue = logoOverrides.prompt ?? prompt;
+    const brandNameValue = logoOverrides.creativeTone ?? creativeTone;
+    const styleValue = logoOverrides.selectedPlatform ?? selectedPlatform;
+    const industryValue = logoOverrides.logoIndustry ?? logoIndustry;
+    const symbolValue = logoOverrides.logoSymbol ?? logoSymbol;
+    const colorsValue = logoOverrides.logoColors ?? logoColors;
+    const avoidValue = logoOverrides.logoAvoid ?? logoAvoid;
+    const hasLogoFields = activeTool.key === "logo" && [brandNameValue, industryValue, styleValue, symbolValue, colorsValue, avoidValue, promptValue].some((value) => String(value || "").trim());
 
-    if (!prompt.trim() && !hasLogoFields) {
+    if (!promptValue.trim() && !hasLogoFields) {
       notify("error", "Add a prompt first", `Tell Brandthat what you want the ${activeTool.title} to create.`);
       return;
     }
@@ -2071,8 +2092,8 @@ Requirements:
 
     try {
       if (activeTool.key === "logo") {
-        const logoResult = await createLogoImage();
-        const logoTitle = creativeTone || prompt.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
+        const logoResult = await createLogoImage(logoOverrides);
+        const logoTitle = brandNameValue || promptValue.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
         const logoEntry = {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
           title: logoTitle,
@@ -2082,13 +2103,14 @@ Requirements:
           svg: logoResult.svg || "",
           transparentSvg: logoResult.transparentSvg || "",
           variations: logoResult.variations || [],
-          prompt,
-          brandName: creativeTone,
-          style: selectedPlatform,
-          industry: logoIndustry,
-          symbol: logoSymbol,
-          colors: logoColors,
-          avoid: logoAvoid,
+          creativeBrief: logoResult.creativeBrief || null,
+          prompt: promptValue,
+          brandName: brandNameValue,
+          style: styleValue,
+          industry: industryValue,
+          symbol: symbolValue,
+          colors: colorsValue,
+          avoid: avoidValue,
           createdAt: new Date().toISOString(),
         };
 
@@ -2098,9 +2120,10 @@ Requirements:
         setLogoSvg(logoResult.svg || "");
         setLogoTransparentSvg(logoResult.transparentSvg || logoResult.svg || "");
         setLogoVariations(logoResult.variations || []);
+        setLogoCreativeBrief(logoResult.creativeBrief || null);
         setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
-          `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${creativeTone || "Not provided"}\nIndustry: ${logoIndustry || "Not provided"}\nStyle: ${selectedPlatform || "Not provided"}\nSymbol or mascot: ${logoSymbol || "Not provided"}\nColors: ${logoColors || "Not provided"}\nAvoid: ${logoAvoid || "Not provided"}\nNotes: ${prompt}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
+          `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${brandNameValue || "Not provided"}\nIndustry: ${industryValue || "Not provided"}\nStyle: ${styleValue || "Not provided"}\nSymbol or mascot: ${symbolValue || "Not provided"}\nColors: ${colorsValue || "Not provided"}\nAvoid: ${avoidValue || "Not provided"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
         );
         trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
       } else {
@@ -2111,7 +2134,7 @@ Requirements:
             prompt: `${getSystemPrompt()}
 
 User request:
-${prompt}`
+${promptValue}`
           })
         });
 
@@ -2135,6 +2158,7 @@ ${prompt}`
         setLogoSvg("");
         setLogoTransparentSvg("");
         setLogoVariations([]);
+        setLogoCreativeBrief(null);
       } else {
         setResult(error.message || "Something went wrong. Please try again.");
       }
@@ -2182,6 +2206,11 @@ ${prompt}`
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoVectorImage("");
+    setLogoSvg("");
+    setLogoTransparentSvg("");
+    setLogoVariations([]);
+    setLogoCreativeBrief(null);
   };
 
   const restoreRecentLogo = (entry) => {
@@ -2200,6 +2229,7 @@ ${prompt}`
     setLogoSvg(entry.svg || "");
     setLogoTransparentSvg(entry.transparentSvg || entry.svg || "");
     setLogoVariations(entry.variations || []);
+    setLogoCreativeBrief(entry.creativeBrief || null);
     setResult(
       `${entry.source === "instant-svg" ? "Editable vector logo restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
     );
@@ -2290,6 +2320,7 @@ ${prompt}`
               setLogoSvg={setLogoSvg}
               logoTransparentSvg={logoTransparentSvg}
               logoVariations={logoVariations}
+              logoCreativeBrief={logoCreativeBrief}
               logoEditor={logoEditor}
               setLogoEditor={setLogoEditor}
               recentLogoResults={recentLogoResults}
@@ -2402,6 +2433,7 @@ ${prompt}`
           setLogoSvg={setLogoSvg}
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
+          logoCreativeBrief={logoCreativeBrief}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
@@ -2502,6 +2534,7 @@ ${prompt}`
             setLogoSvg={setLogoSvg}
             logoTransparentSvg={logoTransparentSvg}
             logoVariations={logoVariations}
+            logoCreativeBrief={logoCreativeBrief}
             logoEditor={logoEditor}
             setLogoEditor={setLogoEditor}
             recentLogoResults={recentLogoResults}
@@ -3024,6 +3057,7 @@ function SEOPage({
           setLogoSvg={setLogoSvg}
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
+          logoCreativeBrief={logoCreativeBrief}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
@@ -3395,6 +3429,7 @@ function GeneratorCard({
   setLogoSvg = () => {},
   logoTransparentSvg = "",
   logoVariations = [],
+  logoCreativeBrief = null,
   logoEditor = {},
   setLogoEditor = () => {},
   recentLogoResults = [],
@@ -3570,6 +3605,21 @@ function GeneratorCard({
           </div>
 
           {editableLogo && (
+            <LogoCreativeDirectorPanel
+              creativeBrief={logoCreativeBrief}
+              logoVariations={logoVariations}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              setSelectedPlatform={setSelectedPlatform}
+              setCreativeTone={setCreativeTone}
+              setLogoIndustry={setLogoIndustry}
+              setLogoSymbol={setLogoSymbol}
+              setLogoColors={setLogoColors}
+              generate={generate}
+            />
+          )}
+
+          {editableLogo && (
             <LogoEditorPanel
               editableLogo={editableLogo}
               transparentLogo={editableTransparentLogo}
@@ -3658,6 +3708,102 @@ function GeneratorCard({
   );
 }
 
+function LogoCreativeDirectorPanel({
+  creativeBrief,
+  logoVariations = [],
+  prompt = "",
+  setPrompt,
+  setSelectedPlatform,
+  setCreativeTone,
+  setLogoIndustry,
+  setLogoSymbol,
+  setLogoColors,
+  generate,
+}) {
+  const directions = logoVariations
+    .filter((variation) => variation?.whyFits || variation?.symbol || variation?.typography)
+    .slice(0, 6);
+
+  if (!creativeBrief && directions.length === 0) return null;
+
+  const regenerateWithInstruction = (instruction, direction = null) => {
+    const directionText = direction
+      ? `Use this selected direction: ${direction.name}. Symbol/icon: ${direction.symbol}. Typography: ${direction.typography}. Palette: ${direction.palette}. Layout: ${direction.layout}. Why it fits: ${direction.whyFits}.`
+      : "";
+    const nextPrompt = `${prompt || ""}\n\n${instruction}\n${directionText}`.trim();
+    const nextBrandName = creativeBrief?.brandName || "";
+    const nextIndustry = creativeBrief?.category || "";
+    const nextStyle = direction?.logoStyle || "";
+    const nextSymbol = direction?.symbol || "";
+    const nextColors = direction?.palette || "";
+
+    setPrompt(nextPrompt);
+    if (nextStyle) setSelectedPlatform(nextStyle);
+    if (nextSymbol) setLogoSymbol(nextSymbol);
+    if (nextColors) setLogoColors(nextColors);
+    if (nextBrandName) setCreativeTone(nextBrandName);
+    if (nextIndustry) setLogoIndustry(nextIndustry);
+    generate(null, {
+      prompt: nextPrompt,
+      creativeTone: nextBrandName,
+      logoIndustry: nextIndustry,
+      selectedPlatform: nextStyle,
+      logoSymbol: nextSymbol,
+      logoColors: nextColors,
+    });
+  };
+
+  const refinements = [
+    ["Make more luxury", "Regenerate this logo with more luxury, restraint, premium spacing, refined typography, and fewer casual details."],
+    ["Make simpler", "Regenerate this logo in a simpler, cleaner, more scalable vector-style direction."],
+    ["Make bolder", "Regenerate this logo with a bolder mark, stronger silhouette, and more confident contrast."],
+    ["Try different icon", "Regenerate this logo with a different icon or symbol that still accurately matches the brand words."],
+    ["More modern", "Regenerate this logo with a more modern, polished, current brand-system look."],
+    ["More premium", "Regenerate this logo with a more premium commercial identity direction and stronger brand fit."],
+  ];
+
+  return (
+    <div className="creativeDirectorPanel">
+      <div className="creativeDirectorTop">
+        <div>
+          <div className="tinyTag">CREATIVE DIRECTOR</div>
+          <h3>Why these directions fit</h3>
+        </div>
+        {creativeBrief && (
+          <span>{creativeBrief.category} · {creativeBrief.personality}</span>
+        )}
+      </div>
+
+      {creativeBrief && (
+        <p className="creativeDirectorSummary">
+          Brand: {creativeBrief.brandName}. Audience: {creativeBrief.targetAudience}. Visual territory: {creativeBrief.visualTerritory}.
+        </p>
+      )}
+
+      <div className="creativeDirectorActions">
+        {refinements.map(([label, instruction]) => (
+          <button key={label} onClick={() => regenerateWithInstruction(instruction)}>{label}</button>
+        ))}
+      </div>
+
+      {directions.length > 0 && (
+        <div className="directionReasonGrid">
+          {directions.map((direction) => (
+            <div className="directionReasonCard" key={direction.id || direction.name}>
+              <span>{direction.name || "Logo direction"}</span>
+              <p><strong>Icon:</strong> {direction.symbol || "Meaning-matched symbol"}</p>
+              <p><strong>Type:</strong> {direction.typography || "Clean readable wordmark"}</p>
+              <p><strong>Colors:</strong> {direction.palette || "Professional contrast palette"}</p>
+              <p>{direction.whyFits || "This option is designed around the meaning of the user request."}</p>
+              <button onClick={() => regenerateWithInstruction("Regenerate using this selected logo direction.", direction)}>Regenerate this direction</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LogoEditorPanel({
   editableLogo,
   transparentLogo,
@@ -3726,7 +3872,7 @@ function LogoEditorPanel({
       </div>
 
       <div className="logoVariantGrid">
-        {logoVariations.slice(0, 4).map((variation) => (
+        {logoVariations.slice(0, 6).map((variation) => (
           <button className="logoVariantCard primary" key={variation.id || variation.name} onClick={() => useVariation(variation)}>
             <span>{variation.name || "Variation"}</span>
             <img src={variation.image} alt={`${brandName} ${variation.name || "variation"}`} />
@@ -4488,12 +4634,76 @@ textarea{height:170px;resize:none;line-height:1.6}
   white-space:pre-wrap;
 }
 
-.logoVariantPanel,.recentLogoStrip{
+.creativeDirectorPanel,.logoVariantPanel,.recentLogoStrip{
   margin-top:20px;
   background:white;
   border:1px solid rgba(0,0,0,.08);
   border-radius:24px;
   padding:20px;
+}
+
+.creativeDirectorTop{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+
+.creativeDirectorTop h3{
+  margin:0;
+  font-size:24px;
+  letter-spacing:-.03em;
+}
+
+.creativeDirectorTop span,.creativeDirectorSummary{
+  color:#666;
+  line-height:1.6;
+  font-weight:750;
+}
+
+.creativeDirectorActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:16px 0;
+}
+
+.creativeDirectorActions button,.directionReasonCard button{
+  border:1px solid rgba(0,0,0,.08);
+  background:#fafafa;
+  color:#111;
+  border-radius:999px;
+  padding:10px 13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.directionReasonGrid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+
+.directionReasonCard{
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:16px;
+}
+
+.directionReasonCard span{
+  display:block;
+  font-weight:900;
+  letter-spacing:-.02em;
+  margin-bottom:10px;
+}
+
+.directionReasonCard p{
+  color:#555;
+  line-height:1.55;
+  margin:8px 0;
+  font-size:14px;
 }
 
 .logoVariantPanel summary,.recentLogoStrip summary{
@@ -4823,5 +5033,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
 `;

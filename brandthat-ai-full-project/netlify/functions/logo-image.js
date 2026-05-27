@@ -8,6 +8,11 @@ function getOpenAiClient() {
 }
 
 function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+  const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const conceptLines = director.concepts
+    .map((concept, index) => `${index + 1}. ${concept.name}: ${concept.symbol}. Typography: ${concept.typography}. Palette: ${concept.palette}. Layout: ${concept.layout}. Why: ${concept.whyFits}`)
+    .join("\n");
+
   return `
 Create one finished, usable logo image.
 
@@ -35,9 +40,20 @@ ${userPrompt || "No extra notes."}
 Full request:
 ${logoPrompt}
 
+Creative Director interpretation:
+- Primary category: ${director.category}
+- Brand personality: ${director.personality}
+- Target audience: ${director.targetAudience}
+- Visual territory: ${director.visualTerritory}
+- Avoid generic mismatch: ${director.avoid}
+
+Distinct logo directions to honor:
+${conceptLines}
+
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
 - Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
+- Visually match the meaning of the words. If the brand says ranch, show refined ranch cues. If it says AI, show intelligence/brand-system cues. If it says surf shop, show surf/ocean/shop cues. If it says law firm, show legal trust cues.
 - Use a large, clean centered composition on a simple background.
 - Create a strong logo mark, emblem, mascot, wordmark, tool mark, trade mark, lettermark, or icon depending on the request.
 - Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
@@ -97,15 +113,128 @@ function getSubject(words) {
   if (hasHippo) return "hippo";
   if (hasFootball) return "football";
   if (hasWord(words, ["stucco", "plaster", "plastering", "drywall", "rendering", "skim", "venetian"])) return "plastering";
+  if (hasWord(words, ["law", "legal", "attorney", "lawyer", "firm"])) return "law";
+  if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
+  if (hasWord(words, ["wedding", "photo", "photography", "video", "film", "cinema", "rose"])) return "wedding-photo";
+  if (hasWord(words, ["fitness", "gym", "training", "trainer", "strength"])) return "fitness";
   if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
   if (hasWord(words, ["landscape", "lawn", "garden", "tree"])) return "landscaping";
   if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
-  if (hasWord(words, ["cow", "cattle", "ranch"])) return "ranch";
+  if (hasWord(words, ["cow", "cattle", "ranch", "alpaca", "horse", "horses", "private", "pasture", "equestrian"])) return "ranch";
   if (hasWord(words, ["coffee", "cafe"])) return "coffee";
   if (hasWord(words, ["real", "estate", "home", "house"])) return "realestate";
   if (hasWord(words, ["beauty", "wellness", "spa"])) return "wellness";
   if (hasWord(words, ["ai", "tech", "software", "saas"])) return "tech";
   return "abstract";
+}
+
+function titleCase(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function inferBrandName({ brandName, userPrompt, logoPrompt }) {
+  const explicit = String(brandName || "").trim();
+  if (explicit) return explicit;
+
+  const source = String(userPrompt || logoPrompt || "").trim();
+  const split = source.split(/\s+[—-]\s+/)[0]?.trim();
+  if (split && split.length <= 48 && !/^create|make|design|generate/i.test(split)) return split;
+
+  const quoted = source.match(/["“]([^"”]{2,48})["”]/);
+  if (quoted?.[1]) return quoted[1].trim();
+
+  return titleCase(source.replace(/\b(logo|brand|for|create|make|design|generate)\b/gi, " ").split(/\s+/).filter(Boolean).slice(0, 3).join(" ")) || "Brand";
+}
+
+function getConceptLibrary(subject, profile) {
+  const libraries = {
+    ranch: [
+      ["Luxury Ranch Crest", "refined horse and alpaca silhouette inside a tasteful ranch gate crest", "elegant serif wordmark with wide spacing", "charcoal, warm ivory, muted gold", "centered crest above wordmark", "It makes the ranch feel private, premium, and rooted in animals without looking cartoonish."],
+      ["Heritage Pasture Mark", "rolling pasture line with subtle barn-gate geometry and animal profile", "classic editorial serif", "deep green, cream, antique gold", "horizontal mark with wordmark beneath", "It connects land, animals, and high-end hospitality."],
+      ["Boutique Ranch Monogram", "interlocking initials with small horseshoe or gate detail", "luxury monogram with small caps", "black, ivory, champagne", "monogram icon above restrained type", "It fits a private ranch that wants a clean luxury identity."],
+    ],
+    tech: [
+      ["AI Brand Grid", "neural nodes forming a clean brand spark or B-style system mark", "modern geometric sans", "black, white, electric blue", "icon left or above wordmark", "It connects AI intelligence with branding systems instead of random tech shapes."],
+      ["Creative OS Mark", "layered cursor, spark, and modular grid symbol", "clean SaaS wordmark", "ink black, cloud white, signal blue", "stacked product-logo layout", "It feels like a modern platform creators can trust."],
+      ["Automated Identity Symbol", "abstract generated mark built from connected blocks", "bold startup sans", "navy, white, cyan", "large icon with compact wordmark", "It communicates AI-built brand assets with a scalable tech identity."],
+    ],
+    "wedding-photo": [
+      ["Editorial Rose Lens", "rose petal forms wrapped around a camera aperture", "high-end serif with cinematic spacing", "soft black, ivory, dusty rose", "delicate symbol above elegant wordmark", "It blends weddings, romance, photography, and premium video."],
+      ["Fine Art Film Mark", "minimal aperture with flowing ribbon/veil line", "luxury editorial serif", "charcoal, porcelain, muted blush", "thin icon over wide-set type", "It feels refined, romantic, and appropriate for wedding photo/video."],
+      ["Signature Rose Monogram", "rose stem forming a subtle letter mark", "elegant serif and small caps", "black, cream, rose gold", "monogram and wordmark lockup", "It makes the name memorable while staying upscale."],
+    ],
+    plastering: [
+      ["Finish Sweep", "smooth plaster sweep with a professional trowel angle", "strong contractor sans", "black, white, construction gray", "large trade mark above bold wordmark", "It directly reflects plastering and surface finishing."],
+      ["Wall Finish Badge", "finished wall panel with curved skim-coat strokes and trowel", "clean local-service wordmark", "charcoal, white, silver", "framed icon above name", "It feels credible for a professional plastering company."],
+      ["Craft Contractor Mark", "abstract skim-coat curve forming the initials", "bold readable sans", "black, white, muted gray", "initial-integrated symbol with wordmark", "It gives the trade a more custom identity than a generic tool icon."],
+    ],
+    surf: [
+      ["Coastal Wave Shop", "clean wave curl forming a shop sign or sun line", "relaxed bold sans", "deep navy, sand, seafoam", "wave icon above casual wordmark", "It instantly signals surf, ocean, and retail energy."],
+      ["Board Badge", "surfboard silhouette with wave negative space", "vintage shop typography", "ocean blue, cream, coral", "badge or horizontal lockup", "It feels like a real surf shop identity."],
+      ["Tide Mark", "minimal wave line and horizon mark", "modern coastal sans", "black, off-white, aqua", "simple icon with wide wordmark", "It works on apparel, signs, and social profile images."],
+    ],
+    law: [
+      ["Trust Pillar Mark", "abstract courthouse columns in a balanced monogram", "authoritative serif", "navy, white, brass", "pillar icon above firm name", "It signals legal credibility without cheesy scales."],
+      ["Modern Counsel Seal", "shield-like legal seal with subtle column geometry", "premium law serif", "charcoal, ivory, gold", "seal and wordmark", "It feels established, serious, and professional."],
+      ["Equity Line Mark", "balanced horizontal lines forming an understated legal symbol", "reserved serif/sans pairing", "black, white, muted gold", "minimal mark with precise typography", "It avoids generic law icons while keeping trust and authority."],
+    ],
+    fitness: [
+      ["Strength Pulse", "dynamic bolt/body movement mark", "bold athletic sans", "black, white, energy red", "large kinetic icon with compact type", "It shows motion, strength, and transformation."],
+      ["Performance Badge", "shield-like training mark with subtle bar path", "condensed sports typography", "navy, white, bright green", "badge above wordmark", "It works for gym signage, apparel, and social."],
+      ["Minimal Motion Mark", "abstract body line and upward arrow", "clean modern sans", "charcoal, white, electric accent", "icon-left lockup", "It feels modern and less generic than a dumbbell icon."],
+    ],
+    coffee: [
+      ["Roaster Steam Mark", "cup and steam line forming a custom initial", "warm serif wordmark", "espresso, cream, copper", "icon above wordmark", "It instantly reads coffee with a premium cafe tone."],
+      ["Bean Badge", "coffee bean shape with subtle location/shop badge", "vintage cafe type", "deep brown, cream, brass", "badge layout", "It suits packaging, cups, and storefronts."],
+      ["Modern Cafe Line", "minimal cup line and sunrise steam", "clean friendly sans", "black, ivory, caramel", "horizontal logo", "It is simple and usable across menus and social."],
+    ],
+  };
+
+  const fallback = [
+    ["Meaning-First Mark", "custom symbol based on the strongest nouns in the brand request", profile.isLuxury ? "premium serif or refined sans" : "clean bold wordmark", "black, white, one meaningful accent", "symbol above or beside wordmark", "It avoids random icons by anchoring the mark to the brand’s actual words."],
+    ["Wordmark System", "distinct typography with a subtle embedded symbol", "customized readable type", "brand-appropriate restrained palette", "wordmark-led layout", "It keeps the brand name clear while adding ownable visual detail."],
+    ["Category Emblem", "simple emblem built from the category and audience cues", "balanced display type", "high-contrast palette", "emblem and wordmark", "It makes the logo usable on websites, social, and merchandise."],
+  ];
+
+  return libraries[subject] || fallback;
+}
+
+function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+  const inferredName = inferBrandName({ brandName, userPrompt, logoPrompt });
+  const { words } = getLogoWords({ brandName: inferredName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const subject = getSubject(words);
+  const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt });
+  const styleText = [profile.isLuxury && "luxury", profile.isBold && "bold", profile.isMinimal && "clean", profile.isVintage && "heritage"].filter(Boolean).join(", ") || "professional";
+  const audience = profile.isTrade
+    ? "local customers who need a credible service provider"
+    : subject === "tech"
+      ? "founders, creators, and businesses looking for faster branding"
+      : subject === "ranch"
+        ? "premium lifestyle guests, partners, and private ranch followers"
+        : subject === "law"
+          ? "clients looking for trust, authority, and clarity"
+          : "customers who need a clear, memorable brand";
+  const concepts = getConceptLibrary(subject, profile).map(([name, symbol, typography, palette, layout, whyFits]) => ({
+    name,
+    style: styleText,
+    symbol: logoSymbol || symbol,
+    typography,
+    palette: logoColors || palette,
+    layout,
+    whyFits,
+  }));
+
+  return {
+    brandName: inferredName,
+    category: subject,
+    personality: styleText,
+    targetAudience: audience,
+    visualTerritory: concepts.map((concept) => concept.name).join(", "),
+    avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
+    concepts,
+  };
 }
 
 function getStyleProfile({ logoStyle = "", logoIndustry = "", userPrompt = "" }) {
@@ -284,12 +413,35 @@ function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, 
   }
 
   if (subject === "ranch") {
+    if (variant === 1) {
+      return `
+        <g transform="translate(0 -10)">
+          <path d="M260 486 C344 366 448 308 570 318 C660 326 736 380 782 470" fill="none" stroke="${ink}" stroke-width="38" stroke-linecap="round"/>
+          <path d="M342 492 C432 432 582 420 692 476" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+          <path d="M344 332 C420 254 532 238 628 294" fill="none" stroke="${ink}" stroke-width="26" stroke-linecap="round"/>
+          <path d="M608 288 L690 234 L672 330" fill="${ink}"/>
+          <path d="M362 612 H734 M412 664 H682" stroke="${ink}" stroke-width="18" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    if (variant === 2) {
+      return `
+        <g transform="translate(0 -18)">
+          <path d="M286 560 H738" stroke="${ink}" stroke-width="24" stroke-linecap="round"/>
+          <path d="M330 520 C426 390 586 350 720 430" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+          <path d="M388 432 C418 324 520 276 628 318 C576 356 520 398 474 478" fill="${ink}"/>
+          <circle cx="506" cy="360" r="12" fill="${paper}"/>
+          <path d="M416 318 L470 244 L500 344 M604 316 L686 252 L656 358" fill="none" stroke="${ink}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+      `;
+    }
     return `
       <circle cx="512" cy="346" r="184" fill="${ink}"/>
-      <path d="M370 378 Q512 230 654 378" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
-      <path d="M420 416 Q512 352 604 416" fill="none" stroke="${paper}" stroke-width="16" stroke-linecap="round"/>
-      <circle cx="462" cy="334" r="18" fill="${paper}"/>
-      <circle cx="562" cy="334" r="18" fill="${paper}"/>
+      <path d="M360 390 Q436 258 548 288 Q638 308 696 390" fill="none" stroke="${accent}" stroke-width="20" stroke-linecap="round"/>
+      <path d="M416 430 Q512 360 608 430" fill="none" stroke="${paper}" stroke-width="18" stroke-linecap="round"/>
+      <path d="M432 320 Q474 276 524 304 Q562 326 594 300" fill="none" stroke="${paper}" stroke-width="18" stroke-linecap="round"/>
+      <circle cx="462" cy="342" r="14" fill="${paper}"/>
+      <circle cx="564" cy="342" r="14" fill="${paper}"/>
     `;
   }
 
@@ -315,6 +467,51 @@ function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, 
       <circle cx="512" cy="356" r="184" fill="${ink}"/>
       <path d="M512 254 C620 282 660 402 512 506 C364 402 404 282 512 254 Z" fill="${paper}"/>
       <path d="M512 276 C470 344 472 420 512 492 C552 420 554 344 512 276 Z" fill="${accent}"/>
+    `;
+  }
+
+  if (subject === "surf") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M252 504 C354 310 594 262 752 392 C636 368 540 414 504 514 C592 484 684 500 766 574 C588 640 370 604 252 504 Z" fill="${ink}"/>
+        <path d="M336 488 C464 380 590 360 708 420" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M380 598 H690" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "law") {
+    return `
+      <g transform="translate(0 -24)">
+        <path d="M292 300 H732" stroke="${ink}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M334 300 L512 206 L690 300" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="350" y="342" width="50" height="194" rx="8" fill="${ink}"/>
+        <rect x="472" y="342" width="50" height="194" rx="8" fill="${ink}"/>
+        <rect x="594" y="342" width="50" height="194" rx="8" fill="${ink}"/>
+        <path d="M312 570 H712 M270 628 H754" stroke="${ink}" stroke-width="30" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "wedding-photo") {
+    return `
+      <g transform="translate(0 -18)">
+        <circle cx="512" cy="396" r="168" fill="${ink}"/>
+        <circle cx="512" cy="396" r="78" fill="${paper}"/>
+        <path d="M512 246 C610 278 648 352 632 444 C568 412 514 364 512 246 Z" fill="${accent}"/>
+        <path d="M512 246 C416 282 376 356 394 448 C458 410 510 360 512 246 Z" fill="${paper}" opacity=".96"/>
+        <path d="M430 592 C512 520 594 520 676 592" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "fitness") {
+    return `
+      <g transform="translate(0 -14)">
+        <path d="M300 482 C400 300 598 276 724 438" fill="none" stroke="${ink}" stroke-width="54" stroke-linecap="round"/>
+        <path d="M382 468 L474 352 L538 484 L616 380 L710 500" fill="none" stroke="${accent}" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M338 594 H706" stroke="${ink}" stroke-width="24" stroke-linecap="round"/>
+      </g>
     `;
   }
 
@@ -365,10 +562,12 @@ function svgToDataUrl(svg) {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant = 0, transparent = false }) {
+function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant = 0, transparent = false, director = null }) {
   const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const creativeDirector = director || buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const concept = creativeDirector.concepts?.[variant % creativeDirector.concepts.length] || {};
   const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt} ${variant}`);
-  const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt });
+  const profile = getStyleProfile({ logoStyle: `${logoStyle} ${concept.style || ""}`, logoIndustry, userPrompt });
   const palettes = [
     ["#111111", "#f7f4ed", "#9b7b3f"],
     ["#10231f", "#f5f1e8", "#c7a45a"],
@@ -377,8 +576,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     ["#24342f", "#fbfaf6", "#7c9a6d"],
     ["#0f172a", "#f8fafc", "#38bdf8"],
   ];
-  const [ink, paper, accent] = getRequestedColors(logoColors) || palettes[(hash + variant) % palettes.length];
-  const subject = getSubject(words);
+  const [ink, paper, accent] = getRequestedColors(logoColors || concept.palette) || palettes[(hash + variant) % palettes.length];
+  const subject = creativeDirector.category || getSubject(words);
   const safeName = escapeXml(displayName);
   const inkToken = "var(--logo-ink)";
   const paperToken = "var(--logo-paper)";
@@ -397,6 +596,10 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     landscaping: "landscape service",
     barber: "barber studio",
     realestate: "real estate",
+    law: "legal counsel",
+    surf: "surf shop",
+    "wedding-photo": "photo video",
+    fitness: "training brand",
     "hippo-football": "fantasy football",
   }[subject];
   const subtitle = escapeXml(
@@ -431,19 +634,27 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
 }
 
 function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
-  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0 });
-  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, transparent: true });
-  const { words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-  const subject = getSubject(words);
-  const variantIds = subject === "plastering" ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3];
-  const variationNames = ["Primary", "Editorial", "Bold", "Monogram", "Trade Mark", "Contractor Badge"];
+  const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, director: creativeBrief });
+  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, transparent: true, director: creativeBrief });
+  const subject = creativeBrief.category;
+  const variantIds = subject === "plastering" ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5];
+  const variationNames = ["Primary", "Editorial", "Bold", "Monogram", "Icon System", "Premium Lockup"];
   const variations = variantIds.map((variant) => {
-    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant });
+    const concept = creativeBrief.concepts[variant % creativeBrief.concepts.length] || {};
+    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant, director: creativeBrief });
     return {
       id: `variation-${variant + 1}`,
-      name: variationNames[variant] || `Variation ${variant + 1}`,
+      name: concept.name || variationNames[variant] || `Variation ${variant + 1}`,
       image: svgToDataUrl(svg),
       svg: svgToDataUrl(svg),
+      logoStyle: concept.style || logoStyle || "professional",
+      symbol: concept.symbol || logoSymbol || subject,
+      typography: concept.typography || "clean readable wordmark",
+      palette: concept.palette || logoColors || "brand-appropriate high contrast palette",
+      layout: concept.layout || "symbol and wordmark lockup",
+      whyFits: concept.whyFits || "This direction is tied to the meaning of the brand request.",
+      prompt: `${concept.name || variationNames[variant]}: ${concept.symbol || logoSymbol || subject}. ${concept.whyFits || ""}`,
     };
   });
 
@@ -451,6 +662,7 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
     image: svgToDataUrl(baseSvg),
     svg: svgToDataUrl(baseSvg),
     transparentSvg: svgToDataUrl(transparentSvg),
+    creativeBrief,
     variations,
     layers: [
       { id: "background", name: "Background" },
@@ -522,6 +734,7 @@ exports.handler = async (event, context) => {
             { id: "ai-primary", name: "AI Logo", image, svg: "" },
             ...vectorLogo.variations,
           ],
+          creativeBrief: vectorLogo.creativeBrief,
           layers: vectorLogo.layers,
         }),
       };
@@ -537,6 +750,7 @@ exports.handler = async (event, context) => {
           svg: vectorLogo.svg,
           transparentSvg: vectorLogo.transparentSvg,
           variations: vectorLogo.variations,
+          creativeBrief: vectorLogo.creativeBrief,
           layers: vectorLogo.layers,
           note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
         }),
