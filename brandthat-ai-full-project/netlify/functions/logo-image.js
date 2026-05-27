@@ -9,6 +9,7 @@ function getOpenAiClient() {
 
 function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
   const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const primaryConcept = director.concepts?.[0] || {};
   const conceptLines = director.concepts
     .map((concept, index) => `${index + 1}. ${concept.name}: ${concept.symbol}. Typography: ${concept.typography}. Palette: ${concept.palette}. Layout: ${concept.layout}. Why: ${concept.whyFits}`)
     .join("\n");
@@ -47,13 +48,23 @@ Creative Director interpretation:
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
 
+Primary direction to generate:
+- Name: ${primaryConcept.name || "Meaning-first logo direction"}
+- Symbol/icon: ${primaryConcept.symbol || "A custom symbol based on the strongest category cue in the request"}
+- Typography: ${primaryConcept.typography || "Readable professional wordmark"}
+- Palette: ${primaryConcept.palette || "High-contrast brand palette"}
+- Layout: ${primaryConcept.layout || "Large logo mark with readable wordmark"}
+- Why it fits: ${primaryConcept.whyFits || "It directly reflects the user's brand words and category."}
+
 Distinct logo directions to honor:
 ${conceptLines}
 
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
+- Use the Primary direction as the final art direction. The other directions are context only; do not merge them into one cluttered mark.
 - Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
 - Visually match the meaning of the words. If the brand says ranch, show refined ranch cues. If it says AI, show intelligence/brand-system cues. If it says surf shop, show surf/ocean/shop cues. If it says law firm, show legal trust cues.
+- If the prompt contains a specific object, animal, product, trade, food, location, or industry, that idea must be visible in the logo mark.
 - Use a large, clean centered composition on a simple background.
 - Create a strong logo mark, emblem, mascot, wordmark, tool mark, trade mark, lettermark, or icon depending on the request.
 - Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
@@ -63,6 +74,7 @@ Design requirements:
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
 - Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, framed cards, tiny thumbnails, clutter, tiny decorative details, and messy text.
+- Do not crop, hide, or misspell brand text. If text is risky, prioritize a clean symbol plus short readable brand name.
 - If text appears, keep it short and highly legible.
 - If the user asks for color, use color. Otherwise choose a clean professional palette.
 `;
@@ -99,7 +111,8 @@ function getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymb
     .split(" ")
     .filter(Boolean);
   const displayName = (brandWords.length ? brandWords.slice(0, 5) : words.slice(0, 4)).join(" ") || "Brand";
-  const initials = words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "B";
+  const initialWords = brandWords.length ? brandWords : displayName.split(/\s+/).filter(Boolean);
+  const initials = initialWords.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "B";
 
   return { displayName, initials, words, source };
 }
@@ -126,6 +139,14 @@ function getSubject(words) {
   if (hasWord(words, ["bank", "finance", "financial", "wealth", "advisor", "accounting", "tax", "capital", "fund"])) return "finance";
   if (hasWord(words, ["school", "education", "academy", "tutor", "learning", "childcare", "daycare"])) return "education";
   if (hasWord(words, ["music", "band", "studio", "audio", "sound", "record", "podcast", "dj"])) return "music";
+  if (hasWord(words, ["ai", "tech", "software", "saas", "app", "platform"])) return "tech";
+  if (hasWord(words, ["insurance", "insured", "coverage", "policy", "risk"])) return "insurance";
+  if (hasWord(words, ["marketing", "agency", "advertising", "creative", "media", "branding"])) return "agency";
+  if (hasWord(words, ["security", "secure", "guard", "protection", "cybersecurity", "surveillance"])) return "security";
+  if (hasWord(words, ["logistics", "shipping", "freight", "delivery", "courier", "moving", "transport"])) return "logistics";
+  if (hasWord(words, ["gaming", "esports", "game", "streamer", "streaming", "twitch"])) return "gaming";
+  if (hasWord(words, ["architect", "architecture", "interior", "interiors", "spatial", "spaces"])) return "architecture";
+  if (hasWord(words, ["cannabis", "dispensary", "hemp", "cbd"])) return "cannabis";
   if (hasWord(words, ["pet", "dog", "cat", "veterinary", "vet", "grooming", "animal"])) return "pet";
   if (hasWord(words, ["fashion", "clothing", "apparel", "boutique", "jewelry", "watch", "shoe", "streetwear"])) return "fashion";
   if (hasWord(words, ["cleaning", "maid", "janitorial", "wash", "pressure", "laundry"])) return "cleaning";
@@ -141,7 +162,6 @@ function getSubject(words) {
   if (hasWord(words, ["coffee", "cafe"])) return "coffee";
   if (hasWord(words, ["real", "estate", "home", "house"])) return "realestate";
   if (hasWord(words, ["beauty", "wellness", "spa"])) return "wellness";
-  if (hasWord(words, ["ai", "tech", "software", "saas"])) return "tech";
   return "abstract";
 }
 
@@ -182,7 +202,7 @@ const STYLE_TAXONOMY = Array.isArray(STYLE_SCHEMA.styles) && STYLE_SCHEMA.styles
   ? STYLE_SCHEMA.styles
   : DEFAULT_STYLE_TAXONOMY;
 
-const SUBJECT_STYLE_OVERRIDES = STYLE_SCHEMA.subjectStyleOverrides || {
+const DEFAULT_SUBJECT_STYLE_OVERRIDES = {
   pizza: ["food", "playful", "vintage"],
   restaurant: ["food", "luxury", "vintage"],
   law: ["law", "corporate", "luxury"],
@@ -204,6 +224,37 @@ const SUBJECT_STYLE_OVERRIDES = STYLE_SCHEMA.subjectStyleOverrides || {
   electrical: ["construction", "futuristic", "masculine"],
   travel: ["luxury", "minimal", "playful"],
   nonprofit: ["corporate", "playful", "minimal"],
+  realestate: ["corporate", "luxury", "minimal"],
+  wellness: ["feminine", "luxury", "minimal"],
+  roofing: ["construction", "masculine", "corporate"],
+  landscaping: ["minimal", "playful", "corporate"],
+  barber: ["masculine", "vintage", "streetwear"],
+  football: ["fitness", "masculine", "playful"],
+  hippo: ["playful", "masculine", "minimal"],
+  "hippo-football": ["fitness", "playful", "masculine"],
+  insurance: ["corporate", "finance", "minimal"],
+  agency: ["futuristic", "minimal", "corporate"],
+  security: ["corporate", "futuristic", "masculine"],
+  logistics: ["corporate", "minimal", "construction"],
+  gaming: ["streetwear", "futuristic", "brutalist"],
+  architecture: ["minimal", "luxury", "corporate"],
+  cannabis: ["minimal", "feminine", "vintage"],
+};
+
+const SUBJECT_STYLE_OVERRIDES = {
+  ...DEFAULT_SUBJECT_STYLE_OVERRIDES,
+  ...(STYLE_SCHEMA.subjectStyleOverrides || {}),
+};
+
+const SCORING_WEIGHTS = {
+  conceptLibraryBoost: 14,
+  subjectMatch: 12,
+  requestedSymbolMatch: 10,
+  styleMatch: 8,
+  readabilityAndScalability: 7,
+  genericPenalty: -18,
+  avoidWordPenalty: -12,
+  ...(STYLE_SCHEMA.scoringWeights || {}),
 };
 
 function detectLogoStyles({ subject, logoStyle = "", logoIndustry = "", logoSymbol = "", userPrompt = "", logoPrompt = "" }) {
@@ -331,14 +382,14 @@ const TYPOGRAPHY_SYSTEMS = {
 
 function selectTypography({ subject, styles }) {
   const primary = styles[0]?.key || "minimal";
-  if (["law", "finance"].includes(subject)) return TYPOGRAPHY_SYSTEMS.authoritySerif;
+  if (["law", "finance", "insurance"].includes(subject)) return TYPOGRAPHY_SYSTEMS.authoritySerif;
   if (primary === "luxury" || subject === "ranch") return TYPOGRAPHY_SYSTEMS.luxurySerif;
-  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
+  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
   if (["pizza", "restaurant", "coffee"].includes(subject)) return TYPOGRAPHY_SYSTEMS.hospitalitySans;
-  if (["fashion", "wedding-photo", "wellness"].includes(subject)) return TYPOGRAPHY_SYSTEMS.editorialSerif;
+  if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) return TYPOGRAPHY_SYSTEMS.editorialSerif;
   if (["pet", "education", "nonprofit"].includes(subject) || primary === "playful") return TYPOGRAPHY_SYSTEMS.playfulRounded;
   if (primary === "vintage" || primary === "western") return TYPOGRAPHY_SYSTEMS.vintageDisplay;
-  if (["tech"].includes(subject) || primary === "futuristic" || primary === "minimal") return TYPOGRAPHY_SYSTEMS.geometricSans;
+  if (["tech", "agency", "gaming"].includes(subject) || primary === "futuristic" || primary === "minimal") return TYPOGRAPHY_SYSTEMS.geometricSans;
   return { ...TYPOGRAPHY_SYSTEMS.geometricSans, label: styles[0]?.typography || TYPOGRAPHY_SYSTEMS.geometricSans.label };
 }
 
@@ -357,6 +408,12 @@ function selectAudience({ subject, positioning }) {
     "wedding-photo": "couples looking for refined photo and video storytelling",
     fitness: "people looking for energy, progress, and confidence",
     healthcare: "patients looking for calm, trust, and professional care",
+    insurance: "customers looking for protection, clarity, and dependable coverage",
+    agency: "founders and teams looking for creative growth and sharper brand presence",
+    security: "customers looking for protection, control, and serious reliability",
+    logistics: "customers who need speed, tracking, and dependable delivery",
+    gaming: "players and fans looking for energy, identity, and culture",
+    architecture: "clients who care about taste, proportion, and elevated spaces",
   };
   return map[subject] || (positioning === "premium" ? "customers who expect a polished premium brand" : "customers who need a clear, memorable brand");
 }
@@ -370,6 +427,13 @@ function selectPalette({ subject, styles, logoColors }) {
   if (subject === "tech") return "ink black, cloud white, electric blue";
   if (subject === "law") return "navy, ivory, brass";
   if (subject === "finance") return "navy, white, muted gold";
+  if (subject === "insurance") return "navy, white, calm blue";
+  if (subject === "agency") return "ink black, white, sharp creative accent";
+  if (subject === "security") return "charcoal, white, signal red";
+  if (subject === "logistics") return "navy, white, route blue";
+  if (subject === "gaming") return "black, white, electric violet";
+  if (subject === "architecture") return "charcoal, ivory, warm stone";
+  if (subject === "cannabis") return "deep green, cream, muted gold";
   if (subject === "plastering") return "black, white, construction gray";
   if (primary === "luxury") return "black, ivory, champagne gold";
   if (primary === "playful") return "warm bright palette with professional contrast";
@@ -416,7 +480,7 @@ function selectIconSystem({ subject, styles, logoSymbol = "" }) {
   if (["tech", "finance", "law"].includes(subject) || styleKeys.includes("futuristic")) {
     return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
-  if (["pizza", "restaurant", "coffee", "plastering", "construction", "automotive", "fitness", "surf"].includes(subject)) {
+  if (["pizza", "restaurant", "coffee", "plastering", "construction", "automotive", "fitness", "surf", "roofing", "landscaping", "barber", "logistics"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.negativeSpace;
   }
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
@@ -476,29 +540,73 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     source: "layout",
   }));
 
-  return [...base, ...styleConcepts, ...layoutConcepts].slice(0, 24);
+  const iconModes = Object.values(ICON_CREATIVITY_SYSTEMS).map((system, index) => ({
+    name: `${titleCase(subject.replace("-", " "))} ${titleCase(system.mode.replace("-", " "))}`,
+    style: styles[index % styles.length]?.key || styles[0]?.key || "professional",
+    symbol: logoSymbol || `${system.label} for a ${subject.replace("-", " ")} brand, using ${system.rules[0]} and ${system.rules[1]}`,
+    iconSystem: system,
+    typography: typography?.label || "readable brand typography",
+    typographySystem: typography,
+    palette: logoColors || palette,
+    layout: index % 2 === 0 ? "large icon with compact wordmark" : "wordmark-led mark with embedded category cue",
+    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark.`,
+    source: "icon",
+  }));
+
+  const positioningConcepts = ["premium flagship", "local trust", "social avatar", "signage-ready", "merch-ready"].map((angle, index) => ({
+    name: `${titleCase(subject.replace("-", " "))} ${titleCase(angle)}`,
+    style: styles[(index + 1) % styles.length]?.key || styles[0]?.key || "professional",
+    symbol: logoSymbol || `category-specific ${subject.replace("-", " ")} mark optimized for ${angle}`,
+    iconSystem,
+    typography: typography?.label || "readable brand typography",
+    typographySystem: typography,
+    palette: logoColors || palette,
+    layout: index % 2 === 0 ? "centered mark over readable wordmark" : "wide professional lockup",
+    whyFits: `It designs the logo for a specific real-world use case: ${angle}.`,
+    source: "positioning",
+  }));
+
+  return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts].slice(0, 28);
 }
 
 function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "" }) {
   const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
   let score = 60;
-  if (concept.source === "library") score += 14;
-  if (text.includes(subject.replace("-", " "))) score += 12;
-  if (logoSymbol && text.includes(logoSymbol.toLowerCase().split(/\s+/)[0])) score += 10;
+  if (concept.source === "library") score += SCORING_WEIGHTS.conceptLibraryBoost;
+  if (text.includes(subject.replace("-", " "))) score += SCORING_WEIGHTS.subjectMatch;
+  if (logoSymbol && text.includes(logoSymbol.toLowerCase().split(/\s+/)[0])) score += SCORING_WEIGHTS.requestedSymbolMatch;
   styles.forEach((style, index) => {
-    if (text.includes(style.key)) score += 8 - index;
+    if (text.includes(style.key)) score += SCORING_WEIGHTS.styleMatch - index;
     style.traits.forEach((trait) => {
       if (text.includes(trait)) score += 2;
     });
   });
-  if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only)/.test(text)) score -= 18;
-  if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable)/.test(text)) score += 7;
+  if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only)/.test(text)) score += SCORING_WEIGHTS.genericPenalty;
+  if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable|negative|hidden|reduced|brandable)/.test(text)) score += SCORING_WEIGHTS.readabilityAndScalability;
+  const shieldOrBadge = /(shield|badge|crest)/.test(text);
+  const shieldFriendly = ["law", "finance", "insurance", "ranch", "football", "hippo-football", "education", "security"].includes(subject);
+  if (shieldOrBadge && !shieldFriendly && !/(shield|badge|crest)/.test(logoSymbol.toLowerCase())) score -= 9;
+  if (/(monogram|initials)/.test(text) && !/(monogram|initial|letter)/.test(logoSymbol.toLowerCase())) score -= subject === "abstract" ? 0 : 5;
+  if (subject !== "abstract" && !text.includes(subject.replace("-", " ")) && !text.includes(subject.split("-")[0])) score -= 8;
+  if (concept.source === "icon" && concept.iconSystem?.mode) score += 5;
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {
-      if (word.length > 3 && text.includes(word)) score -= 12;
+      if (word.length > 3 && text.includes(word)) score += SCORING_WEIGHTS.avoidWordPenalty;
     });
   }
   return Math.max(0, Math.min(100, score));
+}
+
+function getConceptSymbolKey(concept) {
+  return String(concept.symbol || "")
+    .toLowerCase()
+    .replace(/\b(a|an|the|and|with|inside|into|forming|custom|clean|simple|mark|symbol|icon|brand|logo)\b/g, " ")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 5)
+    .join(" ");
 }
 
 function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
@@ -520,8 +628,10 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const diversified = [];
   scored.forEach((concept) => {
     const duplicateStyle = diversified.filter((item) => item.style === concept.style).length >= 2;
-    const duplicateLayout = diversified.some((item) => item.layout === concept.layout && item.symbol === concept.symbol);
-    if (!duplicateStyle && !duplicateLayout && diversified.length < 4) diversified.push(concept);
+    const duplicateLayout = diversified.some((item) => item.layout === concept.layout && getConceptSymbolKey(item) === getConceptSymbolKey(concept));
+    const duplicateSymbol = diversified.some((item) => getConceptSymbolKey(item) === getConceptSymbolKey(concept));
+    const sourceCapReached = diversified.filter((item) => item.source === concept.source).length >= 2;
+    if (!duplicateStyle && !duplicateLayout && !duplicateSymbol && !sourceCapReached && diversified.length < 4) diversified.push(concept);
   });
 
   const concepts = (diversified.length >= 4 ? diversified : scored.slice(0, 4)).map((concept) => ({
@@ -697,6 +807,81 @@ function getConceptLibrary(subject, profile) {
       ["Foundation Spark", "star/heart rising from a simple pillar", "clear nonprofit typography", "charcoal, white, warm accent", "symbol plus wordmark", "It feels credible and optimistic for a foundation."],
       ["Circle of Impact", "interlocking circles forming a people/community mark", "modern approachable sans", "green, white, blue accent", "round emblem lockup", "It represents connection and shared purpose."],
     ],
+    realestate: [
+      ["Property Signature", "roofline, window, and location pin reduced into one clean property mark", "credible real estate sans or refined serif", "navy, ivory, muted gold", "large house mark above wordmark", "It instantly signals property and trust without looking like a stock house icon."],
+      ["Modern Home Key", "key shape hidden inside a minimal home outline", "professional brokerage typography", "charcoal, white, blue accent", "horizontal lockup", "It ties home ownership and service together in a memorable symbol."],
+      ["Neighborhood Crest", "street grid and roofline inside a restrained badge", "stable corporate wordmark", "deep green, cream, brass", "badge with readable name", "It works for realtors, brokerages, and property teams."],
+    ],
+    wellness: [
+      ["Balanced Leaf Mark", "leaf and human arc forming a calm centered symbol", "soft editorial serif", "sage, ivory, charcoal", "quiet icon above refined type", "It communicates care, calm, and premium wellness."],
+      ["Spa Monogram", "initials shaped with a subtle petal or water ripple", "elegant serif small caps", "cream, blush, deep green", "monogram-led lockup", "It feels boutique and personal rather than clinical."],
+      ["Ritual Circle", "sun, leaf, and breath-line combined into one simple round mark", "warm modern sans", "stone, cream, muted gold", "round emblem with airy wordmark", "It gives the brand a calming ritual identity."],
+    ],
+    roofing: [
+      ["Roofline Trust Mark", "roof pitch and shingle layers forming a bold contractor icon", "bold trade sans", "charcoal, white, safety orange", "heavy icon above wordmark", "It clearly says roofing and feels reliable for local service."],
+      ["Storm Shield", "roofline inside a protective shield with rain-shedding angle", "strong service typography", "navy, white, steel blue", "shield plus wordmark", "It communicates protection without becoming generic."],
+      ["Shingle Grid", "overlapping shingle pattern forming initials", "practical readable sans", "black, cream, muted gray", "pattern mark with name", "It makes the trade-specific material part of the identity."],
+    ],
+    landscaping: [
+      ["Lawn Horizon", "leaf, horizon, and mower path reduced into a clean growth mark", "friendly service sans", "deep green, cream, sun gold", "landscape mark above name", "It communicates outdoor care and growth quickly."],
+      ["Tree Path Emblem", "tree canopy with path negative space", "modern local-service wordmark", "forest green, white, earth brown", "emblem and wordmark", "It works for lawn, garden, and tree services."],
+      ["Garden Line", "simple sprout and soil line forming a custom initial", "clean rounded sans", "sage, ivory, charcoal", "horizontal icon lockup", "It feels fresh and less generic than a plain leaf."],
+    ],
+    barber: [
+      ["Cut & Comb Mark", "scissors and comb turned into a sharp monogram", "bold heritage display", "black, cream, brass", "badge or stacked wordmark", "It instantly reads barber while staying brandable."],
+      ["Chair Crest", "barber chair silhouette with stripe-line detail", "vintage shop type", "charcoal, white, red accent", "crest above wordmark", "It feels like a real shop sign, not clipart."],
+      ["Clean Fade Symbol", "fade gradient represented by three crisp geometry bars", "modern streetwear sans", "black, white, electric accent", "icon-left lockup", "It gives barbering a modern, wearable identity."],
+    ],
+    football: [
+      ["Fantasy Shield", "football laces and draft-board geometry inside a competitive badge", "bold athletic sans", "midnight navy, white, turf green", "badge above team-style wordmark", "It connects fantasy football, competition, and league identity."],
+      ["Gridiron Bolt", "football shape with speed line and scoreboard spark", "condensed sports typography", "black, white, electric gold", "large icon with compact name", "It feels energetic and social-profile ready."],
+      ["League Monogram", "initials fused with football laces and yard-line stripes", "sports wordmark", "deep green, cream, orange accent", "monogram and wordmark", "It makes the brand/team name the hero."],
+    ],
+    hippo: [
+      ["Hippo Mascot Mark", "friendly simplified hippo head reduced into a bold mascot silhouette", "rounded confident sans", "charcoal, cream, blue accent", "mascot above name", "It clearly shows the animal and keeps it usable as an icon."],
+      ["Heavyweight Hippo", "hippo face with strong brow and simple geometric mouth", "bold sports-style type", "black, white, gold accent", "mascot badge lockup", "It gives the brand a memorable character without clutter."],
+      ["Minimal Hippo Smile", "hippo snout and ears as two or three clean shapes", "playful modern sans", "deep gray, ivory, coral", "small icon with readable wordmark", "It feels friendly and less cartoonish."],
+    ],
+    "hippo-football": [
+      ["Fantasy Hippo Badge", "hippo mascot wearing football-lace crown inside a team crest", "bold fantasy sports typography", "dark green, cream, gold", "large mascot crest above name", "It combines the animal and fantasy football instead of choosing only one."],
+      ["Gridiron Hippo Mark", "hippo face merged with football oval and yard-line stripes", "condensed sports wordmark", "black, white, turf green", "mascot-led stacked logo", "It reads as both hippo and football at a glance."],
+      ["League Mascot Lockup", "simple hippo head with draft-board spark and football laces", "athletic sans", "navy, white, orange accent", "icon left with wordmark", "It works for league apps, merch, and social avatars."],
+    ],
+    insurance: [
+      ["Coverage Shield", "protective roof, check, and circle reduced into a trust mark", "authoritative serif/sans pairing", "navy, white, calm blue", "shield above stable wordmark", "It communicates protection and coverage without generic stock art."],
+      ["Policy Compass", "compass and document corner forming a guidance symbol", "serious professional typography", "charcoal, ivory, gold accent", "symbol plus wordmark", "It fits an advisor-like insurance brand."],
+      ["Risk Balance Mark", "balanced shapes forming a subtle safety net", "precise corporate sans", "deep blue, white, silver", "horizontal lockup", "It suggests protection, planning, and stability."],
+    ],
+    agency: [
+      ["Creative Growth Spark", "cursor, spark, and upward brand-grid line fused into one mark", "modern studio sans", "ink black, white, signal blue", "icon-left product-style lockup", "It communicates creative work and measurable growth."],
+      ["Brand System Mark", "modular blocks forming a custom initial and campaign grid", "clean geometric wordmark", "charcoal, ivory, vivid accent", "stacked logo system", "It feels like a modern branding or marketing agency."],
+      ["Attention Loop", "eye/loop shape with small spark and message cue", "bold editorial sans", "black, white, coral accent", "large mark above name", "It signals advertising, attention, and brand presence."],
+    ],
+    security: [
+      ["Sentinel Mark", "lock, shield, and watchful eye reduced into one serious symbol", "bold protective sans", "charcoal, white, signal red", "large protective icon above wordmark", "It communicates control and safety without cheap shield clipart."],
+      ["Cyber Gate", "network nodes forming a locked gate silhouette", "technical sans", "deep navy, white, electric blue", "tech-security lockup", "It works for cybersecurity or physical security brands."],
+      ["Perimeter Line", "corner brackets and protected center point", "strong contractor/corporate type", "black, ivory, red accent", "horizontal lockup", "It feels modern, scalable, and serious."],
+    ],
+    logistics: [
+      ["Route Arrow Mark", "route line, package corner, and arrow merged into one motion symbol", "bold operational sans", "navy, white, route blue", "wide icon with name", "It shows delivery and movement instantly."],
+      ["Freight Grid", "container/block grid with forward motion cut", "clean industrial typography", "charcoal, white, safety orange", "stacked trade mark", "It fits freight, transport, and shipping."],
+      ["Fast Courier Loop", "location pin and speed loop forming a custom mark", "friendly service sans", "deep blue, cream, green accent", "icon-left lockup", "It feels fast and dependable."],
+    ],
+    gaming: [
+      ["Esports Crest", "controller/visor shape reduced into a fierce team mark", "bold gaming sans", "black, white, electric violet", "crest above wordmark", "It gives the brand competitive gaming energy without messy effects."],
+      ["Stream Signal", "play button, chat bubble, and lightning line fused into one mark", "sharp digital type", "midnight, white, neon cyan", "icon and wordmark", "It fits streaming and creator gaming brands."],
+      ["Arcade Monogram", "initials built from pixel-grid corners and joystick negative space", "retrofuture display", "black, silver, hot pink", "monogram-led logo", "It feels game-native but still clean."],
+    ],
+    architecture: [
+      ["Spatial Line Mark", "floorplan corner and doorway line forming a refined monogram", "minimal architectural sans", "charcoal, ivory, warm stone", "thin mark above wide wordmark", "It signals space, proportion, and design taste."],
+      ["Studio Column Grid", "column/grid geometry with subtle perspective", "elevated serif/sans pairing", "black, white, muted gold", "structured icon and name", "It feels premium for architecture or interiors."],
+      ["Interior Frame", "window/frame shape with negative-space room path", "clean editorial typography", "deep taupe, cream, black", "horizontal lockup", "It connects interiors and built environments."],
+    ],
+    cannabis: [
+      ["Botanical Leaf Seal", "cannabis leaf simplified into a premium botanical emblem", "quiet serif or wellness sans", "deep green, cream, muted gold", "emblem above name", "It reflects the category clearly while avoiding head-shop clutter."],
+      ["Dispensary Monogram", "initials with a subtle leaf vein and sun arc", "premium modern serif", "forest green, ivory, copper", "monogram-led lockup", "It feels elevated, regulated, and retail-ready."],
+      ["Hemp Line Mark", "single leaf line and circle of care", "clean wellness typography", "sage, cream, charcoal", "simple icon-left logo", "It keeps the plant cue refined and scalable."],
+    ],
   };
 
   const fallback = [
@@ -858,6 +1043,27 @@ function getBrandableSubjectMark({ subject, ink, accent, paper, initials, varian
   }
 
   if (subject === "restaurant") {
+    if (variant === 1) {
+      return `
+        <g transform="translate(0 -18)">
+          <path d="M294 518 C360 366 466 288 512 288 C558 288 664 366 730 518 Z" fill="${ink}"/>
+          <path d="M370 492 C428 414 596 414 654 492" fill="none" stroke="${paper}" stroke-width="28" stroke-linecap="round"/>
+          <path d="M416 342 C430 296 458 260 512 238 C566 260 594 296 608 342" fill="none" stroke="${accent}" stroke-width="20" stroke-linecap="round"/>
+          <path d="M338 594 H686" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    if (variant === 2) {
+      return `
+        <g transform="translate(0 -18)">
+          <circle cx="512" cy="402" r="188" fill="${ink}"/>
+          <path d="M384 402 C448 312 576 312 640 402 C580 462 444 462 384 402 Z" fill="${paper}"/>
+          <path d="M448 394 H576" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+          <path d="M512 272 V528" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+          <path d="M350 596 H674" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+        </g>
+      `;
+    }
     return `
       <g transform="translate(0 -18)">
         <circle cx="512" cy="404" r="196" fill="${ink}"/>
@@ -871,6 +1077,29 @@ function getBrandableSubjectMark({ subject, ink, accent, paper, initials, varian
   }
 
   if (subject === "tech") {
+    if (variant === 1) {
+      return `
+        <g transform="translate(0 -18)">
+          <path d="M512 198 L714 316 V552 L512 670 L310 552 V316 Z" fill="${ink}"/>
+          <path d="M394 480 C452 356 578 322 662 406" fill="none" stroke="${paper}" stroke-width="28" stroke-linecap="round"/>
+          <circle cx="394" cy="480" r="20" fill="${accent}"/>
+          <circle cx="512" cy="366" r="20" fill="${accent}"/>
+          <circle cx="662" cy="406" r="20" fill="${accent}"/>
+          <path d="M394 480 L512 366 L662 406" fill="none" stroke="${accent}" stroke-width="12" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    if (variant === 2) {
+      return `
+        <g transform="translate(0 -18)">
+          <rect x="306" y="226" width="412" height="330" rx="64" fill="${ink}"/>
+          <path d="M408 416 H616 M512 312 V520" stroke="${paper}" stroke-width="30" stroke-linecap="round"/>
+          <path d="M408 416 C466 356 558 356 616 416 C558 476 466 476 408 416 Z" fill="none" stroke="${accent}" stroke-width="22"/>
+          <circle cx="512" cy="416" r="32" fill="${accent}"/>
+          <path d="M350 626 H674" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+        </g>
+      `;
+    }
     return `
       <g transform="translate(0 -18)">
         <rect x="320" y="206" width="384" height="384" rx="96" fill="${ink}"/>
@@ -884,12 +1113,101 @@ function getBrandableSubjectMark({ subject, ink, accent, paper, initials, varian
   }
 
   if (subject === "law" || subject === "finance") {
+    if (variant === 1) {
+      return `
+        <g transform="translate(0 -20)">
+          <path d="M310 574 H714" stroke="${ink}" stroke-width="30" stroke-linecap="round"/>
+          <path d="M512 218 L682 334 H342 Z" fill="${ink}"/>
+          <path d="M390 376 H438 V548 H390 Z M488 376 H536 V548 H488 Z M586 376 H634 V548 H586 Z" fill="${ink}"/>
+          <path d="M360 342 H664" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+          <path d="M438 622 H586" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    if (variant === 2) {
+      return `
+        <g transform="translate(0 -20)">
+          <circle cx="512" cy="410" r="190" fill="${ink}"/>
+          <path d="M400 428 H624" stroke="${paper}" stroke-width="28" stroke-linecap="round"/>
+          <path d="M512 302 V536" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+          <path d="M404 352 L512 286 L620 352" fill="none" stroke="${paper}" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M388 592 H636" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        </g>
+      `;
+    }
     return `
       <g transform="translate(0 -20)">
         <path d="M512 206 L724 322 V538 L512 650 L300 538 V322 Z" fill="${ink}"/>
         <path d="M386 342 H638 M422 402 H602 M456 462 H568" stroke="${paper}" stroke-width="26" stroke-linecap="round"/>
         <path d="M512 276 V568" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
         <path d="M390 588 H634" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "insurance" || subject === "security") {
+    return `
+      <g transform="translate(0 -20)">
+        <path d="M512 202 L734 300 V446 C734 558 642 626 512 672 C382 626 290 558 290 446 V300 Z" fill="${ink}"/>
+        <path d="M390 418 L474 502 L648 330" fill="none" stroke="${paper}" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M512 252 L674 324" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        <path d="M368 610 H656" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "agency") {
+    return `
+      <g transform="translate(0 -18)">
+        <rect x="318" y="220" width="388" height="342" rx="82" fill="${ink}"/>
+        <path d="M402 430 C472 332 576 318 652 382 C576 392 528 442 500 520 C466 484 432 452 402 430 Z" fill="${paper}"/>
+        <path d="M642 258 L670 318 L736 330 L684 372 L700 436 L642 402 L584 436 L600 372 L548 330 L614 318 Z" fill="${accent}"/>
+        <path d="M356 624 H668" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "logistics") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M280 422 H610" stroke="${ink}" stroke-width="58" stroke-linecap="round"/>
+        <path d="M590 300 L768 422 L590 544" fill="none" stroke="${ink}" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M330 336 H486 M300 506 H512" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <rect x="344" y="370" width="176" height="104" rx="20" fill="${paper}"/>
+        <path d="M370 622 H668" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "gaming") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 204 L716 314 V544 L512 662 L308 544 V314 Z" fill="${ink}"/>
+        <path d="M394 432 H630" stroke="${paper}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M448 374 V490 M576 374 V490" stroke="${accent}" stroke-width="26" stroke-linecap="round"/>
+        <path d="M420 322 L512 270 L604 322" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M382 610 H642" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "architecture") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M332 570 V286 H692 V570" fill="none" stroke="${ink}" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M390 348 H634 V512 H458 V420 H634" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M332 626 H692" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "cannabis") {
+    return `
+      <g transform="translate(0 -18)">
+        <circle cx="512" cy="410" r="190" fill="${ink}"/>
+        <path d="M512 252 C552 352 622 386 704 374 C642 438 612 508 620 584 C564 522 512 498 512 498 C512 498 460 522 404 584 C412 508 382 438 320 374 C402 386 472 352 512 252 Z" fill="${paper}"/>
+        <path d="M512 306 V560" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        <path d="M370 620 H654" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
       </g>
     `;
   }
@@ -1354,11 +1672,26 @@ function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, 
 
 function getRequestedColors(value = "") {
   const text = String(value).toLowerCase();
+  if ((text.includes("black") || text.includes("charcoal")) && (text.includes("gold") || text.includes("brass") || text.includes("champagne"))) return ["#0f0f0f", "#fffaf0", "#c7a45a"];
+  if ((text.includes("navy") || text.includes("blue")) && (text.includes("gold") || text.includes("brass"))) return ["#0f1f3a", "#f7f2e8", "#c9a449"];
   if (text.includes("green") && text.includes("gold")) return ["#0f2a22", "#f7f2e8", "#c9a449"];
   if (text.includes("black") && text.includes("white")) return ["#101010", "#ffffff", "#777777"];
+  if (text.includes("monochrome") || text.includes("mono")) return ["#111111", "#fafafa", "#5f5f5f"];
+  if (text.includes("earth") || text.includes("earthy") || text.includes("natural")) return ["#28362f", "#f5ead7", "#9a6b43"];
+  if (text.includes("pastel")) return ["#333044", "#fff8f4", "#f4a7b9"];
+  if (text.includes("neon")) return ["#0a0b12", "#f7fbff", "#6dffb5"];
+  if (text.includes("brown") || text.includes("espresso") || text.includes("coffee")) return ["#2a1810", "#fff4df", "#b7793d"];
+  if (text.includes("cream") || text.includes("ivory")) return ["#1a1a1a", "#f7f0df", "#b9975b"];
+  if (text.includes("teal") || text.includes("aqua")) return ["#092f35", "#f3fbfa", "#27b4a8"];
+  if (text.includes("orange") || text.includes("copper")) return ["#1f1712", "#fff7ed", "#e66a2c"];
+  if (text.includes("yellow")) return ["#161616", "#fffbea", "#f5c542"];
+  if (text.includes("pink") || text.includes("blush") || text.includes("rose")) return ["#2d2026", "#fff6f8", "#d98aa5"];
+  if (text.includes("silver") || text.includes("chrome") || text.includes("gray") || text.includes("grey")) return ["#171717", "#f8fafc", "#9ca3af"];
   if (text.includes("blue")) return ["#0f172a", "#f8fafc", "#38bdf8"];
   if (text.includes("red")) return ["#1a1010", "#fff8f3", "#e0502f"];
   if (text.includes("purple")) return ["#21152f", "#faf7ff", "#a78bfa"];
+  if (text.includes("gold")) return ["#15120c", "#fff8ea", "#c9a449"];
+  if (text.includes("green")) return ["#0f2a22", "#f7f2e8", "#7c9a6d"];
   return null;
 }
 
@@ -1476,6 +1809,15 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     construction: "construction brand",
     travel: "travel brand",
     nonprofit: "community mission",
+    insurance: "coverage protection",
+    agency: "creative growth",
+    security: "protection systems",
+    logistics: "delivery transport",
+    gaming: "gaming brand",
+    architecture: "architecture studio",
+    cannabis: "botanical brand",
+    football: "fantasy football",
+    hippo: "mascot brand",
   }[subject];
   const subtitle = escapeXml(
     (subjectSubtitle || subtitleWords.join(" ") || subject.replace("-", " "))
