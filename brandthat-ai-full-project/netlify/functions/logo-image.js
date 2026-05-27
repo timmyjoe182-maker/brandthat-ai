@@ -108,36 +108,110 @@ function getSubject(words) {
   return "abstract";
 }
 
-function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0 }) {
-  if (subject === "plastering") {
-    if (variant === 1) {
-      return `
-        <path d="M244 392 C344 306 482 280 670 314 C602 370 490 412 324 452 Z" fill="${ink}"/>
-        <path d="M306 410 C442 354 552 342 680 356" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
-        <path d="M608 220 L720 332 L690 362 L578 250 Z" fill="${ink}"/>
-        <path d="M702 314 L788 228 Q810 206 832 228 Q852 248 832 270 L746 356 Z" fill="${accent}"/>
-        <path d="M282 506 H742 M318 562 H706 M372 618 H650" stroke="${ink}" stroke-width="18" stroke-linecap="round" opacity=".9"/>
-      `;
-    }
+function getStyleProfile({ logoStyle = "", logoIndustry = "", userPrompt = "" }) {
+  const text = `${logoStyle} ${logoIndustry} ${userPrompt}`.toLowerCase();
+  return {
+    isLuxury: /(luxury|premium|high.?end|elegant|editorial)/.test(text),
+    isBold: /(bold|strong|mascot|aggressive|sport|sports|competitive)/.test(text),
+    isMinimal: /(minimal|simple|clean|modern|professional)/.test(text),
+    isVintage: /(vintage|retro|heritage|classic|badge)/.test(text),
+    isTrade: /(stucco|plaster|plastering|drywall|roof|roofing|landscape|lawn|contractor|construction|barber|salon)/.test(text),
+  };
+}
 
-    if (variant === 2) {
-      return `
-        <rect x="292" y="226" width="440" height="300" rx="42" fill="${ink}"/>
-        <path d="M346 298 H678 M346 370 H678 M346 442 H612" stroke="${paper}" stroke-width="18" stroke-linecap="round" opacity=".94"/>
-        <path d="M328 592 C430 514 578 500 714 538" fill="none" stroke="${accent}" stroke-width="34" stroke-linecap="round"/>
-        <path d="M610 540 L750 400 L802 452 L662 592 Z" fill="${paper}"/>
-        <path d="M748 400 L812 336 Q836 312 860 336 Q882 358 858 382 L794 448 Z" fill="${accent}"/>
-      `;
-    }
-
+function getPlasteringMark({ ink, accent, paper, initials, variant = 0, profile = {} }) {
+  if (variant === 3) {
     return `
-      <path d="M236 458 C366 324 548 278 784 324 C682 420 526 498 298 566 Z" fill="${ink}"/>
-      <path d="M292 484 C424 404 566 374 758 392" fill="none" stroke="${accent}" stroke-width="28" stroke-linecap="round"/>
-      <path d="M566 262 L704 400 L662 442 L524 304 Z" fill="${paper}"/>
-      <path d="M682 382 L792 272 Q824 240 856 272 Q886 302 854 334 L744 444 Z" fill="${ink}"/>
-      <path d="M318 608 H706" stroke="${ink}" stroke-width="20" stroke-linecap="round"/>
-      <text x="512" y="680" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="58" font-weight="900" fill="${ink}" letter-spacing="3">${escapeXml(initials.slice(0, 3))}</text>
+      <g transform="translate(0 -8)">
+        <path d="M324 428 C338 284 452 206 610 238" fill="none" stroke="${ink}" stroke-width="58" stroke-linecap="round"/>
+        <path d="M356 438 C442 354 560 324 708 352" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M360 542 C488 478 626 478 752 532" fill="none" stroke="${ink}" stroke-width="30" stroke-linecap="round"/>
+        <text x="520" y="450" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="118" font-weight="900" fill="${ink}" letter-spacing="-7">${escapeXml(initials.slice(0, 2))}</text>
+        <path d="M650 244 L776 370" stroke="${ink}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M758 352 L838 272" stroke="${accent}" stroke-width="30" stroke-linecap="round"/>
+      </g>
     `;
+  }
+
+  if (variant === 4) {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M256 518 H768" stroke="${ink}" stroke-width="32" stroke-linecap="round"/>
+        <path d="M300 448 C414 358 564 318 742 342" fill="none" stroke="${ink}" stroke-width="54" stroke-linecap="round"/>
+        <path d="M320 446 C448 384 574 366 714 382" fill="none" stroke="${paper}" stroke-width="18" stroke-linecap="round" opacity=".94"/>
+        <path d="M602 286 L740 424 L704 460 L566 322 Z" fill="${paper}"/>
+        <path d="M720 404 L814 310" stroke="${accent}" stroke-width="42" stroke-linecap="round"/>
+        <path d="M336 590 H688" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (variant === 5) {
+    return `
+      <g transform="translate(0 -18)">
+        <rect x="270" y="204" width="484" height="370" rx="34" fill="${ink}"/>
+        <rect x="312" y="252" width="400" height="274" rx="22" fill="${paper}"/>
+        <path d="M358 352 C462 298 574 296 674 340" fill="none" stroke="${ink}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M358 424 C464 376 574 374 668 410" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M626 452 L778 300" stroke="${ink}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M758 320 L828 250" stroke="${accent}" stroke-width="38" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (variant === 1) {
+    return `
+      <g transform="translate(0 -8)">
+        <path d="M272 438 C354 294 514 230 742 258 C660 340 526 398 324 450 Z" fill="${ink}"/>
+        <path d="M316 418 C436 352 566 326 710 334" fill="none" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M596 226 L736 366 L704 398 L564 258 Z" fill="${paper}"/>
+        <path d="M714 346 L816 244 Q846 214 876 244 Q904 272 874 302 L772 404 Z" fill="${ink}"/>
+        <path d="M792 270 L846 324" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+        <path d="M292 536 H738 M336 592 H694" stroke="${ink}" stroke-width="18" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (variant === 2) {
+    return `
+      <g transform="translate(0 -16)">
+        <rect x="300" y="222" width="424" height="322" rx="38" fill="${paper}" stroke="${ink}" stroke-width="22"/>
+        <path d="M360 314 C456 276 566 276 664 316" fill="none" stroke="${ink}" stroke-width="18" stroke-linecap="round"/>
+        <path d="M350 398 C470 342 598 344 694 390" fill="none" stroke="${accent}" stroke-width="26" stroke-linecap="round"/>
+        <path d="M370 470 H650" stroke="${ink}" stroke-width="16" stroke-linecap="round"/>
+        <path d="M632 478 L792 318 L836 362 L676 522 Z" fill="${ink}"/>
+        <path d="M788 318 L854 252 Q878 228 902 252 Q924 274 900 298 L834 364 Z" fill="${accent}"/>
+      </g>
+    `;
+  }
+
+  if (profile.isLuxury) {
+    return `
+      <g transform="translate(0 -20)">
+        <path d="M296 460 C410 314 574 284 748 346" fill="none" stroke="${ink}" stroke-width="44" stroke-linecap="round"/>
+        <path d="M316 458 C434 388 558 368 714 392" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+        <path d="M572 274 L724 426" stroke="${ink}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M706 408 L820 294" stroke="${accent}" stroke-width="38" stroke-linecap="round"/>
+        <text x="398" y="416" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="142" font-weight="900" fill="${ink}" letter-spacing="-8">${escapeXml(initials.slice(0, 1))}</text>
+      </g>
+    `;
+  }
+
+  return `
+    <g transform="translate(0 -12)">
+      <path d="M252 456 C366 322 536 268 780 316 C690 398 540 472 306 548 Z" fill="${ink}"/>
+      <path d="M306 472 C430 394 574 358 748 378" fill="none" stroke="${accent}" stroke-width="26" stroke-linecap="round"/>
+      <path d="M588 244 L738 394 L700 432 L550 282 Z" fill="${paper}"/>
+      <path d="M716 374 L820 270 Q852 238 884 270 Q914 300 882 332 L778 436 Z" fill="${ink}"/>
+      <path d="M326 594 H698" stroke="${ink}" stroke-width="22" stroke-linecap="round"/>
+      <path d="M386 650 H638" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+    </g>
+  `;
+}
+
+function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, profile = {} }) {
+  if (subject === "plastering") {
+    return getPlasteringMark({ ink, accent, paper, initials, variant, profile });
   }
 
   if (subject === "roofing") {
@@ -294,6 +368,7 @@ function svgToDataUrl(svg) {
 function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant = 0, transparent = false }) {
   const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
   const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt} ${variant}`);
+  const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt });
   const palettes = [
     ["#111111", "#f7f4ed", "#9b7b3f"],
     ["#10231f", "#f5f1e8", "#c7a45a"],
@@ -308,8 +383,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const inkToken = "var(--logo-ink)";
   const paperToken = "var(--logo-paper)";
   const accentToken = "var(--logo-accent)";
-  const subjectVariant = (hash + variant) % 3;
-  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials, variant: subjectVariant });
+  const subjectVariant = subject === "plastering" ? variant % 6 : (hash + variant) % 3;
+  const subjectMark = buildSubjectMark({ subject, ink: inkToken, accent: accentToken, paper: paperToken, initials, variant: subjectVariant, profile });
   const nameWords = displayName.toLowerCase().split(/\s+/);
   const subtitleWords = words
     .filter((word) => !nameWords.includes(word.toLowerCase()))
@@ -333,8 +408,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     : variant === 2
       ? "Arial Black, Arial, Helvetica, sans-serif"
       : "Inter, Arial, Helvetica, sans-serif";
-  const layout = (hash + variant) % 4;
-  const markTransform = layout === 1 ? "translate(0 -42) scale(1.05)" : layout === 2 ? "translate(0 -28) scale(.98)" : layout === 3 ? "translate(0 -12) scale(.9)" : "";
+  const layout = subject === "plastering" ? variant % 4 : (hash + variant) % 4;
+  const markTransform = layout === 1 ? "translate(0 -42) scale(1.05)" : layout === 2 ? "translate(0 -28) scale(.98)" : layout === 3 ? "translate(0 -12) scale(.94)" : "";
   const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
   const lineY = nameY + 52;
   const subtitleY = lineY + 68;
@@ -358,11 +433,15 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
 function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
   const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0 });
   const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, transparent: true });
-  const variations = [0, 1, 2].map((variant) => {
+  const { words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const subject = getSubject(words);
+  const variantIds = subject === "plastering" ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3];
+  const variationNames = ["Primary", "Editorial", "Bold", "Monogram", "Trade Mark", "Contractor Badge"];
+  const variations = variantIds.map((variant) => {
     const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant });
     return {
       id: `variation-${variant + 1}`,
-      name: variant === 0 ? "Primary" : variant === 1 ? "Editorial" : "Bold",
+      name: variationNames[variant] || `Variation ${variant + 1}`,
       image: svgToDataUrl(svg),
       svg: svgToDataUrl(svg),
     };
