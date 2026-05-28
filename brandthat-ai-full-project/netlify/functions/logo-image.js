@@ -15,7 +15,7 @@ function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoS
     .join("\n");
 
   return `
-Create one finished, usable logo image.
+Create one finished, usable premium logo image.
 
 Brand name or required words:
 ${brandName || "Use the brand name, initials, or keywords from the request."}
@@ -65,6 +65,17 @@ Primary direction to generate:
 Distinct logo directions to honor:
 ${conceptLines}
 
+First-result quality standard:
+- The first logo must feel like a real brand identity direction, not a logo-generator template.
+- Prefer restraint over decoration: one clear idea, one primary mark or wordmark, one accent at most.
+- Prioritize typography quality, spacing, hierarchy, and brand fit over adding more symbols.
+- If the requested concept can work as a wordmark or monogram, use that before adding a generic icon.
+- If using an icon, make it a simplified ownable symbol with negative space or custom geometry, not a literal clipart drawing.
+- Use flat vector-style design with crisp edges, confident whitespace, and no mockup scene.
+- Use premium color restraint: mostly monochrome or two-color with one meaningful accent unless the user explicitly asked for more.
+- Do not include fake taglines, tiny descriptors, presentation cards, frames, shadows, gradients, texture, stationery, or decorative filler.
+- Do not over-design. The logo should be believable, scalable, and usable on white, black, and transparent backgrounds.
+
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
 - Use the Primary direction as the final art direction. The other directions are context only; do not merge them into one cluttered mark.
@@ -73,7 +84,7 @@ Design requirements:
 - Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
 - Visually match the meaning of the words. If the brand says ranch, show refined ranch cues. If it says AI, show intelligence/brand-system cues. If it says surf shop, show surf/ocean/shop cues. If it says law firm, show legal trust cues.
 - If the prompt contains a specific object, animal, product, trade, food, location, or industry, that idea must be visible in the logo mark.
-- Use a large, clean centered composition on a simple background.
+- Use a large, clean composition on a simple background with confident spacing.
 - Create a strong logo mark, emblem, mascot, wordmark, tool mark, trade mark, lettermark, or icon depending on the request.
 - Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
 - Make the icon feel designed, not clipart: reduce literal objects into one ownable silhouette, use negative space, hidden symbolism, geometric tension, and custom category cues.
@@ -86,7 +97,7 @@ Design requirements:
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
-- Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, framed cards, tiny thumbnails, clutter, tiny decorative details, and messy text.
+- Avoid mockup scenes, stationery, wall signs, paper sheets, hands, devices, photo backgrounds, framed cards, frames around the logo, tiny thumbnails, clutter, tiny decorative details, and messy text.
 - Do not crop, hide, or misspell brand text. If text is risky, prioritize a clean symbol plus short readable brand name.
 - If text appears, keep it short and highly legible.
 - If the user asks for color, use color. Otherwise choose a clean professional palette.
@@ -2478,6 +2489,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
   const creativeDirector = director || buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
   const concept = creativeDirector.concepts?.[variant % creativeDirector.concepts.length] || {};
+  const isPrimaryResult = variant === 0;
   const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt} ${variant}`);
   const profile = getStyleProfile({ logoStyle: `${logoStyle} ${concept.style || ""}`, logoIndustry, userPrompt });
   const palettes = [
@@ -2547,34 +2559,41 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const fontFamily = typographySystem.primaryFamily || "Inter, Arial, Helvetica, sans-serif";
   const supportFamily = typographySystem.supportFamily || fontFamily;
   const personalityDirectives = creativeDirector.personalityDirectives || {};
-  const preferredLayout = personalityDirectives.layoutBias === "restrained" ? 3 : personalityDirectives.layoutBias === "dynamic" ? 1 : personalityDirectives.layoutBias === "institutional" ? 2 : null;
+  const preferredLayout = isPrimaryResult
+    ? (["pizza", "restaurant", "coffee", "pet", "fitness"].includes(subject) ? 0 : 3)
+    : personalityDirectives.layoutBias === "restrained" ? 3 : personalityDirectives.layoutBias === "dynamic" ? 1 : personalityDirectives.layoutBias === "institutional" ? 2 : null;
   const layout = subject === "plastering" ? variant % 4 : preferredLayout ?? ((hash + variant) % 4);
   const humanComposition = getHumanComposition({ hash, variant, layout, subject, humanDesign: creativeDirector.humanDesign, personalityDirectives });
-  const markScale = (personalityDirectives.layoutBias === "dynamic" ? 1.1 : personalityDirectives.spacing === "generous" ? 0.96 : 1) * humanComposition.markScaleBoost;
+  const markScale = (isPrimaryResult ? 0.78 : personalityDirectives.layoutBias === "dynamic" ? 1.1 : personalityDirectives.spacing === "generous" ? 0.96 : 1) * humanComposition.markScaleBoost;
   const baseMarkTransform = layout === 1 ? `translate(${humanComposition.markDx} ${-42 + humanComposition.markDy}) scale(${(1.05 * markScale).toFixed(2)})` : layout === 2 ? `translate(${humanComposition.markDx} ${-28 + humanComposition.markDy}) scale(${(0.98 * markScale).toFixed(2)})` : layout === 3 ? `translate(${humanComposition.markDx} ${-12 + humanComposition.markDy}) scale(${(0.94 * markScale).toFixed(2)})` : `translate(${humanComposition.markDx} ${humanComposition.markDy}) scale(${markScale.toFixed(2)})`;
   const markTransform = baseMarkTransform;
-  const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
+  const nameY = isPrimaryResult ? (layout === 3 ? 735 : 742) : layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
   const wordmarkX = 512 + humanComposition.wordDx;
   const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem, x: wordmarkX });
   const lineY = bottomY + 48;
   const subtitleY = lineY + 58;
-  const backgroundPattern = subject === "plastering"
+  const backgroundPattern = isPrimaryResult ? "" : subject === "plastering"
     ? `<path data-layer="texture" d="M110 170 C250 128 384 130 514 168 M630 850 C760 902 884 890 962 850 M116 792 C232 742 364 734 484 770" fill="none" stroke="${inkToken}" stroke-width="8" stroke-linecap="round" opacity=".05"/>`
     : `<path data-layer="composition-tension" d="M${134 + humanComposition.accentDx} ${226 + (hash % 25)} C${274 + humanComposition.accentDx} ${172 + (variant * 13)} ${390 - humanComposition.accentDx} ${188} ${504 + humanComposition.accentDx} ${236}" fill="none" stroke="${inkToken}" stroke-width="5" stroke-linecap="round" opacity="${transparent ? "0" : "0.035"}"/>`;
   const lineStart = humanComposition.lineInset + humanComposition.accentDx;
   const lineEnd = 1024 - humanComposition.lineInset + humanComposition.accentDx;
   const subtitleX = 512 + Math.round(humanComposition.wordDx / 2);
+  const showSupportLine = !isPrimaryResult || ["pizza", "restaurant", "coffee", "pet", "fitness", "construction", "plumbing", "automotive"].includes(subject);
+  const supportOpacity = isPrimaryResult ? "0.44" : "0.64";
+  const accentWidth = isPrimaryResult ? 6 : 10;
+  const accentOpacity = isPrimaryResult ? "0.72" : "1";
+  const frameOpacity = isPrimaryResult ? "0" : humanComposition.frameOpacity;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" data-brandthat-vector="true" data-layout="${layout}" data-human-composition="${escapeXml(humanComposition.data)}" style="--logo-ink:${ink};--logo-paper:${paper};--logo-accent:${accent};">
     ${transparent ? "" : `<rect data-layer="background" width="1024" height="1024" fill="${paperToken}"/>`}
     ${backgroundPattern}
-    <rect data-layer="frame" x="${humanComposition.frameInset}" y="52" width="${1024 - humanComposition.frameInset * 2}" height="920" rx="${humanComposition.frameRx}" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : humanComposition.frameOpacity}" stroke-width="4"/>
+    <rect data-layer="frame" x="${humanComposition.frameInset}" y="52" width="${1024 - humanComposition.frameInset * 2}" height="920" rx="${humanComposition.frameRx}" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : frameOpacity}" stroke-width="4"/>
     <g data-layer="mark" transform="${markTransform}">
       ${subjectMark}
     </g>
     ${wordmark}
-    <line data-layer="accent" x1="${lineStart}" y1="${lineY}" x2="${lineEnd}" y2="${lineY}" stroke="${accentToken}" stroke-width="10" stroke-linecap="round"/>
-    <text data-layer="tagline" x="${subtitleX}" y="${subtitleY}" text-anchor="middle" font-family="${supportFamily}" font-size="25" font-weight="850" fill="${inkToken}" opacity="0.64" letter-spacing="${typographySystem.subtitleTracking || 5}" font-kerning="normal" text-rendering="geometricPrecision">${subtitle || "CUSTOM LOGO MARK"}</text>
+    ${showSupportLine ? `<line data-layer="accent" x1="${lineStart}" y1="${lineY}" x2="${lineEnd}" y2="${lineY}" stroke="${accentToken}" stroke-width="${accentWidth}" stroke-opacity="${accentOpacity}" stroke-linecap="round"/>
+    <text data-layer="tagline" x="${subtitleX}" y="${subtitleY}" text-anchor="middle" font-family="${supportFamily}" font-size="${isPrimaryResult ? 21 : 25}" font-weight="750" fill="${inkToken}" opacity="${supportOpacity}" letter-spacing="${Math.max(4, typographySystem.subtitleTracking || 5)}" font-kerning="normal" text-rendering="geometricPrecision">${subtitle || "CUSTOM LOGO MARK"}</text>` : ""}
   </svg>`;
 }
 

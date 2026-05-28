@@ -633,7 +633,7 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
   const displayName = escapeSvgText(brandName || "Brandthat");
   const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
-  const descriptor = escapeSvgText([logoIndustry, logoStyle, userPrompt].filter(Boolean).join(" ").slice(0, 64) || "Premium brand identity");
+  const descriptor = escapeSvgText([logoIndustry, logoStyle].filter(Boolean).join(" ").slice(0, 34) || "Brand identity");
   const requestedColors = String(logoColors || "").toLowerCase();
   const dark = requestedColors.includes("blue") ? "#0d1b2a" : requestedColors.includes("green") ? "#10281f" : "#111111";
   const accent = requestedColors.includes("gold") ? "#b08d45" : requestedColors.includes("red") ? "#9f2d2d" : requestedColors.includes("blue") ? "#4c6fff" : "#8a6b37";
@@ -641,15 +641,14 @@ function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400">
   <rect width="1400" height="1400" fill="#f7f4ed"/>
-  <rect x="190" y="190" width="1020" height="1020" rx="96" fill="#fffdfa" stroke="#e6e0d2" stroke-width="5"/>
-  <g transform="translate(700 520)">
-    <path d="M0 -168 L145 -84 L145 84 L0 168 L-145 84 L-145 -84 Z" fill="${dark}"/>
-    <path d="M0 -118 L102 -59 L102 59 L0 118 L-102 59 L-102 -59 Z" fill="none" stroke="${accent}" stroke-width="18" stroke-linejoin="round"/>
-    <text x="0" y="26" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="92" font-weight="900" fill="#ffffff" letter-spacing="-4">${initials}</text>
+  <g transform="translate(700 462)">
+    <path d="M0 -142 C82 -142 142 -82 142 0 C142 82 82 142 0 142 C-82 142 -142 82 -142 0 C-142 -82 -82 -142 0 -142 Z" fill="${dark}"/>
+    <path d="M-72 0 C-36 -68 36 -68 72 0 C36 68 -36 68 -72 0 Z" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="0" y="30" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="90" font-weight="850" fill="#ffffff" letter-spacing="1">${initials}</text>
   </g>
-  <text x="700" y="830" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900" fill="${dark}" letter-spacing="-4">${displayName}</text>
-  <line x1="510" y1="884" x2="890" y2="884" stroke="${accent}" stroke-width="10" stroke-linecap="round"/>
-  <text x="700" y="956" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" fill="#777067" letter-spacing="8">${descriptor.toUpperCase()}</text>
+  <text x="700" y="760" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="92" font-weight="850" fill="${dark}" letter-spacing="-2">${displayName}</text>
+  <line x1="560" y1="820" x2="840" y2="820" stroke="${accent}" stroke-width="7" stroke-linecap="round"/>
+  <text x="700" y="888" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="750" fill="#777067" letter-spacing="7">${descriptor.toUpperCase()}</text>
 </svg>`.trim();
 
   const transparentSvg = svg.replace('<rect width="1400" height="1400" fill="#f7f4ed"/>', '<rect width="1400" height="1400" fill="transparent"/>');
