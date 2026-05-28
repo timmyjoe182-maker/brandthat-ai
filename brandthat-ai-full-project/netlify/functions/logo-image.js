@@ -85,7 +85,10 @@ First-result quality standard:
 - The first logo must feel like a real brand identity direction, not a logo-generator template.
 - Prefer restraint over decoration: one clear idea, one primary mark or wordmark, one accent at most.
 - Prioritize typography quality, spacing, hierarchy, and brand fit over adding more symbols.
+- Prioritize memorability and ownability. The result should feel like a specific brand identity, not a stock template.
 - Bias toward typography-first, monogram, or restrained abstract marks when the category does not require a literal symbol.
+- Avoid defaulting to the most literal icon unless the user explicitly requested it. Use monograms, negative space, motion, typography personality, or symbolic storytelling when stronger.
+- If the request combines categories, create a hybrid concept that honors both meanings. Example: a pizza baseball team should feel like a team identity with pizza/pirate/baseball cues, not a restaurant logo.
 - If the requested concept can work as a wordmark or monogram, use that before adding a generic icon.
 - If using an icon, make it a simplified ownable symbol with negative space or custom geometry, not a literal clipart drawing.
 - Use flat vector-style design with crisp edges, confident whitespace, and no mockup scene.
@@ -216,9 +219,13 @@ function hasWord(words, options) {
 function getSubject(words) {
   const hasHippo = hasWord(words, ["hippo", "hippos"]);
   const hasFootball = hasWord(words, ["football", "fantasy"]);
+  const hasPizza = hasWord(words, ["pizza", "pizzeria", "slice", "pepperoni"]);
+  const hasTeamSport = hasWord(words, ["baseball", "softball", "team", "league", "club", "mascot", "pirate", "pirates", "captain", "bat", "ball"]);
+  if (hasPizza && hasTeamSport) return "pizza-team";
   if (hasHippo && hasFootball) return "hippo-football";
   if (hasHippo) return "hippo";
   if (hasFootball) return "football";
+  if (hasWord(words, ["baseball", "softball", "team", "league", "club", "mascot", "pirate", "pirates", "captain", "bat", "ball"])) return "sports-team";
   if (hasWord(words, ["stucco", "plaster", "plastering", "drywall", "rendering", "skim", "venetian"])) return "plastering";
   if (hasWord(words, ["wedding", "photo", "photography", "video", "film", "cinema", "rose"])) return "wedding-photo";
   if (hasWord(words, ["insurance", "insured", "coverage", "policy", "risk"])) return "insurance";
@@ -236,7 +243,7 @@ function getSubject(words) {
   if (hasWord(words, ["lawn", "landscape", "landscaping", "garden", "tree"])) return "landscaping";
   if (hasWord(words, ["fitness", "gym", "training", "trainer", "strength"])) return "fitness";
   if (hasWord(words, ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "confectionery", "sweets"])) return "chocolate";
-  if (hasWord(words, ["pizza", "pizzeria", "slice", "pepperoni"])) return "pizza";
+  if (hasPizza) return "pizza";
   if (hasWord(words, ["restaurant", "food", "kitchen", "chef", "diner", "grill", "bakery", "taco", "burger", "sushi", "catering"])) return "restaurant";
   if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
   if (hasWord(words, ["travel", "hotel", "resort", "vacation", "tour", "airbnb", "hospitality", "rental", "rentals", "stay"])) return "travel";
@@ -326,6 +333,8 @@ const DEFAULT_SUBJECT_STYLE_OVERRIDES = {
   landscaping: ["minimal", "playful", "corporate"],
   barber: ["masculine", "vintage", "streetwear"],
   football: ["fitness", "masculine", "playful"],
+  "sports-team": ["fitness", "playful", "streetwear"],
+  "pizza-team": ["food", "playful", "streetwear"],
   hippo: ["playful", "masculine", "minimal"],
   "hippo-football": ["fitness", "playful", "masculine"],
   insurance: ["corporate", "finance", "minimal"],
@@ -349,13 +358,14 @@ const SCORING_WEIGHTS = {
   requestedSymbolMatch: 10,
   styleMatch: 8,
   readabilityAndScalability: 7,
+  brandability: 12,
   genericPenalty: -28,
   avoidWordPenalty: -12,
   ...(STYLE_SCHEMA.scoringWeights || {}),
 };
 
-const ELITE_QUALITY_TERMS = /(premium|restrained|editorial|wordmark|custom|ownable|negative space|monochrome|generous|whitespace|scalable|reduced|simplified|adaptive|optical|kerning|letter|silhouette|brandable|minimal|timeless|refined)/;
-const WEAK_LOGO_TERMS = /(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol|simple emblem built from|glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|template badge|overly centered|centered mark over readable wordmark|symbol above or beside wordmark|decorative|filler|multiple icons)/;
+const ELITE_QUALITY_TERMS = /(premium|restrained|editorial|wordmark|custom|ownable|negative space|monochrome|generous|whitespace|scalable|reduced|simplified|adaptive|optical|kerning|letter|silhouette|brandable|minimal|timeless|refined|signature|memorable|characterful|distinctive|proprietary|storytelling|team identity)/;
+const WEAK_LOGO_TERMS = /(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol|simple emblem built from|glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|template badge|overly centered|centered mark over readable wordmark|symbol above or beside wordmark|decorative|filler|multiple icons|generic startup typography|basic centered layout)/;
 
 function detectLogoStyles({ subject, logoStyle = "", logoIndustry = "", logoSymbol = "", userPrompt = "", logoPrompt = "" }) {
   const rawText = `${subject} ${logoStyle} ${logoIndustry} ${logoSymbol} ${userPrompt} ${logoPrompt}`.toLowerCase();
@@ -423,6 +433,8 @@ const SUBJECT_PERSONALITY_SIGNALS = {
   wellness: { price: 16, era: 12, gender: 26, tone: 2, craft: -18, market: 20, energy: -34, expression: -18 },
   beauty: { price: 22, era: 12, gender: 30, market: 24, energy: -22, expression: -10 },
   pizza: { price: -6, era: -8, tone: 24, reach: -30, craft: -18, market: -8, expression: 18 },
+  "pizza-team": { price: -4, era: -12, tone: 34, reach: -34, craft: -16, market: -10, energy: 30, expression: 34 },
+  "sports-team": { price: -8, era: -14, tone: 30, reach: -28, craft: -12, market: -8, energy: 34, expression: 32 },
   chocolate: { price: 14, era: 8, tone: 18, reach: -24, craft: -28, market: 12, expression: 10 },
   restaurant: { era: 4, tone: 12, reach: -24, craft: -20, market: 4, energy: -4, expression: 12 },
   coffee: { era: 10, tone: 8, reach: -22, craft: -28, market: 10, energy: -10, expression: 8 },
@@ -1106,6 +1118,7 @@ function selectTypography({ subject, styles, personality = null, trend = null })
   else if (["law", "finance", "insurance"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.authoritySerif;
   else if (subject === "ranch") selected = TYPOGRAPHY_SYSTEMS.luxurySerif;
   else if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security", "tattoo"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.tradeSans;
+  else if (["pizza-team", "sports-team", "football", "hippo-football"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.tradeSans;
   else if (["pizza", "restaurant", "coffee", "chocolate"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.hospitalitySans;
   else if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.editorialSerif;
   else if (primary === "vintage" || primary === "western") selected = TYPOGRAPHY_SYSTEMS.vintageDisplay;
@@ -1117,6 +1130,8 @@ function selectTypography({ subject, styles, personality = null, trend = null })
 function selectAudience({ subject, positioning }) {
   const map = {
     pizza: "hungry local customers looking for a memorable restaurant",
+    "pizza-team": "fans, families, and players who need a team identity that is funny, competitive, and merch-ready",
+    "sports-team": "fans, players, and communities who need a memorable team mark for hats, jerseys, and social",
     chocolate: "gift buyers, dessert lovers, and customers looking for a memorable confectionery brand",
     restaurant: "diners who need to understand the food concept instantly",
     law: "clients looking for trust, authority, and clarity",
@@ -1152,6 +1167,8 @@ function selectPalette({ subject, styles, logoColors, personality = null, trend 
   if (personality?.matrix.craft.score >= 70) return "ink black, clean white, electric blue or violet accent";
   if (personality?.matrix.reach.score <= 34 && personality?.matrix.craft.score <= 40) return "charcoal, cream, earthy local accent";
   if (subject === "pizza") return "tomato red, mozzarella cream, basil green, oven charcoal";
+  if (subject === "pizza-team") return "tomato red, aged parchment, pirate black, baseball cream, sharp gold accent";
+  if (subject === "sports-team") return "athletic black, uniform cream, victory red or electric accent";
   if (subject === "chocolate") return "deep cocoa brown, cream, copper foil, warm caramel";
   if (subject === "restaurant") return "charcoal, warm cream, copper or ingredient accent";
   if (subject === "ranch") return "deep green, warm ivory, muted gold";
@@ -1230,7 +1247,7 @@ function selectIconSystem({ subject, styles, logoSymbol = "", personality = null
   if (["tech", "finance", "law"].includes(subject) || styleKeys.includes("futuristic")) {
     return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
-  if (["pizza", "restaurant", "coffee", "chocolate", "plastering", "construction", "automotive", "fitness", "surf", "roofing", "landscaping", "barber", "logistics"].includes(subject)) {
+  if (["pizza-team", "sports-team", "pizza", "restaurant", "coffee", "chocolate", "plastering", "construction", "automotive", "fitness", "surf", "roofing", "landscaping", "barber", "logistics"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.negativeSpace;
   }
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
@@ -1320,7 +1337,53 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     source: "positioning",
   }));
 
-  return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts].slice(0, 28);
+  const originalityConcepts = [
+    ["signature wordmark", "custom letter rhythm, one memorable altered letter, and no standalone stock icon", "type-led asymmetric lockup"],
+    ["negative-space story", "one hidden category cue created from the brand name or initials instead of an obvious object", "large mark with offset wordmark"],
+    ["motion system", "sense of movement, diagonal tension, or pennant-like energy tailored to the category", "dynamic non-centered composition"],
+    ["symbolic mashup", "two user concepts fused into one simple silhouette with fewer elements", "compact emblem with custom type relationship"],
+    ["ownable avatar", "favicon-ready character or monogram that can be recognized without reading the full name", "social-first mark with supporting wordmark"],
+    ["editorial restraint", "typography-first identity with one precise material or category detail", "quiet wordmark with generous whitespace"],
+  ].map(([angle, symbolLogic, layout], index) => ({
+    name: `${titleCase(subject.replace("-", " "))} ${titleCase(angle)}`,
+    style: styles[(index + 2) % styles.length]?.key || styles[0]?.key || "professional",
+    symbol: logoSymbol || `${symbolLogic} for a ${subject.replace("-", " ")} brand`,
+    iconSystem: index % 2 === 0 ? ICON_CREATIVITY_SYSTEMS.monogramFusion : iconSystem,
+    typography: typography?.label || "custom brand wordmark with optical spacing",
+    typographySystem: typography,
+    palette: logoColors || palette,
+    layout: `${layout}; ${directives.layoutBias || "balanced asymmetry"} with intentional visual tension`,
+    whyFits: `Originality pass: this avoids the most literal category icon and searches for a more ownable, memorable brand asset. It is tuned for ${personalitySummary}, ${trend?.typographyTrend || "custom typography"}, and ${trend?.iconTrend || "simplified proprietary symbols"}.${memoryInstruction}`,
+    source: "originality",
+  }));
+
+  return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts, ...originalityConcepts].slice(0, 40);
+}
+
+function getBrandabilityScore(concept, { subject, logoSymbol = "", personality = null } = {}) {
+  const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
+  let score = 0;
+  if (/(ownable|brandable|memorable|signature|custom|proprietary|recognizable|avatar|merch|jersey|favicon|social)/.test(text)) score += 14;
+  if (/(hidden|negative space|altered letter|custom letter|monogram|wordmark|counterform|ligature|swash|terminal|letter rhythm)/.test(text)) score += 12;
+  if (/(story|storytelling|mashup|fused|hybrid|symbolic|attitude|characterful|team identity|material-aware)/.test(text)) score += 10;
+  if (/(asymmetric|off-axis|offset|dynamic|visual tension|non-centered|diagonal|wrapped|arched|pennant)/.test(text)) score += 8;
+  if (/(generic|stock|template|literal|obvious|plain|basic|centered)/.test(text)) score -= 14;
+
+  const literalIconBySubject = {
+    pizza: /(pizza slice|large pizza slice|plain slice|pepperoni dots)/,
+    fitness: /(dumbbell|barbell)/,
+    tech: /(circuit|neural nodes|spark)/,
+    law: /(scales of justice|gavel)/,
+    realestate: /(roofline|house roof)/,
+    restaurant: /(fork\/knife|chef hat)/,
+  };
+  const requestedLiteral = String(logoSymbol || "").toLowerCase();
+  const literalPattern = literalIconBySubject[subject];
+  if (literalPattern?.test(text) && !requestedLiteral.match(literalPattern)) score -= 12;
+
+  if ((personality?.matrix?.expression?.score || 50) >= 66 && /(mascot|character|bold|expressive|attitude|motion)/.test(text)) score += 6;
+  if ((personality?.matrix?.price?.score || 50) >= 66 && /(restrained|editorial|custom|wordmark|negative space)/.test(text)) score += 6;
+  return score;
 }
 
 function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null, trend = null, memoryIntelligence = null }) {
@@ -1332,6 +1395,8 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
     wellness: ["wellness", "beauty", "spa", "skincare", "leaf", "calm"],
     tech: ["ai", "tech", "software", "saas", "neural", "platform"],
     healthcare: ["health", "clinic", "medical", "dental", "care", "therapy"],
+    "pizza-team": ["pizza", "pirate", "baseball", "team", "bat", "pennant", "mascot", "jersey", "pepperoni"],
+    "sports-team": ["team", "baseball", "softball", "league", "club", "mascot", "jersey", "athletic"],
     fitness: ["fitness", "strength", "training", "athletic", "body", "performance", "motion"],
     automotive: ["automotive", "auto", "car", "garage", "detailing", "road", "wrench"],
     music: ["music", "sound", "audio", "podcast", "waveform", "record", "studio"],
@@ -1354,6 +1419,7 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
   if (WEAK_LOGO_TERMS.test(text)) score += SCORING_WEIGHTS.genericPenalty;
   if (/(decorative filler|multiple icons|icon mashup|presentation card|frame|mockup|tiny detail|over-designed|overgenerated|over-generated)/.test(text)) score -= 18;
   if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable|negative|hidden|reduced|brandable)/.test(text)) score += SCORING_WEIGHTS.readabilityAndScalability;
+  score += getBrandabilityScore(concept, { subject, logoSymbol, personality }) * (SCORING_WEIGHTS.brandability / 12);
   if (ELITE_QUALITY_TERMS.test(text)) score += 12;
   if (/(one clear idea|fewer elements|typography-first|type-forward|monochrome-first|strong silhouette|confident whitespace|optical spacing)/.test(text)) score += 8;
   const shieldOrBadge = /(shield|badge|crest)/.test(text);
@@ -1407,7 +1473,7 @@ function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", 
   const improvements = [];
   let scoreAdjustment = 0;
 
-  const genericPattern = /(category-specific|generic|stock|template|default|hexagon|initials only|simple emblem built from|distinct [a-z-]+ visual cue|subtle embedded symbol|random|clip.?art)/;
+  const genericPattern = /(category-specific|generic|stock|template|default|hexagon|initials only|simple emblem built from|distinct [a-z-]+ visual cue|subtle embedded symbol|random|clip.?art|plain [a-z]+ icon|basic centered)/;
   if (genericPattern.test(text)) {
     weaknesses.push("icon direction feels too generic or placeholder-like");
     improvements.push("replace placeholder icon logic with a specific, ownable symbol tied to the brand words");
@@ -1424,6 +1490,12 @@ function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", 
     weaknesses.push("visual uniqueness is not strong enough");
     improvements.push("add a custom letter detail, negative-space cue, or simplified silhouette that can be recognized at favicon size");
     scoreAdjustment -= 14;
+  }
+
+  if (getBrandabilityScore(concept, { subject, logoSymbol, personality }) < 8) {
+    weaknesses.push("brandability is too low");
+    improvements.push("make the direction more ownable with custom typography, a hidden cue, characterful silhouette, or non-obvious brand story");
+    scoreAdjustment -= 12;
   }
 
   if (!/(spacing|hierarchy|small-caps|tracking|wordmark|type|typography|serif|sans|kerning|optical)/.test(text)) {
@@ -1738,14 +1810,24 @@ function getConceptLibrary(subject, profile) {
       ["Modern Cafe Line", "minimal cup line and sunrise steam", "clean friendly sans", "black, ivory, caramel", "horizontal logo", "It is simple and usable across menus and social."],
     ],
     pizza: [
-      ["Pizzeria Slice Mark", "large pizza slice with melted cheese, pepperoni dots, and a warm oven arc", "bold friendly restaurant wordmark", "tomato red, mozzarella cream, basil green", "big food icon above readable name", "It immediately shows pizza instead of a random badge or initials."],
-      ["Wood-Fired Badge", "round pizza, flame, and oven curve inside a classic pizzeria badge", "heritage Italian-inspired display type", "deep red, charcoal, warm cream", "badge icon with curved wordmark feel", "It fits a pizza restaurant, takeout shop, or neighborhood pizzeria."],
-      ["Modern Slice House", "minimal pizza slice forming a roof/shop sign shape", "clean modern sans with playful weight", "black, ivory, oregano green, red accent", "icon-left or stacked lockup", "It keeps the logo modern while still being unmistakably food themed."],
+      ["Oven Arc Wordmark", "wood-fired oven arch creating a hidden pizza curve and warm hospitality signal", "custom rounded restaurant wordmark with one altered letter", "tomato red, mozzarella cream, basil green", "asymmetric oven arc tucked into the wordmark", "It implies pizza through oven craft and warmth instead of relying only on a slice."],
+      ["Neighborhood Pie Seal", "reduced pie circle with one missing wedge and storefront awning rhythm", "heritage Italian-inspired display type", "deep red, charcoal, warm cream", "compact seal with off-axis type relationship", "It feels more ownable than a stock slice while still reading as pizza."],
+      ["Melted Letter Mark", "cheese-pull line integrated into the first letter or underline", "bold friendly restaurant wordmark with custom letter rhythm", "black, ivory, oregano green, red accent", "wordmark-led lockup with small edible motion cue", "It makes the name memorable and food-specific without adding a generic icon."],
+    ],
+    "pizza-team": [
+      ["Pirate Pennant Slice", "pizza-sail flag fused with crossed baseball bats and a sharp pirate pennant silhouette", "bold athletic team wordmark with arched baseline", "pirate black, tomato red, baseball cream, aged gold", "dynamic mascot-style mark offset beside stacked team type", "It combines pizza, pirates, and baseball energy into a merch-ready team identity instead of a plain food logo."],
+      ["Captain Crust Monogram", "custom initials wearing a reduced pirate hat, with baseball-stitch curves forming the crust", "condensed sports lettering with custom swash terminals", "charcoal black, cream, marinara red", "large asymmetrical monogram with wordmark wrapped underneath", "It makes the team name ownable through letters, attitude, and category storytelling."],
+      ["Jolly Pepperoni Badge", "skull-and-crossbones idea abstracted into pepperoni dots, bats, and a pizza-wheel orbit", "vintage baseball club typography", "warm cream, black, tomato red, brass", "off-center badge with motion line and strong jersey-readability", "It feels like a memorable team crest while avoiding a literal clipart slice."],
     ],
     chocolate: [
       ["Cocoa Factory Mark", "stacked chocolate squares with a cocoa pod curve and subtle factory window geometry", "warm premium confectionery wordmark", "deep cocoa brown, cream, copper foil", "large chocolate symbol above readable brand name", "It directly connects chocolate, craft, and production without drifting into unrelated ranch or luxury hotel cues."],
       ["Truffle Ribbon Wordmark", "melted chocolate ribbon forming a custom initial or underline", "soft bold hospitality type", "dark chocolate, caramel, ivory", "wordmark-led lockup with chocolate ribbon accent", "It makes the brand feel edible, handcrafted, and clearly confectionery."],
       ["Bean & Bar Emblem", "cocoa bean nested inside a chocolate bar tile", "vintage candy-shop typography", "espresso brown, warm cream, muted gold", "compact emblem with clear wordmark", "It gives the logo an unmistakable chocolate-factory cue while staying scalable."],
+    ],
+    "sports-team": [
+      ["Mascot Motion Crest", "single aggressive mascot silhouette reduced with jersey-ready negative space", "bold athletic lettering with arched team hierarchy", "black, cream, victory red", "large off-axis crest with compact team wordmark", "It gives the team a recognizable mark that works on caps, jerseys, and social icons."],
+      ["Club Monogram System", "interlocking team initials with bat, ball, or motion cues hidden in the counterforms", "condensed sports wordmark with custom cuts", "navy, cream, electric accent", "monogram-first layout with supporting team name", "It creates an ownable identity from the name instead of a generic sports icon."],
+      ["Pennant Wordmark", "wind-cut pennant shape wrapping around bold custom team type", "vintage athletic slab typography", "deep green, cream, orange accent", "wide asymmetrical wordmark built for merch", "It feels like a real club identity with motion, nostalgia, and strong readability."],
     ],
     restaurant: [
       ["Chef Table Mark", "chef hat and plate silhouette with a subtle utensil detail", "warm hospitality wordmark", "charcoal, cream, copper", "centered restaurant emblem above type", "It reads clearly as a restaurant without relying on generic initials."],
@@ -2037,6 +2119,47 @@ function getPlasteringMark({ ink, accent, paper, initials, variant = 0, profile 
 
 function getBrandableSubjectMark({ subject, ink, accent, paper, initials, variant = 0, iconSystem = ICON_CREATIVITY_SYSTEMS.negativeSpace }) {
   const mode = iconSystem.mode || "negative-space";
+
+  if (subject === "pizza-team") {
+    if (variant === 1 || mode === "mascot-reduction") {
+      return `
+        <g transform="translate(0 -22)">
+          <path d="M284 358 C382 230 620 230 740 358 C690 340 626 352 574 388 C520 350 448 350 394 388 C356 360 318 350 284 358 Z" fill="${ink}"/>
+          <path d="M360 356 C438 308 586 306 662 356" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+          <path d="M356 422 C424 520 602 520 670 422 C626 456 578 470 512 470 C446 470 398 456 356 422 Z" fill="${ink}"/>
+          <path d="M414 424 L512 584 L610 424 Z" fill="${paper}" stroke="${accent}" stroke-width="18" stroke-linejoin="round"/>
+          <circle cx="478" cy="484" r="15" fill="${accent}"/>
+          <circle cx="534" cy="526" r="13" fill="${accent}"/>
+          <path d="M314 610 L710 284 M314 284 L710 610" stroke="${ink}" stroke-width="26" stroke-linecap="round" opacity=".92"/>
+          <path d="M392 602 C470 562 554 562 632 602" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M282 326 L640 250 L640 470 L282 546 Z" fill="${ink}"/>
+        <path d="M330 352 L594 296 L594 422 L330 478 Z" fill="${paper}"/>
+        <path d="M344 462 L468 306 L604 424 Z" fill="${accent}"/>
+        <circle cx="450" cy="386" r="13" fill="${ink}"/>
+        <circle cx="520" cy="424" r="12" fill="${ink}"/>
+        <path d="M642 252 L742 222 L714 308 L780 346 L676 364 L642 470 Z" fill="${accent}"/>
+        <path d="M314 610 L710 286 M314 286 L710 610" stroke="${ink}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M436 624 H610" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+      </g>
+    `;
+  }
+
+  if (subject === "sports-team") {
+    return `
+      <g transform="translate(0 -18)">
+        <path d="M512 190 C648 244 730 354 708 496 C674 620 562 676 512 696 C462 676 350 620 316 496 C294 354 376 244 512 190 Z" fill="${ink}"/>
+        <path d="M374 438 C440 362 588 362 650 438" fill="none" stroke="${paper}" stroke-width="22" stroke-linecap="round"/>
+        <path d="M430 520 H594" stroke="${accent}" stroke-width="22" stroke-linecap="round"/>
+        <text x="512" y="466" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="112" font-weight="900" fill="${paper}" letter-spacing="-2">${escapeXml(initials.slice(0, 2))}</text>
+        <path d="M338 572 C438 632 586 632 686 572" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+      </g>
+    `;
+  }
 
   if (subject === "pizza") {
     if (variant === 1 || mode === "editorial-emblem") {
@@ -2850,6 +2973,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     "wedding-photo": "photo video",
     fitness: "training brand",
     "hippo-football": "fantasy football",
+    "pizza-team": "baseball team",
+    "sports-team": "team identity",
     chocolate: "chocolate factory",
     pizza: "pizza restaurant",
     restaurant: "restaurant brand",
@@ -2904,7 +3029,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const lineStart = humanComposition.lineInset + humanComposition.accentDx;
   const lineEnd = 1024 - humanComposition.lineInset + humanComposition.accentDx;
   const subtitleX = 512 + Math.round(humanComposition.wordDx / 2);
-  const showSupportLine = !isPrimaryResult || ["pizza", "restaurant", "coffee", "chocolate", "pet", "fitness", "construction", "plumbing", "automotive"].includes(subject);
+  const showSupportLine = !isPrimaryResult || ["pizza-team", "sports-team", "pizza", "restaurant", "coffee", "chocolate", "pet", "fitness", "construction", "plumbing", "automotive"].includes(subject);
   const supportOpacity = isPrimaryResult ? "0.44" : "0.64";
   const accentWidth = isPrimaryResult ? 6 : 10;
   const accentOpacity = isPrimaryResult ? "0.72" : "1";
