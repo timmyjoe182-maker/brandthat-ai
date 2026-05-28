@@ -46,6 +46,7 @@ Creative Director interpretation:
 - Brand personality: ${director.personality}
 - Personality matrix: ${Object.entries(director.personalityMatrix || {}).map(([axis, item]) => `${axis} ${item.low}/${item.high}: ${item.score}`).join("; ")}
 - Design directives: ${director.personalityDirectives?.scoringBias || "balanced professional logo strategy"}
+- Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -64,6 +65,8 @@ ${conceptLines}
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
 - Use the Primary direction as the final art direction. The other directions are context only; do not merge them into one cluttered mark.
+- Make it feel human-designed, not auto-generated: use intentional negative space, slightly asymmetrical balance, premium spacing, and one memorable visual tension point.
+- Avoid perfectly centered stock-template composition unless the brand clearly needs an institutional seal or formal badge.
 - Follow every user field exactly when they describe a brand name, industry, mascot, object, color, letter, style, or mood.
 - Visually match the meaning of the words. If the brand says ranch, show refined ranch cues. If it says AI, show intelligence/brand-system cues. If it says surf shop, show surf/ocean/shop cues. If it says law firm, show legal trust cues.
 - If the prompt contains a specific object, animal, product, trade, food, location, or industry, that idea must be visible in the logo mark.
@@ -72,6 +75,7 @@ Design requirements:
 - Avoid defaulting to a generic hexagon, shield, or initials unless the user specifically asks for that.
 - Make the icon feel designed, not clipart: reduce literal objects into one ownable silhouette, use negative space, hidden symbolism, geometric tension, and custom category cues.
 - Prefer one strong brandable idea over multiple decorative objects. No stock-style icon mashups.
+- Vary composition from common logo-generator templates. Use custom placement, purposeful imbalance, and confident whitespace.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
@@ -509,6 +513,79 @@ function getPersonalityDesignDirectives(matrix) {
   };
 }
 
+function buildHumanDesignRealism({ subject, personality, styles = [] }) {
+  const matrix = personality?.matrix || {};
+  const styleKeys = styles.map((style) => style.key);
+  const luxury = (matrix.price?.score || 50) >= 66 || (matrix.market?.score || 50) >= 66 || styleKeys.includes("luxury");
+  const expressive = (matrix.expression?.score || 50) >= 64 || (matrix.tone?.score || 50) >= 66 || (matrix.energy?.score || 50) >= 66;
+  const institutional = (matrix.scale?.score || 50) >= 66 || (matrix.tone?.score || 50) <= 34;
+  const trade = (matrix.craft?.score || 50) <= 36 || ["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "landscaping"].includes(subject);
+  const calm = (matrix.energy?.score || 50) <= 36;
+
+  const composition = institutional
+    ? "formal offset lockup"
+    : expressive
+      ? "dynamic off-axis mark with confident whitespace"
+      : luxury || calm
+        ? "quiet asymmetrical editorial balance"
+        : trade
+          ? "practical badge with material-aware tension"
+          : "balanced asymmetry with restrained tension";
+
+  const negativeSpace = luxury || calm
+    ? "wide breathing room around the mark and wordmark"
+    : expressive
+      ? "strong empty field opposite the visual weight"
+      : "clear internal cutouts and uncluttered outer margins";
+
+  const tension = expressive
+    ? "one deliberate scale or axis contrast"
+    : luxury
+      ? "subtle optical offset and refined spacing contrast"
+      : trade
+        ? "solid mark offset against precise type"
+        : "small non-centered offset that prevents template symmetry";
+
+  return {
+    composition,
+    negativeSpace,
+    tension,
+    avoid: "avoid stock centering, generic icon badges, over-balanced geometry, obvious gradients, and repeated icon placement",
+    summary: `${composition}; ${negativeSpace}; ${tension}`,
+  };
+}
+
+function getHumanComposition({ hash, variant, layout, subject, humanDesign = {}, personalityDirectives = {} }) {
+  const seed = Math.abs(hash + variant * 97);
+  const sign = seed % 2 === 0 ? 1 : -1;
+  const restrained = /quiet|editorial|formal|restrained/.test(`${humanDesign.composition || ""} ${personalityDirectives.layoutBias || ""}`);
+  const dynamic = /dynamic|off-axis|expressive/.test(humanDesign.composition || "") || personalityDirectives.layoutBias === "dynamic";
+  const institutional = /formal|institutional/.test(`${humanDesign.composition || ""} ${personalityDirectives.layoutBias || ""}`);
+  const noOffsetSubjects = ["law", "finance", "insurance"].includes(subject) && institutional;
+  const offsetBase = noOffsetSubjects ? 0 : dynamic ? 38 : restrained ? 18 : 26;
+  const markDx = sign * (offsetBase + (seed % 9));
+  const wordDx = sign * (dynamic ? -18 : restrained ? 10 : -10);
+  const accentDx = Math.round((markDx + wordDx) / 3);
+  const markDy = dynamic ? -52 : restrained ? -18 : -30;
+  const lineInset = dynamic ? 315 : restrained ? 338 : 300;
+  const frameInset = restrained ? 62 : dynamic ? 48 : 54;
+  const frameRx = subject === "plastering" ? 34 : restrained ? 58 : dynamic ? 88 : 72;
+  const opacity = restrained ? 0.055 : dynamic ? 0.075 : 0.065;
+
+  return {
+    markDx,
+    wordDx,
+    accentDx,
+    markDy,
+    lineInset,
+    frameInset,
+    frameRx,
+    frameOpacity: opacity,
+    markScaleBoost: dynamic ? 1.04 : restrained ? 0.98 : 1,
+    data: `${humanDesign.composition || "balanced asymmetry"} | ${humanDesign.tension || "subtle optical offset"}`,
+  };
+}
+
 const TYPOGRAPHY_SYSTEMS = {
   luxurySerif: {
     label: "high-contrast editorial serif with generous tracking and small-caps support",
@@ -914,6 +991,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
   const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
   const personality = inferBrandPersonality({ subject, brandName: inferredName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
+  const humanDesign = buildHumanDesignRealism({ subject, personality, styles });
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
   const typography = selectTypography({ subject, styles, personality });
   const palette = selectPalette({ subject, styles, logoColors, personality });
@@ -953,6 +1031,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     personalityMatrix: personality.matrix,
     personalitySummary: personality.summary,
     personalityDirectives: personality.directives,
+    humanDesign,
     positioning,
     typography: typography.label,
     typographySystem: typography,
@@ -968,6 +1047,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
         matrix: personality.matrix,
         directives: personality.directives,
       },
+      humanDesignRealism: humanDesign,
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
       typographySelection: typography.label,
@@ -1215,6 +1295,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     personality: pipeline.personalitySummary || styleText,
     personalityMatrix: pipeline.personalityMatrix,
     personalityDirectives: pipeline.personalityDirectives,
+    humanDesign: pipeline.humanDesign,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
@@ -2045,7 +2126,7 @@ function getTypographyTracking({ longest, typographySystem }) {
   return base;
 }
 
-function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem = TYPOGRAPHY_SYSTEMS.geometricSans }) {
+function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem = TYPOGRAPHY_SYSTEMS.geometricSans, x = 512 }) {
   const preferredChars = typographySystem.maxLineChars || 16;
   const rawLines = splitDisplayName(displayName).flatMap((line) => {
     if (line.length <= preferredChars + 5) return [line];
@@ -2063,7 +2144,7 @@ function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typo
 
   if (lines.length === 1) {
     return {
-      wordmark: `<text data-layer="wordmark" x="512" y="${nameY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(lines[0])}</text>`,
+      wordmark: `<text data-layer="wordmark" x="${x}" y="${nameY}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(lines[0])}</text>`,
       bottomY: nameY,
     };
   }
@@ -2072,7 +2153,7 @@ function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typo
   const firstY = nameY - Math.floor((gap * (lines.length - 1)) / 2);
   const wordmark = lines.map((line, index) => {
     const y = firstY + gap * index;
-    return `<text data-layer="wordmark" x="512" y="${y}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(line)}</text>`;
+    return `<text data-layer="wordmark" x="${x}" y="${y}" text-anchor="middle" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${weight}" fill="${inkToken}" letter-spacing="${letterSpacing}" font-kerning="normal" text-rendering="geometricPrecision">${escapeXml(line)}</text>`;
   }).join("\n");
   return {
     wordmark,
@@ -2155,26 +2236,32 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const personalityDirectives = creativeDirector.personalityDirectives || {};
   const preferredLayout = personalityDirectives.layoutBias === "restrained" ? 3 : personalityDirectives.layoutBias === "dynamic" ? 1 : personalityDirectives.layoutBias === "institutional" ? 2 : null;
   const layout = subject === "plastering" ? variant % 4 : preferredLayout ?? ((hash + variant) % 4);
-  const markScale = personalityDirectives.layoutBias === "dynamic" ? 1.1 : personalityDirectives.spacing === "generous" ? 0.96 : 1;
-  const markTransform = layout === 1 ? `translate(0 -42) scale(${(1.05 * markScale).toFixed(2)})` : layout === 2 ? `translate(0 -28) scale(${(0.98 * markScale).toFixed(2)})` : layout === 3 ? `translate(0 -12) scale(${(0.94 * markScale).toFixed(2)})` : markScale !== 1 ? `scale(${markScale.toFixed(2)})` : "";
+  const humanComposition = getHumanComposition({ hash, variant, layout, subject, humanDesign: creativeDirector.humanDesign, personalityDirectives });
+  const markScale = (personalityDirectives.layoutBias === "dynamic" ? 1.1 : personalityDirectives.spacing === "generous" ? 0.96 : 1) * humanComposition.markScaleBoost;
+  const baseMarkTransform = layout === 1 ? `translate(${humanComposition.markDx} ${-42 + humanComposition.markDy}) scale(${(1.05 * markScale).toFixed(2)})` : layout === 2 ? `translate(${humanComposition.markDx} ${-28 + humanComposition.markDy}) scale(${(0.98 * markScale).toFixed(2)})` : layout === 3 ? `translate(${humanComposition.markDx} ${-12 + humanComposition.markDy}) scale(${(0.94 * markScale).toFixed(2)})` : `translate(${humanComposition.markDx} ${humanComposition.markDy}) scale(${markScale.toFixed(2)})`;
+  const markTransform = baseMarkTransform;
   const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
-  const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem });
+  const wordmarkX = 512 + humanComposition.wordDx;
+  const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem, x: wordmarkX });
   const lineY = bottomY + 48;
   const subtitleY = lineY + 58;
   const backgroundPattern = subject === "plastering"
     ? `<path data-layer="texture" d="M110 170 C250 128 384 130 514 168 M630 850 C760 902 884 890 962 850 M116 792 C232 742 364 734 484 770" fill="none" stroke="${inkToken}" stroke-width="8" stroke-linecap="round" opacity=".05"/>`
-    : "";
+    : `<path data-layer="composition-tension" d="M${134 + humanComposition.accentDx} ${226 + (hash % 25)} C${274 + humanComposition.accentDx} ${172 + (variant * 13)} ${390 - humanComposition.accentDx} ${188} ${504 + humanComposition.accentDx} ${236}" fill="none" stroke="${inkToken}" stroke-width="5" stroke-linecap="round" opacity="${transparent ? "0" : "0.035"}"/>`;
+  const lineStart = humanComposition.lineInset + humanComposition.accentDx;
+  const lineEnd = 1024 - humanComposition.lineInset + humanComposition.accentDx;
+  const subtitleX = 512 + Math.round(humanComposition.wordDx / 2);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" data-brandthat-vector="true" data-layout="${layout}" style="--logo-ink:${ink};--logo-paper:${paper};--logo-accent:${accent};">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" data-brandthat-vector="true" data-layout="${layout}" data-human-composition="${escapeXml(humanComposition.data)}" style="--logo-ink:${ink};--logo-paper:${paper};--logo-accent:${accent};">
     ${transparent ? "" : `<rect data-layer="background" width="1024" height="1024" fill="${paperToken}"/>`}
     ${backgroundPattern}
-    <rect data-layer="frame" x="52" y="52" width="920" height="920" rx="${subject === "plastering" ? "34" : "78"}" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : "0.08"}" stroke-width="4"/>
+    <rect data-layer="frame" x="${humanComposition.frameInset}" y="52" width="${1024 - humanComposition.frameInset * 2}" height="920" rx="${humanComposition.frameRx}" fill="none" stroke="${inkToken}" stroke-opacity="${transparent ? "0" : humanComposition.frameOpacity}" stroke-width="4"/>
     <g data-layer="mark" transform="${markTransform}">
       ${subjectMark}
     </g>
     ${wordmark}
-    <line data-layer="accent" x1="274" y1="${lineY}" x2="750" y2="${lineY}" stroke="${accentToken}" stroke-width="10" stroke-linecap="round"/>
-    <text data-layer="tagline" x="512" y="${subtitleY}" text-anchor="middle" font-family="${supportFamily}" font-size="25" font-weight="850" fill="${inkToken}" opacity="0.64" letter-spacing="${typographySystem.subtitleTracking || 5}" font-kerning="normal" text-rendering="geometricPrecision">${subtitle || "CUSTOM LOGO MARK"}</text>
+    <line data-layer="accent" x1="${lineStart}" y1="${lineY}" x2="${lineEnd}" y2="${lineY}" stroke="${accentToken}" stroke-width="10" stroke-linecap="round"/>
+    <text data-layer="tagline" x="${subtitleX}" y="${subtitleY}" text-anchor="middle" font-family="${supportFamily}" font-size="25" font-weight="850" fill="${inkToken}" opacity="0.64" letter-spacing="${typographySystem.subtitleTracking || 5}" font-kerning="normal" text-rendering="geometricPrecision">${subtitle || "CUSTOM LOGO MARK"}</text>
   </svg>`;
 }
 
