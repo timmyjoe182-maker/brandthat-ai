@@ -3455,25 +3455,180 @@ function ToolGrid({ activeToolKey, selectTool }) {
   );
 }
 
-function HeroProofPanel() {
-  const samples = [
-    { mark: "wordmark", name: "Wordmark", note: "Typography-led identity" },
-    { mark: "symbol", name: "Symbol", note: "Abstract brand mark" },
-    { mark: "system", name: "System", note: "Workspace-ready assets" },
+const PREMIUM_SHOWCASE_CANDIDATES = [
+  {
+    key: "luxury-wordmark",
+    industry: "luxury",
+    visualType: "wordmark",
+    composition: "typography-first",
+    palette: "monochrome",
+    name: "Wordmark",
+    note: "Typography-led identity",
+    quality: {
+      typography: 9.5,
+      originality: 9,
+      restraint: 9.5,
+      scalability: 9.5,
+      premiumFeel: 9.4,
+      antiClipart: 10,
+    },
+  },
+  {
+    key: "saas-abstract",
+    industry: "modern SaaS",
+    visualType: "abstract mark",
+    composition: "offset-symbol",
+    palette: "ink-neutral",
+    name: "Symbol",
+    note: "Abstract brand mark",
+    quality: {
+      typography: 8.8,
+      originality: 9.2,
+      restraint: 9.1,
+      scalability: 9.5,
+      premiumFeel: 9,
+      antiClipart: 9.6,
+    },
+  },
+  {
+    key: "agency-system",
+    industry: "creative agencies",
+    visualType: "geometric system",
+    composition: "system-grid",
+    palette: "warm-neutral",
+    name: "System",
+    note: "Workspace-ready assets",
+    quality: {
+      typography: 8.8,
+      originality: 9.1,
+      restraint: 9,
+      scalability: 9.2,
+      premiumFeel: 9,
+      antiClipart: 9.4,
+    },
+  },
+  {
+    key: "finance-monogram",
+    industry: "finance",
+    visualType: "monogram",
+    composition: "quiet-emblem",
+    palette: "charcoal-stone",
+    name: "Monogram",
+    note: "Trust-first mark",
+    quality: {
+      typography: 9,
+      originality: 8.7,
+      restraint: 9.2,
+      scalability: 9.4,
+      premiumFeel: 9,
+      antiClipart: 9.3,
+    },
+  },
+  {
+    key: "architecture-grid",
+    industry: "architecture",
+    visualType: "minimal icon",
+    composition: "architectural-grid",
+    palette: "black-white",
+    name: "Grid",
+    note: "Spatial identity",
+    quality: {
+      typography: 8.7,
+      originality: 8.9,
+      restraint: 9.4,
+      scalability: 9.1,
+      premiumFeel: 9.1,
+      antiClipart: 9.5,
+    },
+  },
+  {
+    key: "beauty-serif",
+    industry: "beauty",
+    visualType: "wordmark",
+    composition: "editorial-lockup",
+    palette: "soft-monochrome",
+    name: "Editorial",
+    note: "Refined brand system",
+    quality: {
+      typography: 9.4,
+      originality: 8.9,
+      restraint: 9.3,
+      scalability: 9,
+      premiumFeel: 9.5,
+      antiClipart: 9.7,
+    },
+  },
+];
+
+function getShowcaseQualityScore(item) {
+  const values = Object.values(item.quality || {});
+  if (!values.length) return 0;
+  const score = values.reduce((total, value) => total + value, 0) / values.length;
+  return Math.round(score * 10) / 10;
+}
+
+function isPremiumShowcaseCandidate(item) {
+  if (!item) return false;
+  if (getShowcaseQualityScore(item) < 8.5) return false;
+
+  const blockedTerms = [
+    "clipart",
+    "cartoon",
+    "generic",
+    "stock",
+    "overgenerated",
+    "cheap",
+    "template",
+    "random",
   ];
+
+  const searchable = `${item.name || ""} ${item.note || ""} ${item.visualType || ""} ${item.composition || ""}`.toLowerCase();
+  return !blockedTerms.some((term) => searchable.includes(term));
+}
+
+function getPremiumShowcaseItems(limit = 3) {
+  const selected = [];
+  const usedIndustries = new Set();
+  const usedVisualTypes = new Set();
+  const usedCompositions = new Set();
+  const usedPalettes = new Set();
+
+  PREMIUM_SHOWCASE_CANDIDATES
+    .filter(isPremiumShowcaseCandidate)
+    .sort((a, b) => getShowcaseQualityScore(b) - getShowcaseQualityScore(a))
+    .forEach((item) => {
+      if (selected.length >= limit) return;
+      if (usedIndustries.has(item.industry)) return;
+      if (usedVisualTypes.has(item.visualType)) return;
+      if (usedCompositions.has(item.composition)) return;
+      if (usedPalettes.has(item.palette)) return;
+
+      selected.push(item);
+      usedIndustries.add(item.industry);
+      usedVisualTypes.add(item.visualType);
+      usedCompositions.add(item.composition);
+      usedPalettes.add(item.palette);
+    });
+
+  return selected;
+}
+
+function HeroProofPanel() {
+  const samples = getPremiumShowcaseItems(3);
 
   return (
     <div className="heroProofPanel" aria-label="Brandthat output preview">
       <div className="proofMiniGrid">
         {samples.map((sample) => (
-          <div className="miniLogoOutput" key={sample.name}>
-            <div className={`miniMark ${sample.mark}`}>
+          <div className="miniLogoOutput" key={sample.key}>
+            <div className={`miniMark ${sample.key}`}>
               <span></span>
               <i></i>
             </div>
             <div>
               <strong>{sample.name}</strong>
               <span>{sample.note}</span>
+              <small>{sample.industry} / {sample.visualType}</small>
             </div>
           </div>
         ))}
@@ -4463,16 +4618,26 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .miniLogoOutput{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;min-height:142px;display:flex;flex-direction:column;justify-content:space-between}
 .miniLogoOutput strong{display:block;font-size:14px;letter-spacing:-.02em}
 .miniLogoOutput span{display:block;color:#666;font-size:12px;line-height:1.35;margin-top:4px}
+.miniLogoOutput small{display:block;color:#9b7b3f;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;margin-top:8px}
 .miniMark{width:58px;height:58px;border-radius:16px;background:#111;color:white;display:grid;place-items:center;position:relative;overflow:hidden}
 .miniMark span,.miniMark i,.afterMark span,.afterMark i{display:block;position:absolute}
-.miniMark.wordmark span{width:34px;height:6px;background:white;border-radius:999px;top:20px;left:12px}
-.miniMark.wordmark i{width:24px;height:6px;background:rgba(255,255,255,.55);border-radius:999px;top:32px;left:12px}
-.miniMark.symbol{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
-.miniMark.symbol span{width:32px;height:32px;border:2px solid #111;border-radius:50% 50% 50% 12px;transform:rotate(-18deg)}
-.miniMark.symbol i{width:14px;height:14px;background:#111;border-radius:50%;right:12px;bottom:13px}
-.miniMark.system{background:#8a6b37}
-.miniMark.system span{width:30px;height:30px;border:2px solid white;border-radius:8px;transform:rotate(45deg)}
-.miniMark.system i{width:20px;height:3px;background:rgba(255,255,255,.7);border-radius:999px;bottom:16px}
+.miniMark.luxury-wordmark span{width:34px;height:6px;background:white;border-radius:999px;top:20px;left:12px}
+.miniMark.luxury-wordmark i{width:24px;height:6px;background:rgba(255,255,255,.55);border-radius:999px;top:32px;left:12px}
+.miniMark.saas-abstract{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
+.miniMark.saas-abstract span{width:32px;height:32px;border:2px solid #111;border-radius:50% 50% 50% 12px;transform:rotate(-18deg)}
+.miniMark.saas-abstract i{width:14px;height:14px;background:#111;border-radius:50%;right:12px;bottom:13px}
+.miniMark.agency-system{background:#8a6b37}
+.miniMark.agency-system span{width:30px;height:30px;border:2px solid white;border-radius:8px;transform:rotate(45deg)}
+.miniMark.agency-system i{width:20px;height:3px;background:rgba(255,255,255,.7);border-radius:999px;bottom:16px}
+.miniMark.finance-monogram{background:#111}
+.miniMark.finance-monogram span{width:28px;height:38px;border:2px solid white;border-radius:999px 999px 6px 6px}
+.miniMark.finance-monogram i{width:22px;height:2px;background:rgba(255,255,255,.7);transform:rotate(-35deg)}
+.miniMark.architecture-grid{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
+.miniMark.architecture-grid span{width:36px;height:36px;border-left:2px solid #111;border-bottom:2px solid #111;left:12px;bottom:12px}
+.miniMark.architecture-grid i{width:34px;height:2px;background:#111;transform:rotate(-45deg)}
+.miniMark.beauty-serif{background:#111}
+.miniMark.beauty-serif span{width:40px;height:18px;border:2px solid white;border-left:none;border-right:none}
+.miniMark.beauty-serif i{width:6px;height:36px;background:rgba(255,255,255,.85);border-radius:999px}
 .proofMetricRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .proofMetricRow div{background:#111;color:white;border-radius:14px;padding:12px 14px}
 .proofMetricRow strong{display:block;font-size:16px}
