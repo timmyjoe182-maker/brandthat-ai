@@ -459,62 +459,88 @@ function getInitialsFromBrandName(name = "") {
 }
 
 const LOGO_INDUSTRY_KEYWORDS = [
+  ["pet grooming", ["dog grooming", "pet grooming", "groomer", "paw", "pet care"]],
   ["skincare", ["skincare", "skin care", "beauty", "spa", "esthetician", "wellness"]],
   ["AI startup", ["ai", "artificial intelligence", "startup", "saas", "software", "app", "platform", "tech"]],
   ["real estate", ["real estate", "realtor", "broker", "property", "homes", "estate group"]],
   ["fitness", ["gym", "fitness", "coach", "coaching", "training", "strength", "athletic"]],
   ["kids party", ["kids", "children", "party", "confetti", "birthday", "play"]],
-  ["restaurant", ["restaurant", "pizza", "cafe", "coffee", "bar", "bakery", "food", "diner"]],
-  ["law firm", ["law", "legal", "attorney", "firm", "counsel"]],
+  ["restaurant", ["restaurant", "pizza", "cafe", "coffee", "bar", "bakery", "food", "diner", "chef", "private chef", "roaster", "cupcake"]],
+  ["law firm", ["law", "legal", "attorney", "firm", "counsel", "serious", "scales"]],
   ["construction", ["construction", "plastering", "stucco", "contractor", "builder", "roofing"]],
   ["ranch", ["ranch", "horse", "alpaca", "farm", "western", "equestrian"]],
   ["photography", ["photo", "photography", "wedding", "video", "film", "studio"]],
   ["finance", ["finance", "wealth", "capital", "fund", "accounting", "tax"]],
-  ["automotive", ["auto", "car", "garage", "detailing", "mechanic", "motors"]],
+  ["automotive", ["auto", "automotive", "car", "garage", "detailing", "detail", "mechanic", "motors", "chrome"]],
+  ["barber", ["barber", "barbershop", "barber shop", "fade", "grooming"]],
+  ["surf shop", ["surf", "wave", "beach", "coastal"]],
+  ["fashion", ["fashion", "maison", "apparel", "clothing", "streetwear"]],
+  ["medical", ["medical", "clinic", "health", "doctor", "dental", "therapy"]],
+  ["salon", ["salon", "hair", "blush", "feminine"]],
+  ["tattoo studio", ["tattoo", "blackletter", "needle", "ink studio"]],
+  ["plumbing", ["plumbing", "plumber", "pipe", "water", "clearflow"]],
+  ["consulting", ["consulting", "advisory", "advisor", "strategy"]],
+  ["candles", ["candle", "candles", "fragrance", "scent"]],
 ];
 
 const LOGO_STYLE_KEYWORDS = [
-  ["luxury", ["luxury", "premium", "high-end", "elegant", "refined", "exclusive"]],
+  ["luxury", ["luxury", "premium", "high-end", "elegant", "refined", "exclusive", "expensive"]],
   ["clean modern", ["clean", "modern", "minimal", "simple", "sleek"]],
   ["bold", ["bold", "strong", "powerful", "aggressive", "heavy"]],
   ["playful", ["playful", "fun", "colorful", "kids", "bright", "friendly"]],
   ["vintage", ["vintage", "retro", "classic", "heritage", "old school"]],
-  ["corporate", ["corporate", "professional", "trusted", "enterprise"]],
+  ["corporate", ["corporate", "professional", "trusted", "enterprise", "serious", "trustworthy"]],
   ["futuristic", ["futuristic", "cyber", "tech", "ai", "digital"]],
   ["monogram", ["monogram", "initial", "lettermark", "initials"]],
   ["wordmark", ["wordmark", "typography", "text only", "type only"]],
+  ["calm", ["calm", "soft", "peaceful", "gentle"]],
+  ["feminine", ["feminine", "soft", "blush", "romantic"]],
+  ["edgy", ["edgy", "tattoo", "blackletter", "gritty"]],
+  ["western", ["western", "ranch", "cowboy", "equestrian"]],
 ];
 
 const LOGO_COLOR_KEYWORDS = [
   "black", "white", "cream", "gold", "blue", "navy", "green", "red", "pink", "purple",
-  "orange", "yellow", "silver", "gray", "grey", "brown", "tan", "beige", "teal"
+  "orange", "yellow", "silver", "gray", "grey", "brown", "tan", "beige", "teal", "chrome", "rainbow"
 ];
 
 const LOGO_SYMBOL_KEYWORDS = [
   "a symbol", "symbol", "icon", "mascot", "monogram", "lettermark", "badge", "emblem",
   "shield", "crown", "leaf", "rose", "horse", "alpaca", "pizza", "fork", "house",
-  "key", "mountain", "bolt", "spark", "dumbbell", "barbell", "confetti", "balloon"
+  "key", "mountain", "bolt", "spark", "dumbbell", "barbell", "confetti", "balloon",
+  "paw", "scissors", "wave", "needle", "pipe", "flame"
 ];
 
 function findKeywordMatch(text, pairs, fallback = "") {
   const normalized = String(text || "").toLowerCase();
-  const match = pairs.find(([, keywords]) => keywords.some((keyword) => normalized.includes(keyword)));
+  const match = pairs.find(([, keywords]) =>
+    keywords.some((keyword) => {
+      const cleanKeyword = String(keyword).toLowerCase();
+      if (cleanKeyword.length <= 3) {
+        const escaped = cleanKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`\\b${escaped}\\b`).test(normalized);
+      }
+      return normalized.includes(cleanKeyword);
+    })
+  );
   return match?.[0] || fallback;
 }
 
 function extractBrandNameFromPrompt(text = "") {
   const promptText = String(text || "").replace(/\s+/g, " ").trim();
+  const stopperWords = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid";
   const patterns = [
-    /\bcalled\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
-    /\bnamed\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
-    /\bfor\s+(?:a|an|the)?\s*brand\s+(?:called|named)?\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
-    /\bfor\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|featuring)\b|[,.:;!?]|$)/i,
+    new RegExp(`\\bcalled\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\bnamed\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\bfor\\s+(?:a|an|the)?\\s*brand\\s+(?:called|named)?\\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\b(?:brand|company|business|logo)\\s+(?:logo\\s+)?([A-Za-z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\bfor\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
   ];
 
   const match = patterns.map((pattern) => promptText.match(pattern)).find(Boolean);
   return match
     ? match[1]
-        .replace(/\s+(with|using|featuring|that|for|in|as)\b.*$/i, "")
+        .replace(new RegExp(`\\s+(${stopperWords})\\b.*$`, "i"), "")
         .replace(/\s+(logo|brand)$/i, "")
         .trim()
     : "";
@@ -528,14 +554,37 @@ function extractColorsFromPrompt(text = "") {
 
 function extractSymbolFromPrompt(text = "") {
   const normalized = String(text || "").toLowerCase();
+  if (normalized.includes("remove the icon") || normalized.includes("no icon")) return "no icon; typography-first wordmark";
   const directSymbol = LOGO_SYMBOL_KEYWORDS.find((keyword) => normalized.includes(keyword));
   if (directSymbol) return directSymbol;
+  if (normalized.includes("dog") || normalized.includes("pet")) return "polished paw, grooming, or pet-care symbol";
   if (normalized.includes("skincare")) return "elegant botanical or letter symbol";
   if (normalized.includes("real estate")) return "architectural symbol or refined monogram";
   if (normalized.includes("fitness") || normalized.includes("gym")) return "strong monogram or athletic mark";
   if (normalized.includes("party") || normalized.includes("kids")) return "playful confetti-inspired symbol";
   if (normalized.includes("ai") || normalized.includes("startup")) return "abstract intelligent network mark";
+  if (normalized.includes("restaurant") || normalized.includes("chef") || normalized.includes("pizza") || normalized.includes("coffee")) return "food, hospitality, or chef-inspired brand symbol";
+  if (normalized.includes("auto") || normalized.includes("detailing")) return "sleek motion, shine, or automotive-detail mark";
   return "";
+}
+
+function extractAvoidFromPrompt(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  const avoidMatches = [];
+  const patterns = [
+    /\bnot\s+([a-z0-9 -]{2,40})(?=,|\.|;|$)/g,
+    /\bno\s+([a-z0-9 -]{2,40})(?=,|\.|;|$)/g,
+    /\bavoid\s+([a-z0-9 -]{2,50})(?=,|\.|;|$)/g,
+  ];
+
+  patterns.forEach((pattern) => {
+    [...normalized.matchAll(pattern)].forEach((match) => {
+      const value = match[1]?.trim();
+      if (value) avoidMatches.push(value);
+    });
+  });
+
+  return avoidMatches.length ? `avoid ${[...new Set(avoidMatches)].join(", ")}` : "";
 }
 
 function getTypographyDirection(style = "", industry = "", promptText = "") {
@@ -563,6 +612,7 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
   const detectedBrandName = brandName || extractBrandNameFromPrompt(promptText);
   const detectedColors = colors || extractColorsFromPrompt(combined);
   const detectedSymbol = symbol || extractSymbolFromPrompt(combined);
+  const detectedAvoid = avoid || extractAvoidFromPrompt(combined);
   const typography = getTypographyDirection(detectedStyle, detectedIndustry, combined);
   const layout = getLayoutPreferenceFromPrompt(combined);
 
@@ -575,7 +625,7 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
     mood: [detectedStyle, detectedIndustry].filter(Boolean).join(", ") || "professional, memorable, brandable",
     typography,
     layout,
-    avoid: avoid || "generic clipart, misspelled words, clutter, tiny unreadable text",
+    avoid: detectedAvoid || "generic clipart, misspelled words, clutter, tiny unreadable text",
     originalPrompt: promptText,
   };
 }
@@ -4116,12 +4166,16 @@ Preserve the original brand name, industry, style direction, colors, and symbol 
 
     setPrompt(nextPrompt);
     setRefinementPrompt("");
+    const refinementLower = cleanInstruction.toLowerCase();
+    const refinementSymbol = refinementLower.includes("remove the icon") || refinementLower.includes("no icon")
+      ? "no icon; typography-first wordmark"
+      : logoSymbol;
     const refinedParsedLogo = parseNaturalLogoPrompt({
       prompt: nextPrompt,
       brandName: parsedLogoPreview.brandName || creativeTone,
       style: selectedPlatform,
       industry: logoIndustry,
-      symbol: logoSymbol,
+      symbol: refinementSymbol,
       colors: extractColorsFromPrompt(cleanInstruction) || logoColors,
       avoid: logoAvoid,
     });
