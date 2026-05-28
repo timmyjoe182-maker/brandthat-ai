@@ -3179,6 +3179,7 @@ ${promptValue}`
               logoTransparentSvg={logoTransparentSvg}
               logoVariations={logoVariations}
               logoCreativeBrief={logoCreativeBrief}
+              logoGenerationMemory={logoGenerationMemory}
               logoEditor={logoEditor}
               setLogoEditor={setLogoEditor}
               recentLogoResults={recentLogoResults}
@@ -3298,6 +3299,7 @@ ${promptValue}`
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
           logoCreativeBrief={logoCreativeBrief}
+          logoGenerationMemory={logoGenerationMemory}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
@@ -3407,6 +3409,7 @@ ${promptValue}`
             logoTransparentSvg={logoTransparentSvg}
             logoVariations={logoVariations}
             logoCreativeBrief={logoCreativeBrief}
+            logoGenerationMemory={logoGenerationMemory}
             logoEditor={logoEditor}
             setLogoEditor={setLogoEditor}
             recentLogoResults={recentLogoResults}
@@ -3972,6 +3975,7 @@ function SEOPage({
   logoTransparentSvg,
   logoVariations,
   logoCreativeBrief,
+  logoGenerationMemory,
   logoEditor,
   setLogoEditor,
   recentLogoResults,
@@ -4028,6 +4032,7 @@ function SEOPage({
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
           logoCreativeBrief={logoCreativeBrief}
+          logoGenerationMemory={logoGenerationMemory}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
           recentLogoResults={recentLogoResults}
@@ -4667,6 +4672,7 @@ function GeneratorCard({
   logoTransparentSvg = "",
   logoVariations = [],
   logoCreativeBrief = null,
+  logoGenerationMemory = {},
   logoEditor = {},
   setLogoEditor = () => {},
   recentLogoResults = [],
