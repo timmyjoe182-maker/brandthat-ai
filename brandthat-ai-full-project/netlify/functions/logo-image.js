@@ -17,6 +17,12 @@ function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoS
   return `
 Create one finished, usable premium logo image.
 
+Current request fidelity rules:
+- The CURRENT brand name below is mandatory and overrides all memory, examples, saved workspaces, and prior prompts.
+- The CURRENT industry below is mandatory and must be visible in the symbol, typography tone, palette, and overall identity.
+- Never reuse a previous company name, ranch theme, luxury editorial default, or abstract premium mark unless the current request explicitly asks for it.
+- The Creative Director may refine spacing, hierarchy, and quality, but may not change the requested brand name, industry, object, mascot, color, or core category.
+
 Brand name or required words:
 ${brandName || "Use the brand name, initials, or keywords from the request."}
 
@@ -130,6 +136,34 @@ function escapeXml(value = "") {
     .replace(/'/g, "&#39;");
 }
 
+function normalizeLogoIdentity(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(the|a|an|logo|brand|company|business|llc|inc|co)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDifferentLogoIdentity(next = "", previous = "") {
+  const nextId = normalizeLogoIdentity(next);
+  const previousId = normalizeLogoIdentity(previous);
+  if (!nextId || !previousId) return false;
+  return nextId !== previousId;
+}
+
+function sanitizeGenerationMemoryForRequest(memory = {}, { brandName = "", logoIndustry = "" } = {}) {
+  const memoryBrand = memory?.lastSuccessfulDirection?.brandName || memory?.brandName || "";
+  const memoryIndustry = memory?.lastSuccessfulDirection?.industry || memory?.industry || "";
+  if (memoryBrand && brandName && isDifferentLogoIdentity(brandName, memoryBrand)) return {};
+  if (memoryIndustry && logoIndustry && String(memoryIndustry).toLowerCase() !== String(logoIndustry).toLowerCase()) {
+    const isRefinement = String(memory?.refinementMode || "").includes("designer-iteration");
+    if (!isRefinement) return {};
+  }
+  return memory || {};
+}
+
 function hashString(value = "") {
   return String(value).split("").reduce((hash, char) => {
     return ((hash << 5) - hash + char.charCodeAt(0)) >>> 0;
@@ -137,7 +171,8 @@ function hashString(value = "") {
 }
 
 function getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
-  const source = `${brandName || ""} ${logoIndustry || ""} ${logoStyle || ""} ${logoSymbol || ""} ${logoColors || ""} ${userPrompt || ""} ${logoPrompt || ""}`.trim() || "Brand";
+  const authoritativeSource = `${brandName || ""} ${logoIndustry || ""} ${logoStyle || ""} ${logoSymbol || ""} ${logoColors || ""} ${userPrompt || ""}`.trim();
+  const source = authoritativeSource || String(logoPrompt || "").slice(0, 500) || "Brand";
   const cleaned = source
     .replace(/\b(logo|brand|create|make|for|with|and|the|a|an|style|direction|required|text|keywords|request|user|professional|quality|image|concept|identity|premium|modern|clean|high|avoid|business|company|service|services|theme|colors|color|black|white)\b/gi, " ")
     .replace(/[^a-zA-Z0-9\s&]/g, " ")
@@ -200,6 +235,7 @@ function getSubject(words) {
   if (hasWord(words, ["kids", "kid", "toy", "toys", "daycare", "childcare", "children", "academy", "tutor", "learning", "school", "education"])) return "education";
   if (hasWord(words, ["lawn", "landscape", "landscaping", "garden", "tree"])) return "landscaping";
   if (hasWord(words, ["fitness", "gym", "training", "trainer", "strength"])) return "fitness";
+  if (hasWord(words, ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "confectionery", "sweets"])) return "chocolate";
   if (hasWord(words, ["pizza", "pizzeria", "slice", "pepperoni"])) return "pizza";
   if (hasWord(words, ["restaurant", "food", "kitchen", "chef", "diner", "grill", "bakery", "taco", "burger", "sushi", "catering"])) return "restaurant";
   if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
@@ -247,7 +283,7 @@ const DEFAULT_STYLE_TAXONOMY = [
   { key: "fashion", keywords: ["fashion", "clothing", "apparel", "jewelry", "boutique"], typography: "editorial serif or luxury sans", palette: "black, ivory, champagne", traits: ["stylish", "refined", "wearable"] },
   { key: "finance", keywords: ["finance", "wealth", "capital", "advisor", "tax", "accounting"], typography: "precise serif or serious sans", palette: "navy, white, muted gold", traits: ["stable", "credible", "measured"] },
   { key: "law", keywords: ["law", "legal", "attorney", "lawyer"], typography: "authoritative serif", palette: "navy, ivory, brass", traits: ["trustworthy", "formal", "balanced"] },
-  { key: "food", keywords: ["pizza", "restaurant", "food", "chef", "bakery", "taco", "burger", "coffee", "cafe"], typography: "warm hospitality type", palette: "food-specific warm palette", traits: ["appetizing", "human", "clear"] },
+  { key: "food", keywords: ["pizza", "restaurant", "food", "chef", "bakery", "taco", "burger", "coffee", "cafe", "chocolate", "cocoa", "candy", "confectionery"], typography: "warm hospitality type", palette: "food-specific warm palette", traits: ["appetizing", "human", "clear"] },
 ];
 
 let STYLE_SCHEMA = {};
@@ -263,6 +299,7 @@ const STYLE_TAXONOMY = Array.isArray(STYLE_SCHEMA.styles) && STYLE_SCHEMA.styles
 
 const DEFAULT_SUBJECT_STYLE_OVERRIDES = {
   pizza: ["food", "playful", "vintage"],
+  chocolate: ["food", "luxury", "vintage"],
   restaurant: ["food", "luxury", "vintage"],
   law: ["law", "corporate", "luxury"],
   finance: ["finance", "corporate", "luxury"],
@@ -346,7 +383,7 @@ function inferPositioning({ subject, styles, source = "", personality = null }) 
   if (/(cheap|affordable|budget|discount|fast|quick)/.test(text)) return "accessible";
   if (/(pro|professional|expert|trusted|certified)/.test(text)) return "professional";
   if (["law", "finance", "healthcare"].includes(subject)) return "trust";
-  if (["pizza", "restaurant", "coffee"].includes(subject)) return "neighborhood";
+  if (["pizza", "restaurant", "coffee", "chocolate"].includes(subject)) return "neighborhood";
   return "modern";
 }
 
@@ -386,6 +423,7 @@ const SUBJECT_PERSONALITY_SIGNALS = {
   wellness: { price: 16, era: 12, gender: 26, tone: 2, craft: -18, market: 20, energy: -34, expression: -18 },
   beauty: { price: 22, era: 12, gender: 30, market: 24, energy: -22, expression: -10 },
   pizza: { price: -6, era: -8, tone: 24, reach: -30, craft: -18, market: -8, expression: 18 },
+  chocolate: { price: 14, era: 8, tone: 18, reach: -24, craft: -28, market: 12, expression: 10 },
   restaurant: { era: 4, tone: 12, reach: -24, craft: -20, market: 4, energy: -4, expression: 12 },
   coffee: { era: 10, tone: 8, reach: -22, craft: -28, market: 10, energy: -10, expression: 8 },
   education: { price: -8, era: -6, gender: 10, tone: 30, reach: -16, market: -6, energy: -10, expression: 24 },
@@ -767,6 +805,8 @@ function normalizeMemoryDirection(value = null) {
   if (!value || typeof value !== "object") return null;
   return {
     name: String(value.name || "").trim(),
+    brandName: String(value.brandName || "").trim(),
+    industry: String(value.industry || "").trim(),
     style: String(value.style || value.logoStyle || "").trim(),
     symbol: String(value.symbol || "").trim(),
     typography: String(value.typography || "").trim(),
@@ -778,6 +818,8 @@ function normalizeMemoryDirection(value = null) {
 
 function normalizeGenerationMemory(memory = {}) {
   return {
+    brandName: String(memory.brandName || "").trim(),
+    industry: String(memory.industry || "").trim(),
     concepts: normalizeMemoryList(memory.concepts),
     rejectedStyles: normalizeMemoryList(memory.rejectedStyles),
     rejectedIconDirections: normalizeMemoryList(memory.rejectedIconDirections),
@@ -870,22 +912,30 @@ function scoreConceptContinuity(concept, memoryIntelligence) {
   return score;
 }
 
-function updateGenerationMemory(memory = {}, { concepts = [], typographySystem = {}, palette = "", humanDesign = {}, trend = {} }) {
+function updateGenerationMemory(memory = {}, { concepts = [], typographySystem = {}, palette = "", humanDesign = {}, trend = {}, brandName = "", industry = "" }) {
   const normalized = normalizeGenerationMemory(memory);
   const addUnique = (list, values, limit = 18) => {
     const next = [...values.map((value) => String(value || "").toLowerCase().trim()).filter(Boolean), ...list];
     return [...new Set(next)].slice(0, limit);
   };
 
+  const nextDirection = normalizeMemoryDirection({
+    ...(concepts[0] || {}),
+    brandName: brandName || normalized.brandName || concepts[0]?.brandName || "",
+    industry: industry || normalized.industry || concepts[0]?.industry || "",
+  });
+
   return {
     ...normalized,
+    brandName: brandName || normalized.brandName,
+    industry: industry || normalized.industry,
     concepts: addUnique(normalized.concepts, concepts.map((concept) => concept.name), 20),
     generatedStyles: addUnique(normalized.generatedStyles, concepts.map((concept) => concept.style), 16),
     generatedIconDirections: addUnique(normalized.generatedIconDirections, concepts.map((concept) => concept.symbol).concat(trend?.iconTrend || []), 20),
     generatedPalettes: addUnique(normalized.generatedPalettes, concepts.map((concept) => concept.palette).concat(palette || []), 16),
     generatedTypography: addUnique(normalized.generatedTypography, concepts.map((concept) => concept.typography).concat(typographySystem.label || []), 16),
     generatedCompositions: addUnique(normalized.generatedCompositions, concepts.map((concept) => concept.layout).concat(humanDesign?.composition || []), 16),
-    lastSuccessfulDirection: normalizeMemoryDirection(concepts[0]) || normalized.lastSuccessfulDirection,
+    lastSuccessfulDirection: nextDirection || normalized.lastSuccessfulDirection,
     continuityIntent: normalized.continuityIntent,
     refinementMode: normalized.refinementMode,
     refinementInstruction: normalized.refinementInstruction,
@@ -1056,7 +1106,7 @@ function selectTypography({ subject, styles, personality = null, trend = null })
   else if (["law", "finance", "insurance"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.authoritySerif;
   else if (subject === "ranch") selected = TYPOGRAPHY_SYSTEMS.luxurySerif;
   else if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security", "tattoo"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.tradeSans;
-  else if (["pizza", "restaurant", "coffee"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.hospitalitySans;
+  else if (["pizza", "restaurant", "coffee", "chocolate"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.hospitalitySans;
   else if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.editorialSerif;
   else if (primary === "vintage" || primary === "western") selected = TYPOGRAPHY_SYSTEMS.vintageDisplay;
   else if (primary === "minimal") selected = TYPOGRAPHY_SYSTEMS.geometricSans;
@@ -1067,6 +1117,7 @@ function selectTypography({ subject, styles, personality = null, trend = null })
 function selectAudience({ subject, positioning }) {
   const map = {
     pizza: "hungry local customers looking for a memorable restaurant",
+    chocolate: "gift buyers, dessert lovers, and customers looking for a memorable confectionery brand",
     restaurant: "diners who need to understand the food concept instantly",
     law: "clients looking for trust, authority, and clarity",
     finance: "clients looking for stability, guidance, and professionalism",
@@ -1101,6 +1152,7 @@ function selectPalette({ subject, styles, logoColors, personality = null, trend 
   if (personality?.matrix.craft.score >= 70) return "ink black, clean white, electric blue or violet accent";
   if (personality?.matrix.reach.score <= 34 && personality?.matrix.craft.score <= 40) return "charcoal, cream, earthy local accent";
   if (subject === "pizza") return "tomato red, mozzarella cream, basil green, oven charcoal";
+  if (subject === "chocolate") return "deep cocoa brown, cream, copper foil, warm caramel";
   if (subject === "restaurant") return "charcoal, warm cream, copper or ingredient accent";
   if (subject === "ranch") return "deep green, warm ivory, muted gold";
   if (subject === "tech") return "ink black, cloud white, electric blue";
@@ -1161,7 +1213,7 @@ function selectIconSystem({ subject, styles, logoSymbol = "", personality = null
     return ICON_CREATIVITY_SYSTEMS.mascotReduction;
   }
   if (trend?.iconTrend?.includes("adaptive symbol") || trend?.minimalismTrend?.includes("precision")) {
-    if (!["pizza", "restaurant", "coffee", "pet", "education"].includes(subject)) return ICON_CREATIVITY_SYSTEMS.abstractSystem;
+    if (!["pizza", "restaurant", "coffee", "chocolate", "pet", "education"].includes(subject)) return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
   if (personality?.matrix.expression.score <= 34 || personality?.matrix.price.score >= 68) {
     return ICON_CREATIVITY_SYSTEMS.editorialEmblem;
@@ -1178,7 +1230,7 @@ function selectIconSystem({ subject, styles, logoSymbol = "", personality = null
   if (["tech", "finance", "law"].includes(subject) || styleKeys.includes("futuristic")) {
     return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
-  if (["pizza", "restaurant", "coffee", "plastering", "construction", "automotive", "fitness", "surf", "roofing", "landscaping", "barber", "logistics"].includes(subject)) {
+  if (["pizza", "restaurant", "coffee", "chocolate", "plastering", "construction", "automotive", "fitness", "surf", "roofing", "landscaping", "barber", "logistics"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.negativeSpace;
   }
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
@@ -1531,12 +1583,13 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const inferredName = inferBrandName({ brandName, userPrompt, logoPrompt });
   const wordsResult = getLogoWords({ brandName: inferredName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
   const subject = getSubject(wordsResult.words);
+  const safeGenerationMemory = sanitizeGenerationMemoryForRequest(generationMemory, { brandName: inferredName, logoIndustry: subject });
   const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
   const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
   const personality = inferBrandPersonality({ subject, brandName: inferredName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
   const humanDesign = buildHumanDesignRealism({ subject, personality, styles });
   const trend = buildDesignTrendIntelligence({ subject, personality, styles });
-  const memoryIntelligence = buildGenerationMemoryIntelligence(generationMemory);
+  const memoryIntelligence = buildGenerationMemoryIntelligence(safeGenerationMemory);
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
   const typography = selectTypography({ subject, styles, personality, trend });
   const palette = selectPalette({ subject, styles, logoColors, personality, trend });
@@ -1688,6 +1741,11 @@ function getConceptLibrary(subject, profile) {
       ["Pizzeria Slice Mark", "large pizza slice with melted cheese, pepperoni dots, and a warm oven arc", "bold friendly restaurant wordmark", "tomato red, mozzarella cream, basil green", "big food icon above readable name", "It immediately shows pizza instead of a random badge or initials."],
       ["Wood-Fired Badge", "round pizza, flame, and oven curve inside a classic pizzeria badge", "heritage Italian-inspired display type", "deep red, charcoal, warm cream", "badge icon with curved wordmark feel", "It fits a pizza restaurant, takeout shop, or neighborhood pizzeria."],
       ["Modern Slice House", "minimal pizza slice forming a roof/shop sign shape", "clean modern sans with playful weight", "black, ivory, oregano green, red accent", "icon-left or stacked lockup", "It keeps the logo modern while still being unmistakably food themed."],
+    ],
+    chocolate: [
+      ["Cocoa Factory Mark", "stacked chocolate squares with a cocoa pod curve and subtle factory window geometry", "warm premium confectionery wordmark", "deep cocoa brown, cream, copper foil", "large chocolate symbol above readable brand name", "It directly connects chocolate, craft, and production without drifting into unrelated ranch or luxury hotel cues."],
+      ["Truffle Ribbon Wordmark", "melted chocolate ribbon forming a custom initial or underline", "soft bold hospitality type", "dark chocolate, caramel, ivory", "wordmark-led lockup with chocolate ribbon accent", "It makes the brand feel edible, handcrafted, and clearly confectionery."],
+      ["Bean & Bar Emblem", "cocoa bean nested inside a chocolate bar tile", "vintage candy-shop typography", "espresso brown, warm cream, muted gold", "compact emblem with clear wordmark", "It gives the logo an unmistakable chocolate-factory cue while staying scalable."],
     ],
     restaurant: [
       ["Chef Table Mark", "chef hat and plate silhouette with a subtle utensil detail", "warm hospitality wordmark", "charcoal, cream, copper", "centered restaurant emblem above type", "It reads clearly as a restaurant without relying on generic initials."],
@@ -2372,6 +2430,29 @@ function buildSubjectMark({ subject, ink, accent, paper, initials, variant = 0, 
     `;
   }
 
+  if (subject === "chocolate") {
+    if (variant === 1) {
+      return `
+        <g transform="translate(0 -18)">
+          <rect x="330" y="236" width="364" height="312" rx="52" fill="${ink}"/>
+          <path d="M330 340 H694 M452 236 V548 M572 236 V548" stroke="${paper}" stroke-width="18" opacity=".88"/>
+          <path d="M386 610 C442 536 580 536 636 610" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+          <path d="M424 278 C482 214 552 214 612 278" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round"/>
+        </g>
+      `;
+    }
+    return `
+      <g transform="translate(0 -16)">
+        <rect x="332" y="254" width="360" height="278" rx="46" fill="${ink}"/>
+        <rect x="382" y="302" width="86" height="72" rx="18" fill="${paper}" opacity=".92"/>
+        <rect x="498" y="302" width="86" height="72" rx="18" fill="${paper}" opacity=".92"/>
+        <rect x="556" y="406" width="86" height="72" rx="18" fill="${paper}" opacity=".92"/>
+        <path d="M354 584 C438 514 586 518 672 584" fill="none" stroke="${accent}" stroke-width="24" stroke-linecap="round"/>
+        <path d="M440 206 C496 154 574 160 626 220 C552 230 492 256 440 316 C426 270 420 234 440 206 Z" fill="${accent}"/>
+      </g>
+    `;
+  }
+
   if (subject === "pizza") {
     if (variant === 1) {
       return `
@@ -2769,6 +2850,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
     "wedding-photo": "photo video",
     fitness: "training brand",
     "hippo-football": "fantasy football",
+    chocolate: "chocolate factory",
     pizza: "pizza restaurant",
     restaurant: "restaurant brand",
     automotive: "auto service",
@@ -2822,7 +2904,7 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const lineStart = humanComposition.lineInset + humanComposition.accentDx;
   const lineEnd = 1024 - humanComposition.lineInset + humanComposition.accentDx;
   const subtitleX = 512 + Math.round(humanComposition.wordDx / 2);
-  const showSupportLine = !isPrimaryResult || ["pizza", "restaurant", "coffee", "pet", "fitness", "construction", "plumbing", "automotive"].includes(subject);
+  const showSupportLine = !isPrimaryResult || ["pizza", "restaurant", "coffee", "chocolate", "pet", "fitness", "construction", "plumbing", "automotive"].includes(subject);
   const supportOpacity = isPrimaryResult ? "0.44" : "0.64";
   const accentWidth = isPrimaryResult ? 6 : 10;
   const accentOpacity = isPrimaryResult ? "0.72" : "1";
@@ -2843,14 +2925,15 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
 
 function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
   const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
-  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant: 0, director: creativeBrief });
-  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant: 0, transparent: true, director: creativeBrief });
+  const safeGenerationMemory = sanitizeGenerationMemoryForRequest(generationMemory, { brandName: creativeBrief.brandName || brandName, logoIndustry: creativeBrief.category || logoIndustry });
+  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory: safeGenerationMemory, variant: 0, director: creativeBrief });
+  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory: safeGenerationMemory, variant: 0, transparent: true, director: creativeBrief });
   const subject = creativeBrief.category;
   const variantIds = [0, 1, 2, 3];
   const variationNames = ["Primary", "Editorial", "Bold", "Monogram", "Icon System", "Premium Lockup"];
   const variations = variantIds.map((variant) => {
     const concept = creativeBrief.concepts[variant % creativeBrief.concepts.length] || {};
-    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant, director: creativeBrief });
+    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory: safeGenerationMemory, variant, director: creativeBrief });
     return {
       id: `variation-${variant + 1}`,
       name: concept.name || variationNames[variant] || `Variation ${variant + 1}`,
@@ -2866,12 +2949,14 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
     };
   });
 
-  const updatedMemory = updateGenerationMemory(generationMemory, {
+  const updatedMemory = updateGenerationMemory(safeGenerationMemory, {
     concepts: creativeBrief.concepts,
     typographySystem: creativeBrief.typographySystem,
     palette: creativeBrief.concepts?.[0]?.palette,
     humanDesign: creativeBrief.humanDesign,
     trend: creativeBrief.trendIntelligence,
+    brandName: creativeBrief.brandName || brandName,
+    industry: creativeBrief.category || logoIndustry,
   });
 
   return {
@@ -2920,7 +3005,7 @@ exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
 
   try {
-    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory } = JSON.parse(event.body || "{}");
+    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, parsedLogo, contextReset } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
       return {
@@ -2929,8 +3014,16 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
-    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+    const requestBrandName = parsedLogo?.brandName || brandName || "";
+    const requestIndustry = parsedLogo?.industry || logoIndustry || "";
+    const requestStyle = parsedLogo?.style || logoStyle || "";
+    const requestSymbol = parsedLogo?.symbol || logoSymbol || "";
+    const requestColors = parsedLogo?.colors || logoColors || "";
+    const requestAvoid = parsedLogo?.avoid || logoAvoid || "";
+    const requestMemory = contextReset ? {} : sanitizeGenerationMemoryForRequest(generationMemory || {}, { brandName: requestBrandName, logoIndustry: requestIndustry });
+
+    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
+    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
     const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);

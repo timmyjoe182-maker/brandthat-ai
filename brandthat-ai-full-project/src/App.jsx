@@ -497,6 +497,19 @@ function getInitialsFromBrandName(name = "") {
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
 }
 
+function titleCase(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b[a-z0-9]/g, (letter) => letter.toUpperCase());
+}
+
+function formatExtractedBrandName(value = "") {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  if (clean.includes(".") || /[a-z][A-Z]/.test(clean)) return clean;
+  return titleCase(clean);
+}
+
 const LOGO_INDUSTRY_KEYWORDS = [
   ["pet grooming", ["dog grooming", "pet grooming", "groomer", "paw", "pet care"]],
   ["skincare", ["skincare", "skin care", "beauty", "spa", "esthetician", "wellness"]],
@@ -504,6 +517,7 @@ const LOGO_INDUSTRY_KEYWORDS = [
   ["real estate", ["real estate", "realtor", "broker", "property", "homes", "estate group"]],
   ["fitness", ["gym", "fitness", "coach", "coaching", "training", "strength", "athletic"]],
   ["kids party", ["kids", "children", "party", "confetti", "birthday", "play"]],
+  ["chocolate", ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "confectionery", "sweets", "chocolate factory"]],
   ["restaurant", ["restaurant", "pizza", "cafe", "coffee", "bar", "bakery", "food", "diner", "chef", "private chef", "roaster", "cupcake"]],
   ["law firm", ["law", "legal", "attorney", "firm", "counsel", "serious", "scales"]],
   ["construction", ["construction", "plastering", "stucco", "contractor", "builder", "roofing"]],
@@ -547,8 +561,33 @@ const LOGO_SYMBOL_KEYWORDS = [
   "a symbol", "symbol", "icon", "mascot", "monogram", "lettermark", "badge", "emblem",
   "shield", "crown", "leaf", "rose", "horse", "alpaca", "pizza", "fork", "house",
   "key", "mountain", "bolt", "spark", "dumbbell", "barbell", "confetti", "balloon",
-  "paw", "scissors", "wave", "needle", "pipe", "flame"
+  "paw", "scissors", "wave", "needle", "pipe", "flame", "chocolate", "cocoa", "cacao", "truffle"
 ];
+
+function normalizeLogoIdentity(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(the|a|an|logo|brand|company|business|llc|inc|co)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLogoRefinementPrompt(text = "") {
+  const normalized = String(text || "").toLowerCase().trim();
+  if (!normalized) return false;
+  const startsLikeRefinement = /^(make it|make this|change it|change this|use |remove |try |more |less |simplify|cleaner|bolder|softer|keep |switch |turn it|revise|refine)/.test(normalized);
+  const containsNewLogoIntent = /\b(create|make|design|generate|build)\b.{0,28}\blogo\b|\blogo for\b|\bcalled\b|\bnamed\b|\bcompany\b|\bbusiness\b|\bbrand\b/.test(normalized);
+  return startsLikeRefinement && !containsNewLogoIntent;
+}
+
+function isDifferentLogoIdentity(next = "", previous = "") {
+  const nextId = normalizeLogoIdentity(next);
+  const previousId = normalizeLogoIdentity(previous);
+  if (!nextId || !previousId) return false;
+  return nextId !== previousId;
+}
 
 function findKeywordMatch(text, pairs, fallback = "") {
   const normalized = String(text || "").toLowerCase();
@@ -567,10 +606,11 @@ function findKeywordMatch(text, pairs, fallback = "") {
 
 function extractBrandNameFromPrompt(text = "") {
   const promptText = String(text || "").replace(/\s+/g, " ").trim();
-  const stopperWords = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid";
+  const stopperWords = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid|factory|restaurant|company|business|brand|logo|named|called";
   const patterns = [
     new RegExp(`\\bcalled\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
     new RegExp(`\\bnamed\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\b(?:called|named)\\s+([a-z0-9][a-z0-9&.' -]{1,60})`, "i"),
     new RegExp(`\\bfor\\s+(?:a|an|the)?\\s*brand\\s+(?:called|named)?\\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
     new RegExp(`\\b(?:brand|company|business|logo)\\s+(?:logo\\s+)?([A-Za-z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
     new RegExp(`\\bfor\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
@@ -578,10 +618,10 @@ function extractBrandNameFromPrompt(text = "") {
 
   const match = patterns.map((pattern) => promptText.match(pattern)).find(Boolean);
   return match
-    ? match[1]
+    ? formatExtractedBrandName(match[1]
         .replace(new RegExp(`\\s+(${stopperWords})\\b.*$`, "i"), "")
         .replace(/\s+(logo|brand)$/i, "")
-        .trim()
+        .trim())
     : "";
 }
 
@@ -597,6 +637,7 @@ function extractSymbolFromPrompt(text = "") {
   const directSymbol = LOGO_SYMBOL_KEYWORDS.find((keyword) => normalized.includes(keyword));
   if (directSymbol) return directSymbol;
   if (normalized.includes("dog") || normalized.includes("pet")) return "polished paw, grooming, or pet-care symbol";
+  if (normalized.includes("chocolate") || normalized.includes("cocoa") || normalized.includes("cacao") || normalized.includes("truffle")) return "premium chocolate square, cocoa pod, melted chocolate ribbon, or confectionery factory mark";
   if (normalized.includes("skincare")) return "elegant botanical or letter symbol";
   if (normalized.includes("real estate")) return "architectural symbol or refined monogram";
   if (normalized.includes("fitness") || normalized.includes("gym")) return "strong monogram or athletic mark";
@@ -732,16 +773,22 @@ function getLayoutPreferenceFromPrompt(text = "") {
 
 function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", industry = "", symbol = "", colors = "", avoid = "" }) {
   const promptText = String(prompt || "").trim();
+  const isRefinement = isLogoRefinementPrompt(promptText);
+  const promptBrandName = extractBrandNameFromPrompt(promptText);
   const combined = [promptText, brandName, style, industry, symbol, colors, avoid].filter(Boolean).join(" ");
+  const promptFirstCombined = [promptText, promptBrandName, industry, style, symbol, colors, avoid].filter(Boolean).join(" ");
   const interpretation = interpretLogoLanguage(combined);
-  const detectedIndustry = industry || findKeywordMatch(combined, LOGO_INDUSTRY_KEYWORDS, "");
-  const detectedStyle = style || interpretation.style || findKeywordMatch(combined, LOGO_STYLE_KEYWORDS, detectedIndustry === "skincare" || detectedIndustry === "real estate" ? "luxury" : "");
-  const detectedBrandName = brandName || extractBrandNameFromPrompt(promptText);
-  const detectedColors = colors || extractColorsFromPrompt(combined) || interpretation.palette;
-  const detectedSymbol = symbol || interpretation.icon || extractSymbolFromPrompt(combined);
-  const detectedAvoid = [avoid || extractAvoidFromPrompt(combined), interpretation.avoid].filter(Boolean).join("; ");
-  const typography = getTypographyDirection(detectedStyle, detectedIndustry, combined);
-  const layout = interpretation.composition || getLayoutPreferenceFromPrompt(combined);
+  const promptIndustry = findKeywordMatch(promptText, LOGO_INDUSTRY_KEYWORDS, "");
+  const detectedIndustry = promptIndustry || industry || findKeywordMatch(promptFirstCombined, LOGO_INDUSTRY_KEYWORDS, "");
+  const promptStyle = findKeywordMatch(promptText, LOGO_STYLE_KEYWORDS, "");
+  const detectedStyle = promptStyle || style || interpretation.style || findKeywordMatch(promptFirstCombined, LOGO_STYLE_KEYWORDS, detectedIndustry === "skincare" || detectedIndustry === "real estate" ? "luxury" : "");
+  const detectedBrandName = promptBrandName || brandName;
+  const detectedColors = extractColorsFromPrompt(promptText) || colors || extractColorsFromPrompt(promptFirstCombined) || interpretation.palette;
+  const detectedSymbol = extractSymbolFromPrompt(promptText) || symbol || interpretation.icon || extractSymbolFromPrompt(promptFirstCombined);
+  const detectedAvoid = [extractAvoidFromPrompt(promptText) || avoid || extractAvoidFromPrompt(promptFirstCombined), interpretation.avoid].filter(Boolean).join("; ");
+  const typography = getTypographyDirection(detectedStyle, detectedIndustry, promptFirstCombined);
+  const layout = interpretation.composition || getLayoutPreferenceFromPrompt(promptFirstCombined);
+  const isNewBrandRequest = Boolean(promptBrandName && isDifferentLogoIdentity(promptBrandName, brandName));
 
   return {
     brandName: detectedBrandName,
@@ -755,6 +802,16 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
     avoid: detectedAvoid || "generic clipart, misspelled words, clutter, tiny unreadable text",
     interpretation,
     originalPrompt: promptText,
+    isRefinement,
+    isNewBrandRequest,
+    promptBrandName,
+    extractionConfidence: {
+      brandName: detectedBrandName ? "high" : "low",
+      industry: promptIndustry ? "high" : detectedIndustry ? "medium" : "low",
+      style: promptStyle ? "high" : detectedStyle ? "medium" : "low",
+      symbol: detectedSymbol ? "medium" : "low",
+      colors: detectedColors ? "medium" : "low",
+    },
   };
 }
 
@@ -953,6 +1010,52 @@ function buildLogoRefinementMemory({
       ...currentHistory,
     ].slice(0, 8),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+function shouldPreserveLogoGenerationMemory({ parsedLogo = {}, memory = {}, explicitMemoryProvided = false }) {
+  if (!parsedLogo || parsedLogo.isNewBrandRequest) return false;
+  if (parsedLogo.isRefinement || explicitMemoryProvided) {
+    const memoryBrand = memory?.lastSuccessfulDirection?.brandName || memory?.brandName || "";
+    const memoryIndustry = memory?.lastSuccessfulDirection?.industry || memory?.industry || "";
+    if (memoryBrand && parsedLogo.brandName && isDifferentLogoIdentity(parsedLogo.brandName, memoryBrand)) return false;
+    if (memoryIndustry && parsedLogo.industry && memoryIndustry !== parsedLogo.industry && !parsedLogo.isRefinement) return false;
+    return true;
+  }
+
+  return false;
+}
+
+function buildAuthoritativeLogoContext({
+  promptValue = "",
+  brandNameValue = "",
+  styleValue = "",
+  industryValue = "",
+  symbolValue = "",
+  colorsValue = "",
+  avoidValue = "",
+  activeBrand = null,
+  memory = {},
+  explicitMemoryProvided = false,
+}) {
+  const promptBrandName = extractBrandNameFromPrompt(promptValue);
+  const hasPromptBrand = Boolean(promptBrandName);
+  const parsedLogo = parseNaturalLogoPrompt({
+    prompt: promptValue,
+    brandName: hasPromptBrand || !promptValue.trim() ? brandNameValue || activeBrand?.name || "" : brandNameValue,
+    style: styleValue,
+    industry: industryValue,
+    symbol: symbolValue,
+    colors: colorsValue,
+    avoid: avoidValue,
+  });
+  const preserveMemory = shouldPreserveLogoGenerationMemory({ parsedLogo, memory, explicitMemoryProvided });
+
+  return {
+    parsedLogo,
+    generationMemory: preserveMemory ? memory || {} : {},
+    shouldUseWorkspaceContext: !parsedLogo.isNewBrandRequest && !hasPromptBrand && Boolean(activeBrand),
+    resetReason: preserveMemory ? "" : "fresh-current-prompt",
   };
 }
 
@@ -2726,16 +2829,21 @@ Rules:
     const symbolValue = overrides.logoSymbol ?? logoSymbol;
     const colorsValue = overrides.logoColors ?? logoColors;
     const avoidValue = overrides.logoAvoid ?? logoAvoid;
-    const parsedLogo = parseNaturalLogoPrompt({
-      prompt: promptValue,
-      brandName: brandNameValue || activeBrand?.name || "",
-      style: styleValue,
-      industry: industryValue,
-      symbol: symbolValue,
-      colors: colorsValue,
-      avoid: avoidValue,
+    const rawMemory = overrides.generationMemory || logoGenerationMemory || {};
+    const logoContext = buildAuthoritativeLogoContext({
+      promptValue,
+      brandNameValue,
+      styleValue,
+      industryValue,
+      symbolValue,
+      colorsValue,
+      avoidValue,
+      activeBrand,
+      memory: rawMemory,
+      explicitMemoryProvided: Boolean(overrides.generationMemory),
     });
-    const generationMemoryValue = overrides.generationMemory || logoGenerationMemory || {};
+    const parsedLogo = logoContext.parsedLogo;
+    const generationMemoryValue = logoContext.generationMemory;
 
     const enhancedLogoPrompt = `
 Create a high-quality professional logo.
@@ -2774,16 +2882,20 @@ Avoid:
 ${parsedLogo.avoid}
 
 Brand workspace context:
-${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
+${logoContext.shouldUseWorkspaceContext ? buildBrandPrompt(activeBrand) : "No saved workspace context is being used. The current user request is the only brand authority."}
 
 Refinement context:
 ${generationMemoryValue?.refinementMode === "designer-iteration" ? "This is a conversational refinement, not a fresh restart." : "This is a first-pass or broad generation."}
 ${generationMemoryValue?.refinementInstruction ? `User refinement: ${generationMemoryValue.refinementInstruction}` : ""}
 ${generationMemoryValue?.lastSuccessfulDirection ? `Preserve successful prior direction: Style ${generationMemoryValue.lastSuccessfulDirection.style || "current"}; Symbol ${generationMemoryValue.lastSuccessfulDirection.symbol || "current"}; Typography ${generationMemoryValue.lastSuccessfulDirection.typography || "current"}; Palette ${generationMemoryValue.lastSuccessfulDirection.palette || "current"}; Layout ${generationMemoryValue.lastSuccessfulDirection.layout || "current"}.` : ""}
+${logoContext.resetReason ? "Previous logo memory was ignored because this appears to be a fresh or different brand request." : ""}
 
 Requirements:
 - Generate a polished logo concept suitable for a real business.
 - Treat the natural user request as the source of truth.
+- Brand name fidelity is mandatory. Use only this current brand name if provided: ${parsedLogo.brandName || "not provided"}.
+- Industry fidelity is mandatory. The design must visually match this current industry/niche: ${parsedLogo.industry}.
+- Do not reuse prior brand names, prior ranch/real-estate/luxury context, or any saved workspace context unless it is explicitly shown above.
 - Use the extracted brand context above to understand the meaning of the words, not just the literal text.
 - Adapt to any requested style: luxury, minimal, mascot, character, emblem, badge, monogram, wordmark, lettermark, icon, vintage, retro, tech, AI, fashion, ranch, real estate, restaurant, fitness, beauty, ecommerce, startup, creator brand, photography, construction, wellness, hospitality, or local service business.
 - If the user asks for a specific style, industry, animal, object, letter, color palette, era, mood, or reference direction, prioritize that request.
@@ -2809,6 +2921,7 @@ Requirements:
       userPrompt: promptValue,
       parsedLogo,
       generationMemory: generationMemoryValue,
+      contextReset: logoContext.resetReason,
       logoPrompt: enhancedLogoPrompt
     };
 
@@ -2862,17 +2975,21 @@ Requirements:
     const symbolValue = logoOverrides.logoSymbol ?? logoSymbol;
     const colorsValue = logoOverrides.logoColors ?? logoColors;
     const avoidValue = logoOverrides.logoAvoid ?? logoAvoid;
-    const parsedLogo = activeTool.key === "logo"
-      ? parseNaturalLogoPrompt({
-          prompt: promptValue,
-          brandName: brandNameValue,
-          style: styleValue,
-          industry: industryValue,
-          symbol: symbolValue,
-          colors: colorsValue,
-          avoid: avoidValue,
+    const logoContext = activeTool.key === "logo"
+      ? buildAuthoritativeLogoContext({
+          promptValue,
+          brandNameValue,
+          styleValue,
+          industryValue,
+          symbolValue,
+          colorsValue,
+          avoidValue,
+          activeBrand,
+          memory: logoOverrides.generationMemory || logoGenerationMemory || {},
+          explicitMemoryProvided: Boolean(logoOverrides.generationMemory),
         })
       : null;
+    const parsedLogo = logoContext?.parsedLogo || null;
     const hasLogoFields = activeTool.key === "logo" && [brandNameValue, industryValue, styleValue, symbolValue, colorsValue, avoidValue, promptValue].some((value) => String(value || "").trim());
 
     if (!promptValue.trim() && !hasLogoFields) {
@@ -2915,6 +3032,9 @@ Requirements:
     setLogoGenerationError("");
     setLogoImage("");
     setLogoImageSource("");
+    if (activeTool.key === "logo" && logoContext?.resetReason) {
+      setLogoGenerationMemory({});
+    }
 
     try {
       if (activeTool.key === "logo") {
