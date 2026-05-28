@@ -3586,6 +3586,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
     .flatMap(([key]) => (brand.saved?.[key] || []).map((item) => ({ ...item, bucket: key })))
     .filter((item) => favoriteIds[item.id] || item.favorite);
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image);
+  const comparisonLogos = savedLogos.slice(0, 3);
   const logoTimeline = savedLogos.slice(0, 8);
 
   const renderItem = (item) => (
@@ -3605,6 +3606,54 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
     <section className="savedAssets">
       <div className="tinyTag">SAVED OUTPUTS</div>
       <h2>{brand.name} Brand Kit</h2>
+
+      {comparisonLogos.length > 0 && (
+        <div className="conceptComparisonPanel">
+          <div className="comparisonHeader">
+            <div>
+              <h3>Concept Comparison</h3>
+              <p>Review the strongest saved directions side by side and mark the version that feels closest to the brand.</p>
+            </div>
+          </div>
+
+          <div className="comparisonGrid">
+            {["A", "B", "C"].map((label, index) => {
+              const item = comparisonLogos[index];
+              if (!item) {
+                return (
+                  <div className="comparisonCard emptyComparisonCard" key={label}>
+                    <span>Concept {label}</span>
+                    <p>Save another logo concept to compare it here.</p>
+                  </div>
+                );
+              }
+
+              const project = getLogoProjectFromEntry(item);
+              const isFavorite = favoriteIds[item.id] || item.favorite;
+
+              return (
+                <div className={isFavorite ? "comparisonCard favoriteComparisonCard" : "comparisonCard"} key={item.id}>
+                  <div className="comparisonLabel">
+                    <span>Concept {label}</span>
+                    {isFavorite && <strong>Favorite</strong>}
+                  </div>
+                  <button className="comparisonImage" onClick={() => openGeneratedImage(item.image)}>
+                    <img src={item.image} alt={item.title} />
+                  </button>
+                  <div className="comparisonCopy">
+                    <h4>{project.brandName || item.title}</h4>
+                    <p>{project.style || "Logo direction"}{project.industry ? ` for ${project.industry}` : ""}</p>
+                  </div>
+                  <div className="comparisonActions">
+                    <button onClick={() => toggleFavorite(item.id)}>{isFavorite ? "Favorited" : "Favorite"}</button>
+                    <button onClick={() => continueSavedLogo(item)}>Refine</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {savedLogos.length > 0 && (
         <div className="logoLibraryPanel">
@@ -5659,6 +5708,25 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .savedItem{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:12px;margin-top:10px}
 .savedItem img{width:100%;border-radius:12px;margin-bottom:10px}
 .savedItem button{margin-top:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-weight:800;cursor:pointer}
+.conceptComparisonPanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:24px;margin:22px 0}
+.comparisonHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:18px}
+.comparisonHeader h3{font-size:28px;letter-spacing:-.04em;margin:0 0 6px}
+.comparisonHeader p{color:#666;line-height:1.6;margin:0;max-width:680px}
+.comparisonGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.comparisonCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px;min-height:420px;display:flex;flex-direction:column;gap:14px}
+.favoriteComparisonCard{background:white;border-color:#111;box-shadow:inset 0 0 0 1px #111}
+.comparisonLabel{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:28px}
+.comparisonLabel span,.emptyComparisonCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.comparisonLabel strong{background:#111;color:white;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900}
+.comparisonImage{width:100%;aspect-ratio:1;background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.comparisonImage img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.comparisonCopy{margin-top:auto}
+.comparisonCopy h4{font-size:22px;letter-spacing:-.04em;margin:0 0 7px}
+.comparisonCopy p,.emptyComparisonCard p{color:#666;line-height:1.55;margin:0}
+.comparisonActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.comparisonActions button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:10px 12px;font-size:13px;font-weight:900;cursor:pointer;color:#111}
+.comparisonActions button:first-child{background:#111;color:white}
+.emptyComparisonCard{justify-content:center;align-items:flex-start;min-height:420px}
 .logoLibraryPanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:22px;margin:22px 0}
 .logoLibraryTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}
 .logoLibraryTop h3{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}
@@ -6765,6 +6833,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader{flex-direction:column;align-items:flex-start}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader{flex-direction:column;align-items:flex-start}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
