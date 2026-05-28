@@ -833,6 +833,69 @@ function getRefinementStateLabel(memory = {}) {
   return `Refining ${area} while preserving the brand direction`;
 }
 
+const LOGO_PROJECT_MARKER = "BRANDTHAT_LOGO_PROJECT:";
+
+function encodeJsonForContent(value) {
+  try {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(value))));
+  } catch {
+    return "";
+  }
+}
+
+function decodeJsonFromContent(value) {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(value))));
+  } catch {
+    return null;
+  }
+}
+
+function encodeLogoProjectContent(content = "", project = null) {
+  const encoded = project ? encodeJsonForContent(project) : "";
+  const cleanContent = stripLogoProjectMetadata(content);
+  return encoded ? `${cleanContent}\n\n<!--${LOGO_PROJECT_MARKER}${encoded}-->` : cleanContent;
+}
+
+function decodeLogoProjectFromContent(content = "") {
+  const match = String(content || "").match(/<!--BRANDTHAT_LOGO_PROJECT:([A-Za-z0-9+/=]+)-->/);
+  return match ? decodeJsonFromContent(match[1]) : null;
+}
+
+function stripLogoProjectMetadata(content = "") {
+  return String(content || "").replace(/\n?\s*<!--BRANDTHAT_LOGO_PROJECT:[A-Za-z0-9+/=]+-->\s*/g, "").trim();
+}
+
+function getLogoProjectFromEntry(entry = {}) {
+  if (!entry) return {};
+  const decodedProject = entry.project || decodeLogoProjectFromContent(entry.content);
+  return {
+    ...(decodedProject || {}),
+    source: decodedProject?.source || entry.source || "",
+    vectorImage: decodedProject?.vectorImage || entry.vectorImage || entry.image || "",
+    svg: decodedProject?.svg || entry.svg || "",
+    transparentSvg: decodedProject?.transparentSvg || entry.transparentSvg || entry.svg || "",
+    variations: decodedProject?.variations || entry.variations || [],
+    creativeBrief: decodedProject?.creativeBrief || entry.creativeBrief || null,
+    generationMemory: decodedProject?.generationMemory || entry.generationMemory || {},
+    prompt: decodedProject?.prompt || entry.prompt || "",
+    brandName: decodedProject?.brandName || entry.brandName || entry.title || "",
+    style: decodedProject?.style || entry.style || "",
+    industry: decodedProject?.industry || entry.industry || "",
+    symbol: decodedProject?.symbol || entry.symbol || "",
+    colors: decodedProject?.colors || entry.colors || "",
+    avoid: decodedProject?.avoid || entry.avoid || "",
+  };
+}
+
+function getLogoTimelineNote(entry = {}) {
+  const project = getLogoProjectFromEntry(entry);
+  const history = Array.isArray(project.generationMemory?.refinementHistory) ? project.generationMemory.refinementHistory : [];
+  if (history[0]?.instruction) return `Latest refinement: ${history[0].instruction}`;
+  if (project.prompt) return project.prompt;
+  return "Saved logo concept";
+}
+
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
   const displayName = escapeSvgText(brandName || "Brandthat");
   const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
@@ -1305,15 +1368,34 @@ export default function App() {
     createdAt: row.created_at || new Date().toISOString(),
   });
 
-  const mapGenerationRow = (row) => ({
-    id: row.id,
-    tool: row.tool,
-    title: row.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
-    content: row.content || "",
-    image: row.image_url || "",
-    favorite: Boolean(row.favorite),
-    createdAt: row.created_at || new Date().toISOString(),
-  });
+  const mapGenerationRow = (row) => {
+    const project = row.tool === "logo" ? decodeLogoProjectFromContent(row.content || "") : null;
+
+    return {
+      id: row.id,
+      tool: row.tool,
+      title: row.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
+      content: stripLogoProjectMetadata(row.content || ""),
+      image: row.image_url || project?.image || "",
+      favorite: Boolean(row.favorite),
+      project,
+      source: project?.source || "",
+      vectorImage: project?.vectorImage || "",
+      svg: project?.svg || "",
+      transparentSvg: project?.transparentSvg || "",
+      variations: project?.variations || [],
+      creativeBrief: project?.creativeBrief || null,
+      generationMemory: project?.generationMemory || null,
+      prompt: project?.prompt || "",
+      brandName: project?.brandName || "",
+      style: project?.style || "",
+      industry: project?.industry || "",
+      symbol: project?.symbol || "",
+      colors: project?.colors || "",
+      avoid: project?.avoid || "",
+      createdAt: row.created_at || new Date().toISOString(),
+    };
+  };
 
   const loadSavedWorkspaceData = async (currentUser) => {
     if (!currentUser?.id) return;
@@ -1890,12 +1972,49 @@ export default function App() {
     }
 
     const bucket = activeTool.key === "logo" ? "logos" : activeTool.key;
+    const logoProject = activeTool.key === "logo"
+      ? {
+          image: logoImage,
+          source: logoImageSource || "openai",
+          vectorImage: logoVectorImage || logoImage,
+          svg: logoSvg || "",
+          transparentSvg: logoTransparentSvg || logoSvg || "",
+          variations: logoVariations || [],
+          creativeBrief: logoCreativeBrief || null,
+          generationMemory: logoGenerationMemory || {},
+          prompt,
+          brandName: creativeTone || activeBrand?.name || "",
+          style: selectedPlatform || "",
+          industry: logoIndustry || "",
+          symbol: logoSymbol || "",
+          colors: logoColors || "",
+          avoid: logoAvoid || "",
+          savedAt: new Date().toISOString(),
+        }
+      : null;
+    const displayContent = stripLogoProjectMetadata(result);
+    const storageContent = logoProject ? encodeLogoProjectContent(displayContent, logoProject) : displayContent;
     let entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       tool: activeTool.key,
       title: `${activeTool.shortTitle} • ${new Date().toLocaleDateString()}`,
-      content: result,
+      content: displayContent,
       image: logoImage,
+      project: logoProject,
+      source: logoProject?.source || "",
+      vectorImage: logoProject?.vectorImage || "",
+      svg: logoProject?.svg || "",
+      transparentSvg: logoProject?.transparentSvg || "",
+      variations: logoProject?.variations || [],
+      creativeBrief: logoProject?.creativeBrief || null,
+      generationMemory: logoProject?.generationMemory || null,
+      prompt: logoProject?.prompt || "",
+      brandName: logoProject?.brandName || "",
+      style: logoProject?.style || "",
+      industry: logoProject?.industry || "",
+      symbol: logoProject?.symbol || "",
+      colors: logoProject?.colors || "",
+      avoid: logoProject?.avoid || "",
       createdAt: new Date().toISOString(),
     };
 
@@ -1908,7 +2027,7 @@ export default function App() {
             workspace_id: activeBrand.id,
             tool: activeTool.key,
             title: entry.title,
-            content: entry.content,
+            content: storageContent,
             image_url: entry.image,
           })
           .select("*")
@@ -2802,24 +2921,39 @@ ${promptValue}`
 
   const restoreRecentLogo = (entry) => {
     if (!entry?.image) return;
+    const project = getLogoProjectFromEntry(entry);
     setActiveToolKey("logo");
-    setCreativeTone(entry.brandName || entry.title || "");
-    setSelectedPlatform(entry.style || "");
-    setLogoIndustry(entry.industry || "");
-    setLogoSymbol(entry.symbol || "");
-    setLogoColors(entry.colors || "");
-    setLogoAvoid(entry.avoid || "");
-    setPrompt(entry.prompt || "");
+    setCreativeTone(project.brandName || entry.title || "");
+    setSelectedPlatform(project.style || "");
+    setLogoIndustry(project.industry || "");
+    setLogoSymbol(project.symbol || "");
+    setLogoColors(project.colors || "");
+    setLogoAvoid(project.avoid || "");
+    setPrompt(project.prompt || "");
     setLogoImage(entry.image);
-    setLogoImageSource(entry.source || "openai");
-    setLogoVectorImage(entry.vectorImage || entry.image);
-    setLogoSvg(entry.svg || "");
-    setLogoTransparentSvg(entry.transparentSvg || entry.svg || "");
-    setLogoVariations(entry.variations || []);
-    setLogoCreativeBrief(entry.creativeBrief || null);
+    setLogoImageSource(project.source || "openai");
+    setLogoVectorImage(project.vectorImage || entry.image);
+    setLogoSvg(project.svg || "");
+    setLogoTransparentSvg(project.transparentSvg || project.svg || "");
+    setLogoVariations(project.variations || []);
+    setLogoCreativeBrief(project.creativeBrief || null);
+    setLogoGenerationMemory(project.generationMemory || {});
     setResult(
-      `${entry.source === "instant-svg" ? "Editable vector logo restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${entry.brandName || entry.title || "Not provided"}\nIndustry: ${entry.industry || "Not provided"}\nStyle: ${entry.style || "Not provided"}\nSymbol or mascot: ${entry.symbol || "Not provided"}\nColors: ${entry.colors || "Not provided"}\nAvoid: ${entry.avoid || "Not provided"}\nNotes: ${entry.prompt || "Not provided"}`
+      `${project.source === "instant-svg" ? "Editable vector logo restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${project.brandName || entry.title || "Not provided"}\nIndustry: ${project.industry || "Not provided"}\nStyle: ${project.style || "Not provided"}\nSymbol or mascot: ${project.symbol || "Not provided"}\nColors: ${project.colors || "Not provided"}\nAvoid: ${project.avoid || "Not provided"}\nNotes: ${project.prompt || "Not provided"}`
     );
+  };
+
+  const continueSavedLogo = (entry) => {
+    if (!entry?.image) {
+      notify("error", "No logo selected", "Choose a saved logo concept with an image first.");
+      return;
+    }
+
+    restoreRecentLogo(entry);
+    setPage("logo");
+    window.history.pushState({}, "", "/");
+    notify("success", "Logo project restored", "Your saved direction and refinement context are ready.");
+    setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
   const subscribe = () => {
@@ -2990,6 +3124,7 @@ ${promptValue}`
               remixOutput={remixOutput}
               copyToClipboard={copyToClipboard}
               setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
+              continueSavedLogo={continueSavedLogo}
             />
           )}
         </section>
@@ -3432,7 +3567,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
   );
 }
 
-function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard, setSavedLogoAsBrandProfile }) {
+function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard, setSavedLogoAsBrandProfile, continueSavedLogo }) {
   const buckets = [
     ["logos", "Saved Logos"],
     ["captions", "Saved Captions"],
@@ -3451,6 +3586,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
     .flatMap(([key]) => (brand.saved?.[key] || []).map((item) => ({ ...item, bucket: key })))
     .filter((item) => favoriteIds[item.id] || item.favorite);
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image);
+  const logoTimeline = savedLogos.slice(0, 8);
 
   const renderItem = (item) => (
     <div className="savedItem" key={item.id}>
@@ -3494,6 +3630,47 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {logoTimeline.length > 0 && (
+        <div className="brandProjectTimeline">
+          <div className="timelineHeader">
+            <div>
+              <h3>Brand Project Timeline</h3>
+              <p>Saved logo concepts and refinements for this brand. Open any version and keep refining from there.</p>
+            </div>
+            <span>{logoTimeline.length} saved version{logoTimeline.length === 1 ? "" : "s"}</span>
+          </div>
+
+          <div className="timelineList">
+            {logoTimeline.map((item, index) => {
+              const project = getLogoProjectFromEntry(item);
+              const note = getLogoTimelineNote(item);
+              const isFavorite = favoriteIds[item.id] || item.favorite;
+
+              return (
+                <div className={brand.logoImage === item.image ? "timelineItem activeTimelineItem" : "timelineItem"} key={item.id}>
+                  <div className="timelineRail">
+                    <span>{index + 1}</span>
+                  </div>
+                  <button className="timelineThumb" onClick={() => continueSavedLogo(item)}>
+                    <img src={item.image} alt={item.title} />
+                  </button>
+                  <div className="timelineBody">
+                    <strong>{project.brandName || item.title}</strong>
+                    <span>{new Date(item.createdAt || Date.now()).toLocaleDateString()} · {project.style || "Logo concept"}</span>
+                    <p>{note.slice(0, 150)}{note.length > 150 ? "..." : ""}</p>
+                  </div>
+                  <div className="timelineActions">
+                    <button onClick={() => continueSavedLogo(item)}>Continue</button>
+                    <button onClick={() => toggleFavorite(item.id)}>{isFavorite ? "Favorited" : "Favorite"}</button>
+                    <button onClick={() => setSavedLogoAsBrandProfile(item)}>Set Logo</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -5495,6 +5672,24 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .logoLibraryItem strong{display:block;margin:10px 0;font-size:14px;line-height:1.3}
 .logoLibraryItem div{display:flex;flex-wrap:wrap;gap:7px}
 .logoLibraryItem div button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 9px;font-size:12px;font-weight:800;cursor:pointer;color:#111}
+.brandProjectTimeline{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:22px;margin:22px 0}
+.timelineHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:14px}
+.timelineHeader h3{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}
+.timelineHeader p{color:#666;line-height:1.6;margin:0;max-width:660px}
+.timelineHeader span{display:inline-flex;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900;color:#8a6b37;white-space:nowrap}
+.timelineList{display:flex;flex-direction:column;gap:10px}
+.timelineItem{display:grid;grid-template-columns:42px 84px 1fr auto;gap:14px;align-items:center;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:12px}
+.activeTimelineItem{border-color:#111;background:white;box-shadow:inset 0 0 0 1px #111}
+.timelineRail{display:flex;align-items:center;justify-content:center}
+.timelineRail span{width:28px;height:28px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
+.timelineThumb{border:1px solid rgba(0,0,0,.08);background:white;border-radius:14px;padding:8px;aspect-ratio:1;cursor:pointer}
+.timelineThumb img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.timelineBody{min-width:0}
+.timelineBody strong{display:block;font-size:16px;letter-spacing:-.02em;margin-bottom:4px}
+.timelineBody span{display:block;color:#777;font-size:12px;font-weight:800;margin-bottom:5px}
+.timelineBody p{color:#555;line-height:1.5;margin:0;font-size:13px}
+.timelineActions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.timelineActions button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer;color:#111}
 .brandSystemSection{max-width:1280px;margin:0 auto;padding:40px 6vw 80px}
 .systemGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
 .systemCard{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:22px}
@@ -6571,5 +6766,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader{flex-direction:column;align-items:flex-start}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
