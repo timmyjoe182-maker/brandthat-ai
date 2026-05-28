@@ -49,6 +49,7 @@ Creative Director interpretation:
 - Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
 - Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
 - Generation memory: ${director.generationMemory?.summary || "no prior logo memory"}
+- Internal Creative Director review: ${director.creativeDirectorReview?.summary || "concepts reviewed for brand fit, spacing, hierarchy, uniqueness, and premium feel"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -81,6 +82,7 @@ Design requirements:
 - Keep it current: precision minimalism with personality, type-forward details, simplified icons, monochrome-first palette, restrained accents, and flexible digital use.
 - Avoid dated logo tropes: glossy gradients, busy 3D effects, stock swooshes, generic sans stacking, random AI sparkles, overused badges, and decoration that does not improve recognition.
 - Avoid repeating previous outputs: do not reuse rejected or recently generated styles, icon directions, palettes, typography, or compositions from the generation memory.
+- Apply the internal Creative Director review: fix weak spacing, weak type hierarchy, generic icon logic, low uniqueness, and poor brand fit before final image generation.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
@@ -1140,6 +1142,124 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
   return Math.max(0, Math.min(100, score));
 }
 
+function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", personality = null, trend = null, memoryIntelligence = null }) {
+  const text = `${concept.name} ${concept.style} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
+  const weaknesses = [];
+  const improvements = [];
+  let scoreAdjustment = 0;
+
+  const genericPattern = /(category-specific|generic|stock|template|default|hexagon|initials only|simple emblem built from|distinct [a-z-]+ visual cue)/;
+  if (genericPattern.test(text)) {
+    weaknesses.push("icon direction feels too generic or placeholder-like");
+    improvements.push("replace placeholder icon logic with a specific, ownable symbol tied to the brand words");
+    scoreAdjustment -= 18;
+  }
+
+  if (/(centered mark over readable wordmark|centered crest above wordmark|symbol above or beside wordmark)/.test(text)) {
+    weaknesses.push("composition risks looking like a centered logo-generator template");
+    improvements.push("use optical offset, stronger negative space, and a less predictable mark-to-type relationship");
+    scoreAdjustment -= 8;
+  }
+
+  if (!/(custom|ownable|negative|hidden|reduced|brandable|adaptive|material-aware|wordmark|letter|silhouette)/.test(text)) {
+    weaknesses.push("visual uniqueness is not strong enough");
+    improvements.push("add a custom letter detail, negative-space cue, or simplified silhouette that can be recognized at favicon size");
+    scoreAdjustment -= 10;
+  }
+
+  if (!/(spacing|hierarchy|small-caps|tracking|wordmark|type|typography|serif|sans)/.test(text)) {
+    weaknesses.push("typography hierarchy is under-specified");
+    improvements.push("define a clearer type hierarchy with wordmark scale, tracking, and support-type rhythm");
+    scoreAdjustment -= 8;
+  }
+
+  if (personality?.matrix.market.score >= 66 || personality?.matrix.price.score >= 66) {
+    if (!/(premium|refined|restrained|quiet|luxury|editorial|generous|champagne|ivory)/.test(text)) {
+      weaknesses.push("premium positioning is not visible enough");
+      improvements.push("increase restraint, whitespace, refined typography, and a premium monochrome-first palette");
+      scoreAdjustment -= 12;
+    } else {
+      scoreAdjustment += 5;
+    }
+  }
+
+  if (personality?.matrix.tone.score >= 66 || personality?.matrix.expression.score >= 66) {
+    if (!/(character|bold|expressive|friendly|mascot|large simple|distinct)/.test(text)) {
+      weaknesses.push("playful or expressive personality needs a stronger recognizable shape");
+      improvements.push("make the mark more characterful while keeping details large and simple");
+      scoreAdjustment -= 8;
+    }
+  }
+
+  if (memoryIntelligence?.hasMemory && conceptMatchesMemory(concept, memoryIntelligence)) {
+    weaknesses.push("direction repeats something from generation memory");
+    improvements.push("change style, icon direction, palette, or composition instead of repeating the prior route");
+    scoreAdjustment -= 16;
+  }
+
+  const requestedSymbol = String(logoSymbol || "").toLowerCase().split(/\s+/).filter((word) => word.length > 3)[0];
+  if (requestedSymbol && !text.includes(requestedSymbol)) {
+    weaknesses.push("requested symbol is not explicit enough");
+    improvements.push(`make the requested ${requestedSymbol} cue visible in the primary mark`);
+    scoreAdjustment -= 10;
+  }
+
+  const improvedConcept = {
+    ...concept,
+    typography: `${concept.typography}; Creative Director: clearer hierarchy, stronger optical spacing, and more readable support type`,
+    layout: `${concept.layout}; Creative Director: intentional negative space, optical balance, and non-template placement`,
+    whyFits: `${concept.whyFits} Creative Director refinement: ${improvements.length ? improvements.join("; ") : "preserve this direction, but sharpen spacing, hierarchy, uniqueness, brand fit, and premium finish."}`,
+  };
+
+  const adjustedScore = Math.max(0, Math.min(100, (concept.score || 0) + scoreAdjustment));
+  const rejected = adjustedScore < 62 || weaknesses.length >= 4;
+
+  return {
+    concept: improvedConcept,
+    adjustedScore,
+    rejected,
+    weaknesses,
+    improvements,
+    summary: weaknesses.length
+      ? `Rejected risks: ${weaknesses.join("; ")}. Improvements: ${improvements.join("; ")}.`
+      : "Passed senior brand review with spacing, hierarchy, uniqueness, brand fit, and premium feel intact.",
+  };
+}
+
+function runCreativeDirectorGate(scored, context) {
+  const reviewed = scored.map((concept) => {
+    const review = runCreativeDirectorReview(concept, context);
+    return {
+      ...review.concept,
+      score: review.adjustedScore,
+      creativeDirectorReview: {
+        rejected: review.rejected,
+        weaknesses: review.weaknesses,
+        improvements: review.improvements,
+        summary: review.summary,
+      },
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const accepted = reviewed.filter((concept) => !concept.creativeDirectorReview.rejected);
+  const fallbackAccepted = reviewed.slice(0, 8).map((concept) => ({
+    ...concept,
+    creativeDirectorReview: {
+      ...concept.creativeDirectorReview,
+      rejected: false,
+      summary: `${concept.creativeDirectorReview.summary} Promoted after refinement because it was among the strongest available concepts.`,
+    },
+  }));
+  const finalPool = accepted.length >= 4 ? accepted : fallbackAccepted;
+  const rejected = reviewed.filter((concept) => concept.creativeDirectorReview.rejected);
+
+  return {
+    concepts: finalPool,
+    rejected,
+    summary: `${accepted.length} concepts passed review; ${rejected.length} weak concepts rejected or refined before display.`,
+  };
+}
+
 function getConceptSymbolKey(concept) {
   return String(concept.symbol || "")
     .toLowerCase()
@@ -1171,9 +1291,11 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const scored = pool
     .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality, trend, memoryIntelligence }) }))
     .sort((a, b) => b.score - a.score);
+  const creativeDirectorGate = runCreativeDirectorGate(scored, { subject, styles, logoSymbol, personality, trend, memoryIntelligence });
+  const reviewedScored = creativeDirectorGate.concepts;
 
   const diversified = [];
-  scored.forEach((concept) => {
+  reviewedScored.forEach((concept) => {
     const duplicateStyle = diversified.filter((item) => item.style === concept.style).length >= 2;
     const duplicateLayout = diversified.some((item) => item.layout === concept.layout && getConceptSymbolKey(item) === getConceptSymbolKey(concept));
     const duplicateSymbol = diversified.some((item) => getConceptSymbolKey(item) === getConceptSymbolKey(concept));
@@ -1181,7 +1303,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     if (!duplicateStyle && !duplicateLayout && !duplicateSymbol && !sourceCapReached && diversified.length < 4) diversified.push(concept);
   });
 
-  const concepts = (diversified.length >= 4 ? diversified : scored.slice(0, 4)).map((concept) => ({
+  const concepts = (diversified.length >= 4 ? diversified : reviewedScored.slice(0, 4)).map((concept) => ({
     name: concept.name,
     style: concept.style,
     symbol: concept.symbol,
@@ -1192,6 +1314,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     layout: concept.layout,
     whyFits: concept.whyFits,
     score: concept.score,
+    creativeDirectorReview: concept.creativeDirectorReview,
   }));
 
   return {
@@ -1204,6 +1327,14 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     humanDesign,
     trendIntelligence: trend,
     generationMemory: memoryIntelligence,
+    creativeDirectorGate: {
+      summary: creativeDirectorGate.summary,
+      rejected: creativeDirectorGate.rejected.slice(0, 8).map((concept) => ({
+        name: concept.name,
+        score: concept.score,
+        weaknesses: concept.creativeDirectorReview?.weaknesses || [],
+      })),
+    },
     positioning,
     typography: typography.label,
     typographySystem: typography,
@@ -1211,7 +1342,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     palette,
     targetAudience: audience,
     concepts,
-    scores: scored.slice(0, 8).map(({ name, score, source }) => ({ name, score, source })),
+    scores: reviewedScored.slice(0, 8).map(({ name, score, source, creativeDirectorReview }) => ({ name, score, source, review: creativeDirectorReview?.summary || "" })),
     pipeline: {
       brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning },
       brandPersonality: {
@@ -1226,6 +1357,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
         avoided: memoryIntelligence.avoid.slice(0, 12),
         typographyPreferences: memoryIntelligence.preferences.slice(0, 8),
       },
+      creativeDirectorGate: creativeDirectorGate.summary,
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
       typographySelection: typography.label,
@@ -1476,6 +1608,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     humanDesign: pipeline.humanDesign,
     trendIntelligence: pipeline.trendIntelligence,
     generationMemory: pipeline.generationMemory,
+    creativeDirectorReview: pipeline.creativeDirectorGate,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
