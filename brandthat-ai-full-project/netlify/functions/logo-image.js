@@ -7,12 +7,13 @@ function getOpenAiClient() {
   });
 }
 
-function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
-  const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy }) {
+  const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy });
   const primaryConcept = director.concepts?.[0] || {};
   const conceptLines = director.concepts
     .map((concept, index) => `${index + 1}. ${concept.name}: ${concept.symbol}. Typography: ${concept.typography}. Palette: ${concept.palette}. Layout: ${concept.layout}. Why: ${concept.whyFits}`)
     .join("\n");
+  const strategy = director.brandStrategy || brandStrategy || {};
 
   return `
 Create one finished, usable premium logo image.
@@ -46,6 +47,18 @@ ${userPrompt || "No extra notes."}
 
 Full request:
 ${logoPrompt}
+
+Brand Strategist system:
+- Positioning: ${strategy.positioning || "clear, useful, memorable brand position"}
+- Target customer: ${strategy.targetCustomer || director.targetAudience}
+- Brand personality: ${strategy.brandPersonality || director.personality}
+- Competitor category: ${strategy.competitorCategory || director.category}
+- Price positioning: ${strategy.pricePositioning || "market-appropriate"}
+- Core message: ${strategy.coreMessage || "Make the brand easy to understand and trust."}
+- Visual direction: ${strategy.suggestedVisualDirection || director.visualTerritory}
+- Color direction: ${strategy.suggestedColorDirection || logoColors || "category-appropriate professional palette"}
+- Typography direction: ${strategy.suggestedTypographyDirection || director.typography}
+- Launch roadmap: ${Array.isArray(strategy.launchRoadmap) ? strategy.launchRoadmap.join(" / ") : "logo, social avatar, landing page, first posts, brand kit"}
 
 Creative Director interpretation:
 - Primary category: ${director.category}
@@ -1208,6 +1221,156 @@ function selectAudience({ subject, positioning }) {
   return map[subject] || (positioning === "premium" ? "customers who expect a polished premium brand" : "customers who need a clear, memorable brand");
 }
 
+function buildBrandStrategy({ brandName = "", subject = "abstract", positioning = "modern", audience = "", personality = null, styles = [], logoStyle = "", logoIndustry = "", logoSymbol = "", logoColors = "", userPrompt = "" }) {
+  const styleKeys = styles.map((style) => style.key).filter(Boolean);
+  const primaryStyle = styleKeys[0] || logoStyle || "modern";
+  const personalitySummary = personality?.summary || `${positioning} ${primaryStyle}`;
+  const premiumScore = personality?.matrix?.market?.score || 50;
+  const playfulScore = personality?.matrix?.tone?.score || 50;
+  const craftScore = personality?.matrix?.craft?.score || 50;
+  const reachScore = personality?.matrix?.reach?.score || 50;
+
+  const categoryMap = {
+    chocolate: {
+      competitorCategory: "premium confectionery and giftable candy brands",
+      coreMessage: `${brandName || "The brand"} makes sweets feel memorable, giftable, and worth choosing.`,
+      visual: "packaging-ready confectionery identity with cocoa, candy, ribbon, or chocolate-bar cues",
+      colors: "deep cocoa brown, cream, caramel, copper foil",
+      type: "warm premium wordmark with soft confidence and clear shelf readability",
+    },
+    pizza: {
+      competitorCategory: "local restaurants, pizzerias, and neighborhood food brands",
+      coreMessage: `${brandName || "The brand"} should feel craveable, local, and easy to remember.`,
+      visual: "appetizing restaurant identity with oven, crust, sauce, slice, or hospitality cues",
+      colors: "tomato red, mozzarella cream, basil green, oven charcoal",
+      type: "bold friendly restaurant typography with custom character",
+    },
+    tech: {
+      competitorCategory: "modern SaaS, AI startups, and digital platforms",
+      coreMessage: `${brandName || "The brand"} turns complexity into a smarter, easier system.`,
+      visual: "precise product identity with modular intelligence, systems, or abstract signal cues",
+      colors: "ink black, cloud white, electric blue or violet accent",
+      type: "clean geometric sans with confident spacing and startup polish",
+    },
+    law: {
+      competitorCategory: "law firms and professional advisory practices",
+      coreMessage: `${brandName || "The brand"} provides trust, clarity, and serious guidance.`,
+      visual: "authoritative legal identity with restrained columns, seal geometry, or monogram structure",
+      colors: "navy, ivory, brass",
+      type: "authoritative serif or refined legal sans with formal hierarchy",
+    },
+    realestate: {
+      competitorCategory: "premium real estate groups and property advisors",
+      coreMessage: `${brandName || "The brand"} helps people make confident property decisions.`,
+      visual: "elevated property identity with stone, doorway, horizon, architecture, or monogram cues",
+      colors: "charcoal, ivory, stone gray, muted gold",
+      type: "refined serif or elegant sans with generous spacing",
+    },
+    construction: {
+      competitorCategory: "local contractors, builders, and trade service brands",
+      coreMessage: `${brandName || "The brand"} delivers reliable work people can see and trust.`,
+      visual: "durable trade identity with tool, structure, surface, material, or build-line cues",
+      colors: "charcoal, white, trade-specific accent",
+      type: "bold readable sans with jobsite clarity",
+    },
+    plastering: {
+      competitorCategory: "plastering, stucco, drywall, and finish contractors",
+      coreMessage: `${brandName || "The brand"} creates clean, professional finishes that last.`,
+      visual: "surface-finish identity using trowel, skim-coat sweep, wall plane, or material texture cues",
+      colors: "black, white, construction gray, silver accent",
+      type: "strong contractor sans with clean spacing",
+    },
+    ranch: {
+      competitorCategory: "private ranches, western lifestyle brands, and hospitality estates",
+      coreMessage: `${brandName || "The brand"} offers land, animals, heritage, and elevated calm.`,
+      visual: "refined western identity with gate, pasture, horse, alpaca, landline, or heritage crest cues",
+      colors: "deep green, warm ivory, muted gold, earth brown",
+      type: "heritage serif or restrained western display type",
+    },
+    fitness: {
+      competitorCategory: "coaching brands, gyms, and athletic communities",
+      coreMessage: `${brandName || "The brand"} helps people build strength, discipline, and confidence.`,
+      visual: "performance identity with motion, force, monogram, body line, or badge cues",
+      colors: "black, white, energy red or electric accent",
+      type: "condensed athletic sans or bold performance wordmark",
+    },
+    fashion: {
+      competitorCategory: "fashion labels, boutiques, and lifestyle brands",
+      coreMessage: `${brandName || "The brand"} signals taste, identity, and cultural confidence.`,
+      visual: "type-led fashion identity with editorial spacing, monogram, label mark, or signature symbol",
+      colors: "black, ivory, champagne, restrained accent",
+      type: "editorial serif, luxury sans, or refined fashion wordmark",
+    },
+    healthcare: {
+      competitorCategory: "clinics, care providers, and wellness practices",
+      coreMessage: `${brandName || "The brand"} makes care feel calm, credible, and human.`,
+      visual: "calm healthcare identity with care, shield, leaf, cross, path, or human-centered cues",
+      colors: "calm blue, white, soft green, warm neutral",
+      type: "clean trustworthy sans with gentle spacing",
+    },
+    automotive: {
+      competitorCategory: "auto service, detailing, garage, and performance brands",
+      coreMessage: `${brandName || "The brand"} communicates precision, speed, and trust with vehicles.`,
+      visual: "automotive identity with motion, shield, road, wheel, speed-line, or garage cues",
+      colors: "black, steel, white, red or blue accent",
+      type: "strong technical sans or performance display type",
+    },
+    pet: {
+      competitorCategory: "pet care, grooming, and animal service brands",
+      coreMessage: `${brandName || "The brand"} makes pet care feel friendly, trustworthy, and memorable.`,
+      visual: "friendly pet identity with paw, grooming, animal silhouette, or playful monogram cues",
+      colors: "warm cream, charcoal, friendly blue or terracotta accent",
+      type: "rounded friendly sans with polished spacing",
+    },
+    education: {
+      competitorCategory: "kids brands, learning programs, party companies, and family services",
+      coreMessage: `${brandName || "The brand"} creates experiences that feel fun, safe, and easy to love.`,
+      visual: "playful identity with confetti, spark, learning, toy, or joyful shape-system cues",
+      colors: "bright friendly palette with professional contrast",
+      type: "rounded display sans with readable, joyful rhythm",
+    },
+  };
+
+  const category = categoryMap[subject] || {
+    competitorCategory: `${logoIndustry || subject || "modern"} brands competing for trust and recognition`,
+    coreMessage: `${brandName || "The brand"} should be immediately understandable, memorable, and credible.`,
+    visual: logoSymbol || "meaning-led wordmark or custom symbol based on the business idea",
+    colors: logoColors || "professional high-contrast palette with one meaningful accent",
+    type: "clean readable typography matched to the brand personality",
+  };
+
+  const pricePositioning = premiumScore >= 68 || /luxury|premium|high.?end|exclusive/i.test(`${logoStyle} ${userPrompt}`)
+    ? "premium / high-trust"
+    : premiumScore <= 34 || /cheap|budget|affordable|discount/i.test(userPrompt)
+      ? "accessible / value-focused"
+      : positioning === "neighborhood"
+        ? "local-market approachable"
+        : "mid-market professional";
+  const targetCustomer = audience || selectAudience({ subject, positioning });
+  const localGlobal = reachScore <= 38 ? "local presence" : reachScore >= 64 ? "scalable/global presence" : "regional or online-ready presence";
+  const craftTech = craftScore <= 42 ? "handcrafted credibility" : craftScore >= 62 ? "tech-enabled confidence" : "balanced professional trust";
+  const energy = playfulScore >= 64 ? "warm and expressive" : playfulScore <= 36 ? "calm and authoritative" : "clear and approachable";
+
+  return {
+    positioning: `${positioning} ${localGlobal}`,
+    targetCustomer,
+    brandPersonality: `${personalitySummary}; ${energy}; ${craftTech}`,
+    competitorCategory: category.competitorCategory,
+    pricePositioning,
+    coreMessage: category.coreMessage,
+    suggestedVisualDirection: category.visual,
+    suggestedColorDirection: logoColors || category.colors,
+    suggestedTypographyDirection: category.type,
+    launchRoadmap: [
+      "Lead with one clear logo mark and readable brand name.",
+      "Create social avatar, website header, and packaging/signage-ready lockups.",
+      "Write a short launch message using the core promise.",
+      "Publish 3-5 first posts that show the product/service, proof, and brand story.",
+      "Save the winning direction into a Brand Workspace for future captions, hashtags, and campaigns.",
+    ],
+  };
+}
+
 function selectPalette({ subject, styles, logoColors, personality = null, trend = null }) {
   if (logoColors) return logoColors;
   if (personality?.directives?.interpretedPalette) return personality.directives.interpretedPalette;
@@ -1704,7 +1867,7 @@ function getConceptSymbolKey(concept) {
     .join(" ");
 }
 
-function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
+function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy = null }) {
   const inferredName = inferBrandName({ brandName, userPrompt, logoPrompt });
   const wordsResult = getLogoWords({ brandName: inferredName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
   const subject = getSubject(wordsResult.words);
@@ -1716,10 +1879,11 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const trend = buildDesignTrendIntelligence({ subject, personality, styles });
   const memoryIntelligence = buildGenerationMemoryIntelligence(safeGenerationMemory);
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
-  const typography = selectTypography({ subject, styles, personality, trend });
-  const palette = selectPalette({ subject, styles, logoColors, personality, trend });
-  const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality, trend });
   const audience = selectAudience({ subject, positioning });
+  const strategy = brandStrategy || buildBrandStrategy({ brandName: inferredName, subject, positioning, audience, personality, styles, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
+  const typography = selectTypography({ subject, styles, personality, trend });
+  const palette = logoColors ? selectPalette({ subject, styles, logoColors, personality, trend }) : (strategy.suggestedColorDirection || selectPalette({ subject, styles, logoColors, personality, trend }));
+  const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality, trend });
   const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend, memoryIntelligence });
   const scored = pool
     .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality, trend, memoryIntelligence }) }))
@@ -1769,6 +1933,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
       })),
     },
     positioning,
+    brandStrategy: strategy,
     typography: typography.label,
     typographySystem: typography,
     iconSystem,
@@ -1777,7 +1942,8 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     concepts,
     scores: reviewedScored.slice(0, 8).map(({ name, score, source, creativeDirectorReview }) => ({ name, score, source, review: creativeDirectorReview?.summary || "" })),
     pipeline: {
-      brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning },
+      brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning, strategy },
+      brandStrategist: strategy,
       brandPersonality: {
         summary: personality.summary,
         matrix: personality.matrix,
@@ -1840,6 +2006,29 @@ function runPromptInterpreterAgent({ brandName = "", logoIndustry = "", logoStyl
       industry: industry && industry !== "abstract" ? "high" : "low",
     },
   };
+}
+
+function runBrandStrategistAgent({ brandName = "", logoIndustry = "", logoStyle = "", logoSymbol = "", logoColors = "", userPrompt = "", logoPrompt = "" }) {
+  const finalBrandName = inferBrandName({ brandName, userPrompt, logoPrompt });
+  const wordsResult = getLogoWords({ brandName: finalBrandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid: "", userPrompt });
+  const subject = getSubject(wordsResult.words);
+  const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
+  const personality = inferBrandPersonality({ subject, brandName: finalBrandName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
+  const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
+  const audience = selectAudience({ subject, positioning });
+  return buildBrandStrategy({
+    brandName: finalBrandName,
+    subject,
+    positioning,
+    audience,
+    personality,
+    styles,
+    logoStyle,
+    logoIndustry,
+    logoSymbol,
+    logoColors,
+    userPrompt: `${userPrompt || ""} ${logoPrompt || ""}`,
+  });
 }
 
 function getConceptLibrary(subject, profile) {
@@ -2065,8 +2254,8 @@ function getConceptLibrary(subject, profile) {
   return libraries[subject] || fallback;
 }
 
-function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
-  const pipeline = runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy = null }) {
+  const pipeline = runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy });
   const styleText = pipeline.styles.map((style) => style.key).join(", ") || "professional";
 
   return {
@@ -2079,6 +2268,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     trendIntelligence: pipeline.trendIntelligence,
     generationMemory: pipeline.generationMemory,
     creativeDirectorReview: pipeline.creativeDirectorGate,
+    brandStrategy: pipeline.brandStrategy,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
@@ -3123,8 +3313,8 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   </svg>`;
 }
 
-function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
-  const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy = null }) {
+  const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy });
   const safeGenerationMemory = sanitizeGenerationMemoryForRequest(generationMemory, { brandName: creativeBrief.brandName || brandName, logoIndustry: creativeBrief.category || logoIndustry });
   const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory: safeGenerationMemory, variant: 0, director: creativeBrief });
   const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory: safeGenerationMemory, variant: 0, transparent: true, director: creativeBrief });
@@ -3263,9 +3453,18 @@ exports.handler = async (event, context) => {
     const requestColors = promptInterpreter.colors || parsedLogo?.colors || logoColors || "";
     const requestAvoid = promptInterpreter.avoid || parsedLogo?.avoid || logoAvoid || "";
     const requestMemory = contextReset ? {} : sanitizeGenerationMemoryForRequest(generationMemory || {}, { brandName: requestBrandName, logoIndustry: requestIndustry });
+    const brandStrategy = runBrandStrategistAgent({
+      brandName: requestBrandName,
+      logoIndustry: requestIndustry,
+      logoStyle: requestStyle,
+      logoSymbol: requestSymbol,
+      logoColors: requestColors,
+      userPrompt,
+      logoPrompt,
+    });
 
-    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
-    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
+    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory, brandStrategy });
+    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory, brandStrategy });
     const qualityGate = runLogoRejectionAgent({ requestBrandName, requestIndustry, vectorLogo });
     if (!qualityGate.accepted) {
       console.warn("Brandthat logo rejection agent warning:", qualityGate.summary);
@@ -3295,6 +3494,7 @@ exports.handler = async (event, context) => {
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
           promptInterpreter,
+          brandStrategy,
           qualityGate,
           note: "BrandThat used the guarded editable vector as the primary logo so the company name and industry stay accurate.",
         }),
@@ -3315,6 +3515,7 @@ exports.handler = async (event, context) => {
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
           promptInterpreter,
+          brandStrategy,
           qualityGate,
           note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
         }),

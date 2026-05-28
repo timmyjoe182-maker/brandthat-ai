@@ -5484,6 +5484,14 @@ function LogoCreativeDirectorPanel({
         </p>
       )}
 
+      {creativeBrief?.brandStrategy && (
+        <div className="brandStrategyStrip">
+          <span>Brand Strategy</span>
+          <p>{creativeBrief.brandStrategy.positioning}. {creativeBrief.brandStrategy.coreMessage}</p>
+          <small>Customer: {creativeBrief.brandStrategy.targetCustomer}. Visual: {creativeBrief.brandStrategy.suggestedVisualDirection}.</small>
+        </div>
+      )}
+
       <div className="creativeDirectorActions">
         {refinements.map(([label, instruction]) => (
           <button key={label} onClick={() => regenerateWithInstruction(instruction)}>{label}</button>
@@ -6783,6 +6791,37 @@ textarea{height:170px;resize:none;line-height:1.6}
 .creativeDirectorTop span,.creativeDirectorSummary{
   color:#666;
   line-height:1.6;
+  font-weight:750;
+}
+
+.brandStrategyStrip{
+  margin-top:14px;
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:16px;
+}
+
+.brandStrategyStrip span{
+  display:block;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.5px;
+  color:#9b7b3f;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.brandStrategyStrip p{
+  margin:0 0 8px;
+  color:#111;
+  font-weight:850;
+  line-height:1.5;
+}
+
+.brandStrategyStrip small{
+  color:#666;
+  line-height:1.55;
   font-weight:750;
 }
 
