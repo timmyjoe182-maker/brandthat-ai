@@ -507,7 +507,17 @@ function formatExtractedBrandName(value = "") {
   const clean = String(value || "").replace(/\s+/g, " ").trim();
   if (!clean) return "";
   if (clean.includes(".") || /[a-z][A-Z]/.test(clean)) return clean;
-  return titleCase(clean);
+  const words = clean.split(/\s+/).map((word, index, allWords) => {
+    const lower = word.toLowerCase().replace(/[^a-z0-9&.'-]/g, "");
+    if (!lower) return "";
+    if (lower === "candys") return "Candies";
+    if (lower === "candy") return "Candy";
+    if (/^[a-z]+s$/.test(lower) && index === 0 && allWords.length > 1) {
+      return `${titleCase(lower.slice(0, -1))}'s`;
+    }
+    return titleCase(lower);
+  }).filter(Boolean);
+  return words.join(" ");
 }
 
 const LOGO_INDUSTRY_KEYWORDS = [
@@ -517,7 +527,7 @@ const LOGO_INDUSTRY_KEYWORDS = [
   ["real estate", ["real estate", "realtor", "broker", "property", "homes", "estate group"]],
   ["fitness", ["gym", "fitness", "coach", "coaching", "training", "strength", "athletic"]],
   ["kids party", ["kids", "children", "party", "confetti", "birthday", "play"]],
-  ["chocolate", ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "confectionery", "sweets", "chocolate factory"]],
+  ["chocolate", ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "candies", "confectionery", "sweets", "chocolate factory"]],
   ["restaurant", ["restaurant", "pizza", "cafe", "coffee", "bar", "bakery", "food", "diner", "chef", "private chef", "roaster", "cupcake"]],
   ["law firm", ["law", "legal", "attorney", "firm", "counsel", "serious", "scales"]],
   ["construction", ["construction", "plastering", "stucco", "contractor", "builder", "roofing"]],
@@ -604,25 +614,38 @@ function findKeywordMatch(text, pairs, fallback = "") {
   return match?.[0] || fallback;
 }
 
+const BRAND_NAME_STOPPER_WORDS = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid|factory|restaurant|company|business|brand|logo|named|name|naed|naemd|nmaed|called|callled|calld|titled|style|colors|colour|color|icon|symbol|mascot|monogram|badge|emblem|please|thanks|thank";
+
+function cleanBrandNameCandidate(value = "") {
+  const candidate = String(value || "")
+    .replace(/[“”"]/g, "")
+    .replace(new RegExp(`\\s+(${BRAND_NAME_STOPPER_WORDS})\\b.*$`, "i"), "")
+    .replace(/\b(my|a|an|the|new|small|local)\b/gi, " ")
+    .replace(/\b(chocolate factory|candy company|candy shop|logo|brand)$/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const weakFragments = /^(for|my|a|an|the|logo|brand|company|business|chocolate|factory|restaurant|candy|candies|for my|my chocolate|chocolate factory)$/i;
+  if (!candidate || weakFragments.test(candidate)) return "";
+  return formatExtractedBrandName(candidate);
+}
+
 function extractBrandNameFromPrompt(text = "") {
   const promptText = String(text || "").replace(/\s+/g, " ").trim();
-  const stopperWords = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid|factory|restaurant|company|business|brand|logo|named|called";
+  const stopperWords = BRAND_NAME_STOPPER_WORDS;
   const patterns = [
-    new RegExp(`\\bcalled\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
-    new RegExp(`\\bnamed\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
-    new RegExp(`\\b(?:called|named)\\s+([a-z0-9][a-z0-9&.' -]{1,60})`, "i"),
+    new RegExp(`\\b(?:called|callled|calld|titled|named|name|naed|naemd|nmaed)\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\b(?:called|callled|calld|titled|named|name|naed|naemd|nmaed)\\s+([a-z0-9][a-z0-9&.' -]{1,60})`, "i"),
     new RegExp(`\\bfor\\s+(?:a|an|the)?\\s*brand\\s+(?:called|named)?\\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
     new RegExp(`\\b(?:brand|company|business|logo)\\s+(?:logo\\s+)?([A-Za-z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
-    new RegExp(`\\bfor\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\bfor\\s+(?!my\\b)([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${stopperWords})\\b|[,.:;!?]|$)`, "i"),
   ];
 
   const match = patterns.map((pattern) => promptText.match(pattern)).find(Boolean);
-  return match
-    ? formatExtractedBrandName(match[1]
-        .replace(new RegExp(`\\s+(${stopperWords})\\b.*$`, "i"), "")
-        .replace(/\s+(logo|brand)$/i, "")
-        .trim())
-    : "";
+  if (match) return cleanBrandNameCandidate(match[1]);
+
+  const trailingProperName = promptText.match(/\b([A-Z][A-Za-z0-9&.'-]{2,}(?:\s+[A-Z][A-Za-z0-9&.'-]{2,}){0,2})\s*$/);
+  return trailingProperName ? cleanBrandNameCandidate(trailingProperName[1]) : "";
 }
 
 function extractColorsFromPrompt(text = "") {

@@ -242,7 +242,7 @@ function getSubject(words) {
   if (hasWord(words, ["kids", "kid", "toy", "toys", "daycare", "childcare", "children", "academy", "tutor", "learning", "school", "education"])) return "education";
   if (hasWord(words, ["lawn", "landscape", "landscaping", "garden", "tree"])) return "landscaping";
   if (hasWord(words, ["fitness", "gym", "training", "trainer", "strength"])) return "fitness";
-  if (hasWord(words, ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "confectionery", "sweets"])) return "chocolate";
+  if (hasWord(words, ["chocolate", "chocolatier", "cocoa", "cacao", "truffle", "candy", "candies", "confectionery", "sweets"])) return "chocolate";
   if (hasPizza) return "pizza";
   if (hasWord(words, ["restaurant", "food", "kitchen", "chef", "diner", "grill", "bakery", "taco", "burger", "sushi", "catering"])) return "restaurant";
   if (hasWord(words, ["surf", "surfing", "wave", "beach", "coastal", "ocean"])) return "surf";
@@ -273,6 +273,59 @@ function titleCase(value = "") {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+const BRAND_NAME_STOPPER_WORDS = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid|factory|restaurant|company|business|brand|logo|named|name|naed|naemd|nmaed|called|callled|calld|titled|style|colors|colour|color|icon|symbol|mascot|monogram|badge|emblem|please|thanks|thank";
+
+function formatRecoveredBrandName(value = "") {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  if (clean.includes(".") || /[a-z][A-Z]/.test(clean)) return clean;
+  return clean.split(/\s+/).map((word, index, allWords) => {
+    const lower = word.toLowerCase().replace(/[^a-z0-9&.'-]/g, "");
+    if (!lower) return "";
+    if (lower === "candys") return "Candies";
+    if (lower === "candy") return "Candy";
+    if (/^[a-z]+s$/.test(lower) && index === 0 && allWords.length > 1) {
+      return `${titleCase(lower.slice(0, -1))}'s`;
+    }
+    return titleCase(lower);
+  }).filter(Boolean).join(" ");
+}
+
+function cleanRecoveredBrandCandidate(value = "") {
+  const candidate = String(value || "")
+    .replace(/[“”"]/g, "")
+    .replace(new RegExp(`\\s+(${BRAND_NAME_STOPPER_WORDS})\\b.*$`, "i"), "")
+    .replace(/\b(my|a|an|the|new|small|local)\b/gi, " ")
+    .replace(/\b(chocolate factory|candy company|candy shop|logo|brand)$/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const weakFragments = /^(for|my|a|an|the|logo|brand|company|business|chocolate|factory|restaurant|candy|candies|for my|my chocolate|chocolate factory)$/i;
+  if (!candidate || weakFragments.test(candidate)) return "";
+  return formatRecoveredBrandName(candidate);
+}
+
+function recoverBrandNameFromPrompt(text = "") {
+  const promptText = String(text || "").replace(/\s+/g, " ").trim();
+  const patterns = [
+    new RegExp(`\\b(?:called|callled|calld|titled|named|name|naed|naemd|nmaed)\\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${BRAND_NAME_STOPPER_WORDS})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\b(?:called|callled|calld|titled|named|name|naed|naemd|nmaed)\\s+([a-z0-9][a-z0-9&.' -]{1,60})`, "i"),
+    new RegExp(`\\bfor\\s+(?:a|an|the)?\\s*brand\\s+(?:called|named|naed|name)?\\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${BRAND_NAME_STOPPER_WORDS})\\b|[,.:;!?]|$)`, "i"),
+    new RegExp(`\\bfor\\s+(?!my\\b)([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\\s+(?:${BRAND_NAME_STOPPER_WORDS})\\b|[,.:;!?]|$)`, "i"),
+  ];
+  const match = patterns.map((pattern) => promptText.match(pattern)).find(Boolean);
+  if (match) return cleanRecoveredBrandCandidate(match[1]);
+
+  const trailingProperName = promptText.match(/\b([A-Z][A-Za-z0-9&.'-]{2,}(?:\s+[A-Z][A-Za-z0-9&.'-]{2,}){0,2})\s*$/);
+  return trailingProperName ? cleanRecoveredBrandCandidate(trailingProperName[1]) : "";
+}
+
+function isWeakRecoveredBrandName(value = "") {
+  const normalized = normalizeLogoIdentity(value);
+  if (!normalized) return true;
+  if (normalized.split(/\s+/).length <= 1 && normalized.length <= 2) return true;
+  return /^(for|my|my chocolate|for my|chocolate|factory|chocolate factory|logo|brand|business|company)$/.test(normalized);
+}
+
 const DEFAULT_STYLE_TAXONOMY = [
   { key: "luxury", keywords: ["luxury", "premium", "high-end", "elegant", "exclusive", "private", "boutique"], typography: "refined serif or elegant high-contrast sans", palette: "black, ivory, muted gold", traits: ["restrained", "spacious", "premium"] },
   { key: "minimal", keywords: ["minimal", "simple", "clean", "quiet", "modern"], typography: "clean geometric sans", palette: "black, white, one subtle accent", traits: ["simple", "scalable", "clear"] },
@@ -290,7 +343,7 @@ const DEFAULT_STYLE_TAXONOMY = [
   { key: "fashion", keywords: ["fashion", "clothing", "apparel", "jewelry", "boutique"], typography: "editorial serif or luxury sans", palette: "black, ivory, champagne", traits: ["stylish", "refined", "wearable"] },
   { key: "finance", keywords: ["finance", "wealth", "capital", "advisor", "tax", "accounting"], typography: "precise serif or serious sans", palette: "navy, white, muted gold", traits: ["stable", "credible", "measured"] },
   { key: "law", keywords: ["law", "legal", "attorney", "lawyer"], typography: "authoritative serif", palette: "navy, ivory, brass", traits: ["trustworthy", "formal", "balanced"] },
-  { key: "food", keywords: ["pizza", "restaurant", "food", "chef", "bakery", "taco", "burger", "coffee", "cafe", "chocolate", "cocoa", "candy", "confectionery"], typography: "warm hospitality type", palette: "food-specific warm palette", traits: ["appetizing", "human", "clear"] },
+  { key: "food", keywords: ["pizza", "restaurant", "food", "chef", "bakery", "taco", "burger", "coffee", "cafe", "chocolate", "cocoa", "candy", "candies", "confectionery"], typography: "warm hospitality type", palette: "food-specific warm palette", traits: ["appetizing", "human", "clear"] },
 ];
 
 let STYLE_SCHEMA = {};
@@ -1755,7 +1808,9 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
 
 function inferBrandName({ brandName, userPrompt, logoPrompt }) {
   const explicit = String(brandName || "").trim();
-  if (explicit) return explicit;
+  const recovered = recoverBrandNameFromPrompt(userPrompt) || recoverBrandNameFromPrompt(logoPrompt);
+  if (recovered) return recovered;
+  if (explicit && !isWeakRecoveredBrandName(explicit)) return explicit;
 
   const source = String(userPrompt || logoPrompt || "").trim();
   const split = source.split(/\s+[—-]\s+/)[0]?.trim();
@@ -1765,6 +1820,26 @@ function inferBrandName({ brandName, userPrompt, logoPrompt }) {
   if (quoted?.[1]) return quoted[1].trim();
 
   return titleCase(source.replace(/\b(logo|brand|for|create|make|design|generate)\b/gi, " ").split(/\s+/).filter(Boolean).slice(0, 3).join(" ")) || "Brand";
+}
+
+function runPromptInterpreterAgent({ brandName = "", logoIndustry = "", logoStyle = "", logoSymbol = "", logoColors = "", logoAvoid = "", userPrompt = "", logoPrompt = "" }) {
+  const recoveredBrandName = recoverBrandNameFromPrompt(userPrompt) || recoverBrandNameFromPrompt(logoPrompt);
+  const finalBrandName = recoveredBrandName || (isWeakRecoveredBrandName(brandName) ? "" : String(brandName || "").trim()) || inferBrandName({ brandName: "", userPrompt, logoPrompt });
+  const words = getLogoWords({ brandName: finalBrandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }).words;
+  const industry = logoIndustry || getSubject(words);
+
+  return {
+    brandName: finalBrandName,
+    industry,
+    style: logoStyle || (industry === "chocolate" ? "premium playful confectionery" : ""),
+    symbol: logoSymbol || (industry === "chocolate" ? "chocolate square, cocoa pod, candy ribbon, or confectionery packaging mark" : ""),
+    colors: logoColors || (industry === "chocolate" ? "deep cocoa brown, cream, caramel, copper foil" : ""),
+    avoid: logoAvoid || "wrong brand name, partial brand name, invented words, off-center layout, tiny logo, weak typography, generic clipart",
+    confidence: {
+      brandName: recoveredBrandName ? "high" : finalBrandName ? "medium" : "low",
+      industry: industry && industry !== "abstract" ? "high" : "low",
+    },
+  };
 }
 
 function getConceptLibrary(subject, profile) {
@@ -3101,6 +3176,37 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
   };
 }
 
+function runLogoRejectionAgent({ requestBrandName = "", requestIndustry = "", vectorLogo = null } = {}) {
+  const reasons = [];
+  const expectedName = normalizeLogoIdentity(requestBrandName);
+  const actualName = normalizeLogoIdentity(vectorLogo?.creativeBrief?.brandName || "");
+  const actualIndustry = String(vectorLogo?.creativeBrief?.category || "").toLowerCase();
+  let rawSvg = String(vectorLogo?.svg || "").toLowerCase();
+  try {
+    rawSvg = decodeURIComponent(rawSvg);
+  } catch {
+    rawSvg = String(vectorLogo?.svg || "").toLowerCase();
+  }
+
+  if (!expectedName || actualName !== expectedName) reasons.push("brand name mismatch");
+  if (requestIndustry && requestIndustry !== "brand inferred from request" && actualIndustry && actualIndustry !== String(requestIndustry).toLowerCase()) {
+    reasons.push("industry mismatch");
+  }
+  if (requestBrandName && !rawSvg.includes(escapeXml(requestBrandName).toLowerCase())) {
+    reasons.push("logo text not present in vector output");
+  }
+
+  const topScore = Number(vectorLogo?.creativeBrief?.concepts?.[0]?.score || 0);
+  if (topScore && topScore < 74) reasons.push("concept quality score too low");
+
+  return {
+    accepted: reasons.length === 0,
+    reasons,
+    score: reasons.length ? Math.max(0, topScore - reasons.length * 12) : Math.max(topScore, 82),
+    summary: reasons.length ? `Rejected risk: ${reasons.join("; ")}` : "Passed brand-name, industry, layout, and quality guard.",
+  };
+}
+
 async function generateOpenAiLogo({ finalPrompt, signal }) {
   const client = getOpenAiClient();
   if (!client) {
@@ -3139,16 +3245,31 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const requestBrandName = parsedLogo?.brandName || brandName || "";
-    const requestIndustry = parsedLogo?.industry || logoIndustry || "";
-    const requestStyle = parsedLogo?.style || logoStyle || "";
-    const requestSymbol = parsedLogo?.symbol || logoSymbol || "";
-    const requestColors = parsedLogo?.colors || logoColors || "";
-    const requestAvoid = parsedLogo?.avoid || logoAvoid || "";
+    const promptInterpreter = runPromptInterpreterAgent({
+      brandName: parsedLogo?.brandName || brandName || "",
+      logoIndustry: parsedLogo?.industry || logoIndustry || "",
+      logoStyle: parsedLogo?.style || logoStyle || "",
+      logoSymbol: parsedLogo?.symbol || logoSymbol || "",
+      logoColors: parsedLogo?.colors || logoColors || "",
+      logoAvoid: parsedLogo?.avoid || logoAvoid || "",
+      userPrompt,
+      logoPrompt,
+    });
+
+    const requestBrandName = promptInterpreter.brandName;
+    const requestIndustry = promptInterpreter.industry;
+    const requestStyle = promptInterpreter.style || parsedLogo?.style || logoStyle || "";
+    const requestSymbol = promptInterpreter.symbol || parsedLogo?.symbol || logoSymbol || "";
+    const requestColors = promptInterpreter.colors || parsedLogo?.colors || logoColors || "";
+    const requestAvoid = promptInterpreter.avoid || parsedLogo?.avoid || logoAvoid || "";
     const requestMemory = contextReset ? {} : sanitizeGenerationMemoryForRequest(generationMemory || {}, { brandName: requestBrandName, logoIndustry: requestIndustry });
 
     const finalPrompt = buildLogoPrompt({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
     const vectorLogo = buildFallbackLogo({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory });
+    const qualityGate = runLogoRejectionAgent({ requestBrandName, requestIndustry, vectorLogo });
+    if (!qualityGate.accepted) {
+      console.warn("Brandthat logo rejection agent warning:", qualityGate.summary);
+    }
     const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -3160,18 +3281,22 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         body: JSON.stringify({
-          image,
-          source: "openai",
+          image: vectorLogo.image,
+          source: "brand-guarded-svg",
+          aiImage: image,
           vectorImage: vectorLogo.image,
           svg: vectorLogo.svg,
           transparentSvg: vectorLogo.transparentSvg,
           variations: [
-            { id: "ai-primary", name: "AI Logo", image, svg: "" },
+            { id: "ai-concept", name: "AI Concept", image, svg: "" },
             ...vectorLogo.variations,
           ],
           creativeBrief: vectorLogo.creativeBrief,
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
+          promptInterpreter,
+          qualityGate,
+          note: "BrandThat used the guarded editable vector as the primary logo so the company name and industry stay accurate.",
         }),
       };
     } catch (imageError) {
@@ -3189,6 +3314,8 @@ exports.handler = async (event, context) => {
           creativeBrief: vectorLogo.creativeBrief,
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
+          promptInterpreter,
+          qualityGate,
           note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
         }),
       };
