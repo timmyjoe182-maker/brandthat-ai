@@ -3457,17 +3457,20 @@ function ToolGrid({ activeToolKey, selectTool }) {
 
 function HeroProofPanel() {
   const samples = [
-    { mark: "ai", name: "Brandthat.ai", note: "AI brand system" },
-    { mark: "trade", name: "Capital Plastering", note: "Local service mark" },
-    { mark: "ranch", name: "Beilinson Ranch", note: "Luxury ranch identity" },
+    { mark: "wordmark", name: "Wordmark", note: "Typography-led identity" },
+    { mark: "symbol", name: "Symbol", note: "Abstract brand mark" },
+    { mark: "system", name: "System", note: "Workspace-ready assets" },
   ];
 
   return (
-    <div className="heroProofPanel" aria-label="Example Brandthat logo outputs">
+    <div className="heroProofPanel" aria-label="Brandthat output preview">
       <div className="proofMiniGrid">
         {samples.map((sample) => (
           <div className="miniLogoOutput" key={sample.name}>
-            <div className={`miniMark ${sample.mark}`}>{sample.name.slice(0, 1)}</div>
+            <div className={`miniMark ${sample.mark}`}>
+              <span></span>
+              <i></i>
+            </div>
             <div>
               <strong>{sample.name}</strong>
               <span>{sample.note}</span>
@@ -3509,20 +3512,23 @@ function BeforeAfterSection() {
     <section className="beforeAfterSection">
       <div>
         <div className="tinyTag">BEFORE / AFTER</div>
-        <h2>Turn a rough idea into a brand direction.</h2>
+        <h2>Turn a rough prompt into a premium direction.</h2>
       </div>
       <div className="beforeAfterGrid">
         <div className="beforeCard">
           <span>Before</span>
-          <p>"I need a premium logo for a private ranch with alpacas and horses."</p>
+          <p>"I have a business idea, but I need it to look credible."</p>
         </div>
         <div className="afterCard">
           <span>After</span>
           <div className="afterPreviewGrid">
-            <div className="afterMark">BR</div>
+            <div className="afterMark">
+              <span></span>
+              <i></i>
+            </div>
             <div>
-              <strong>Luxury ranch crest</strong>
-              <p>Refined serif typography, warm neutral palette, subtle animal symbolism, export-ready logo files, and content ideas for launch.</p>
+              <strong>A refined identity system</strong>
+              <p>Clear positioning, stronger typography, a focused visual direction, export-ready logo files, and launch assets that feel intentional.</p>
             </div>
           </div>
         </div>
@@ -3606,28 +3612,28 @@ function GeneratorCard({
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
   const logoStarterPrompts = [
     {
-      label: "Luxury ranch",
-      style: "elegant ranch crest, refined serif, warm luxury",
-      brand: "Beilinson Ranch",
-      prompt: "Luxury private ranch with alpacas and horses. Make it refined, calm, high-end, and suitable for signage, social profile, and merchandise."
+      label: "Premium wordmark",
+      style: "premium wordmark, refined typography, elegant spacing",
+      brand: "Modern brand name",
+      prompt: "Create a premium typography-led logo for a modern brand. Focus on custom letter spacing, strong hierarchy, restrained color, and a mark that feels credible on a website, packaging, and social profile."
     },
     {
-      label: "AI startup",
-      style: "modern AI startup, abstract symbol, clean tech",
-      brand: "BrandThat.ai",
-      prompt: "AI branding platform that helps creators and businesses generate logos, captions, and brand systems."
+      label: "Tech platform",
+      style: "modern SaaS identity, abstract symbol, clean system",
+      brand: "Platform name",
+      prompt: "Create a clean modern platform logo with an abstract symbol, strong wordmark, premium spacing, and a visual system that feels trustworthy, fast, and scalable."
     },
     {
-      label: "Pizza restaurant",
-      style: "modern restaurant badge, appetizing but not cartoonish",
-      brand: "North Slice",
-      prompt: "Neighborhood pizza restaurant with wood-fired pizza, warm hospitality, and a clean memorable icon that clearly references pizza."
+      label: "Local service",
+      style: "professional local service identity, strong mark, clear typography",
+      brand: "Business name",
+      prompt: "Create a professional local service logo that feels established, trustworthy, and easy to read. Avoid clipart. Make the icon specific to the business description and usable on trucks, signs, uniforms, and social media."
     },
     {
-      label: "Wedding studio",
-      style: "high-end editorial, elegant serif, minimal rose detail",
-      brand: "Ekblad Rose",
-      prompt: "High-end wedding photo and video studio. Make it romantic, premium, timeless, and clean enough for luxury clients."
+      label: "Editorial brand",
+      style: "editorial brand identity, high-end serif, subtle symbol",
+      brand: "Studio name",
+      prompt: "Create an editorial logo for a premium studio or personal brand. Make it tasteful, minimal, distinctive, and built around typography, spacing, and a subtle memorable mark."
     }
   ];
 
@@ -4457,10 +4463,16 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .miniLogoOutput{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;min-height:142px;display:flex;flex-direction:column;justify-content:space-between}
 .miniLogoOutput strong{display:block;font-size:14px;letter-spacing:-.02em}
 .miniLogoOutput span{display:block;color:#666;font-size:12px;line-height:1.35;margin-top:4px}
-.miniMark{width:52px;height:52px;border-radius:14px;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:-.04em}
-.miniMark.ai{border-radius:50%;background:#111}
-.miniMark.trade{background:#f7f4ed;color:#111;border:2px solid #111}
-.miniMark.ranch{background:#8a6b37;color:white}
+.miniMark{width:58px;height:58px;border-radius:16px;background:#111;color:white;display:grid;place-items:center;position:relative;overflow:hidden}
+.miniMark span,.miniMark i,.afterMark span,.afterMark i{display:block;position:absolute}
+.miniMark.wordmark span{width:34px;height:6px;background:white;border-radius:999px;top:20px;left:12px}
+.miniMark.wordmark i{width:24px;height:6px;background:rgba(255,255,255,.55);border-radius:999px;top:32px;left:12px}
+.miniMark.symbol{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
+.miniMark.symbol span{width:32px;height:32px;border:2px solid #111;border-radius:50% 50% 50% 12px;transform:rotate(-18deg)}
+.miniMark.symbol i{width:14px;height:14px;background:#111;border-radius:50%;right:12px;bottom:13px}
+.miniMark.system{background:#8a6b37}
+.miniMark.system span{width:30px;height:30px;border:2px solid white;border-radius:8px;transform:rotate(45deg)}
+.miniMark.system i{width:20px;height:3px;background:rgba(255,255,255,.7);border-radius:999px;bottom:16px}
 .proofMetricRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .proofMetricRow div{background:#111;color:white;border-radius:14px;padding:12px 14px}
 .proofMetricRow strong{display:block;font-size:16px}
@@ -4481,7 +4493,9 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .beforeCard span,.afterCard span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;margin-bottom:14px}
 .beforeCard p{font-size:24px;line-height:1.35;letter-spacing:-.03em;margin:0;color:#111}
 .afterPreviewGrid{display:grid;grid-template-columns:86px 1fr;gap:18px;align-items:center}
-.afterMark{width:86px;height:86px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:-.05em;font-size:28px}
+.afterMark{width:86px;height:86px;border-radius:24px;background:#111;color:white;display:grid;place-items:center;position:relative;overflow:hidden}
+.afterMark span{width:46px;height:46px;border:2px solid white;border-radius:50% 50% 16px 50%;transform:rotate(-24deg)}
+.afterMark i{width:54px;height:5px;background:rgba(255,255,255,.68);border-radius:999px;bottom:20px;left:16px}
 .afterPreviewGrid strong{display:block;font-size:23px;letter-spacing:-.04em;margin-bottom:8px}
 .afterPreviewGrid p{margin:0;color:#666;line-height:1.55}
 .directorFlow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
