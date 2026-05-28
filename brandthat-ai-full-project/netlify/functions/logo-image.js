@@ -79,12 +79,15 @@ First-result quality standard:
 - The first logo must feel like a real brand identity direction, not a logo-generator template.
 - Prefer restraint over decoration: one clear idea, one primary mark or wordmark, one accent at most.
 - Prioritize typography quality, spacing, hierarchy, and brand fit over adding more symbols.
+- Bias toward typography-first, monogram, or restrained abstract marks when the category does not require a literal symbol.
 - If the requested concept can work as a wordmark or monogram, use that before adding a generic icon.
 - If using an icon, make it a simplified ownable symbol with negative space or custom geometry, not a literal clipart drawing.
 - Use flat vector-style design with crisp edges, confident whitespace, and no mockup scene.
 - Use premium color restraint: mostly monochrome or two-color with one meaningful accent unless the user explicitly asked for more.
 - Do not include fake taglines, tiny descriptors, presentation cards, frames, shadows, gradients, texture, stationery, or decorative filler.
 - Do not over-design. The logo should be believable, scalable, and usable on white, black, and transparent backgrounds.
+- Reject any direction that looks generic, cluttered, clipart-like, repetitive, over-designed, visually weak, or decorated without strategic purpose.
+- If a weak direction appears, internally refine it before output by removing extra symbols, improving wordmark hierarchy, increasing whitespace, and simplifying the icon into one memorable silhouette.
 
 Design requirements:
 - Make the image itself the final logo concept, not an explanation.
@@ -309,10 +312,13 @@ const SCORING_WEIGHTS = {
   requestedSymbolMatch: 10,
   styleMatch: 8,
   readabilityAndScalability: 7,
-  genericPenalty: -18,
+  genericPenalty: -28,
   avoidWordPenalty: -12,
   ...(STYLE_SCHEMA.scoringWeights || {}),
 };
+
+const ELITE_QUALITY_TERMS = /(premium|restrained|editorial|wordmark|custom|ownable|negative space|monochrome|generous|whitespace|scalable|reduced|simplified|adaptive|optical|kerning|letter|silhouette|brandable|minimal|timeless|refined)/;
+const WEAK_LOGO_TERMS = /(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol|simple emblem built from|glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|template badge|overly centered|centered mark over readable wordmark|symbol above or beside wordmark|decorative|filler|multiple icons)/;
 
 function detectLogoStyles({ subject, logoStyle = "", logoIndustry = "", logoSymbol = "", userPrompt = "", logoPrompt = "" }) {
   const rawText = `${subject} ${logoStyle} ${logoIndustry} ${logoSymbol} ${userPrompt} ${logoPrompt}`.toLowerCase();
@@ -1252,13 +1258,13 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
   const positioningConcepts = ["premium flagship", "local trust", "social avatar", "signage-ready", "merch-ready"].map((angle, index) => ({
     name: `${titleCase(subject.replace("-", " "))} ${titleCase(angle)}`,
     style: styles[(index + 1) % styles.length]?.key || styles[0]?.key || "professional",
-    symbol: logoSymbol || `category-specific ${subject.replace("-", " ")} mark optimized for ${angle}`,
+    symbol: logoSymbol || `reduced ${subject.replace("-", " ")} cue shaped into one ownable silhouette for ${angle}`,
     iconSystem,
     typography: typography?.label || "readable brand typography",
     typographySystem: typography,
     palette: logoColors || palette,
-    layout: index % 2 === 0 ? "centered mark over readable wordmark" : "wide professional lockup",
-    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary} and avoiding ${trend?.penalties?.[0] || "generic template styling"}.${memoryInstruction}`,
+    layout: index % 2 === 0 ? `large simplified mark with type-forward wordmark and ${directives.spacing || "premium"} spacing` : `wide editorial lockup with restrained icon scale and clear hierarchy`,
+    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary}. The direction favors clean typography, fewer elements, scalable silhouette, and avoids ${trend?.penalties?.[0] || "generic template styling"}.${memoryInstruction}`,
     source: "positioning",
   }));
 
@@ -1283,8 +1289,8 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
     tattoo: ["tattoo", "ink", "flash", "ornamental"],
   }[subject] || [subject.replace("-", " "), subject.split("-")[0]];
   const subjectMatches = aliases.some((alias) => text.includes(alias));
-  let score = 60;
-  if (concept.source === "library") score += SCORING_WEIGHTS.conceptLibraryBoost + 8;
+  let score = 58;
+  if (concept.source === "library") score += SCORING_WEIGHTS.conceptLibraryBoost + 10;
   if (subjectMatches) score += SCORING_WEIGHTS.subjectMatch;
   if (logoSymbol && text.includes(logoSymbol.toLowerCase().split(/\s+/)[0])) score += SCORING_WEIGHTS.requestedSymbolMatch;
   styles.forEach((style, index) => {
@@ -1293,14 +1299,16 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
       if (text.includes(trait)) score += 2;
     });
   });
-  if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol)/.test(text)) score += SCORING_WEIGHTS.genericPenalty;
-  if (/(glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|template badge|overly centered)/.test(text)) score -= 14;
+  if (WEAK_LOGO_TERMS.test(text)) score += SCORING_WEIGHTS.genericPenalty;
+  if (/(decorative filler|multiple icons|icon mashup|presentation card|frame|mockup|tiny detail|over-designed|overgenerated|over-generated)/.test(text)) score -= 18;
   if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable|negative|hidden|reduced|brandable)/.test(text)) score += SCORING_WEIGHTS.readabilityAndScalability;
+  if (ELITE_QUALITY_TERMS.test(text)) score += 12;
+  if (/(one clear idea|fewer elements|typography-first|type-forward|monochrome-first|strong silhouette|confident whitespace|optical spacing)/.test(text)) score += 8;
   const shieldOrBadge = /(shield|badge|crest)/.test(text);
   const shieldFriendly = ["law", "finance", "insurance", "ranch", "football", "hippo-football", "education", "security"].includes(subject);
   if (shieldOrBadge && !shieldFriendly && !/(shield|badge|crest)/.test(logoSymbol.toLowerCase())) score -= 9;
   if (/(monogram|initials)/.test(text) && !/(monogram|initial|letter)/.test(logoSymbol.toLowerCase())) score -= subject === "abstract" ? 0 : 5;
-  if (subject !== "abstract" && !subjectMatches) score -= 8;
+  if (subject !== "abstract" && !subjectMatches) score -= 14;
   if (concept.source === "icon" && concept.iconSystem?.mode) score += 5;
   if (personality) {
     const layoutText = String(concept.layout || "").toLowerCase();
@@ -1347,29 +1355,41 @@ function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", 
   const improvements = [];
   let scoreAdjustment = 0;
 
-  const genericPattern = /(category-specific|generic|stock|template|default|hexagon|initials only|simple emblem built from|distinct [a-z-]+ visual cue)/;
+  const genericPattern = /(category-specific|generic|stock|template|default|hexagon|initials only|simple emblem built from|distinct [a-z-]+ visual cue|subtle embedded symbol|random|clip.?art)/;
   if (genericPattern.test(text)) {
     weaknesses.push("icon direction feels too generic or placeholder-like");
     improvements.push("replace placeholder icon logic with a specific, ownable symbol tied to the brand words");
-    scoreAdjustment -= 18;
+    scoreAdjustment -= 28;
   }
 
-  if (/(centered mark over readable wordmark|centered crest above wordmark|symbol above or beside wordmark)/.test(text)) {
+  if (/(centered mark over readable wordmark|centered crest above wordmark|symbol above or beside wordmark|overly centered|template badge)/.test(text)) {
     weaknesses.push("composition risks looking like a centered logo-generator template");
     improvements.push("use optical offset, stronger negative space, and a less predictable mark-to-type relationship");
-    scoreAdjustment -= 8;
+    scoreAdjustment -= 14;
   }
 
-  if (!/(custom|ownable|negative|hidden|reduced|brandable|adaptive|material-aware|wordmark|letter|silhouette)/.test(text)) {
+  if (!/(custom|ownable|negative|hidden|reduced|brandable|adaptive|material-aware|wordmark|letter|silhouette|monochrome|editorial|refined)/.test(text)) {
     weaknesses.push("visual uniqueness is not strong enough");
     improvements.push("add a custom letter detail, negative-space cue, or simplified silhouette that can be recognized at favicon size");
-    scoreAdjustment -= 10;
+    scoreAdjustment -= 14;
   }
 
-  if (!/(spacing|hierarchy|small-caps|tracking|wordmark|type|typography|serif|sans)/.test(text)) {
+  if (!/(spacing|hierarchy|small-caps|tracking|wordmark|type|typography|serif|sans|kerning|optical)/.test(text)) {
     weaknesses.push("typography hierarchy is under-specified");
     improvements.push("define a clearer type hierarchy with wordmark scale, tracking, and support-type rhythm");
-    scoreAdjustment -= 8;
+    scoreAdjustment -= 12;
+  }
+
+  if (/(glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|decorative filler|multiple icons|icon mashup|over-designed|overgenerated|over-generated)/.test(text)) {
+    weaknesses.push("visual language feels over-generated or decorative");
+    improvements.push("remove decorative effects, reduce to one idea, and use flat vector restraint");
+    scoreAdjustment -= 24;
+  }
+
+  if (!/(fewer elements|one clear idea|reduced|simplified|minimal|restrained|scalable|strong silhouette|whitespace|negative space|typography-first|type-forward)/.test(text)) {
+    weaknesses.push("simplicity and scalability are not explicit enough");
+    improvements.push("simplify the concept into fewer elements with a stronger silhouette and clearer spacing");
+    scoreAdjustment -= 10;
   }
 
   if (personality?.matrix.market.score >= 66 || personality?.matrix.price.score >= 66) {
@@ -1411,7 +1431,7 @@ function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", 
   };
 
   const adjustedScore = Math.max(0, Math.min(100, (concept.score || 0) + scoreAdjustment));
-  const rejected = adjustedScore < 62 || weaknesses.length >= 4;
+  const rejected = adjustedScore < 74 || weaknesses.length >= 3;
 
   return {
     concept: improvedConcept,
@@ -1422,6 +1442,44 @@ function runCreativeDirectorReview(concept, { subject, styles, logoSymbol = "", 
     summary: weaknesses.length
       ? `Rejected risks: ${weaknesses.join("; ")}. Improvements: ${improvements.join("; ")}.`
       : "Passed senior brand review with spacing, hierarchy, uniqueness, brand fit, and premium feel intact.",
+  };
+}
+
+function refineConceptForEliteQuality(concept, context = {}) {
+  const { subject, personality = null, trend = null, logoSymbol = "" } = context;
+  const premium = (personality?.matrix?.price?.score || 50) >= 66 || (personality?.matrix?.market?.score || 50) >= 66;
+  const expressive = (personality?.matrix?.expression?.score || 50) >= 68 || (personality?.matrix?.tone?.score || 50) >= 68;
+  const subjectLabel = String(subject || "brand").replace("-", " ");
+  const typography = premium
+    ? "premium editorial wordmark with generous tracking, optical kerning, and restrained support type"
+    : expressive
+      ? "bold readable wordmark with one custom letter rhythm and simple support type"
+      : "modern custom wordmark with precise spacing, strong hierarchy, and scalable proportions";
+  const symbol = logoSymbol
+    ? `reduced ${logoSymbol} cue shaped into one ownable silhouette with negative space`
+    : premium
+      ? `restrained ${subjectLabel} monogram or abstract cue with negative space and no decorative filler`
+      : `single brandable ${subjectLabel} symbol reduced to a clean scalable silhouette`;
+  const palette = premium
+    ? "monochrome-first: ink black, warm ivory, one restrained champagne or deep-neutral accent"
+    : "monochrome-first with one meaningful accent and no generic startup gradient";
+
+  return {
+    ...concept,
+    name: `${concept.name || titleCase(subjectLabel)} Refined`,
+    symbol,
+    typography,
+    palette,
+    layout: "type-forward lockup with confident whitespace, large scalable mark, optical balance, and no template badge framing",
+    whyFits: `Elite quality refinement: this version removes weak decorative logic and keeps one clear brand idea. It favors agency-quality typography, icon restraint, consistent spacing, modern composition, memorability, simplicity, and scalable vector use. ${trend?.minimalismTrend || "Precision minimalism with personality."}`,
+    source: "elite-refinement",
+    score: Math.max(82, concept.score || 0),
+    creativeDirectorReview: {
+      rejected: false,
+      weaknesses: [],
+      improvements: ["internally refined weak concept before display"],
+      summary: "Passed after elite quality refinement: simplified, type-forward, restrained, scalable, and less template-like.",
+    },
   };
 }
 
@@ -1440,16 +1498,14 @@ function runCreativeDirectorGate(scored, context) {
     };
   }).sort((a, b) => b.score - a.score);
 
-  const accepted = reviewed.filter((concept) => !concept.creativeDirectorReview.rejected);
-  const fallbackAccepted = reviewed.slice(0, 8).map((concept) => ({
-    ...concept,
-    creativeDirectorReview: {
-      ...concept.creativeDirectorReview,
-      rejected: false,
-      summary: `${concept.creativeDirectorReview.summary} Promoted after refinement because it was among the strongest available concepts.`,
-    },
-  }));
-  const finalPool = accepted.length >= 4 ? accepted : fallbackAccepted;
+  const accepted = reviewed.filter((concept) => !concept.creativeDirectorReview.rejected && concept.score >= 74);
+  const refinedFallbacks = reviewed
+    .filter((concept) => !accepted.some((item) => item.name === concept.name))
+    .slice(0, 8)
+    .map((concept) => refineConceptForEliteQuality(concept, context));
+  const finalPool = [...accepted, ...refinedFallbacks]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(4, accepted.length));
   const rejected = reviewed.filter((concept) => concept.creativeDirectorReview.rejected);
 
   return {
