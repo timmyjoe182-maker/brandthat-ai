@@ -46,6 +46,10 @@ Creative Director interpretation:
 - Brand personality: ${director.personality}
 - Personality matrix: ${Object.entries(director.personalityMatrix || {}).map(([axis, item]) => `${axis} ${item.low}/${item.high}: ${item.score}`).join("; ")}
 - Design directives: ${director.personalityDirectives?.scoringBias || "balanced professional logo strategy"}
+- Interpreted user language: ${director.personalityDirectives?.interpretedSummary || "no special vague/emotional language detected"}
+- Typography translation: ${director.personalityDirectives?.interpretedTypography || "use the typography system selected by the Creative Director"}
+- Spacing/composition translation: ${[director.personalityDirectives?.interpretedSpacing, director.personalityDirectives?.interpretedComposition].filter(Boolean).join("; ") || "use premium spacing and composition for the selected category"}
+- Palette/icon restraint translation: ${[director.personalityDirectives?.interpretedPalette, director.personalityDirectives?.interpretedIcon].filter(Boolean).join("; ") || "use category-appropriate palette and icon restraint"}
 - Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
 - Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
 - Generation memory: ${director.generationMemory?.summary || "no prior logo memory"}
@@ -58,6 +62,7 @@ Creative Director interpretation:
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
+${director.personalityDirectives?.interpretedAvoid ? `- User-language avoid cues: ${director.personalityDirectives.interpretedAvoid}` : ""}
 
 Primary direction to generate:
 - Name: ${primaryConcept.name || "Meaning-first logo direction"}
@@ -401,6 +406,94 @@ function addPersonalitySignals(state, signals, reasonPrefix = "") {
   });
 }
 
+function interpretDesignLanguage(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  const has = (pattern) => pattern.test(normalized);
+  const directives = [];
+  const interpretation = {
+    personalitySignals: {},
+    typography: "",
+    spacing: "",
+    composition: "",
+    palette: "",
+    icon: "",
+    avoid: "",
+    directives,
+  };
+
+  const add = (copy) => {
+    if (copy && !directives.includes(copy)) directives.push(copy);
+  };
+  const mergeSignals = (signals) => {
+    Object.entries(signals || {}).forEach(([axis, amount]) => {
+      interpretation.personalitySignals[axis] = (interpretation.personalitySignals[axis] || 0) + amount;
+    });
+  };
+
+  if (has(/\b(expensive|luxury hotel|luxurious|more luxury|more premium|premium|high.?end|elevated)\b/)) {
+    mergeSignals({ price: 34, market: 34, era: 16, energy: -16, expression: -22 });
+    interpretation.typography = "premium serif or restrained custom wordmark with generous tracking and mature hierarchy";
+    interpretation.spacing = "generous whitespace, fewer elements, calmer hierarchy";
+    interpretation.palette = "monochrome or warm ivory base with one restrained metallic or deep-neutral accent";
+    interpretation.icon = "reduced symbolic mark, monogram, or negative-space detail; avoid decorative literal icons";
+    add("Make expensive/luxury wording visible through restraint, mature type, premium spacing, and color discipline.");
+  }
+
+  if (has(/\b(editorial|fashion house|magazine|gallery|atelier|maison)\b/)) {
+    mergeSignals({ price: 20, market: 24, era: 20, expression: -26, energy: -12 });
+    interpretation.typography = "editorial serif or elegant wordmark with deliberate letter spacing";
+    interpretation.composition = "type-forward, quiet asymmetry, no icon overload";
+    add("Treat editorial wording as a typography-led identity with calm composition.");
+  }
+
+  if (has(/\b(timeless|classic|heritage|legacy|established|enduring)\b/)) {
+    mergeSignals({ era: 34, tone: -12, market: 14, expression: -18, energy: -12 });
+    interpretation.typography = interpretation.typography || "classic serif or restrained sans with balanced proportions";
+    interpretation.palette = interpretation.palette || "black, cream, charcoal, or muted heritage accent";
+    add("Favor long-term readability, classic proportions, and no trend-heavy gimmicks.");
+  }
+
+  if (has(/\b(yc startup|yc|startup|saas|modern tech|ai startup|product-led|software)\b/)) {
+    mergeSignals({ era: -32, scale: -28, craft: 34, reach: 14, expression: -12 });
+    interpretation.typography = interpretation.typography || "precise geometric sans with subtle custom letter detail";
+    interpretation.spacing = interpretation.spacing || "clean product-grade spacing and crisp hierarchy";
+    interpretation.palette = interpretation.palette || "monochrome-first with one confident digital accent";
+    interpretation.icon = interpretation.icon || "adaptive abstract mark that works as app icon, favicon, and avatar";
+    add("Translate startup language into product-grade clarity, not fake futuristic decoration.");
+  }
+
+  if (has(/\b(less tech bro|not tech bro|less startupy|less corporate)\b/)) {
+    mergeSignals({ era: 18, craft: -30, tone: 12, market: 18, expression: -18, energy: -12 });
+    interpretation.typography = "warmer modern wordmark with human rhythm, not default tech sans";
+    interpretation.palette = "warmer neutrals or muted accent instead of electric blue gradients";
+    interpretation.icon = "restrained human-designed mark; avoid circuits, nodes, sparks, and generic AI symbols";
+    interpretation.avoid = "generic tech-bro aesthetic, cold blue gradient, random network nodes, AI sparkles";
+    add("Reduce generic tech cues and make the identity warmer, more mature, and less cliché.");
+  }
+
+  if (has(/\b(less busy|cleaner|simpler|simplify|more minimal|minimalist|quiet|restrained)\b/)) {
+    mergeSignals({ expression: -38, energy: -12, market: 10 });
+    interpretation.spacing = "more negative space, fewer elements, stronger silhouette";
+    interpretation.composition = "one clear focal point with uncluttered hierarchy";
+    interpretation.icon = "remove unnecessary symbol details and keep only the most ownable cue";
+    interpretation.avoid = [interpretation.avoid, "clutter, multiple icons, tiny text, decorative filler"].filter(Boolean).join("; ");
+    add("Simplify by removing details while keeping the concept specific.");
+  }
+
+  if (has(/\b(stronger typography|bold typography|type focus|typography focus|better font|stronger font|wordmark)\b/)) {
+    mergeSignals({ expression: -14, market: 10 });
+    interpretation.typography = "make typography the main identity asset with confident weight, tuned spacing, and one memorable custom detail";
+    interpretation.icon = interpretation.icon || "make icon secondary or remove it if it competes with the wordmark";
+    interpretation.composition = interpretation.composition || "wordmark-led lockup with clear type hierarchy";
+    add("Prioritize wordmark quality, kerning, and hierarchy over adding more symbol detail.");
+  }
+
+  return {
+    ...interpretation,
+    summary: directives.join(" "),
+  };
+}
+
 function inferBrandPersonality({ subject, brandName = "", logoStyle = "", logoIndustry = "", logoSymbol = "", logoColors = "", userPrompt = "", logoPrompt = "", styles = [] }) {
   const matrix = Object.fromEntries(
     Object.entries(PERSONALITY_AXES).map(([axis, labels]) => [
@@ -473,8 +566,20 @@ function inferBrandPersonality({ subject, brandName = "", logoStyle = "", logoIn
     addPersonalitySignals(state, { expression: -34, energy: -8, market: 12 }, "minimal wording");
   }
 
+  const interpreted = interpretDesignLanguage(text);
+  addPersonalitySignals(state, interpreted.personalitySignals, "interpreted user language");
+
   const summary = summarizePersonalityMatrix(matrix);
-  const directives = getPersonalityDesignDirectives(matrix);
+  const directives = {
+    ...getPersonalityDesignDirectives(matrix),
+    interpretedTypography: interpreted.typography,
+    interpretedSpacing: interpreted.spacing,
+    interpretedComposition: interpreted.composition,
+    interpretedPalette: interpreted.palette,
+    interpretedIcon: interpreted.icon,
+    interpretedAvoid: interpreted.avoid,
+    interpretedSummary: interpreted.summary,
+  };
 
   return { matrix, summary, directives };
 }
@@ -682,6 +787,8 @@ function normalizeGenerationMemory(memory = {}) {
     continuityIntent: String(memory.continuityIntent || "").trim(),
     refinementMode: String(memory.refinementMode || "").trim(),
     refinementInstruction: String(memory.refinementInstruction || "").trim(),
+    interpretedDesignDirection: String(memory.interpretedDesignDirection || "").trim(),
+    designDirectives: normalizeMemoryList(memory.designDirectives),
     changedAreas: normalizeMemoryList(memory.changedAreas),
     preserveAreas: normalizeMemoryList(memory.preserveAreas),
     refinementHistory: Array.isArray(memory.refinementHistory)
@@ -717,7 +824,7 @@ function buildGenerationMemoryIntelligence(memory = {}) {
     preferences,
     hasMemory: avoid.length > 0 || preferences.length > 0 || hasContinuity,
     summary: hasContinuity
-      ? `designer refinement from prior successful direction${anchor?.name ? ` (${anchor.name})` : ""}; preserve useful typography, palette, layout, and brand identity while improving only requested areas${normalized.changedAreas.length ? ` (${normalized.changedAreas.join(", ")})` : ""}${normalized.continuityIntent ? `; user intent: ${normalized.continuityIntent}` : ""}${avoid.length ? `; avoid rejected: ${avoid.slice(0, 5).join(", ")}` : ""}`
+      ? `designer refinement from prior successful direction${anchor?.name ? ` (${anchor.name})` : ""}; preserve useful typography, palette, layout, and brand identity while improving only requested areas${normalized.changedAreas.length ? ` (${normalized.changedAreas.join(", ")})` : ""}${normalized.interpretedDesignDirection ? `; interpreted design direction: ${normalized.interpretedDesignDirection}` : ""}${normalized.continuityIntent ? `; user intent: ${normalized.continuityIntent}` : ""}${avoid.length ? `; avoid rejected: ${avoid.slice(0, 5).join(", ")}` : ""}`
       : avoid.length
       ? `avoid rejected directions: ${avoid.slice(0, 8).join(", ")}${preferences.length ? `; keep typography preferences: ${preferences.slice(0, 4).join(", ")}` : ""}`
       : preferences.length
@@ -928,7 +1035,7 @@ function applyTypographyPersonality(base, personality, trend = null) {
     trackingBase: clampPersonalityScore(50 + (base.trackingBase || 0) * 10 + (price > 64 || market > 64 ? 10 : 0) + (expression < 38 ? 8 : 0) - (energy > 68 ? 6 : 0)) / 10 - 5,
     subtitleTracking: Math.max(3, Math.min(9, (base.subtitleTracking || 5) + (price > 64 ? 1 : 0) + (expression < 38 ? 1 : 0) - (tone > 66 ? 1 : 0))),
     lineGapRatio: Math.max(0.88, Math.min(1.08, (base.lineGapRatio || 0.94) + (era > 64 ? 0.03 : 0) + (expression < 38 ? 0.02 : 0) - (energy > 66 ? 0.02 : 0))),
-    hierarchy: `${base.hierarchy}; personality: ${personality.directives.spacing} spacing with ${personality.directives.layoutBias} hierarchy${trend ? `; trend: ${trend.typographyTrend}` : ""}`,
+    hierarchy: `${base.hierarchy}; personality: ${personality.directives.spacing} spacing with ${personality.directives.layoutBias} hierarchy${personality.directives.interpretedTypography ? `; user-language translation: ${personality.directives.interpretedTypography}` : ""}${trend ? `; trend: ${trend.typographyTrend}` : ""}`,
   };
 }
 
@@ -978,6 +1085,7 @@ function selectAudience({ subject, positioning }) {
 
 function selectPalette({ subject, styles, logoColors, personality = null, trend = null }) {
   if (logoColors) return logoColors;
+  if (personality?.directives?.interpretedPalette) return personality.directives.interpretedPalette;
   const primary = styles[0]?.key || "minimal";
   if (trend?.colorTrend?.includes("monochrome-first") && personality?.matrix.expression.score < 66) return "monochrome-first: ink black, warm white, one restrained accent";
   if (personality?.matrix.price.score >= 68 || personality?.matrix.market.score >= 70) return "ink black, warm ivory, restrained champagne accent";
@@ -1036,6 +1144,13 @@ const ICON_CREATIVITY_SYSTEMS = {
 function selectIconSystem({ subject, styles, logoSymbol = "", personality = null, trend = null }) {
   const styleKeys = styles.map((style) => style.key);
   const symbolText = logoSymbol.toLowerCase();
+  if (personality?.directives?.interpretedIcon && /secondary|remove|restrained|negative|adaptive|monogram/.test(personality.directives.interpretedIcon)) {
+    return {
+      ...ICON_CREATIVITY_SYSTEMS.monogramFusion,
+      label: personality.directives.interpretedIcon,
+      rules: [...ICON_CREATIVITY_SYSTEMS.monogramFusion.rules, "follow the user's interpreted icon restraint"],
+    };
+  }
   if (/(mascot|animal|character|hippo|horse|dog|cat)/.test(symbolText) || ["hippo", "hippo-football", "pet"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.mascotReduction;
   }

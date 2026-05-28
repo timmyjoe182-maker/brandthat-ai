@@ -607,8 +607,95 @@ function extractAvoidFromPrompt(text = "") {
   return avoidMatches.length ? `avoid ${[...new Set(avoidMatches)].join(", ")}` : "";
 }
 
+function interpretLogoLanguage(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  const has = (pattern) => pattern.test(normalized);
+  const directives = [];
+  const result = {
+    style: "",
+    mood: "",
+    typography: "",
+    spacing: "",
+    composition: "",
+    palette: "",
+    icon: "",
+    avoid: "",
+    directives,
+  };
+
+  const add = (copy) => {
+    if (copy && !directives.includes(copy)) directives.push(copy);
+  };
+
+  if (has(/\b(expensive|luxury hotel|luxurious|more luxury|more premium|premium|high.?end|elevated)\b/)) {
+    result.style = "luxury editorial";
+    result.mood = "expensive, restrained, mature, high-trust";
+    result.typography = "high-quality serif or refined custom wordmark with generous tracking";
+    result.spacing = "wide whitespace, fewer elements, calmer hierarchy";
+    result.palette = "monochrome, warm ivory, deep neutral, restrained metallic accent";
+    result.icon = "minimal symbol, monogram, or negative-space mark; avoid literal decoration";
+    add("Translate luxury language into restraint, mature spacing, premium type, and fewer visual elements.");
+  }
+
+  if (has(/\b(editorial|fashion house|magazine|gallery|atelier|maison)\b/)) {
+    result.style = result.style || "editorial";
+    result.typography = "editorial serif or elegant wordmark with deliberate letter spacing";
+    result.composition = "quiet asymmetrical layout with type-forward hierarchy";
+    add("Make the concept type-led, editorial, and calm instead of icon-heavy.");
+  }
+
+  if (has(/\b(timeless|classic|heritage|legacy|established|enduring)\b/)) {
+    result.style = result.style || "timeless";
+    result.typography = "classic serif or restrained sans with balanced proportions";
+    result.palette = result.palette || "black, cream, charcoal, muted heritage accent";
+    result.icon = result.icon || "simple enduring mark; avoid trend-heavy shapes";
+    add("Favor classic proportions, conservative palette, and long-term readability.");
+  }
+
+  if (has(/\b(yc startup|yc|startup|saas|modern tech|ai startup|product-led|software)\b/)) {
+    result.style = result.style || "modern SaaS";
+    result.typography = "precise geometric sans with subtle custom letter detail";
+    result.spacing = result.spacing || "clean product-grade spacing and crisp hierarchy";
+    result.palette = result.palette || "monochrome-first with one confident digital accent";
+    result.icon = result.icon || "adaptive abstract mark that works as an app icon and favicon";
+    add("Treat startup language as product-grade: sharp type, simple adaptive symbol, no fake futuristic clutter.");
+  }
+
+  if (has(/\b(less tech bro|not tech bro|less corporate|less startupy)\b/)) {
+    result.style = "warmer modern editorial";
+    result.typography = "more human, less default geometric; refined wordmark with softer rhythm";
+    result.palette = "warmer neutrals or muted accent instead of electric blue gradients";
+    result.icon = "restrained, human-designed mark; avoid circuit, node, spark, and generic AI symbols";
+    result.avoid = "generic tech aesthetic, cold blue gradients, random network nodes, tech-bro energy";
+    add("Reduce generic tech cues and make the identity feel warmer, more mature, and less cliché.");
+  }
+
+  if (has(/\b(less busy|cleaner|simpler|simplify|more minimal|minimalist|quiet)\b/)) {
+    result.style = result.style || "minimal";
+    result.spacing = "more negative space, fewer elements, stronger silhouette";
+    result.composition = "one clear focal point with uncluttered hierarchy";
+    result.icon = "remove unnecessary symbol details; keep only the most ownable cue";
+    result.avoid = [result.avoid, "clutter, multiple icons, tiny text, decorative filler"].filter(Boolean).join(", ");
+    add("Simplify by removing details, not by making the logo generic.");
+  }
+
+  if (has(/\b(stronger typography|bold typography|type focus|typography focus|better font|stronger font|wordmark)\b/)) {
+    result.typography = "make typography the main identity asset with custom letter spacing, confident weight, and a memorable wordmark detail";
+    result.icon = result.icon || "icon should be secondary or removed if it competes with the wordmark";
+    result.composition = result.composition || "wordmark-led layout with clear visual hierarchy";
+    add("Prioritize the wordmark over the icon and make the type feel intentionally designed.");
+  }
+
+  return {
+    ...result,
+    summary: directives.join(" "),
+  };
+}
+
 function getTypographyDirection(style = "", industry = "", promptText = "") {
   const text = `${style} ${industry} ${promptText}`.toLowerCase();
+  const interpretation = interpretLogoLanguage(text);
+  if (interpretation.typography) return interpretation.typography;
   if (text.includes("luxury") || text.includes("skincare") || text.includes("real estate")) return "refined serif or elegant high-contrast wordmark with premium spacing";
   if (text.includes("ai") || text.includes("startup") || text.includes("modern")) return "clean geometric sans-serif with tight, modern hierarchy";
   if (text.includes("fitness") || text.includes("bold")) return "bold condensed sans-serif with confident weight";
@@ -627,14 +714,15 @@ function getLayoutPreferenceFromPrompt(text = "") {
 function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", industry = "", symbol = "", colors = "", avoid = "" }) {
   const promptText = String(prompt || "").trim();
   const combined = [promptText, brandName, style, industry, symbol, colors, avoid].filter(Boolean).join(" ");
+  const interpretation = interpretLogoLanguage(combined);
   const detectedIndustry = industry || findKeywordMatch(combined, LOGO_INDUSTRY_KEYWORDS, "");
-  const detectedStyle = style || findKeywordMatch(combined, LOGO_STYLE_KEYWORDS, detectedIndustry === "skincare" || detectedIndustry === "real estate" ? "luxury" : "");
+  const detectedStyle = style || interpretation.style || findKeywordMatch(combined, LOGO_STYLE_KEYWORDS, detectedIndustry === "skincare" || detectedIndustry === "real estate" ? "luxury" : "");
   const detectedBrandName = brandName || extractBrandNameFromPrompt(promptText);
-  const detectedColors = colors || extractColorsFromPrompt(combined);
-  const detectedSymbol = symbol || extractSymbolFromPrompt(combined);
-  const detectedAvoid = avoid || extractAvoidFromPrompt(combined);
+  const detectedColors = colors || extractColorsFromPrompt(combined) || interpretation.palette;
+  const detectedSymbol = symbol || interpretation.icon || extractSymbolFromPrompt(combined);
+  const detectedAvoid = [avoid || extractAvoidFromPrompt(combined), interpretation.avoid].filter(Boolean).join("; ");
   const typography = getTypographyDirection(detectedStyle, detectedIndustry, combined);
-  const layout = getLayoutPreferenceFromPrompt(combined);
+  const layout = interpretation.composition || getLayoutPreferenceFromPrompt(combined);
 
   return {
     brandName: detectedBrandName,
@@ -642,10 +730,11 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
     style: detectedStyle || "clean modern",
     colors: detectedColors || "professional palette inferred from brand",
     symbol: detectedSymbol || "meaning-matched symbol inferred from brand words",
-    mood: [detectedStyle, detectedIndustry].filter(Boolean).join(", ") || "professional, memorable, brandable",
+    mood: interpretation.mood || [detectedStyle, detectedIndustry].filter(Boolean).join(", ") || "professional, memorable, brandable",
     typography,
     layout,
     avoid: detectedAvoid || "generic clipart, misspelled words, clutter, tiny unreadable text",
+    interpretation,
     originalPrompt: promptText,
   };
 }
@@ -797,13 +886,13 @@ function classifyLogoRefinement(instruction = "") {
   const text = String(instruction || "").toLowerCase();
   const areas = [];
 
-  if (/(luxury|premium|expensive|elevated|high-end|editorial|timeless)/.test(text)) areas.push("positioning");
-  if (/(simple|simplify|minimal|less|cleaner|reduce|remove clutter)/.test(text)) areas.push("simplification");
+  if (/(luxury|premium|expensive|elevated|high-end|editorial|timeless|luxury hotel|yc startup|less tech bro)/.test(text)) areas.push("positioning");
+  if (/(simple|simplify|minimal|less busy|cleaner|reduce|remove clutter|quiet|restrained)/.test(text)) areas.push("simplification");
   if (/(monogram|initial|lettermark|typography|font|type|wordmark|serif|sans|bolder)/.test(text)) areas.push("typography");
-  if (/(icon|symbol|mascot|mark|remove the icon|no icon|different icon)/.test(text)) areas.push("symbol");
+  if (/(icon|symbol|mascot|mark|remove the icon|no icon|different icon|icon restraint)/.test(text)) areas.push("symbol");
   if (/(color|colour|blue|green|cream|gold|black|white|soft|softer|palette)/.test(text)) areas.push("palette");
-  if (/(layout|spacing|balance|center|badge|emblem|horizontal|vertical)/.test(text)) areas.push("layout");
-  if (/(yc|startup|saas|tech|modern|corporate|playful|calm|aggressive)/.test(text)) areas.push("style");
+  if (/(layout|spacing|balance|center|badge|emblem|horizontal|vertical|negative space)/.test(text)) areas.push("layout");
+  if (/(yc|startup|saas|tech|modern|corporate|playful|calm|aggressive|less corporate|less tech bro)/.test(text)) areas.push("style");
 
   return [...new Set(areas)].slice(0, 4);
 }
@@ -816,6 +905,7 @@ function buildLogoRefinementMemory({
 }) {
   const cleanInstruction = String(instruction || "").trim();
   const changedAreas = classifyLogoRefinement(cleanInstruction);
+  const interpretation = interpretLogoLanguage(cleanInstruction);
   const currentHistory = Array.isArray(existingMemory.refinementHistory) ? existingMemory.refinementHistory : [];
   const refinedDirection = {
     ...currentDirection,
@@ -829,6 +919,8 @@ function buildLogoRefinementMemory({
     continuityIntent: cleanInstruction,
     refinementMode: "designer-iteration",
     refinementInstruction: cleanInstruction,
+    interpretedDesignDirection: interpretation.summary,
+    designDirectives: interpretation.directives,
     changedAreas,
     preserveAreas: ["brandName", "industry", "successful typography", "successful palette", "successful layout", "brand personality"]
       .filter((area) => !changedAreas.some((changed) => area.toLowerCase().includes(changed))),
@@ -2648,6 +2740,9 @@ ${parsedLogo.colors}
 
 Mood:
 ${parsedLogo.mood}
+
+Interpreted design direction:
+${parsedLogo.interpretation?.summary || "Use the request wording to infer typography, spacing, composition, color maturity, and icon restraint."}
 
 Typography direction:
 ${parsedLogo.typography}
