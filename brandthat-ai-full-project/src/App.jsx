@@ -19,6 +19,25 @@ const PLAN_COPY = {
   },
 };
 
+const BRANDTHAT_TESTER_EMAILS = String(import.meta.env.VITE_BRANDTHAT_TESTER_EMAILS || "timmyjoe21@gmail.com,timmyjoe182@gmail.com")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
+function isBrandthatTester(user) {
+  const params = new URLSearchParams(window.location.search);
+  const testerParam = params.get("brandthat_test_mode");
+
+  if (testerParam === "true" || testerParam === "1") {
+    localStorage.setItem("brandthat_test_mode", "true");
+  }
+
+  const localTesterMode = localStorage.getItem("brandthat_test_mode") === "true";
+  const email = user?.email?.trim().toLowerCase();
+
+  return localTesterMode || (email && BRANDTHAT_TESTER_EMAILS.includes(email));
+}
+
 const tools = [
   {
     key: "logo",
@@ -1355,6 +1374,7 @@ export default function App() {
   const isFree = userPlan === "free";
   const isStarter = userPlan === "starter";
   const isPro = userPlan === "pro";
+  const isLogoTestingUnlocked = isBrandthatTester(user);
 
 
   useEffect(() => {
@@ -2863,6 +2883,7 @@ Requirements:
     const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions";
     const canUseWithoutAuth = isFreeSimpleTool || activeTool.key === "logo";
     const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const logoLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isPro;
 
     if (!currentUser && !canUseWithoutAuth) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
@@ -2876,14 +2897,14 @@ Requirements:
       return;
     }
 
-    if (!isLocalDevHost && activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
+    if (!logoLimitsBypassed && activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
       setPage("pricing");
       notify("warning", "Free logo generation used", "Starter includes 10 logo generations/month. Pro unlocks unlimited logo generations.");
       setResult("Your free logo generation has been used. Upgrade to Starter for 10 logo generations/month or Pro for unlimited logo generations.");
       return;
     }
 
-    if (!isLocalDevHost && activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
+    if (!logoLimitsBypassed && activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
       setPage("pricing");
       notify("warning", "Starter logo limit reached", "Starter includes 10 logo generations/month. Upgrade to Pro for unlimited logo generations.");
       setResult("You have used your 10 Starter logo generations this month. Upgrade to Pro for unlimited AI logo generation.");
@@ -2938,7 +2959,7 @@ Requirements:
         setResult(
           `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${parsedLogo?.brandName || "Inferred from request"}\nIndustry: ${parsedLogo?.industry || "Inferred from request"}\nStyle: ${parsedLogo?.style || "Inferred from request"}\nSymbol or mascot: ${parsedLogo?.symbol || "Inferred from request"}\nColors: ${parsedLogo?.colors || "Inferred from request"}\nTypography: ${parsedLogo?.typography || "Inferred from request"}\nLayout: ${parsedLogo?.layout || "Inferred from request"}\nAvoid: ${parsedLogo?.avoid || "Generic logo issues"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, refine it, or generate another version.`
         );
-        trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
+        trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: isLogoTestingUnlocked ? "tester" : userPlan });
       } else {
         const response = await fetch("/.netlify/functions/generate", {
           method: "POST",
@@ -2959,8 +2980,8 @@ ${promptValue}`
         trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
       }
 
-      if (!isLocalDevHost && activeTool.key === "logo" && isFree) incrementDailyFreeUse();
-      if (!isLocalDevHost && activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
+      if (!logoLimitsBypassed && activeTool.key === "logo" && isFree) incrementDailyFreeUse();
+      if (!logoLimitsBypassed && activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
     } catch (error) {
       console.error("Brandthat generation request failed:", error);
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
