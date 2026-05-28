@@ -4171,6 +4171,21 @@ function GeneratorCard({
     lastSuccessfulDirection: getCurrentLogoDirection(),
     continuityIntent: intent,
   });
+  const directorNotes = useMemo(() => {
+    const primaryConcept = logoCreativeBrief?.concepts?.[0] || {};
+    const typography = primaryConcept.typography || logoCreativeBrief?.typography || parsedLogoPreview.typography;
+    const symbol = primaryConcept.symbol || parsedLogoPreview.symbol;
+    const positioning = logoCreativeBrief?.personality || logoCreativeBrief?.personalitySummary || parsedLogoPreview.mood;
+
+    return [
+      ["Typography", typography || "Clean readable type with spacing tuned for a premium brand mark."],
+      ["Symbol", symbol || "A restrained mark built around the strongest idea in the brand request."],
+      ["Positioning", positioning || "Modern, scalable, and usable across web, social, and brand kit assets."],
+    ].map(([label, copy]) => ({
+      label,
+      copy: String(copy || "").replace(/\s+/g, " ").replace(/; Creative Director:.*$/i, "").slice(0, 130),
+    }));
+  }, [logoCreativeBrief, parsedLogoPreview]);
 
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
@@ -4372,9 +4387,19 @@ Preserve the original brand name, industry, style direction, colors, and symbol 
               <h3>Your logo is ready</h3>
               <p>
                 {logoImageSource === "instant-svg"
-                  ? "This editable vector logo is built from your brand name, niche, style, colors, and notes."
-                  : "Open it full size, download it, save it to a workspace, or set it as the active brand logo."}
+                  ? "A clean first concept, built from your brand name, style, colors, and notes."
+                  : "A first brand direction is ready to review, download, refine, or save."}
               </p>
+
+              <div className="creativeDirectorNotes">
+                <div className="tinyTag">CREATIVE DIRECTOR NOTES</div>
+                {directorNotes.map((note) => (
+                  <div className="directorNoteRow" key={note.label}>
+                    <strong>{note.label}</strong>
+                    <span>{note.copy}</span>
+                  </div>
+                ))}
+              </div>
 
               <div className="logoActionStack">
                 <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
@@ -5409,22 +5434,30 @@ textarea{height:170px;resize:none;line-height:1.6}
 .logoResultGrid .premiumResultCard{min-height:150px}
 .logoResultGrid .featuredResultCard{grid-row:span 1}
 .logoShowcase{
-  margin-top:28px;
+  margin-top:34px;
   display:grid;
   grid-template-columns:minmax(420px,1.35fr) minmax(280px,.65fr);
-  gap:20px;
+  gap:24px;
   align-items:stretch;
+  animation:logoReveal .52s cubic-bezier(.2,.7,.2,1) both;
+  transform-origin:center top;
+}
+
+@keyframes logoReveal{
+  0%{opacity:0;transform:translateY(18px) scale(.985)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
 }
 
 .logoFrame{
-  background:#f7f4ed;
+  background:linear-gradient(180deg,#fbfaf7,#f4f1e9);
   border:1px solid rgba(0,0,0,.08);
   border-radius:30px;
   min-height:620px;
-  padding:18px;
+  padding:44px;
   display:flex;
   align-items:center;
   justify-content:center;
+  box-shadow:0 28px 90px rgba(0,0,0,.06);
 }
 
 .logoFrame img{
@@ -5432,18 +5465,25 @@ textarea{height:170px;resize:none;line-height:1.6}
   max-width:720px;
   max-height:720px;
   object-fit:contain;
-  border-radius:22px;
-  box-shadow:0 18px 50px rgba(0,0,0,.08);
+  border-radius:18px;
+  box-shadow:0 22px 70px rgba(0,0,0,.08);
+  animation:logoImageSettle .7s .08s cubic-bezier(.2,.7,.2,1) both;
+}
+
+@keyframes logoImageSettle{
+  0%{opacity:0;transform:scale(.94)}
+  100%{opacity:1;transform:scale(1)}
 }
 
 .brandPreviewCard{
   background:#111;
   color:white;
   border-radius:30px;
-  padding:30px;
+  padding:34px;
   display:flex;
   flex-direction:column;
-  justify-content:center;
+  justify-content:flex-start;
+  box-shadow:0 28px 90px rgba(0,0,0,.12);
 }
 
 .brandPreviewCard .tinyTag{
@@ -5468,7 +5508,8 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .brandPreviewCard h3{
-  font-size:32px;
+  font-size:36px;
+  line-height:1;
   letter-spacing:-.04em;
   margin:0 0 14px;
 }
@@ -5476,6 +5517,45 @@ textarea{height:170px;resize:none;line-height:1.6}
 .brandPreviewCard p{
   color:rgba(255,255,255,.72);
   line-height:1.7;
+}
+
+.creativeDirectorNotes{
+  border-top:1px solid rgba(255,255,255,.12);
+  border-bottom:1px solid rgba(255,255,255,.12);
+  padding:18px 0;
+  margin:22px 0 4px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.creativeDirectorNotes .tinyTag{
+  color:#d9bd77;
+  margin-bottom:2px;
+}
+
+.directorNoteRow{
+  display:grid;
+  grid-template-columns:92px 1fr;
+  gap:14px;
+  align-items:start;
+}
+
+.directorNoteRow strong{
+  font-size:12px;
+  color:white;
+  letter-spacing:.4px;
+}
+
+.directorNoteRow span{
+  color:rgba(255,255,255,.7);
+  line-height:1.55;
+  font-size:14px;
+}
+
+@media(max-width:820px){
+  .directorNoteRow{grid-template-columns:1fr;gap:4px}
+  .logoFrame{padding:24px}
 }
 
 .brandPreviewCard .resultActions button{
@@ -5488,7 +5568,7 @@ textarea{height:170px;resize:none;line-height:1.6}
   flex-direction:column;
   align-items:flex-start;
   gap:10px;
-  margin-top:20px;
+  margin-top:22px;
 }
 
 .logoActionStack button{
@@ -6003,8 +6083,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumLoading{margin-top:20px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;display:flex;gap:14px;align-items:center}
 .premiumLoading span{display:block;color:#666;margin-top:4px;font-size:14px}.loadingPulse{width:18px;height:18px;border-radius:50%;background:#111;animation:pulseBrandthat 1.2s infinite ease-in-out}
 @keyframes pulseBrandthat{0%{transform:scale(.8);opacity:.45}50%{transform:scale(1.25);opacity:1}100%{transform:scale(.8);opacity:.45}}
-.logoShowcase{margin-top:28px;display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.65fr);gap:20px;align-items:stretch}.logoFrame{background:#f7f4ed;border:1px solid rgba(0,0,0,.08);border-radius:30px;min-height:620px;padding:18px;display:flex;align-items:center;justify-content:center}.logoFrame img{width:100%;max-width:720px;max-height:720px;object-fit:contain;border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.08)}
-.brandPreviewCard{background:#111;color:white;border-radius:30px;padding:30px;display:flex;flex-direction:column;justify-content:center}.brandPreviewCard .tinyTag{color:#d9bd77}.brandPreviewCard h3{font-size:32px;letter-spacing:-.04em;margin:0 0 14px}.brandPreviewCard p{color:rgba(255,255,255,.72);line-height:1.7}.brandPreviewCard .resultActions button{background:white;color:#111}
 .premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 
 
