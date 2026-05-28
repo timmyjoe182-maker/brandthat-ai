@@ -7,8 +7,8 @@ function getOpenAiClient() {
   });
 }
 
-function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
-  const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
+  const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
   const primaryConcept = director.concepts?.[0] || {};
   const conceptLines = director.concepts
     .map((concept, index) => `${index + 1}. ${concept.name}: ${concept.symbol}. Typography: ${concept.typography}. Palette: ${concept.palette}. Layout: ${concept.layout}. Why: ${concept.whyFits}`)
@@ -48,6 +48,7 @@ Creative Director interpretation:
 - Design directives: ${director.personalityDirectives?.scoringBias || "balanced professional logo strategy"}
 - Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
 - Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
+- Generation memory: ${director.generationMemory?.summary || "no prior logo memory"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -79,6 +80,7 @@ Design requirements:
 - Vary composition from common logo-generator templates. Use custom placement, purposeful imbalance, and confident whitespace.
 - Keep it current: precision minimalism with personality, type-forward details, simplified icons, monochrome-first palette, restrained accents, and flexible digital use.
 - Avoid dated logo tropes: glossy gradients, busy 3D effects, stock swooshes, generic sans stacking, random AI sparkles, overused badges, and decoration that does not improve recognition.
+- Avoid repeating previous outputs: do not reuse rejected or recently generated styles, icon directions, palettes, typography, or compositions from the generation memory.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
@@ -624,6 +626,80 @@ function buildDesignTrendIntelligence({ subject, personality, styles = [] }) {
   };
 }
 
+function normalizeMemoryList(value) {
+  return Array.isArray(value) ? value.map((item) => String(item || "").toLowerCase().trim()).filter(Boolean).slice(0, 18) : [];
+}
+
+function normalizeGenerationMemory(memory = {}) {
+  return {
+    concepts: normalizeMemoryList(memory.concepts),
+    rejectedStyles: normalizeMemoryList(memory.rejectedStyles),
+    rejectedIconDirections: normalizeMemoryList(memory.rejectedIconDirections),
+    rejectedPalettes: normalizeMemoryList(memory.rejectedPalettes),
+    typographyPreferences: normalizeMemoryList(memory.typographyPreferences),
+    compositions: normalizeMemoryList(memory.compositions),
+    generatedStyles: normalizeMemoryList(memory.generatedStyles),
+    generatedIconDirections: normalizeMemoryList(memory.generatedIconDirections),
+    generatedPalettes: normalizeMemoryList(memory.generatedPalettes),
+    generatedTypography: normalizeMemoryList(memory.generatedTypography),
+    generatedCompositions: normalizeMemoryList(memory.generatedCompositions),
+  };
+}
+
+function buildGenerationMemoryIntelligence(memory = {}) {
+  const normalized = normalizeGenerationMemory(memory);
+  const avoid = [
+    ...normalized.concepts,
+    ...normalized.rejectedStyles,
+    ...normalized.rejectedIconDirections,
+    ...normalized.rejectedPalettes,
+    ...normalized.compositions,
+    ...normalized.generatedStyles,
+    ...normalized.generatedIconDirections,
+    ...normalized.generatedPalettes,
+    ...normalized.generatedCompositions,
+  ].filter(Boolean);
+  const preferences = normalized.typographyPreferences;
+
+  return {
+    ...normalized,
+    avoid,
+    preferences,
+    hasMemory: avoid.length > 0 || preferences.length > 0,
+    summary: avoid.length
+      ? `avoid recent/rejected directions: ${avoid.slice(0, 8).join(", ")}${preferences.length ? `; keep typography preferences: ${preferences.slice(0, 4).join(", ")}` : ""}`
+      : preferences.length
+        ? `honor typography preferences: ${preferences.slice(0, 4).join(", ")}`
+        : "no prior logo memory",
+  };
+}
+
+function conceptMatchesMemory(concept, memoryIntelligence) {
+  if (!memoryIntelligence?.hasMemory) return false;
+  const text = `${concept.name} ${concept.style} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
+  return memoryIntelligence.avoid.some((item) => item.length > 3 && text.includes(item));
+}
+
+function updateGenerationMemory(memory = {}, { concepts = [], typographySystem = {}, palette = "", humanDesign = {}, trend = {} }) {
+  const normalized = normalizeGenerationMemory(memory);
+  const addUnique = (list, values, limit = 18) => {
+    const next = [...values.map((value) => String(value || "").toLowerCase().trim()).filter(Boolean), ...list];
+    return [...new Set(next)].slice(0, limit);
+  };
+
+  return {
+    ...normalized,
+    concepts: addUnique(normalized.concepts, concepts.map((concept) => concept.name), 20),
+    generatedStyles: addUnique(normalized.generatedStyles, concepts.map((concept) => concept.style), 16),
+    generatedIconDirections: addUnique(normalized.generatedIconDirections, concepts.map((concept) => concept.symbol).concat(trend?.iconTrend || []), 20),
+    generatedPalettes: addUnique(normalized.generatedPalettes, concepts.map((concept) => concept.palette).concat(palette || []), 16),
+    generatedTypography: addUnique(normalized.generatedTypography, concepts.map((concept) => concept.typography).concat(typographySystem.label || []), 16),
+    generatedCompositions: addUnique(normalized.generatedCompositions, concepts.map((concept) => concept.layout).concat(humanDesign?.composition || []), 16),
+    summary: `remembered ${concepts.length} concepts; next retry should diversify style, icon, palette, typography, and composition`,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function getHumanComposition({ hash, variant, layout, subject, humanDesign = {}, personalityDirectives = {} }) {
   const seed = Math.abs(hash + variant * 97);
   const sign = seed % 2 === 0 ? 1 : -1;
@@ -903,10 +979,11 @@ function selectIconSystem({ subject, styles, logoSymbol = "", personality = null
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
 }
 
-function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend }) {
+function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend, memoryIntelligence }) {
   const directives = personality?.directives || {};
   const personalitySummary = personality?.summary || "balanced professional personality";
   const trendSummary = trend?.summary || "contemporary scalable logo system";
+  const memoryInstruction = memoryIntelligence?.hasMemory ? ` Memory diversification: ${memoryIntelligence.summary}.` : "";
   const base = getConceptLibrary(subject, profile).map(([name, symbol, type, basePalette, layout, whyFits]) => ({
     name,
     style: styles[0]?.key || "professional",
@@ -916,7 +993,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette || basePalette,
     layout: `${layout}; ${directives.layoutBias || "balanced"} layout with ${directives.spacing || "balanced"} spacing`,
-    whyFits: `${whyFits} Personality fit: ${personalitySummary}. Trend fit: ${trendSummary}.`,
+    whyFits: `${whyFits} Personality fit: ${personalitySummary}. Trend fit: ${trendSummary}.${memoryInstruction}`,
     source: "library",
   }));
 
@@ -930,7 +1007,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typographySystem: typography,
       palette: logoColors || style.palette,
       layout: `large ownable icon above a highly readable wordmark; ${directives.layoutBias || "balanced"} composition`,
-      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon. Personality fit: ${personalitySummary}. Trend fit: ${trend?.minimalismTrend || "current minimalism with brand personality"}.`,
+      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon. Personality fit: ${personalitySummary}. Trend fit: ${trend?.minimalismTrend || "current minimalism with brand personality"}.${memoryInstruction}`,
       source: "style",
     },
     {
@@ -942,7 +1019,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typographySystem: typography,
       palette: logoColors || style.palette,
       layout: `wordmark-led logo with small supporting icon; ${directives.spacing || "balanced"} spacing`,
-      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood. Personality fit: ${personalitySummary}. Trend fit: ${trend?.typographyTrend || "type-forward modern identity"}.`,
+      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood. Personality fit: ${personalitySummary}. Trend fit: ${trend?.typographyTrend || "type-forward modern identity"}.${memoryInstruction}`,
       source: "style",
     },
   ]));
@@ -956,7 +1033,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette,
     layout: `${layout}; ${directives.layoutBias || "balanced"} personality bias`,
-    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo. It is tuned for ${personalitySummary} and ${trend?.spacingTrend || "current spacing standards"}.`,
+    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo. It is tuned for ${personalitySummary} and ${trend?.spacingTrend || "current spacing standards"}.${memoryInstruction}`,
     source: "layout",
   }));
 
@@ -969,7 +1046,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette,
     layout: index % 2 === 0 ? `large icon with compact wordmark; ${directives.spacing || "balanced"} spacing` : `wordmark-led mark with embedded category cue; ${directives.layoutBias || "balanced"} layout`,
-    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark. The icon logic follows ${directives.iconStyle || "a clean brand mark"} and ${trend?.iconTrend || "simplified contemporary symbols"}.`,
+    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark. The icon logic follows ${directives.iconStyle || "a clean brand mark"} and ${trend?.iconTrend || "simplified contemporary symbols"}.${memoryInstruction}`,
     source: "icon",
   }));
 
@@ -982,14 +1059,14 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette,
     layout: index % 2 === 0 ? "centered mark over readable wordmark" : "wide professional lockup",
-    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary} and avoiding ${trend?.penalties?.[0] || "generic template styling"}.`,
+    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary} and avoiding ${trend?.penalties?.[0] || "generic template styling"}.${memoryInstruction}`,
     source: "positioning",
   }));
 
   return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts].slice(0, 28);
 }
 
-function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null, trend = null }) {
+function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null, trend = null, memoryIntelligence = null }) {
   const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
   const aliases = {
     realestate: ["real estate", "property", "home", "house", "brokerage", "realtor"],
@@ -1048,6 +1125,13 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
       if (firstTerm && text.includes(firstTerm)) score -= 8;
     });
   }
+  if (memoryIntelligence?.hasMemory) {
+    if (conceptMatchesMemory(concept, memoryIntelligence)) score -= 22;
+    memoryIntelligence.preferences.forEach((preference) => {
+      if (preference.length > 3 && text.includes(preference)) score += 6;
+    });
+    if (/(different|alternative|diversify|new composition|different composition|new icon)/.test(text)) score += 6;
+  }
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {
       if (word.length > 3 && text.includes(word)) score += SCORING_WEIGHTS.avoidWordPenalty;
@@ -1068,7 +1152,7 @@ function getConceptSymbolKey(concept) {
     .join(" ");
 }
 
-function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
+function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
   const inferredName = inferBrandName({ brandName, userPrompt, logoPrompt });
   const wordsResult = getLogoWords({ brandName: inferredName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
   const subject = getSubject(wordsResult.words);
@@ -1077,14 +1161,15 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const personality = inferBrandPersonality({ subject, brandName: inferredName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
   const humanDesign = buildHumanDesignRealism({ subject, personality, styles });
   const trend = buildDesignTrendIntelligence({ subject, personality, styles });
+  const memoryIntelligence = buildGenerationMemoryIntelligence(generationMemory);
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
   const typography = selectTypography({ subject, styles, personality, trend });
   const palette = selectPalette({ subject, styles, logoColors, personality, trend });
   const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality, trend });
   const audience = selectAudience({ subject, positioning });
-  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend });
+  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend, memoryIntelligence });
   const scored = pool
-    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality, trend }) }))
+    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality, trend, memoryIntelligence }) }))
     .sort((a, b) => b.score - a.score);
 
   const diversified = [];
@@ -1118,6 +1203,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     personalityDirectives: personality.directives,
     humanDesign,
     trendIntelligence: trend,
+    generationMemory: memoryIntelligence,
     positioning,
     typography: typography.label,
     typographySystem: typography,
@@ -1135,6 +1221,11 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
       },
       humanDesignRealism: humanDesign,
       designTrendIntelligence: trend,
+      generationMemory: {
+        summary: memoryIntelligence.summary,
+        avoided: memoryIntelligence.avoid.slice(0, 12),
+        typographyPreferences: memoryIntelligence.preferences.slice(0, 8),
+      },
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
       typographySelection: typography.label,
@@ -1372,8 +1463,8 @@ function getConceptLibrary(subject, profile) {
   return libraries[subject] || fallback;
 }
 
-function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
-  const pipeline = runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
+  const pipeline = runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
   const styleText = pipeline.styles.map((style) => style.key).join(", ") || "professional";
 
   return {
@@ -1384,6 +1475,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     personalityDirectives: pipeline.personalityDirectives,
     humanDesign: pipeline.humanDesign,
     trendIntelligence: pipeline.trendIntelligence,
+    generationMemory: pipeline.generationMemory,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
@@ -2249,9 +2341,9 @@ function getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typo
   };
 }
 
-function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant = 0, transparent = false, director = null }) {
+function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant = 0, transparent = false, director = null }) {
   const { displayName, initials, words } = getLogoWords({ brandName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-  const creativeDirector = director || buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+  const creativeDirector = director || buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
   const concept = creativeDirector.concepts?.[variant % creativeDirector.concepts.length] || {};
   const hash = hashString(`${brandName} ${logoIndustry} ${logoStyle} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt} ${variant}`);
   const profile = getStyleProfile({ logoStyle: `${logoStyle} ${concept.style || ""}`, logoIndustry, userPrompt });
@@ -2353,16 +2445,16 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   </svg>`;
 }
 
-function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt }) {
-  const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, director: creativeBrief });
-  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant: 0, transparent: true, director: creativeBrief });
+function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory }) {
+  const creativeBrief = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+  const baseSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant: 0, director: creativeBrief });
+  const transparentSvg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant: 0, transparent: true, director: creativeBrief });
   const subject = creativeBrief.category;
   const variantIds = [0, 1, 2, 3];
   const variationNames = ["Primary", "Editorial", "Bold", "Monogram", "Icon System", "Premium Lockup"];
   const variations = variantIds.map((variant) => {
     const concept = creativeBrief.concepts[variant % creativeBrief.concepts.length] || {};
-    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, variant, director: creativeBrief });
+    const svg = buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, variant, director: creativeBrief });
     return {
       id: `variation-${variant + 1}`,
       name: concept.name || variationNames[variant] || `Variation ${variant + 1}`,
@@ -2378,11 +2470,20 @@ function buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, log
     };
   });
 
+  const updatedMemory = updateGenerationMemory(generationMemory, {
+    concepts: creativeBrief.concepts,
+    typographySystem: creativeBrief.typographySystem,
+    palette: creativeBrief.concepts?.[0]?.palette,
+    humanDesign: creativeBrief.humanDesign,
+    trend: creativeBrief.trendIntelligence,
+  });
+
   return {
     image: svgToDataUrl(baseSvg),
     svg: svgToDataUrl(baseSvg),
     transparentSvg: svgToDataUrl(transparentSvg),
     creativeBrief,
+    generationMemory: updatedMemory,
     variations,
     layers: [
       { id: "background", name: "Background" },
@@ -2423,7 +2524,7 @@ exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
 
   try {
-    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt } = JSON.parse(event.body || "{}");
+    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
       return {
@@ -2432,8 +2533,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
+    const finalPrompt = buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
+    const vectorLogo = buildFallbackLogo({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory });
     const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -2455,6 +2556,7 @@ exports.handler = async (event, context) => {
             ...vectorLogo.variations,
           ],
           creativeBrief: vectorLogo.creativeBrief,
+          generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
         }),
       };
@@ -2471,6 +2573,7 @@ exports.handler = async (event, context) => {
           transparentSvg: vectorLogo.transparentSvg,
           variations: vectorLogo.variations,
           creativeBrief: vectorLogo.creativeBrief,
+          generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
           note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
         }),

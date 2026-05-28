@@ -671,6 +671,7 @@ export default function App() {
   const [logoTransparentSvg, setLogoTransparentSvg] = useState("");
   const [logoVariations, setLogoVariations] = useState([]);
   const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);
+  const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
     paper: "#f7f4ed",
@@ -970,10 +971,40 @@ export default function App() {
   }, [recentLogoResults]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem("brandthat_logo_generation_memory", JSON.stringify(logoGenerationMemory || {}));
+    } catch {
+      localStorage.removeItem("brandthat_logo_generation_memory");
+    }
+  }, [logoGenerationMemory]);
+
+  useEffect(() => {
     if (page === "home" && activeToolKey !== "logo") {
       setActiveToolKey("logo");
     }
   }, [page, activeToolKey]);
+
+  const rememberRejectedLogoDirection = (direction = {}, reason = "retry") => {
+    setLogoGenerationMemory((prev = {}) => {
+      const addUnique = (list = [], values = [], limit = 18) => {
+        const next = [
+          ...values.map((value) => String(value || "").toLowerCase().trim()).filter(Boolean),
+          ...(Array.isArray(list) ? list : []),
+        ];
+        return [...new Set(next)].slice(0, limit);
+      };
+
+      return {
+        ...prev,
+        rejectedStyles: addUnique(prev.rejectedStyles, [direction.logoStyle, direction.style], 16),
+        rejectedIconDirections: addUnique(prev.rejectedIconDirections, [direction.symbol, direction.name], 18),
+        rejectedPalettes: addUnique(prev.rejectedPalettes, [direction.palette], 16),
+        compositions: addUnique(prev.compositions, [direction.layout], 16),
+        lastRejectedReason: reason,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
 
   useEffect(() => {
     const draftHasContent = Object.values(workspaceDraft || {}).some((value) => String(value || "").trim());
@@ -2015,6 +2046,7 @@ Requirements:
         logoColors: colorsValue,
         logoAvoid: avoidValue,
         userPrompt: promptValue,
+        generationMemory: overrides.generationMemory || logoGenerationMemory || {},
         logoPrompt: enhancedLogoPrompt
       })
     });
@@ -2038,6 +2070,7 @@ Requirements:
       transparentSvg: data.transparentSvg || data.svg || "",
       variations: Array.isArray(data.variations) ? data.variations : [],
       creativeBrief: data.creativeBrief || null,
+      generationMemory: data.generationMemory || null,
       layers: Array.isArray(data.layers) ? data.layers : [],
     };
   };
@@ -2104,6 +2137,7 @@ Requirements:
           transparentSvg: logoResult.transparentSvg || "",
           variations: logoResult.variations || [],
           creativeBrief: logoResult.creativeBrief || null,
+          generationMemory: logoResult.generationMemory || null,
           prompt: promptValue,
           brandName: brandNameValue,
           style: styleValue,
@@ -2121,6 +2155,7 @@ Requirements:
         setLogoTransparentSvg(logoResult.transparentSvg || logoResult.svg || "");
         setLogoVariations(logoResult.variations || []);
         setLogoCreativeBrief(logoResult.creativeBrief || null);
+        if (logoResult.generationMemory) setLogoGenerationMemory(logoResult.generationMemory);
         setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
           `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${brandNameValue || "Not provided"}\nIndustry: ${industryValue || "Not provided"}\nStyle: ${styleValue || "Not provided"}\nSymbol or mascot: ${symbolValue || "Not provided"}\nColors: ${colorsValue || "Not provided"}\nAvoid: ${avoidValue || "Not provided"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
@@ -2334,6 +2369,7 @@ ${promptValue}`
               clearGenerator={clearGenerator}
               saveCurrentOutput={saveCurrentOutput}
               setLogoAsBrandProfile={setLogoAsBrandProfile}
+              rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               toggleFavorite={toggleFavorite}
               remixOutput={remixOutput}
             />
@@ -2447,6 +2483,7 @@ ${promptValue}`
           clearGenerator={clearGenerator}
               saveCurrentOutput={saveCurrentOutput}
               setLogoAsBrandProfile={setLogoAsBrandProfile}
+              rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               openSeoPage={openSeoPage}
         />
       )}
@@ -2547,6 +2584,7 @@ ${promptValue}`
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
+            rememberRejectedLogoDirection={rememberRejectedLogoDirection}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
           />
@@ -3019,6 +3057,7 @@ function SEOPage({
   clearGenerator,
   saveCurrentOutput,
   setLogoAsBrandProfile,
+  rememberRejectedLogoDirection,
   toggleFavorite,
   remixOutput,
   openSeoPage
@@ -3072,6 +3111,7 @@ function SEOPage({
           clearGenerator={clearGenerator}
           saveCurrentOutput={saveCurrentOutput}
           setLogoAsBrandProfile={setLogoAsBrandProfile}
+          rememberRejectedLogoDirection={rememberRejectedLogoDirection}
           toggleFavorite={toggleFavorite}
           remixOutput={remixOutput}
         />
@@ -3600,7 +3640,10 @@ function GeneratorCard({
                 {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
                 <button onClick={saveCurrentOutput}>Save to Workspace</button>
                 <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
-                <button onClick={generate}>Generate Another Version</button>
+                <button onClick={() => {
+                  rememberRejectedLogoDirection?.(logoCreativeBrief?.concepts?.[0] || logoVariations?.[0] || {}, "generate another version");
+                  generate();
+                }}>Generate Another Version</button>
               </div>
             </div>
           </div>
@@ -3616,6 +3659,7 @@ function GeneratorCard({
               setLogoIndustry={setLogoIndustry}
               setLogoSymbol={setLogoSymbol}
               setLogoColors={setLogoColors}
+              rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               generate={generate}
             />
           )}
@@ -3719,6 +3763,7 @@ function LogoCreativeDirectorPanel({
   setLogoIndustry,
   setLogoSymbol,
   setLogoColors,
+  rememberRejectedLogoDirection,
   generate,
 }) {
   const directions = logoVariations
@@ -3728,6 +3773,7 @@ function LogoCreativeDirectorPanel({
   if (!creativeBrief && directions.length === 0) return null;
 
   const regenerateWithInstruction = (instruction, direction = null) => {
+    rememberRejectedLogoDirection?.(direction || creativeBrief?.concepts?.[0] || {}, instruction);
     const directionText = direction
       ? `Use this selected direction: ${direction.name}. Symbol/icon: ${direction.symbol}. Typography: ${direction.typography}. Palette: ${direction.palette}. Layout: ${direction.layout}. Why it fits: ${direction.whyFits}.`
       : "";
@@ -3797,6 +3843,7 @@ function LogoCreativeDirectorPanel({
               <p><strong>Colors:</strong> {direction.palette || "Professional contrast palette"}</p>
               <p>{direction.whyFits || "This option is designed around the meaning of the user request."}</p>
               <button onClick={() => regenerateWithInstruction("Regenerate using this selected logo direction.", direction)}>Regenerate this direction</button>
+              <button onClick={() => rememberRejectedLogoDirection?.(direction, "manual reject")}>Do not repeat</button>
             </div>
           ))}
         </div>
