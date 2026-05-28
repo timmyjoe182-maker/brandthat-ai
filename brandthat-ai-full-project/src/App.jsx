@@ -2313,16 +2313,18 @@ ${promptValue}`
         <>
           <main className="hero logoHero">
             <div className="heroTop">
-              <div className="eyebrow">AI LOGO GENERATOR + FREE BRAND TOOLS</div>
+              <div className="eyebrow">AI LOGO GENERATOR + BRAND IDENTITY SYSTEM</div>
               <h1 className="heroTitle">
-                <span>Create the logo.</span>
+                <span>Create a logo people trust.</span>
                 <span>Build the brand.</span>
               </h1>
-              <p className="lead">Start with a clean AI logo, then create the captions, hashtags, and growth plan that help the brand show up everywhere.</p>
+              <p className="lead">Generate a usable logo, Creative Director notes, SVG exports, transparent files, captions, hashtags, and a saved Brand Workspace from one idea.</p>
+
+              <HeroProofPanel />
               
               <div className="heroCtas">
-                <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Try AI Logo Generator</button>
-                <button className="btn light" onClick={() => selectTool("captions")}>Free Caption Generator</button>
+                <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Generate Your Free Logo</button>
+                <button className="btn light" onClick={() => selectTool("captions")}>Try Free Captions</button>
                 <button className="btn light" onClick={() => selectTool("hashtags")}>Free Hashtag Generator</button>
               </div>
             </div>
@@ -2375,10 +2377,13 @@ ${promptValue}`
             />
           </main>
 
+          <ConversionTrustBar />
+
           <section className="freeToolsSection">
             <div>
               <div className="tinyTag">FREE TOOLS</div>
-              <h2>Use the free tools first. Save the full brand when it starts working.</h2>
+              <h2>Start free. Upgrade when the brand is worth saving.</h2>
+              <p className="sectionLead">Captions, hashtags, hooks, bios, strategy, campaigns, and growth plans stay free. Paid plans unlock logo generation volume, saved workspaces, and exportable brand systems.</p>
             </div>
             <div className="freeToolCards">
               <button onClick={() => selectTool("captions")}>
@@ -2395,6 +2400,9 @@ ${promptValue}`
               </button>
             </div>
           </section>
+
+          <BeforeAfterSection />
+          <CreativeDirectorExplainer />
 
           <HomepageSEOContent openSeoPage={openSeoPage} />
         </>
@@ -2505,6 +2513,7 @@ ${promptValue}`
           <div className="pricingGrid threePlans"><PriceCard
               name="FREE"
               price="$0"
+              bestFor="Best for testing captions, hashtags, and simple brand ideas"
               desc="Use the free text tools without building a workspace."
               features={["Free caption generator", "Free hashtag generator", "Free hooks and bios", "Free email and strategy tools", "Free campaign and growth roadmap tools", "Logo generation not included"]}
               onClick={() => setPage("features")}
@@ -2512,6 +2521,8 @@ ${promptValue}`
             <PriceCard
               name="STARTER"
               price="$10"
+              badge="Most practical"
+              bestFor="Best for creators and local businesses building one real brand"
               desc="For creators who want saved brands and monthly logo generation."
               features={["10 AI logo generations per month", "Saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Set generated logo as brand profile", "All text tools remain free"]}
               onClick={() => startCheckout("starter")}
@@ -2520,6 +2531,8 @@ ${promptValue}`
               name="PRO"
               price="$20"
               featured
+              badge="Best value"
+              bestFor="Best for agencies, repeat launches, and unlimited logo creation"
               desc="For power users who want unlimited logos and the full workspace."
               features={["Unlimited AI logo generations", "Unlimited saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Priority logo generation", "All text tools remain free"]}
               onClick={() => startCheckout("pro")}
@@ -3442,6 +3455,109 @@ function ToolGrid({ activeToolKey, selectTool }) {
   );
 }
 
+function HeroProofPanel() {
+  const samples = [
+    { mark: "ai", name: "Brandthat.ai", note: "AI brand system" },
+    { mark: "trade", name: "Capital Plastering", note: "Local service mark" },
+    { mark: "ranch", name: "Beilinson Ranch", note: "Luxury ranch identity" },
+  ];
+
+  return (
+    <div className="heroProofPanel" aria-label="Example Brandthat logo outputs">
+      <div className="proofMiniGrid">
+        {samples.map((sample) => (
+          <div className="miniLogoOutput" key={sample.name}>
+            <div className={`miniMark ${sample.mark}`}>{sample.name.slice(0, 1)}</div>
+            <div>
+              <strong>{sample.name}</strong>
+              <span>{sample.note}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="proofMetricRow">
+        <div><strong>SVG</strong><span>Vector export</span></div>
+        <div><strong>PNG</strong><span>Transparent file</span></div>
+        <div><strong>CD</strong><span>Creative Director notes</span></div>
+      </div>
+    </div>
+  );
+}
+
+function ConversionTrustBar() {
+  const items = [
+    ["Creators", "Fast social-ready brand starts"],
+    ["Local businesses", "Logos, captions, and growth plans"],
+    ["Agencies", "Reusable client workspace exports"],
+    ["Launch teams", "From rough idea to full brand kit"],
+  ];
+
+  return (
+    <section className="trustBar" aria-label="Who Brandthat is built for">
+      {items.map(([title, copy]) => (
+        <div className="trustPill" key={title}>
+          <strong>{title}</strong>
+          <span>{copy}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function BeforeAfterSection() {
+  return (
+    <section className="beforeAfterSection">
+      <div>
+        <div className="tinyTag">BEFORE / AFTER</div>
+        <h2>Turn a rough idea into a brand direction.</h2>
+      </div>
+      <div className="beforeAfterGrid">
+        <div className="beforeCard">
+          <span>Before</span>
+          <p>"I need a premium logo for a private ranch with alpacas and horses."</p>
+        </div>
+        <div className="afterCard">
+          <span>After</span>
+          <div className="afterPreviewGrid">
+            <div className="afterMark">BR</div>
+            <div>
+              <strong>Luxury ranch crest</strong>
+              <p>Refined serif typography, warm neutral palette, subtle animal symbolism, export-ready logo files, and content ideas for launch.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CreativeDirectorExplainer() {
+  const steps = [
+    ["Reads the idea", "Brandthat detects industry, style, audience, and what the words actually mean."],
+    ["Builds directions", "It explores distinct logo concepts before showing the final direction."],
+    ["Checks quality", "Weak spacing, generic icons, and poor brand fit get pushed down."],
+    ["Saves the system", "Paid users can keep the logo, notes, captions, and exports in one workspace."],
+  ];
+
+  return (
+    <section className="creativeDirectorExplainer">
+      <div>
+        <div className="tinyTag">CREATIVE DIRECTOR</div>
+        <h2>It does more than make an image.</h2>
+        <p className="sectionLead">Brandthat reviews every logo direction like a small brand studio: concept fit, typography, icon logic, color, spacing, and whether it can actually work in public.</p>
+      </div>
+      <div className="directorFlow">
+        {steps.map(([title, copy]) => (
+          <div className="directorStep" key={title}>
+            <strong>{title}</strong>
+            <span>{copy}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function GeneratorCard({
   activeTool,
   prompt,
@@ -3488,6 +3604,32 @@ function GeneratorCard({
   remixOutput
 }) {
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
+  const logoStarterPrompts = [
+    {
+      label: "Luxury ranch",
+      style: "elegant ranch crest, refined serif, warm luxury",
+      brand: "Beilinson Ranch",
+      prompt: "Luxury private ranch with alpacas and horses. Make it refined, calm, high-end, and suitable for signage, social profile, and merchandise."
+    },
+    {
+      label: "AI startup",
+      style: "modern AI startup, abstract symbol, clean tech",
+      brand: "BrandThat.ai",
+      prompt: "AI branding platform that helps creators and businesses generate logos, captions, and brand systems."
+    },
+    {
+      label: "Pizza restaurant",
+      style: "modern restaurant badge, appetizing but not cartoonish",
+      brand: "North Slice",
+      prompt: "Neighborhood pizza restaurant with wood-fired pizza, warm hospitality, and a clean memorable icon that clearly references pizza."
+    },
+    {
+      label: "Wedding studio",
+      style: "high-end editorial, elegant serif, minimal rose detail",
+      brand: "Ekblad Rose",
+      prompt: "High-end wedding photo and video studio. Make it romantic, premium, timeless, and clean enough for luxury clients."
+    }
+  ];
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -3552,6 +3694,22 @@ function GeneratorCard({
                 placeholder="Brand name, initials, tagline, or words"
               />
             </label>
+          </div>
+
+          <div className="logoStarterChips" aria-label="Logo prompt starters">
+            {logoStarterPrompts.map((starter) => (
+              <button
+                key={starter.label}
+                type="button"
+                onClick={() => {
+                  setSelectedPlatform(starter.style);
+                  setCreativeTone(starter.brand);
+                  setPrompt(starter.prompt);
+                }}
+              >
+                {starter.label}
+              </button>
+            ))}
           </div>
 
           <textarea
@@ -4254,12 +4412,16 @@ function getResultHeader(toolKey) {
   return headers[toolKey] || "BRANDTHAT AI OUTPUT";
 }
 
-function PriceCard({ name, price, desc, features, featured, onClick }) {
+function PriceCard({ name, price, desc, features, featured, onClick, bestFor = "", badge = "" }) {
   return (
     <div className={featured ? "priceCard featuredPrice" : "priceCard"}>
-      <span className="priceTag">{name}</span>
+      <div className="priceCardTop">
+        <span className="priceTag">{name}</span>
+        {badge && <span className="priceBadge">{badge}</span>}
+      </div>
       <h2>{price}</h2>
       <div className={featured ? "priceSub white" : "priceSub"}>per month</div>
+      {bestFor && <div className={featured ? "priceBestFor white" : "priceBestFor"}>{bestFor}</div>}
       <p>{desc}</p>
       <div className="priceFeatures">{features.map((feature) => <div key={feature}>✓ {feature}</div>)}</div>
       <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>{name === "FREE" ? "Start Free" : "Subscribe"}</button>
@@ -4281,20 +4443,50 @@ body{margin:0}
 .heroTop{max-width:760px;margin-bottom:50px}
 .eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
 h1{font-size:88px;line-height:.96;letter-spacing:-.045em;margin:0 0 24px;font-kerning:normal;text-rendering:optimizeLegibility}
-.heroTitle{font-size:84px;line-height:.98;letter-spacing:-.045em;max-width:720px}
+.heroTitle{font-size:72px;line-height:.98;letter-spacing:-.045em;max-width:720px}
 .heroTitle span{display:block}
 .pageTitle{max-width:900px}
 .pageLead{font-size:20px;line-height:1.6;color:#666;max-width:760px;margin:0 0 32px}
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .toolCard h3,.featureCard h3{font-size:24px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px}
-.lead{font-size:22px;line-height:1.7;color:#666;max-width:620px}
+.lead{font-size:20px;line-height:1.6;color:#666;max-width:620px}
 .freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
-.heroCtas{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+.heroCtas{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+.heroProofPanel{margin-top:20px;display:grid;gap:12px;max-width:620px}
+.proofMiniGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.miniLogoOutput{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;min-height:142px;display:flex;flex-direction:column;justify-content:space-between}
+.miniLogoOutput strong{display:block;font-size:14px;letter-spacing:-.02em}
+.miniLogoOutput span{display:block;color:#666;font-size:12px;line-height:1.35;margin-top:4px}
+.miniMark{width:52px;height:52px;border-radius:14px;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:-.04em}
+.miniMark.ai{border-radius:50%;background:#111}
+.miniMark.trade{background:#f7f4ed;color:#111;border:2px solid #111}
+.miniMark.ranch{background:#8a6b37;color:white}
+.proofMetricRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.proofMetricRow div{background:#111;color:white;border-radius:14px;padding:12px 14px}
+.proofMetricRow strong{display:block;font-size:16px}
+.proofMetricRow span{display:block;color:rgba(255,255,255,.7);font-size:12px;margin-top:3px}
+.trustBar{max-width:1280px;margin:0 auto;padding:0 6vw 34px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.trustPill{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px}
+.trustPill strong{display:block;font-size:15px;margin-bottom:6px}
+.trustPill span{display:block;color:#666;line-height:1.45;font-size:13px}
 .freeToolsSection{max-width:1280px;margin:0 auto;padding:18px 6vw 54px;display:grid;grid-template-columns:.9fr 1.1fr;gap:24px;align-items:start}
+.sectionLead{font-size:17px;line-height:1.7;color:#666;max-width:700px;margin:16px 0 0}
 .freeToolCards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .freeToolCards button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;text-align:left;color:#111;cursor:pointer;font-family:inherit}
 .freeToolCards strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
 .freeToolCards span{display:block;color:#666;line-height:1.55;font-size:14px}
+.beforeAfterSection,.creativeDirectorExplainer{max-width:1280px;margin:0 auto;padding:42px 6vw;display:grid;grid-template-columns:.75fr 1.25fr;gap:24px;align-items:start}
+.beforeAfterGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.beforeCard,.afterCard,.directorStep{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:22px}
+.beforeCard span,.afterCard span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;margin-bottom:14px}
+.beforeCard p{font-size:24px;line-height:1.35;letter-spacing:-.03em;margin:0;color:#111}
+.afterPreviewGrid{display:grid;grid-template-columns:86px 1fr;gap:18px;align-items:center}
+.afterMark{width:86px;height:86px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;letter-spacing:-.05em;font-size:28px}
+.afterPreviewGrid strong{display:block;font-size:23px;letter-spacing:-.04em;margin-bottom:8px}
+.afterPreviewGrid p{margin:0;color:#666;line-height:1.55}
+.directorFlow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.directorStep strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
+.directorStep span{display:block;color:#666;line-height:1.55;font-size:14px}
 .generateCard,.workspaceCard,.signupBox{background:white;border-radius:18px;padding:28px;border:1px solid rgba(0,0,0,.08);box-shadow:none}
 .workspaceCard p{font-size:16px;line-height:1.7;color:#666}
 .workspaceGrid,.workspaceLayout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
@@ -4363,6 +4555,9 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagsGenerator .generatorControls{grid-template-columns:1fr}
 .generatorControls.singleControl{grid-template-columns:1fr}
 .generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
+.logoStarterChips{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.logoStarterChips button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:10px 13px;font-size:13px;font-weight:850;color:#111;cursor:pointer}
+.logoStarterChips button:hover{background:#111;color:white}
 .logoStudioFields{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
 .logoStudioFields label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
 .logoStudioFields input,.logoStudioFields textarea{margin-top:10px}
@@ -4396,9 +4591,14 @@ textarea{height:170px;resize:none;line-height:1.6}
 .toolCard span{position:relative;z-index:2;display:inline-flex;margin-top:16px;font-size:12px;font-weight:900;letter-spacing:.8px;color:#8a6b37;text-transform:uppercase}
 .toolGlow{position:absolute;top:-80px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,#f0dfb5,transparent 70%);opacity:.8}
 .toolCard p,.featureCard p,.priceCard p{color:#666;line-height:1.7;position:relative;z-index:2}
+.priceCardTop{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
 .priceTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f}
-.priceSub{margin-top:-8px;margin-bottom:28px;font-size:15px;color:#777}
+.priceBadge{display:inline-flex;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#111;background:#fafafa}
+.featuredPrice .priceBadge{background:white;color:#111;border-color:white}
+.priceSub{margin-top:-8px;margin-bottom:14px;font-size:15px;color:#777}
 .priceSub.white{color:rgba(255,255,255,.7)}
+.priceBestFor{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:12px;color:#555;line-height:1.45;font-size:14px;font-weight:750;margin-bottom:18px}
+.priceBestFor.white{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.78)}
 .priceFeatures{display:flex;flex-direction:column;gap:14px;margin-top:30px}
 .priceFeatures div{padding-bottom:14px;border-bottom:1px solid rgba(0,0,0,.06);line-height:1.6;font-size:15px}
 .featuredPrice{background:#111;color:white}
@@ -5080,6 +5280,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop{flex-direction:column;align-items:flex-start}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
