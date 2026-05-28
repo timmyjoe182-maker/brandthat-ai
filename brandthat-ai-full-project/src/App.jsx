@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient.js";
 
 const PLAN_COPY = {
@@ -456,6 +456,128 @@ function getInitialsFromBrandName(name = "") {
 
   if (!words.length) return "BT";
   return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+}
+
+const LOGO_INDUSTRY_KEYWORDS = [
+  ["skincare", ["skincare", "skin care", "beauty", "spa", "esthetician", "wellness"]],
+  ["AI startup", ["ai", "artificial intelligence", "startup", "saas", "software", "app", "platform", "tech"]],
+  ["real estate", ["real estate", "realtor", "broker", "property", "homes", "estate group"]],
+  ["fitness", ["gym", "fitness", "coach", "coaching", "training", "strength", "athletic"]],
+  ["kids party", ["kids", "children", "party", "confetti", "birthday", "play"]],
+  ["restaurant", ["restaurant", "pizza", "cafe", "coffee", "bar", "bakery", "food", "diner"]],
+  ["law firm", ["law", "legal", "attorney", "firm", "counsel"]],
+  ["construction", ["construction", "plastering", "stucco", "contractor", "builder", "roofing"]],
+  ["ranch", ["ranch", "horse", "alpaca", "farm", "western", "equestrian"]],
+  ["photography", ["photo", "photography", "wedding", "video", "film", "studio"]],
+  ["finance", ["finance", "wealth", "capital", "fund", "accounting", "tax"]],
+  ["automotive", ["auto", "car", "garage", "detailing", "mechanic", "motors"]],
+];
+
+const LOGO_STYLE_KEYWORDS = [
+  ["luxury", ["luxury", "premium", "high-end", "elegant", "refined", "exclusive"]],
+  ["clean modern", ["clean", "modern", "minimal", "simple", "sleek"]],
+  ["bold", ["bold", "strong", "powerful", "aggressive", "heavy"]],
+  ["playful", ["playful", "fun", "colorful", "kids", "bright", "friendly"]],
+  ["vintage", ["vintage", "retro", "classic", "heritage", "old school"]],
+  ["corporate", ["corporate", "professional", "trusted", "enterprise"]],
+  ["futuristic", ["futuristic", "cyber", "tech", "ai", "digital"]],
+  ["monogram", ["monogram", "initial", "lettermark", "initials"]],
+  ["wordmark", ["wordmark", "typography", "text only", "type only"]],
+];
+
+const LOGO_COLOR_KEYWORDS = [
+  "black", "white", "cream", "gold", "blue", "navy", "green", "red", "pink", "purple",
+  "orange", "yellow", "silver", "gray", "grey", "brown", "tan", "beige", "teal"
+];
+
+const LOGO_SYMBOL_KEYWORDS = [
+  "a symbol", "symbol", "icon", "mascot", "monogram", "lettermark", "badge", "emblem",
+  "shield", "crown", "leaf", "rose", "horse", "alpaca", "pizza", "fork", "house",
+  "key", "mountain", "bolt", "spark", "dumbbell", "barbell", "confetti", "balloon"
+];
+
+function findKeywordMatch(text, pairs, fallback = "") {
+  const normalized = String(text || "").toLowerCase();
+  const match = pairs.find(([, keywords]) => keywords.some((keyword) => normalized.includes(keyword)));
+  return match?.[0] || fallback;
+}
+
+function extractBrandNameFromPrompt(text = "") {
+  const promptText = String(text || "").replace(/\s+/g, " ").trim();
+  const patterns = [
+    /\bcalled\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
+    /\bnamed\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
+    /\bfor\s+(?:a|an|the)?\s*brand\s+(?:called|named)?\s*([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|for|that|in|as|featuring)\b|[,.:;!?]|$)/i,
+    /\bfor\s+([A-Z0-9][A-Za-z0-9&.' -]{1,60})(?=\s+(?:with|using|featuring)\b|[,.:;!?]|$)/i,
+  ];
+
+  const match = patterns.map((pattern) => promptText.match(pattern)).find(Boolean);
+  return match
+    ? match[1]
+        .replace(/\s+(with|using|featuring|that|for|in|as)\b.*$/i, "")
+        .replace(/\s+(logo|brand)$/i, "")
+        .trim()
+    : "";
+}
+
+function extractColorsFromPrompt(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  const colors = LOGO_COLOR_KEYWORDS.filter((color) => normalized.includes(color));
+  return [...new Set(colors)].join(", ");
+}
+
+function extractSymbolFromPrompt(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  const directSymbol = LOGO_SYMBOL_KEYWORDS.find((keyword) => normalized.includes(keyword));
+  if (directSymbol) return directSymbol;
+  if (normalized.includes("skincare")) return "elegant botanical or letter symbol";
+  if (normalized.includes("real estate")) return "architectural symbol or refined monogram";
+  if (normalized.includes("fitness") || normalized.includes("gym")) return "strong monogram or athletic mark";
+  if (normalized.includes("party") || normalized.includes("kids")) return "playful confetti-inspired symbol";
+  if (normalized.includes("ai") || normalized.includes("startup")) return "abstract intelligent network mark";
+  return "";
+}
+
+function getTypographyDirection(style = "", industry = "", promptText = "") {
+  const text = `${style} ${industry} ${promptText}`.toLowerCase();
+  if (text.includes("luxury") || text.includes("skincare") || text.includes("real estate")) return "refined serif or elegant high-contrast wordmark with premium spacing";
+  if (text.includes("ai") || text.includes("startup") || text.includes("modern")) return "clean geometric sans-serif with tight, modern hierarchy";
+  if (text.includes("fitness") || text.includes("bold")) return "bold condensed sans-serif with confident weight";
+  if (text.includes("kids") || text.includes("playful")) return "rounded friendly display type with clear readability";
+  return "clean readable wordmark with strong spacing and scalable hierarchy";
+}
+
+function getLayoutPreferenceFromPrompt(text = "") {
+  const normalized = String(text || "").toLowerCase();
+  if (normalized.includes("badge") || normalized.includes("emblem")) return "balanced emblem or badge layout";
+  if (normalized.includes("monogram") || normalized.includes("lettermark")) return "mark-first monogram with supporting wordmark";
+  if (normalized.includes("wordmark") || normalized.includes("text only")) return "typography-first wordmark";
+  return "primary symbol paired with a clean wordmark";
+}
+
+function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", industry = "", symbol = "", colors = "", avoid = "" }) {
+  const promptText = String(prompt || "").trim();
+  const combined = [promptText, brandName, style, industry, symbol, colors, avoid].filter(Boolean).join(" ");
+  const detectedIndustry = industry || findKeywordMatch(combined, LOGO_INDUSTRY_KEYWORDS, "");
+  const detectedStyle = style || findKeywordMatch(combined, LOGO_STYLE_KEYWORDS, detectedIndustry === "skincare" || detectedIndustry === "real estate" ? "luxury" : "");
+  const detectedBrandName = brandName || extractBrandNameFromPrompt(promptText);
+  const detectedColors = colors || extractColorsFromPrompt(combined);
+  const detectedSymbol = symbol || extractSymbolFromPrompt(combined);
+  const typography = getTypographyDirection(detectedStyle, detectedIndustry, combined);
+  const layout = getLayoutPreferenceFromPrompt(combined);
+
+  return {
+    brandName: detectedBrandName,
+    industry: detectedIndustry || "brand inferred from request",
+    style: detectedStyle || "clean modern",
+    colors: detectedColors || "professional palette inferred from brand",
+    symbol: detectedSymbol || "meaning-matched symbol inferred from brand words",
+    mood: [detectedStyle, detectedIndustry].filter(Boolean).join(", ") || "professional, memorable, brandable",
+    typography,
+    layout,
+    avoid: avoid || "generic clipart, misspelled words, clutter, tiny unreadable text",
+    originalPrompt: promptText,
+  };
 }
 
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
@@ -2101,38 +2223,59 @@ Rules:
     const symbolValue = overrides.logoSymbol ?? logoSymbol;
     const colorsValue = overrides.logoColors ?? logoColors;
     const avoidValue = overrides.logoAvoid ?? logoAvoid;
+    const parsedLogo = parseNaturalLogoPrompt({
+      prompt: promptValue,
+      brandName: brandNameValue || activeBrand?.name || "",
+      style: styleValue,
+      industry: industryValue,
+      symbol: symbolValue,
+      colors: colorsValue,
+      avoid: avoidValue,
+    });
 
     const enhancedLogoPrompt = `
 Create a high-quality professional logo.
 
-Brand/request:
-${promptValue}
+Natural user request:
+${parsedLogo.originalPrompt || promptValue}
 
 Brand name / words to include:
-${brandNameValue || activeBrand?.name || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
+${parsedLogo.brandName || "Use the brand name, initials, tagline, or required words from the user's request if provided."}
 
 Industry or niche:
-${industryValue || "Infer the industry or niche from the user's request."}
+${parsedLogo.industry}
 
 Logo style direction:
-${styleValue || "Use the best style for the user's request."}
+${parsedLogo.style}
 
 Symbol, mascot, or icon request:
-${symbolValue || "Infer the best symbol, mascot, lettermark, or icon from the user's request."}
+${parsedLogo.symbol}
 
 Color direction:
-${colorsValue || "Choose a strong professional palette unless the user requested colors."}
+${parsedLogo.colors}
+
+Mood:
+${parsedLogo.mood}
+
+Typography direction:
+${parsedLogo.typography}
+
+Layout preference:
+${parsedLogo.layout}
 
 Avoid:
-${avoidValue || "Avoid anything that conflicts with the user's request."}
+${parsedLogo.avoid}
 
 Brand workspace context:
 ${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
 
 Requirements:
 - Generate a polished logo concept suitable for a real business.
+- Treat the natural user request as the source of truth.
+- Use the extracted brand context above to understand the meaning of the words, not just the literal text.
 - Adapt to any requested style: luxury, minimal, mascot, character, emblem, badge, monogram, wordmark, lettermark, icon, vintage, retro, tech, AI, fashion, ranch, real estate, restaurant, fitness, beauty, ecommerce, startup, creator brand, photography, construction, wellness, hospitality, or local service business.
 - If the user asks for a specific style, industry, animal, object, letter, color palette, era, mood, or reference direction, prioritize that request.
+- If key details are missing, make tasteful brand-strategy assumptions and keep them coherent.
 - Prioritize strong composition, clean typography, scalability, contrast, and memorability.
 - The logo should work as a website logo, favicon, social profile image, business card mark, and brand identity anchor.
 - Avoid clutter, low-quality clipart, muddy details, and messy text.
@@ -2142,13 +2285,14 @@ Requirements:
 `;
 
     const requestPayload = {
-      brandName: brandNameValue || activeBrand?.name || "",
-      logoStyle: styleValue || "",
-      logoIndustry: industryValue,
-      logoSymbol: symbolValue,
-      logoColors: colorsValue,
-      logoAvoid: avoidValue,
+      brandName: parsedLogo.brandName || brandNameValue || activeBrand?.name || "",
+      logoStyle: parsedLogo.style || styleValue || "",
+      logoIndustry: parsedLogo.industry,
+      logoSymbol: parsedLogo.symbol,
+      logoColors: parsedLogo.colors,
+      logoAvoid: parsedLogo.avoid,
       userPrompt: promptValue,
+      parsedLogo,
       generationMemory: overrides.generationMemory || logoGenerationMemory || {},
       logoPrompt: enhancedLogoPrompt
     };
@@ -2203,6 +2347,17 @@ Requirements:
     const symbolValue = logoOverrides.logoSymbol ?? logoSymbol;
     const colorsValue = logoOverrides.logoColors ?? logoColors;
     const avoidValue = logoOverrides.logoAvoid ?? logoAvoid;
+    const parsedLogo = activeTool.key === "logo"
+      ? parseNaturalLogoPrompt({
+          prompt: promptValue,
+          brandName: brandNameValue,
+          style: styleValue,
+          industry: industryValue,
+          symbol: symbolValue,
+          colors: colorsValue,
+          avoid: avoidValue,
+        })
+      : null;
     const hasLogoFields = activeTool.key === "logo" && [brandNameValue, industryValue, styleValue, symbolValue, colorsValue, avoidValue, promptValue].some((value) => String(value || "").trim());
 
     if (!promptValue.trim() && !hasLogoFields) {
@@ -2248,7 +2403,7 @@ Requirements:
     try {
       if (activeTool.key === "logo") {
         const logoResult = await createLogoImage(logoOverrides);
-        const logoTitle = brandNameValue || promptValue.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
+        const logoTitle = parsedLogo?.brandName || brandNameValue || promptValue.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
         const logoEntry = {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
           title: logoTitle,
@@ -2261,14 +2416,20 @@ Requirements:
           creativeBrief: logoResult.creativeBrief || null,
           generationMemory: logoResult.generationMemory || null,
           prompt: promptValue,
-          brandName: brandNameValue,
-          style: styleValue,
-          industry: industryValue,
-          symbol: symbolValue,
-          colors: colorsValue,
-          avoid: avoidValue,
+          brandName: parsedLogo?.brandName || brandNameValue,
+          style: parsedLogo?.style || styleValue,
+          industry: parsedLogo?.industry || industryValue,
+          symbol: parsedLogo?.symbol || symbolValue,
+          colors: parsedLogo?.colors || colorsValue,
+          avoid: parsedLogo?.avoid || avoidValue,
           createdAt: new Date().toISOString(),
         };
+
+        if (parsedLogo?.brandName && (!creativeTone || logoOverrides.creativeTone)) setCreativeTone(parsedLogo.brandName);
+        if (parsedLogo?.style && (!selectedPlatform || logoOverrides.selectedPlatform)) setSelectedPlatform(parsedLogo.style);
+        if (parsedLogo?.industry && (!logoIndustry || logoOverrides.logoIndustry)) setLogoIndustry(parsedLogo.industry);
+        if (parsedLogo?.symbol && (!logoSymbol || logoOverrides.logoSymbol)) setLogoSymbol(parsedLogo.symbol);
+        if (parsedLogo?.colors && (!logoColors || logoOverrides.logoColors)) setLogoColors(parsedLogo.colors);
 
         setLogoImage(logoResult.image);
         setLogoImageSource(logoResult.source || "openai");
@@ -2280,7 +2441,7 @@ Requirements:
         if (logoResult.generationMemory) setLogoGenerationMemory(logoResult.generationMemory);
         setRecentLogoResults((prev) => [logoEntry, ...prev.filter((item) => item.image !== logoEntry.image)].slice(0, 8));
         setResult(
-          `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${brandNameValue || "Not provided"}\nIndustry: ${industryValue || "Not provided"}\nStyle: ${styleValue || "Not provided"}\nSymbol or mascot: ${symbolValue || "Not provided"}\nColors: ${colorsValue || "Not provided"}\nAvoid: ${avoidValue || "Not provided"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, or generate another version.`
+          `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${parsedLogo?.brandName || "Inferred from request"}\nIndustry: ${parsedLogo?.industry || "Inferred from request"}\nStyle: ${parsedLogo?.style || "Inferred from request"}\nSymbol or mascot: ${parsedLogo?.symbol || "Inferred from request"}\nColors: ${parsedLogo?.colors || "Inferred from request"}\nTypography: ${parsedLogo?.typography || "Inferred from request"}\nLayout: ${parsedLogo?.layout || "Inferred from request"}\nAvoid: ${parsedLogo?.avoid || "Generic logo issues"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, refine it, or generate another version.`
         );
         trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: userPlan });
       } else {
@@ -3930,6 +4091,54 @@ function GeneratorCard({
   const editableLogo = applyLogoEditor(logoSvg || logoVectorImage, logoEditor);
   const editableTransparentLogo = applyLogoEditor(logoTransparentSvg || logoSvg || logoVectorImage, logoEditor);
   const editorFileName = creativeTone || "brandthat-logo";
+  const [refinementPrompt, setRefinementPrompt] = useState("");
+  const parsedLogoPreview = useMemo(
+    () => parseNaturalLogoPrompt({
+      prompt,
+      brandName: creativeTone,
+      style: selectedPlatform,
+      industry: logoIndustry,
+      symbol: logoSymbol,
+      colors: logoColors,
+      avoid: logoAvoid,
+    }),
+    [prompt, creativeTone, selectedPlatform, logoIndustry, logoSymbol, logoColors, logoAvoid]
+  );
+
+  const refineLogo = (instruction = refinementPrompt) => {
+    const cleanInstruction = String(instruction || "").trim();
+    if (!cleanInstruction) return;
+
+    const nextPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
+
+Refinement request: ${cleanInstruction}
+Preserve the original brand name, industry, style direction, colors, and symbol context unless this refinement explicitly changes one of them.`.trim();
+
+    setPrompt(nextPrompt);
+    setRefinementPrompt("");
+    const refinedParsedLogo = parseNaturalLogoPrompt({
+      prompt: nextPrompt,
+      brandName: parsedLogoPreview.brandName || creativeTone,
+      style: selectedPlatform,
+      industry: logoIndustry,
+      symbol: logoSymbol,
+      colors: extractColorsFromPrompt(cleanInstruction) || logoColors,
+      avoid: logoAvoid,
+    });
+    generate(null, {
+      prompt: nextPrompt,
+      creativeTone: refinedParsedLogo.brandName || parsedLogoPreview.brandName || creativeTone,
+      selectedPlatform: refinedParsedLogo.style || parsedLogoPreview.style || selectedPlatform,
+      logoIndustry: refinedParsedLogo.industry || parsedLogoPreview.industry || logoIndustry,
+      logoSymbol: refinedParsedLogo.symbol || parsedLogoPreview.symbol || logoSymbol,
+      logoColors: refinedParsedLogo.colors || parsedLogoPreview.colors || logoColors,
+      logoAvoid: refinedParsedLogo.avoid || parsedLogoPreview.avoid || logoAvoid,
+      generationMemory: {
+        ...(logoCreativeBrief || {}),
+        refinement: cleanInstruction,
+      },
+    });
+  };
 
   return (
     <div className={`generateCard toolResultsV2 ${activeTool.key}Generator`}>
@@ -3949,31 +4158,75 @@ function GeneratorCard({
 
       {activeTool.key === "logo" ? (
         <>
-          <div className="generatorControls freeTypeControls">
-            <label>
-              <span>Logo style</span>
-              <input
-                value={selectedPlatform}
-                onChange={(e) => setSelectedPlatform(e.target.value)}
-                placeholder="Style, industry, mascot, colors, or reference direction"
-              />
-            </label>
-            <label>
-              <span>Brand name / keywords</span>
-              <input
-                value={creativeTone}
-                onChange={(e) => setCreativeTone(e.target.value)}
-                placeholder="Brand name, initials, tagline, or words"
-              />
-            </label>
-          </div>
-
           <textarea
-            className="mainPromptBox"
+            className="mainPromptBox logoPromptFirstBox"
             placeholder={getMainPromptPlaceholder(activeTool)}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
+
+          <details className="advancedLogoOptions">
+            <summary>Advanced options</summary>
+            <div className="generatorControls freeTypeControls logoAdvancedGrid">
+              <label>
+                <span>Brand name</span>
+                <input
+                  value={creativeTone}
+                  onChange={(e) => setCreativeTone(e.target.value)}
+                  placeholder={parsedLogoPreview.brandName || "Optional if included above"}
+                />
+              </label>
+              <label>
+                <span>Style</span>
+                <input
+                  value={selectedPlatform}
+                  onChange={(e) => setSelectedPlatform(e.target.value)}
+                  placeholder={parsedLogoPreview.style || "Luxury, modern, bold, playful..."}
+                />
+              </label>
+              <label>
+                <span>Industry</span>
+                <input
+                  value={logoIndustry}
+                  onChange={(e) => setLogoIndustry(e.target.value)}
+                  placeholder={parsedLogoPreview.industry || "Skincare, AI, real estate..."}
+                />
+              </label>
+              <label>
+                <span>Symbol</span>
+                <input
+                  value={logoSymbol}
+                  onChange={(e) => setLogoSymbol(e.target.value)}
+                  placeholder={parsedLogoPreview.symbol || "A symbol, monogram, mascot..."}
+                />
+              </label>
+              <label>
+                <span>Colors</span>
+                <input
+                  value={logoColors}
+                  onChange={(e) => setLogoColors(e.target.value)}
+                  placeholder={parsedLogoPreview.colors || "Black and gold, blue, cream..."}
+                />
+              </label>
+              <label>
+                <span>Avoid</span>
+                <input
+                  value={logoAvoid}
+                  onChange={(e) => setLogoAvoid(e.target.value)}
+                  placeholder="Tiny text, generic icons, cartoon look..."
+                />
+              </label>
+            </div>
+          </details>
+
+          {prompt.trim() && (
+            <div className="logoParsePreview">
+              <span>Brand: {parsedLogoPreview.brandName || "will infer"}</span>
+              <span>Style: {parsedLogoPreview.style}</span>
+              <span>Industry: {parsedLogoPreview.industry}</span>
+              <span>Colors: {parsedLogoPreview.colors}</span>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -4069,6 +4322,27 @@ function GeneratorCard({
               </div>
             </div>
           </div>
+
+          {editableLogo && (
+            <div className="logoRefinePanel">
+              <div>
+                <div className="tinyTag">REFINE RESULT</div>
+                <h3>Tell Brandthat what to change</h3>
+                <p>Type like you would to a designer. The original brand context stays attached.</p>
+              </div>
+              <textarea
+                value={refinementPrompt}
+                onChange={(e) => setRefinementPrompt(e.target.value)}
+                placeholder="Example: make it more luxury, use blue instead, remove the icon, try a monogram, make the font bolder..."
+              />
+              <div className="logoRefineActions">
+                <button onClick={() => refineLogo()} disabled={loading || !refinementPrompt.trim()}>Refine Logo</button>
+                {["Make it more luxury", "Make it simpler", "Use blue instead", "Remove the icon", "Try a monogram", "Make the font bolder"].map((item) => (
+                  <button key={item} onClick={() => refineLogo(item)} disabled={loading}>{item}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {editableLogo && (
             <LogoCreativeDirectorPanel
@@ -4355,7 +4629,7 @@ function LogoEditorPanel({
 
 function getToolSubline(toolKey) {
   const lines = {
-    logo: "Describe the logo you want. Brandthat will turn the request into a logo image, vector file, transparent export, and editable variations.",
+    logo: "Describe the logo naturally. Brandthat extracts the brand name, style, colors, symbol, typography, and layout for you.",
     captions: "Generate polished caption options formatted for social performance.",
     hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
     bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
@@ -4406,7 +4680,7 @@ function getTonePlaceholder(toolKey) {
 
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
-    return "Describe the logo you want. Include the brand name, industry, mascot or symbol, colors, style, and anything it should avoid.";
+    return "Example: Make me a luxury black and gold logo for a skincare brand called Aurelle with an elegant A symbol.";
   }
   if (activeTool.key === "captions") {
     return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
@@ -5176,6 +5450,98 @@ textarea{height:170px;resize:none;line-height:1.6}
   border:1px solid rgba(0,0,0,.08);
   border-radius:24px;
   padding:20px;
+}
+
+.logoPromptFirstBox{
+  min-height:230px;
+}
+
+.advancedLogoOptions{
+  margin-top:14px;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:22px;
+  background:#fafafa;
+  padding:6px;
+}
+
+.advancedLogoOptions summary{
+  cursor:pointer;
+  padding:12px 14px;
+  font-weight:900;
+  color:#111;
+}
+
+.advancedLogoOptions[open] summary{
+  border-bottom:1px solid rgba(0,0,0,.06);
+  margin-bottom:12px;
+}
+
+.logoAdvancedGrid{
+  grid-template-columns:repeat(2,1fr);
+  padding:0 10px 10px;
+}
+
+.logoParsePreview{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:14px;
+}
+
+.logoParsePreview span{
+  background:#f7f4ed;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:9px 11px;
+  color:#555;
+  font-size:12px;
+  font-weight:900;
+}
+
+.logoRefinePanel{
+  margin-top:20px;
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:24px;
+  padding:20px;
+}
+
+.logoRefinePanel h3{
+  margin:0 0 8px;
+  font-size:24px;
+  letter-spacing:-.03em;
+}
+
+.logoRefinePanel p{
+  color:#666;
+  line-height:1.6;
+  margin:0 0 14px;
+}
+
+.logoRefinePanel textarea{
+  min-height:110px;
+}
+
+.logoRefineActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:12px;
+}
+
+.logoRefineActions button{
+  border:1px solid rgba(0,0,0,.08);
+  background:#fafafa;
+  color:#111;
+  border-radius:999px;
+  padding:10px 13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.logoRefineActions button:first-child{
+  background:#111;
+  color:white;
 }
 
 .creativeDirectorTop{
