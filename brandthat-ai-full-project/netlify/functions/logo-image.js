@@ -47,6 +47,7 @@ Creative Director interpretation:
 - Personality matrix: ${Object.entries(director.personalityMatrix || {}).map(([axis, item]) => `${axis} ${item.low}/${item.high}: ${item.score}`).join("; ")}
 - Design directives: ${director.personalityDirectives?.scoringBias || "balanced professional logo strategy"}
 - Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
+- Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -76,6 +77,8 @@ Design requirements:
 - Make the icon feel designed, not clipart: reduce literal objects into one ownable silhouette, use negative space, hidden symbolism, geometric tension, and custom category cues.
 - Prefer one strong brandable idea over multiple decorative objects. No stock-style icon mashups.
 - Vary composition from common logo-generator templates. Use custom placement, purposeful imbalance, and confident whitespace.
+- Keep it current: precision minimalism with personality, type-forward details, simplified icons, monochrome-first palette, restrained accents, and flexible digital use.
+- Avoid dated logo tropes: glossy gradients, busy 3D effects, stock swooshes, generic sans stacking, random AI sparkles, overused badges, and decoration that does not improve recognition.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
 - Make it suitable for a website header, social profile image, favicon, business card, and brand kit.
@@ -157,6 +160,7 @@ function getSubject(words) {
   if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
   if (hasWord(words, ["tattoo", "ink", "flash"])) return "tattoo";
   if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
+  if (hasWord(words, ["fashion", "clothing", "apparel", "boutique", "jewelry", "watch", "shoe", "streetwear", "couture", "runway", "label"]) || (hasWord(words, ["luxury", "premium", "high-end"]) && hasWord(words, ["house", "maison", "atelier"]))) return "fashion";
   if (hasWord(words, ["real", "estate", "realtor", "realty", "brokerage", "home", "house", "property"])) return "realestate";
   if (hasWord(words, ["law", "legal", "attorney", "lawyer", "firm"])) return "law";
   if (hasWord(words, ["beauty", "wellness", "spa", "skincare", "cosmetic", "cosmetics", "aesthetic", "aesthetics", "flower", "flowers", "floral", "florals"])) return "wellness";
@@ -179,7 +183,6 @@ function getSubject(words) {
   if (hasWord(words, ["logistics", "shipping", "freight", "delivery", "courier", "moving", "transport"])) return "logistics";
   if (hasWord(words, ["gaming", "esports", "game", "streamer", "streaming", "twitch"])) return "gaming";
   if (hasWord(words, ["architect", "architecture", "interior", "interiors", "spatial", "spaces"])) return "architecture";
-  if (hasWord(words, ["fashion", "clothing", "apparel", "boutique", "jewelry", "watch", "shoe", "streetwear"])) return "fashion";
   if (hasWord(words, ["cleaning", "maid", "janitorial", "wash", "pressure", "laundry"])) return "cleaning";
   if (hasWord(words, ["plumbing", "plumber", "pipe", "water", "drain"])) return "plumbing";
   if (hasWord(words, ["construction", "builder", "contractor", "remodel", "renovation", "concrete", "masonry"])) return "construction";
@@ -555,6 +558,72 @@ function buildHumanDesignRealism({ subject, personality, styles = [] }) {
   };
 }
 
+function buildDesignTrendIntelligence({ subject, personality, styles = [] }) {
+  const matrix = personality?.matrix || {};
+  const styleKeys = styles.map((style) => style.key);
+  const techDriven = (matrix.craft?.score || 50) >= 64 || ["tech", "agency", "gaming"].includes(subject);
+  const luxury = (matrix.price?.score || 50) >= 66 || (matrix.market?.score || 50) >= 66 || styleKeys.includes("luxury");
+  const expressive = (matrix.expression?.score || 50) >= 66 || (matrix.tone?.score || 50) >= 68;
+  const timeless = (matrix.era?.score || 50) >= 64;
+  const localTrade = (matrix.reach?.score || 50) <= 38 || (matrix.craft?.score || 50) <= 38;
+
+  const typographyTrend = luxury
+    ? "quiet high-contrast serif or restrained custom wordmark with deliberate spacing"
+    : techDriven
+      ? "precise geometric sans, subtle custom letter detail, product-grade readability"
+      : expressive
+        ? "friendly custom sans with one ownable letter or rhythm detail"
+        : timeless
+          ? "classic serif/sans pairing with modern spacing and no nostalgia clutter"
+          : "clean custom wordmark with one memorable optical detail";
+
+  const spacingTrend = luxury || techDriven
+    ? "wide whitespace, crisp hierarchy, fewer elements"
+    : expressive
+      ? "large simple shapes with controlled empty space"
+      : "breathing room around the mark, no crowded lockups";
+
+  const iconTrend = techDriven
+    ? "simple adaptive symbol that can work as app icon, favicon, and avatar"
+    : luxury
+      ? "reduced symbol or monogram with negative space instead of literal illustration"
+      : localTrade
+        ? "useful category cue reduced into a durable mark, not a stock service icon"
+        : expressive
+          ? "bold simplified mascot/object with brandable silhouette"
+          : "simplified geometric mark with clear category meaning";
+
+  const colorTrend = luxury
+    ? "monochrome or deep neutral base with one restrained premium accent"
+    : techDriven
+      ? "monochrome-first with one electric or system-color accent; gradients only if subtle"
+      : expressive
+        ? "confident flat colors, no glossy gradients"
+        : "monochrome-first, one meaningful accent, strong contrast";
+
+  const minimalismTrend = expressive
+    ? "expressive minimalism: keep the idea bold but remove small decoration"
+    : "precision minimalism: fewer parts, sharper spacing, stronger silhouette";
+
+  return {
+    typographyTrend,
+    spacingTrend,
+    iconTrend,
+    colorTrend,
+    minimalismTrend,
+    penalties: [
+      "generic sans wordmark with no custom detail",
+      "centered template badge",
+      "glossy or obvious AI gradient",
+      "random sparkles or tech orbs",
+      "stock swoosh/checkmark/leaf without concept reason",
+      "thin low-contrast type",
+      "too many small icon details",
+    ],
+    summary: `${typographyTrend}; ${spacingTrend}; ${iconTrend}; ${colorTrend}`,
+  };
+}
+
 function getHumanComposition({ hash, variant, layout, subject, humanDesign = {}, personalityDirectives = {} }) {
   const seed = Math.abs(hash + variant * 97);
   const sign = seed % 2 === 0 ? 1 : -1;
@@ -685,7 +754,7 @@ const TYPOGRAPHY_SYSTEMS = {
   },
 };
 
-function applyTypographyPersonality(base, personality) {
+function applyTypographyPersonality(base, personality, trend = null) {
   if (!personality) return base;
   const expression = personality.matrix.expression.score;
   const price = personality.matrix.price.score;
@@ -699,11 +768,11 @@ function applyTypographyPersonality(base, personality) {
     trackingBase: clampPersonalityScore(50 + (base.trackingBase || 0) * 10 + (price > 64 || market > 64 ? 10 : 0) + (expression < 38 ? 8 : 0) - (energy > 68 ? 6 : 0)) / 10 - 5,
     subtitleTracking: Math.max(3, Math.min(9, (base.subtitleTracking || 5) + (price > 64 ? 1 : 0) + (expression < 38 ? 1 : 0) - (tone > 66 ? 1 : 0))),
     lineGapRatio: Math.max(0.88, Math.min(1.08, (base.lineGapRatio || 0.94) + (era > 64 ? 0.03 : 0) + (expression < 38 ? 0.02 : 0) - (energy > 66 ? 0.02 : 0))),
-    hierarchy: `${base.hierarchy}; personality: ${personality.directives.spacing} spacing with ${personality.directives.layoutBias} hierarchy`,
+    hierarchy: `${base.hierarchy}; personality: ${personality.directives.spacing} spacing with ${personality.directives.layoutBias} hierarchy${trend ? `; trend: ${trend.typographyTrend}` : ""}`,
   };
 }
 
-function selectTypography({ subject, styles, personality = null }) {
+function selectTypography({ subject, styles, personality = null, trend = null }) {
   const primary = styles[0]?.key || "minimal";
   let selected = null;
   if (personality?.matrix.price.score >= 68 || personality?.matrix.market.score >= 70 || primary === "luxury") selected = TYPOGRAPHY_SYSTEMS.luxurySerif;
@@ -719,7 +788,7 @@ function selectTypography({ subject, styles, personality = null }) {
   else if (primary === "vintage" || primary === "western") selected = TYPOGRAPHY_SYSTEMS.vintageDisplay;
   else if (primary === "minimal") selected = TYPOGRAPHY_SYSTEMS.geometricSans;
   else selected = { ...TYPOGRAPHY_SYSTEMS.geometricSans, label: styles[0]?.typography || TYPOGRAPHY_SYSTEMS.geometricSans.label };
-  return applyTypographyPersonality(selected, personality);
+  return applyTypographyPersonality(selected, personality, trend);
 }
 
 function selectAudience({ subject, positioning }) {
@@ -747,9 +816,10 @@ function selectAudience({ subject, positioning }) {
   return map[subject] || (positioning === "premium" ? "customers who expect a polished premium brand" : "customers who need a clear, memorable brand");
 }
 
-function selectPalette({ subject, styles, logoColors, personality = null }) {
+function selectPalette({ subject, styles, logoColors, personality = null, trend = null }) {
   if (logoColors) return logoColors;
   const primary = styles[0]?.key || "minimal";
+  if (trend?.colorTrend?.includes("monochrome-first") && personality?.matrix.expression.score < 66) return "monochrome-first: ink black, warm white, one restrained accent";
   if (personality?.matrix.price.score >= 68 || personality?.matrix.market.score >= 70) return "ink black, warm ivory, restrained champagne accent";
   if (personality?.matrix.energy.score >= 70) return "deep black, white, sharp red or electric accent";
   if (personality?.matrix.tone.score >= 70) return "friendly high-contrast palette with one memorable warm accent";
@@ -803,11 +873,14 @@ const ICON_CREATIVITY_SYSTEMS = {
   },
 };
 
-function selectIconSystem({ subject, styles, logoSymbol = "", personality = null }) {
+function selectIconSystem({ subject, styles, logoSymbol = "", personality = null, trend = null }) {
   const styleKeys = styles.map((style) => style.key);
   const symbolText = logoSymbol.toLowerCase();
   if (/(mascot|animal|character|hippo|horse|dog|cat)/.test(symbolText) || ["hippo", "hippo-football", "pet"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.mascotReduction;
+  }
+  if (trend?.iconTrend?.includes("adaptive symbol") || trend?.minimalismTrend?.includes("precision")) {
+    if (!["pizza", "restaurant", "coffee", "pet", "education"].includes(subject)) return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
   if (personality?.matrix.expression.score <= 34 || personality?.matrix.price.score >= 68) {
     return ICON_CREATIVITY_SYSTEMS.editorialEmblem;
@@ -830,9 +903,10 @@ function selectIconSystem({ subject, styles, logoSymbol = "", personality = null
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
 }
 
-function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality }) {
+function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend }) {
   const directives = personality?.directives || {};
   const personalitySummary = personality?.summary || "balanced professional personality";
+  const trendSummary = trend?.summary || "contemporary scalable logo system";
   const base = getConceptLibrary(subject, profile).map(([name, symbol, type, basePalette, layout, whyFits]) => ({
     name,
     style: styles[0]?.key || "professional",
@@ -842,7 +916,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette || basePalette,
     layout: `${layout}; ${directives.layoutBias || "balanced"} layout with ${directives.spacing || "balanced"} spacing`,
-    whyFits: `${whyFits} Personality fit: ${personalitySummary}.`,
+    whyFits: `${whyFits} Personality fit: ${personalitySummary}. Trend fit: ${trendSummary}.`,
     source: "library",
   }));
 
@@ -856,7 +930,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typographySystem: typography,
       palette: logoColors || style.palette,
       layout: `large ownable icon above a highly readable wordmark; ${directives.layoutBias || "balanced"} composition`,
-      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon. Personality fit: ${personalitySummary}.`,
+      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon. Personality fit: ${personalitySummary}. Trend fit: ${trend?.minimalismTrend || "current minimalism with brand personality"}.`,
       source: "style",
     },
     {
@@ -868,7 +942,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typographySystem: typography,
       palette: logoColors || style.palette,
       layout: `wordmark-led logo with small supporting icon; ${directives.spacing || "balanced"} spacing`,
-      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood. Personality fit: ${personalitySummary}.`,
+      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood. Personality fit: ${personalitySummary}. Trend fit: ${trend?.typographyTrend || "type-forward modern identity"}.`,
       source: "style",
     },
   ]));
@@ -882,7 +956,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette,
     layout: `${layout}; ${directives.layoutBias || "balanced"} personality bias`,
-    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo. It is tuned for ${personalitySummary}.`,
+    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo. It is tuned for ${personalitySummary} and ${trend?.spacingTrend || "current spacing standards"}.`,
     source: "layout",
   }));
 
@@ -895,7 +969,7 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette,
     layout: index % 2 === 0 ? `large icon with compact wordmark; ${directives.spacing || "balanced"} spacing` : `wordmark-led mark with embedded category cue; ${directives.layoutBias || "balanced"} layout`,
-    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark. The icon logic follows ${directives.iconStyle || "a clean brand mark"}.`,
+    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark. The icon logic follows ${directives.iconStyle || "a clean brand mark"} and ${trend?.iconTrend || "simplified contemporary symbols"}.`,
     source: "icon",
   }));
 
@@ -908,14 +982,14 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette,
     layout: index % 2 === 0 ? "centered mark over readable wordmark" : "wide professional lockup",
-    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary}.`,
+    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary} and avoiding ${trend?.penalties?.[0] || "generic template styling"}.`,
     source: "positioning",
   }));
 
   return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts].slice(0, 28);
 }
 
-function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null }) {
+function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null, trend = null }) {
   const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
   const aliases = {
     realestate: ["real estate", "property", "home", "house", "brokerage", "realtor"],
@@ -944,6 +1018,7 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
     });
   });
   if (/(generic|random|stock|template|clip.?art|default|hexagon|initials only|category-specific|distinct [a-z-]+ visual cue|subtle embedded symbol)/.test(text)) score += SCORING_WEIGHTS.genericPenalty;
+  if (/(glossy|3d|orb|sparkle|swoosh|gradient blob|busy detail|template badge|overly centered)/.test(text)) score -= 14;
   if (/(readable|scalable|clean|meaning|category|symbol|custom|ownable|negative|hidden|reduced|brandable)/.test(text)) score += SCORING_WEIGHTS.readabilityAndScalability;
   const shieldOrBadge = /(shield|badge|crest)/.test(text);
   const shieldFriendly = ["law", "finance", "insurance", "ranch", "football", "hippo-football", "education", "security"].includes(subject);
@@ -963,6 +1038,15 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
     if (personality.matrix.expression.score >= 68 && /(expressive|mascot|object|distinct|characterful)/.test(text)) score += 7;
     if (personality.matrix.craft.score <= 34 && /(craft|material|trade|hand|local)/.test(text)) score += 5;
     if (layoutText.includes(personality.directives.layoutBias) || whyText.includes(personality.directives.iconStyle.split(" ")[0])) score += 4;
+  }
+  if (trend) {
+    if (/(monochrome|restrained|adaptive|favicon|app icon|type-forward|custom wordmark|negative space|simplified|whitespace|fewer elements|current|modern spacing)/.test(text)) score += 8;
+    if (trend.typographyTrend?.includes("custom") && /(custom|letter|wordmark|optical|spacing)/.test(text)) score += 5;
+    if (trend.iconTrend?.includes("adaptive") && /(adaptive|favicon|avatar|app icon|system)/.test(text)) score += 5;
+    trend.penalties.forEach((penalty) => {
+      const firstTerm = penalty.split(" ").slice(0, 2).join(" ");
+      if (firstTerm && text.includes(firstTerm)) score -= 8;
+    });
   }
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {
@@ -992,14 +1076,15 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
   const personality = inferBrandPersonality({ subject, brandName: inferredName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
   const humanDesign = buildHumanDesignRealism({ subject, personality, styles });
+  const trend = buildDesignTrendIntelligence({ subject, personality, styles });
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
-  const typography = selectTypography({ subject, styles, personality });
-  const palette = selectPalette({ subject, styles, logoColors, personality });
-  const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality });
+  const typography = selectTypography({ subject, styles, personality, trend });
+  const palette = selectPalette({ subject, styles, logoColors, personality, trend });
+  const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality, trend });
   const audience = selectAudience({ subject, positioning });
-  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality });
+  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality, trend });
   const scored = pool
-    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality }) }))
+    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality, trend }) }))
     .sort((a, b) => b.score - a.score);
 
   const diversified = [];
@@ -1032,6 +1117,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     personalitySummary: personality.summary,
     personalityDirectives: personality.directives,
     humanDesign,
+    trendIntelligence: trend,
     positioning,
     typography: typography.label,
     typographySystem: typography,
@@ -1048,6 +1134,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
         directives: personality.directives,
       },
       humanDesignRealism: humanDesign,
+      designTrendIntelligence: trend,
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
       typographySelection: typography.label,
@@ -1296,6 +1383,7 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
     personalityMatrix: pipeline.personalityMatrix,
     personalityDirectives: pipeline.personalityDirectives,
     humanDesign: pipeline.humanDesign,
+    trendIntelligence: pipeline.trendIntelligence,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
