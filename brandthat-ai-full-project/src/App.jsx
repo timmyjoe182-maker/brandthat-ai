@@ -270,6 +270,26 @@ const tones = [
   "Premium", "Friendly", "Witty", "Elegant", "Direct", "Emotional", "High-end", "Viral"
 ];
 
+const premiumLogoPromptExamples = [
+  "Create a luxury black and cream skincare logo called Aurelle.",
+  "Design a clean AI startup logo for NexusForge with modern typography.",
+  "Make a premium real estate logo for Vale & Stone.",
+  "Create a bold monogram logo for Iron Method fitness.",
+  "Design an editorial wedding photo and video logo called Ekblad Rose.",
+  "Create a timeless law firm logo for Bennett & Cole.",
+];
+
+const logoPromptSuggestions = [
+  "luxury",
+  "editorial",
+  "minimalist",
+  "monogram",
+  "modern SaaS",
+  "timeless",
+  "bold typography",
+  "abstract symbol",
+];
+
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -4579,6 +4599,7 @@ function GeneratorCard({
   const editableTransparentLogo = applyLogoEditor(logoTransparentSvg || logoSvg || logoVectorImage, logoEditor);
   const editorFileName = creativeTone || "brandthat-logo";
   const [refinementPrompt, setRefinementPrompt] = useState("");
+  const [logoExampleIndex, setLogoExampleIndex] = useState(0);
   const parsedLogoPreview = useMemo(
     () => parseNaturalLogoPrompt({
       prompt,
@@ -4636,6 +4657,27 @@ function GeneratorCard({
     }),
     [parsedLogoPreview, logoEditor, logoCreativeBrief, logoImage]
   );
+  const logoPromptPlaceholder = activeTool.key === "logo"
+    ? premiumLogoPromptExamples[logoExampleIndex % premiumLogoPromptExamples.length]
+    : getMainPromptPlaceholder(activeTool);
+  const addLogoSuggestion = (suggestion) => {
+    const cleanSuggestion = String(suggestion || "").trim();
+    if (!cleanSuggestion) return;
+    const currentPrompt = String(prompt || "").trim();
+    const lowerPrompt = currentPrompt.toLowerCase();
+    if (lowerPrompt.includes(cleanSuggestion.toLowerCase())) return;
+
+    setPrompt(currentPrompt ? `${currentPrompt}, ${cleanSuggestion}` : `Create a ${cleanSuggestion} logo`);
+  };
+
+  useEffect(() => {
+    if (activeTool.key !== "logo") return undefined;
+    const timer = window.setInterval(() => {
+      setLogoExampleIndex((index) => (index + 1) % premiumLogoPromptExamples.length);
+    }, 5200);
+
+    return () => window.clearInterval(timer);
+  }, [activeTool.key]);
 
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
@@ -4700,10 +4742,20 @@ Designer iteration rules:
         <>
           <textarea
             className="mainPromptBox logoPromptFirstBox"
-            placeholder={getMainPromptPlaceholder(activeTool)}
+            placeholder={logoPromptPlaceholder}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
+
+          {prompt.trim() && (
+            <div className="smartPromptSuggestions" aria-label="Logo prompt suggestions">
+              {logoPromptSuggestions.map((suggestion) => (
+                <button key={suggestion} onClick={() => addLogoSuggestion(suggestion)}>
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
 
           <details className="advancedLogoOptions">
             <summary>Advanced options</summary>
@@ -5959,6 +6011,10 @@ textarea{height:170px;resize:none;line-height:1.6}
   min-height:190px;
   font-size:17px;
 }
+
+.smartPromptSuggestions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}
+.smartPromptSuggestions button{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 11px;color:#555;font-size:12px;font-weight:850;cursor:pointer;transition:.18s ease}
+.smartPromptSuggestions button:hover{background:#111;color:white;border-color:#111;transform:translateY(-1px)}
 
 .toolResultsV2 textarea.mainPromptBox::placeholder,
 .toolResultsV2 input::placeholder{
