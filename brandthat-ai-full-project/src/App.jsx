@@ -773,6 +773,66 @@ function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreati
   };
 }
 
+function classifyLogoRefinement(instruction = "") {
+  const text = String(instruction || "").toLowerCase();
+  const areas = [];
+
+  if (/(luxury|premium|expensive|elevated|high-end|editorial|timeless)/.test(text)) areas.push("positioning");
+  if (/(simple|simplify|minimal|less|cleaner|reduce|remove clutter)/.test(text)) areas.push("simplification");
+  if (/(monogram|initial|lettermark|typography|font|type|wordmark|serif|sans|bolder)/.test(text)) areas.push("typography");
+  if (/(icon|symbol|mascot|mark|remove the icon|no icon|different icon)/.test(text)) areas.push("symbol");
+  if (/(color|colour|blue|green|cream|gold|black|white|soft|softer|palette)/.test(text)) areas.push("palette");
+  if (/(layout|spacing|balance|center|badge|emblem|horizontal|vertical)/.test(text)) areas.push("layout");
+  if (/(yc|startup|saas|tech|modern|corporate|playful|calm|aggressive)/.test(text)) areas.push("style");
+
+  return [...new Set(areas)].slice(0, 4);
+}
+
+function buildLogoRefinementMemory({
+  existingMemory = {},
+  currentDirection = {},
+  instruction = "",
+  parsedLogo = {},
+}) {
+  const cleanInstruction = String(instruction || "").trim();
+  const changedAreas = classifyLogoRefinement(cleanInstruction);
+  const currentHistory = Array.isArray(existingMemory.refinementHistory) ? existingMemory.refinementHistory : [];
+  const refinedDirection = {
+    ...currentDirection,
+    brandName: parsedLogo.brandName || currentDirection.brandName || "",
+    industry: parsedLogo.industry || currentDirection.industry || "",
+  };
+
+  return {
+    ...(existingMemory || {}),
+    lastSuccessfulDirection: refinedDirection,
+    continuityIntent: cleanInstruction,
+    refinementMode: "designer-iteration",
+    refinementInstruction: cleanInstruction,
+    changedAreas,
+    preserveAreas: ["brandName", "industry", "successful typography", "successful palette", "successful layout", "brand personality"]
+      .filter((area) => !changedAreas.some((changed) => area.toLowerCase().includes(changed))),
+    refinementHistory: [
+      {
+        instruction: cleanInstruction,
+        changedAreas,
+        preservedDirection: refinedDirection,
+        createdAt: new Date().toISOString(),
+      },
+      ...currentHistory,
+    ].slice(0, 8),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function getRefinementStateLabel(memory = {}) {
+  const history = Array.isArray(memory.refinementHistory) ? memory.refinementHistory : [];
+  if (!history.length) return "Ready for designer-style refinements";
+  const latest = history[0];
+  const area = latest.changedAreas?.length ? latest.changedAreas.join(", ") : "selected details";
+  return `Refining ${area} while preserving the brand direction`;
+}
+
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
   const displayName = escapeSvgText(brandName || "Brandthat");
   const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
@@ -2424,6 +2484,7 @@ Rules:
       colors: colorsValue,
       avoid: avoidValue,
     });
+    const generationMemoryValue = overrides.generationMemory || logoGenerationMemory || {};
 
     const enhancedLogoPrompt = `
 Create a high-quality professional logo.
@@ -2461,6 +2522,11 @@ ${parsedLogo.avoid}
 Brand workspace context:
 ${activeBrand ? buildBrandPrompt(activeBrand) : "No saved workspace yet. Use the user's request as the full brand direction."}
 
+Refinement context:
+${generationMemoryValue?.refinementMode === "designer-iteration" ? "This is a conversational refinement, not a fresh restart." : "This is a first-pass or broad generation."}
+${generationMemoryValue?.refinementInstruction ? `User refinement: ${generationMemoryValue.refinementInstruction}` : ""}
+${generationMemoryValue?.lastSuccessfulDirection ? `Preserve successful prior direction: Style ${generationMemoryValue.lastSuccessfulDirection.style || "current"}; Symbol ${generationMemoryValue.lastSuccessfulDirection.symbol || "current"}; Typography ${generationMemoryValue.lastSuccessfulDirection.typography || "current"}; Palette ${generationMemoryValue.lastSuccessfulDirection.palette || "current"}; Layout ${generationMemoryValue.lastSuccessfulDirection.layout || "current"}.` : ""}
+
 Requirements:
 - Generate a polished logo concept suitable for a real business.
 - Treat the natural user request as the source of truth.
@@ -2468,6 +2534,9 @@ Requirements:
 - Adapt to any requested style: luxury, minimal, mascot, character, emblem, badge, monogram, wordmark, lettermark, icon, vintage, retro, tech, AI, fashion, ranch, real estate, restaurant, fitness, beauty, ecommerce, startup, creator brand, photography, construction, wellness, hospitality, or local service business.
 - If the user asks for a specific style, industry, animal, object, letter, color palette, era, mood, or reference direction, prioritize that request.
 - If key details are missing, make tasteful brand-strategy assumptions and keep them coherent.
+- During refinements, preserve the original brand name, industry, strongest typography, palette logic, spacing, and brand personality unless the user explicitly asked to change them.
+- During refinements, improve only the requested area: typography, symbol, palette, layout, simplicity, or premium feel.
+- Do not make random drastic changes during a refinement. Make it feel like the same designer improved the same concept.
 - Prioritize strong composition, clean typography, scalability, contrast, and memorability.
 - The logo should work as a website logo, favicon, social profile image, business card mark, and brand identity anchor.
 - Avoid clutter, low-quality clipart, muddy details, and messy text.
@@ -2485,7 +2554,7 @@ Requirements:
       logoAvoid: parsedLogo.avoid,
       userPrompt: promptValue,
       parsedLogo,
-      generationMemory: overrides.generationMemory || logoGenerationMemory || {},
+      generationMemory: generationMemoryValue,
       logoPrompt: enhancedLogoPrompt
     };
 
@@ -4300,6 +4369,8 @@ function GeneratorCard({
     const direction = logoCreativeBrief?.concepts?.[0] || logoVariations?.[0] || {};
     return {
       name: direction.name || "Current logo direction",
+      brandName: parsedLogoPreview.brandName || creativeTone,
+      industry: parsedLogoPreview.industry || logoIndustry,
       style: direction.style || direction.logoStyle || selectedPlatform || parsedLogoPreview.style,
       symbol: direction.symbol || logoSymbol || parsedLogoPreview.symbol,
       typography: direction.typography || parsedLogoPreview.typography,
@@ -4308,12 +4379,13 @@ function GeneratorCard({
       whyFits: direction.whyFits || "This direction is tied to the current brand request.",
     };
   };
-  const buildContinuityMemory = (intent = "Generate another concept from the same creative direction.", extra = {}) => ({
-    ...(logoGenerationMemory || {}),
-    ...extra,
-    lastSuccessfulDirection: getCurrentLogoDirection(),
-    continuityIntent: intent,
-  });
+  const buildContinuityMemory = (intent = "Generate another concept from the same creative direction.", extra = {}) =>
+    buildLogoRefinementMemory({
+      existingMemory: { ...(logoGenerationMemory || {}), ...extra },
+      currentDirection: getCurrentLogoDirection(),
+      instruction: intent,
+      parsedLogo: parsedLogoPreview,
+    });
   const directorNotes = useMemo(() => {
     const primaryConcept = logoCreativeBrief?.concepts?.[0] || {};
     const typography = primaryConcept.typography || logoCreativeBrief?.typography || parsedLogoPreview.typography;
@@ -4342,11 +4414,18 @@ function GeneratorCard({
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
     if (!cleanInstruction) return;
+    const changedAreas = classifyLogoRefinement(cleanInstruction);
+    const currentDirection = getCurrentLogoDirection();
 
     const nextPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
 
 Refinement request: ${cleanInstruction}
-Preserve the original brand name, industry, style direction, colors, and symbol context unless this refinement explicitly changes one of them.`.trim();
+Designer iteration rules:
+- Keep the original brand name: ${parsedLogoPreview.brandName || creativeTone || "the existing brand name"}.
+- Keep the original industry/category: ${parsedLogoPreview.industry || logoIndustry || "the existing category"}.
+- Preserve what is already working: ${[currentDirection.typography, currentDirection.palette, currentDirection.layout].filter(Boolean).join("; ") || "current typography, palette, spacing, and layout logic"}.
+- Change only this requested area: ${changedAreas.length ? changedAreas.join(", ") : "the user-requested detail"}.
+- Do not restart the concept unless the user explicitly asks for a totally different direction.`.trim();
 
     setPrompt(nextPrompt);
     setRefinementPrompt("");
@@ -4371,7 +4450,7 @@ Preserve the original brand name, industry, style direction, colors, and symbol 
       logoSymbol: refinedParsedLogo.symbol || parsedLogoPreview.symbol || logoSymbol,
       logoColors: refinedParsedLogo.colors || parsedLogoPreview.colors || logoColors,
       logoAvoid: refinedParsedLogo.avoid || parsedLogoPreview.avoid || logoAvoid,
-      generationMemory: buildContinuityMemory(cleanInstruction),
+      generationMemory: buildContinuityMemory(cleanInstruction, { changedAreas }),
     });
   };
 
@@ -4584,18 +4663,19 @@ Generate another logo from the same creative direction. Preserve the strongest p
           {editableLogo && (
             <div className="logoRefinePanel">
               <div>
-                <div className="tinyTag">REFINE RESULT</div>
-                <h3>Tell Brandthat what to change</h3>
-                <p>Type like you would to a designer. The original brand context stays attached.</p>
+                <div className="tinyTag">DESIGNER REFINEMENT</div>
+                <h3>Tell Brandthat what to adjust</h3>
+                <p>Use plain language. The brand, industry, and strongest parts of this concept stay attached.</p>
+                <span className="refinementState">{getRefinementStateLabel(logoGenerationMemory)}</span>
               </div>
               <textarea
                 value={refinementPrompt}
                 onChange={(e) => setRefinementPrompt(e.target.value)}
-                placeholder="Example: make it more luxury, use blue instead, remove the icon, try a monogram, make the font bolder..."
+                placeholder="Example: make it more luxury, simplify it, use a stronger monogram, make typography the focus, remove the icon, softer colors..."
               />
               <div className="logoRefineActions">
                 <button onClick={() => refineLogo()} disabled={loading || !refinementPrompt.trim()}>Refine Logo</button>
-                {["Make it more luxury", "Make it simpler", "Use blue instead", "Remove the icon", "Try a monogram", "Make the font bolder"].map((item) => (
+                {["More luxury", "Simplify it", "Stronger monogram", "Typography focus", "Remove icon", "More timeless", "More editorial", "Less corporate"].map((item) => (
                   <button key={item} onClick={() => refineLogo(item)} disabled={loading}>{item}</button>
                 ))}
               </div>
@@ -6062,6 +6142,18 @@ textarea{height:170px;resize:none;line-height:1.6}
   color:#666;
   line-height:1.6;
   margin:0 0 14px;
+}
+
+.refinementState{
+  display:inline-flex;
+  margin-bottom:14px;
+  border:1px solid rgba(0,0,0,.08);
+  background:#fafafa;
+  color:#555;
+  border-radius:999px;
+  padding:9px 12px;
+  font-size:12px;
+  font-weight:900;
 }
 
 .logoRefinePanel textarea{

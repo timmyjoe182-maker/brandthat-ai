@@ -50,6 +50,9 @@ Creative Director interpretation:
 - Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
 - Generation memory: ${director.generationMemory?.summary || "no prior logo memory"}
 - Previous successful direction to preserve/evolve: ${director.generationMemory?.anchor ? `Style: ${director.generationMemory.anchor.style || "keep current style"}; Symbol: ${director.generationMemory.anchor.symbol || "keep current icon logic"}; Typography: ${director.generationMemory.anchor.typography || "keep current typography quality"}; Palette: ${director.generationMemory.anchor.palette || "keep current palette"}; Layout: ${director.generationMemory.anchor.layout || "keep current layout logic"}` : "none"}
+- Refinement instruction: ${director.generationMemory?.refinementInstruction || director.generationMemory?.continuityIntent || "none"}
+- Areas to improve this iteration: ${director.generationMemory?.changedAreas?.length ? director.generationMemory.changedAreas.join(", ") : "best overall first direction"}
+- Areas to preserve: ${director.generationMemory?.preserveAreas?.length ? director.generationMemory.preserveAreas.join(", ") : "brand name, industry, strongest typography, palette logic, spacing, and brand personality"}
 - Internal Creative Director review: ${director.creativeDirectorReview?.summary || "concepts reviewed for brand fit, spacing, hierarchy, uniqueness, and premium feel"}
 - Regeneration behavior: ${director.generationMemory?.anchor ? "preserve the successful brand identity, typography, palette, and layout logic from the previous result; evolve only the requested weak area so this feels like another concept from the same creative direction" : "create the strongest first direction from the brief"}
 - Target audience: ${director.targetAudience}
@@ -95,6 +98,10 @@ Design requirements:
 - Keep it current: precision minimalism with personality, type-forward details, simplified icons, monochrome-first palette, restrained accents, and flexible digital use.
 - Avoid dated logo tropes: glossy gradients, busy 3D effects, stock swooshes, generic sans stacking, random AI sparkles, overused badges, and decoration that does not improve recognition.
 - Avoid repeating previous outputs: do not reuse rejected or recently generated styles, icon directions, palettes, typography, or compositions from the generation memory.
+- For conversational refinements, do not reroll the entire logo. Keep the same brand system and change only the requested area unless the user explicitly asks for a completely different direction.
+- If the user says “make it more luxury,” “more premium,” “more editorial,” or “more timeless,” improve restraint, spacing, type quality, and palette maturity while preserving the core mark.
+- If the user says “remove the icon,” “typography focus,” “wordmark,” or “monogram,” change the symbol logic while keeping the existing brand tone and palette coherent.
+- If the user asks for softer colors, bolder type, simpler layout, or less corporate feeling, adjust that single dimension and keep the rest consistent.
 - Apply the internal Creative Director review: fix weak spacing, weak type hierarchy, generic icon logic, low uniqueness, and poor brand fit before final image generation.
 - If the request is for a real-world trade or service business, use relevant visual language from that trade: tools, materials, textures, motion, craft, before/after surfaces, or local-service trust signals.
 - Make the primary logo mark fill most of the canvas. Do not make the logo tiny.
@@ -673,6 +680,18 @@ function normalizeGenerationMemory(memory = {}) {
     generatedCompositions: normalizeMemoryList(memory.generatedCompositions),
     lastSuccessfulDirection: normalizeMemoryDirection(memory.lastSuccessfulDirection),
     continuityIntent: String(memory.continuityIntent || "").trim(),
+    refinementMode: String(memory.refinementMode || "").trim(),
+    refinementInstruction: String(memory.refinementInstruction || "").trim(),
+    changedAreas: normalizeMemoryList(memory.changedAreas),
+    preserveAreas: normalizeMemoryList(memory.preserveAreas),
+    refinementHistory: Array.isArray(memory.refinementHistory)
+      ? memory.refinementHistory.slice(0, 8).map((item) => ({
+          instruction: String(item?.instruction || "").trim(),
+          changedAreas: normalizeMemoryList(item?.changedAreas),
+          preservedDirection: normalizeMemoryDirection(item?.preservedDirection),
+          createdAt: String(item?.createdAt || "").trim(),
+        }))
+      : [],
   };
 }
 
@@ -698,7 +717,7 @@ function buildGenerationMemoryIntelligence(memory = {}) {
     preferences,
     hasMemory: avoid.length > 0 || preferences.length > 0 || hasContinuity,
     summary: hasContinuity
-      ? `evolve from prior successful direction${anchor?.name ? ` (${anchor.name})` : ""}; preserve useful typography, palette, layout, and brand identity while improving weak areas${normalized.continuityIntent ? `; user intent: ${normalized.continuityIntent}` : ""}${avoid.length ? `; avoid rejected: ${avoid.slice(0, 5).join(", ")}` : ""}`
+      ? `designer refinement from prior successful direction${anchor?.name ? ` (${anchor.name})` : ""}; preserve useful typography, palette, layout, and brand identity while improving only requested areas${normalized.changedAreas.length ? ` (${normalized.changedAreas.join(", ")})` : ""}${normalized.continuityIntent ? `; user intent: ${normalized.continuityIntent}` : ""}${avoid.length ? `; avoid rejected: ${avoid.slice(0, 5).join(", ")}` : ""}`
       : avoid.length
       ? `avoid rejected directions: ${avoid.slice(0, 8).join(", ")}${preferences.length ? `; keep typography preferences: ${preferences.slice(0, 4).join(", ")}` : ""}`
       : preferences.length
@@ -755,6 +774,11 @@ function updateGenerationMemory(memory = {}, { concepts = [], typographySystem =
     generatedCompositions: addUnique(normalized.generatedCompositions, concepts.map((concept) => concept.layout).concat(humanDesign?.composition || []), 16),
     lastSuccessfulDirection: normalizeMemoryDirection(concepts[0]) || normalized.lastSuccessfulDirection,
     continuityIntent: normalized.continuityIntent,
+    refinementMode: normalized.refinementMode,
+    refinementInstruction: normalized.refinementInstruction,
+    changedAreas: normalized.changedAreas,
+    preserveAreas: normalized.preserveAreas,
+    refinementHistory: normalized.refinementHistory,
     summary: `remembered ${concepts.length} concepts; next retry should evolve from the strongest direction while preserving useful typography, palette, layout, and brand identity`,
     updatedAt: new Date().toISOString(),
   };
