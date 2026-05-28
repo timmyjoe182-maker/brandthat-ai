@@ -436,6 +436,70 @@ function cleanGeneratedText(text = "") {
     .trim();
 }
 
+function escapeSvgText(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function createDataUriFromSvg(svg) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function getInitialsFromBrandName(name = "") {
+  const words = String(name || "")
+    .replace(/[^a-zA-Z0-9\s&]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) return "BT";
+  return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+}
+
+function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
+  const displayName = escapeSvgText(brandName || "Brandthat");
+  const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
+  const descriptor = escapeSvgText([logoIndustry, logoStyle, userPrompt].filter(Boolean).join(" ").slice(0, 64) || "Premium brand identity");
+  const requestedColors = String(logoColors || "").toLowerCase();
+  const dark = requestedColors.includes("blue") ? "#0d1b2a" : requestedColors.includes("green") ? "#10281f" : "#111111";
+  const accent = requestedColors.includes("gold") ? "#b08d45" : requestedColors.includes("red") ? "#9f2d2d" : requestedColors.includes("blue") ? "#4c6fff" : "#8a6b37";
+
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400">
+  <rect width="1400" height="1400" fill="#f7f4ed"/>
+  <rect x="190" y="190" width="1020" height="1020" rx="96" fill="#fffdfa" stroke="#e6e0d2" stroke-width="5"/>
+  <g transform="translate(700 520)">
+    <path d="M0 -168 L145 -84 L145 84 L0 168 L-145 84 L-145 -84 Z" fill="${dark}"/>
+    <path d="M0 -118 L102 -59 L102 59 L0 118 L-102 59 L-102 -59 Z" fill="none" stroke="${accent}" stroke-width="18" stroke-linejoin="round"/>
+    <text x="0" y="26" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="92" font-weight="900" fill="#ffffff" letter-spacing="-4">${initials}</text>
+  </g>
+  <text x="700" y="830" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900" fill="${dark}" letter-spacing="-4">${displayName}</text>
+  <line x1="510" y1="884" x2="890" y2="884" stroke="${accent}" stroke-width="10" stroke-linecap="round"/>
+  <text x="700" y="956" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" fill="#777067" letter-spacing="8">${descriptor.toUpperCase()}</text>
+</svg>`.trim();
+
+  const transparentSvg = svg.replace('<rect width="1400" height="1400" fill="#f7f4ed"/>', '<rect width="1400" height="1400" fill="transparent"/>');
+  const image = createDataUriFromSvg(svg);
+
+  return {
+    image,
+    source: "instant-svg",
+    vectorImage: image,
+    svg,
+    transparentSvg,
+    variations: [{ id: "client-fallback-primary", name: "Instant Vector", image, svg }],
+    creativeBrief: {
+      summary: "Instant fallback logo created from the user's brand name, style, and prompt because the hosted image service was unavailable.",
+      concepts: [],
+    },
+    generationMemory: null,
+    layers: [],
+    note: "Brandthat created an instant editable vector logo because the hosted image service was unavailable.",
+  };
+}
+
 function trackBrandthatEvent(name, properties = {}) {
   try {
     const event = {
@@ -2077,30 +2141,42 @@ Requirements:
 - Make it feel premium, professional, and commercially usable.
 `;
 
-    const response = await fetch("/.netlify/functions/logo-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        brandName: brandNameValue || activeBrand?.name || "",
-        logoStyle: styleValue || "",
-        logoIndustry: industryValue,
-        logoSymbol: symbolValue,
-        logoColors: colorsValue,
-        logoAvoid: avoidValue,
-        userPrompt: promptValue,
-        generationMemory: overrides.generationMemory || logoGenerationMemory || {},
-        logoPrompt: enhancedLogoPrompt
-      })
-    });
+    const requestPayload = {
+      brandName: brandNameValue || activeBrand?.name || "",
+      logoStyle: styleValue || "",
+      logoIndustry: industryValue,
+      logoSymbol: symbolValue,
+      logoColors: colorsValue,
+      logoAvoid: avoidValue,
+      userPrompt: promptValue,
+      generationMemory: overrides.generationMemory || logoGenerationMemory || {},
+      logoPrompt: enhancedLogoPrompt
+    };
 
-    const data = await readJsonResponse(response);
+    let response;
+    let data;
+
+    try {
+      response = await fetch("/.netlify/functions/logo-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestPayload)
+      });
+
+      data = await readJsonResponse(response);
+    } catch (error) {
+      console.warn("Brandthat logo function unavailable, using instant fallback:", error);
+      return createClientFallbackLogo(requestPayload);
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || "Logo image generation failed.");
+      console.warn("Brandthat logo function returned an error, using instant fallback:", data.error || response.status);
+      return createClientFallbackLogo(requestPayload);
     }
 
     if (!data.image) {
-      throw new Error("Logo image generation finished without an image. Please try a more specific logo prompt.");
+      console.warn("Brandthat logo function returned no image, using instant fallback.");
+      return createClientFallbackLogo(requestPayload);
     }
 
     return {
@@ -2118,6 +2194,7 @@ Requirements:
   };
 
   const generate = async (overrideUser = null, logoOverrides = {}) => {
+    const generationStartedAt = Date.now();
     const currentUser = overrideUser || user;
     const promptValue = logoOverrides.prompt ?? prompt;
     const brandNameValue = logoOverrides.creativeTone ?? creativeTone;
@@ -2134,8 +2211,10 @@ Requirements:
     }
 
     const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions";
+    const canUseWithoutAuth = isFreeSimpleTool || activeTool.key === "logo";
+    const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
-    if (!currentUser && !isFreeSimpleTool) {
+    if (!currentUser && !canUseWithoutAuth) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
       return;
     }
@@ -2147,14 +2226,14 @@ Requirements:
       return;
     }
 
-    if (activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
+    if (!isLocalDevHost && activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
       setPage("pricing");
       notify("warning", "Free logo generation used", "Starter includes 10 logo generations/month. Pro unlocks unlimited logo generations.");
       setResult("Your free logo generation has been used. Upgrade to Starter for 10 logo generations/month or Pro for unlimited logo generations.");
       return;
     }
 
-    if (activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
+    if (!isLocalDevHost && activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
       setPage("pricing");
       notify("warning", "Starter logo limit reached", "Starter includes 10 logo generations/month. Upgrade to Pro for unlimited logo generations.");
       setResult("You have used your 10 Starter logo generations this month. Upgrade to Pro for unlimited AI logo generation.");
@@ -2224,8 +2303,8 @@ ${promptValue}`
         trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
       }
 
-      if (activeTool.key === "logo" && isFree) incrementDailyFreeUse();
-      if (activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
+      if (!isLocalDevHost && activeTool.key === "logo" && isFree) incrementDailyFreeUse();
+      if (!isLocalDevHost && activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
     } catch (error) {
       console.error("Brandthat generation request failed:", error);
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
@@ -2244,6 +2323,11 @@ ${promptValue}`
       }
     }
 
+    const minimumLoadingMs = activeTool.key === "logo" ? 700 : 0;
+    const remainingLoadingMs = Math.max(0, minimumLoadingMs - (Date.now() - generationStartedAt));
+    if (remainingLoadingMs) {
+      await new Promise((resolve) => setTimeout(resolve, remainingLoadingMs));
+    }
     setLoading(false);
   };
 
@@ -2406,6 +2490,7 @@ ${promptValue}`
               logoEditor={logoEditor}
               setLogoEditor={setLogoEditor}
               recentLogoResults={recentLogoResults}
+              showRecentLogos={false}
               restoreRecentLogo={restoreRecentLogo}
               user={user}
               userPlan={userPlan}
@@ -3801,6 +3886,7 @@ function GeneratorCard({
   logoEditor = {},
   setLogoEditor = () => {},
   recentLogoResults = [],
+  showRecentLogos = true,
   restoreRecentLogo = () => {},
   user,
   userPlan,
@@ -4016,7 +4102,7 @@ function GeneratorCard({
         </>
       )}
 
-      {activeTool.key === "logo" && recentLogoResults.length > 0 && (
+      {showRecentLogos && activeTool.key === "logo" && recentLogoResults.length > 0 && (
         <details className="recentLogoStrip">
           <summary>Recent logos</summary>
           <div className="recentLogoGrid">
