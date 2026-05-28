@@ -44,6 +44,8 @@ ${logoPrompt}
 Creative Director interpretation:
 - Primary category: ${director.category}
 - Brand personality: ${director.personality}
+- Personality matrix: ${Object.entries(director.personalityMatrix || {}).map(([axis, item]) => `${axis} ${item.low}/${item.high}: ${item.score}`).join("; ")}
+- Design directives: ${director.personalityDirectives?.scoringBias || "balanced professional logo strategy"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -290,14 +292,221 @@ function detectLogoStyles({ subject, logoStyle = "", logoIndustry = "", logoSymb
   return matches.slice(0, 3).length ? matches.slice(0, 3) : STYLE_TAXONOMY.filter((style) => ["minimal", "corporate"].includes(style.key));
 }
 
-function inferPositioning({ subject, styles, source = "" }) {
+function inferPositioning({ subject, styles, source = "", personality = null }) {
   const text = source.toLowerCase();
+  if (personality) {
+    if (personality.matrix.market.score >= 66 || personality.matrix.price.score >= 68) return "premium";
+    if (personality.matrix.price.score <= 34 || personality.matrix.market.score <= 34) return "accessible";
+    if (personality.matrix.scale.score >= 66 || personality.matrix.tone.score <= 34) return "professional";
+    if (personality.matrix.reach.score <= 32) return "neighborhood";
+  }
   if (styles.some((style) => style.key === "luxury")) return "premium";
   if (/(cheap|affordable|budget|discount|fast|quick)/.test(text)) return "accessible";
   if (/(pro|professional|expert|trusted|certified)/.test(text)) return "professional";
   if (["law", "finance", "healthcare"].includes(subject)) return "trust";
   if (["pizza", "restaurant", "coffee"].includes(subject)) return "neighborhood";
   return "modern";
+}
+
+const PERSONALITY_AXES = {
+  price: ["affordable", "luxury"],
+  era: ["modern", "timeless"],
+  gender: ["masculine", "feminine"],
+  tone: ["corporate", "playful"],
+  scale: ["startup", "enterprise"],
+  reach: ["local", "global"],
+  craft: ["handcrafted", "tech-driven"],
+  market: ["mass-market", "premium"],
+  energy: ["calm", "aggressive"],
+  expression: ["minimal", "expressive"],
+};
+
+const SUBJECT_PERSONALITY_SIGNALS = {
+  law: { price: 15, era: 28, tone: -34, scale: 24, market: 20, energy: -22, expression: -22 },
+  finance: { price: 12, era: 20, tone: -30, scale: 28, market: 18, energy: -18, expression: -18 },
+  insurance: { era: 12, tone: -28, scale: 20, market: 10, energy: -24, expression: -16 },
+  healthcare: { era: 8, gender: 8, tone: -18, scale: 8, market: 10, energy: -30, expression: -18 },
+  tech: { era: -28, tone: -12, scale: -26, reach: 22, craft: 36, market: 10, expression: -10 },
+  agency: { era: -22, tone: 10, scale: -20, reach: 10, craft: 30, expression: 14 },
+  security: { gender: -18, tone: -30, scale: 18, craft: 26, market: 12, energy: 18, expression: -14 },
+  logistics: { era: -10, gender: -10, tone: -24, scale: 18, reach: 20, craft: 18, energy: 12, expression: -12 },
+  architecture: { price: 20, era: 8, tone: -18, scale: 8, market: 24, energy: -18, expression: -26 },
+  ranch: { price: 24, era: 18, gender: -8, reach: -18, craft: -30, market: 24, energy: -18, expression: -12 },
+  construction: { gender: -28, tone: -24, reach: -18, craft: -22, energy: 14, expression: -10 },
+  plastering: { gender: -22, tone: -24, reach: -22, craft: -28, energy: 4, expression: -14 },
+  roofing: { gender: -24, tone: -24, reach: -24, craft: -24, energy: 12, expression: -12 },
+  plumbing: { price: -8, gender: -18, tone: -22, reach: -28, craft: -18, market: -8, expression: -10 },
+  electrical: { era: -8, gender: -18, tone: -22, reach: -20, craft: -8, energy: 10, expression: -10 },
+  automotive: { gender: -26, tone: -12, craft: -12, energy: 26, expression: 8 },
+  fitness: { gender: -20, tone: 4, scale: -8, craft: 4, energy: 34, expression: 12 },
+  fashion: { price: 30, era: 20, gender: 18, scale: 10, reach: 22, market: 32, energy: -12, expression: -18 },
+  "wedding-photo": { price: 26, era: 18, gender: 22, reach: -4, craft: -12, market: 30, energy: -26, expression: -16 },
+  wellness: { price: 16, era: 12, gender: 26, tone: 2, craft: -18, market: 20, energy: -34, expression: -18 },
+  beauty: { price: 22, era: 12, gender: 30, market: 24, energy: -22, expression: -10 },
+  pizza: { price: -6, era: -8, tone: 24, reach: -30, craft: -18, market: -8, expression: 18 },
+  restaurant: { era: 4, tone: 12, reach: -24, craft: -20, market: 4, energy: -4, expression: 12 },
+  coffee: { era: 10, tone: 8, reach: -22, craft: -28, market: 10, energy: -10, expression: 8 },
+  education: { price: -8, era: -6, gender: 10, tone: 30, reach: -16, market: -6, energy: -10, expression: 24 },
+  pet: { price: -6, gender: 12, tone: 34, reach: -16, market: -6, energy: -8, expression: 28 },
+  nonprofit: { price: -10, gender: 10, tone: 16, reach: -12, craft: -12, market: -18, energy: -22, expression: 12 },
+  gaming: { price: -4, era: -30, gender: -12, tone: 28, scale: -22, craft: 26, energy: 32, expression: 30 },
+  tattoo: { gender: -12, tone: 18, craft: -30, energy: 18, expression: 34 },
+  cannabis: { era: 6, gender: 10, tone: 10, craft: -20, energy: -18, expression: 18 },
+};
+
+function clampPersonalityScore(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function addPersonalitySignal(state, axis, amount, reason) {
+  if (!state.matrix[axis]) return;
+  state.matrix[axis].score = clampPersonalityScore(state.matrix[axis].score + amount);
+  if (reason) state.matrix[axis].signals.push(reason);
+}
+
+function addPersonalitySignals(state, signals, reasonPrefix = "") {
+  Object.entries(signals || {}).forEach(([axis, amount]) => {
+    addPersonalitySignal(state, axis, amount, reasonPrefix ? `${reasonPrefix}: ${axis}` : axis);
+  });
+}
+
+function inferBrandPersonality({ subject, brandName = "", logoStyle = "", logoIndustry = "", logoSymbol = "", logoColors = "", userPrompt = "", logoPrompt = "", styles = [] }) {
+  const matrix = Object.fromEntries(
+    Object.entries(PERSONALITY_AXES).map(([axis, labels]) => [
+      axis,
+      { low: labels[0], high: labels[1], score: 50, signals: [] },
+    ])
+  );
+  const state = { matrix };
+  const text = `${brandName} ${logoStyle} ${logoIndustry} ${logoSymbol} ${logoColors} ${userPrompt} ${logoPrompt}`.toLowerCase();
+  const name = String(brandName || "").toLowerCase();
+  const has = (pattern) => pattern.test(text);
+  const nameHas = (pattern) => pattern.test(name);
+
+  addPersonalitySignals(state, SUBJECT_PERSONALITY_SIGNALS[subject], `industry ${subject}`);
+
+  styles.forEach((style, index) => {
+    const strength = Math.max(5, 18 - index * 5);
+    const map = {
+      luxury: { price: strength + 6, era: 8, market: strength + 8, expression: -10 },
+      minimal: { era: -6, tone: -6, expression: -strength - 6 },
+      corporate: { tone: -strength - 6, scale: 12, expression: -10 },
+      futuristic: { era: -strength - 10, scale: -10, craft: strength + 12, expression: 4 },
+      playful: { price: -8, tone: strength + 14, market: -8, expression: strength + 10 },
+      vintage: { era: strength + 12, craft: -10, expression: 8 },
+      retro: { era: 12, tone: 10, expression: 14 },
+      brutalist: { gender: -8, energy: strength + 12, expression: strength + 8 },
+      feminine: { gender: strength + 14, energy: -10 },
+      masculine: { gender: -strength - 10, energy: 8 },
+      streetwear: { tone: 16, energy: 18, expression: 20 },
+      western: { era: 12, gender: -8, craft: -18, expression: 8 },
+      tattoo: { craft: -18, energy: 12, expression: 22 },
+    }[style.key];
+    addPersonalitySignals(state, map, `style ${style.key}`);
+  });
+
+  if (has(/\b(luxury|luxe|premium|high.?end|exclusive|private|bespoke|estate|boutique|editorial|couture|heirloom|signature)\b/)) {
+    addPersonalitySignals(state, { price: 32, era: 16, market: 34, energy: -12, expression: -16 }, "premium wording");
+  }
+  if (has(/\b(cheap|affordable|budget|discount|value|fast|quick|deal|simple pricing)\b/)) {
+    addPersonalitySignals(state, { price: -34, market: -30, tone: 8, expression: 8 }, "accessible wording");
+  }
+  if (has(/\b(ai|artificial intelligence|software|saas|platform|automation|neural|cloud|data|digital|app|robot|machine learning)\b/)) {
+    addPersonalitySignals(state, { era: -32, scale: -22, reach: 16, craft: 38, expression: -8 }, "technology wording");
+  }
+  if (has(/\b(heritage|classic|timeless|legacy|foundry|manor|atelier|maison|house|rose|stone|blackwell|and co|& co)\b/) || nameHas(/\b(maison|atelier|house|rose|stone|vale|co\.?|&)\b/)) {
+    addPersonalitySignals(state, { price: 16, era: 28, market: 18, energy: -10, expression: -12 }, "heritage/name pattern");
+  }
+  if (has(/\b(kids|children|child|little|tiny|sprout|play|party|toy|school|learning|daycare)\b/)) {
+    addPersonalitySignals(state, { price: -12, gender: 10, tone: 34, energy: -8, expression: 28 }, "kids/play wording");
+  }
+  if (has(/\b(forge|iron|steel|apex|peak|torque|grit|alpha|battle|beast|power|performance|combat|dominate)\b/) || nameHas(/\b(forge|iron|steel|apex|torque|grit)\b/)) {
+    addPersonalitySignals(state, { gender: -28, energy: 34, expression: 12, tone: -6 }, "strong masculine wording");
+  }
+  if (has(/\b(calm|care|harmony|bloom|ritual|spa|skin|wellness|therapy|gentle|serene|soft|luna|flora)\b/) || nameHas(/\b(bloom|ritual|harmony|luna|flora|rose)\b/)) {
+    addPersonalitySignals(state, { gender: 24, energy: -34, expression: -8, market: 12 }, "calm/feminine wording");
+  }
+  if (has(/\b(local|neighborhood|family owned|family|home service|near me|community|county|city|trusted local)\b/)) {
+    addPersonalitySignals(state, { reach: -34, scale: -8, craft: -10, market: -4 }, "local wording");
+  }
+  if (has(/\b(global|world|international|atlas|universal|enterprise|corporate|institutional|capital group|partners)\b/)) {
+    addPersonalitySignals(state, { reach: 34, scale: 30, tone: -18, market: 14 }, "enterprise/global wording");
+  }
+  if (has(/\b(handmade|crafted|artisan|studio|wood|leather|ceramic|farm|ranch|bakery|roastery|plaster|stucco|contractor|builder)\b/)) {
+    addPersonalitySignals(state, { craft: -30, reach: -12, era: 8 }, "craft/trade wording");
+  }
+  if (has(/\b(bold|wild|expressive|maximal|colorful|mascot|character|illustrated|street|graffiti|y2k)\b/)) {
+    addPersonalitySignals(state, { expression: 32, tone: 14, energy: 16 }, "expressive wording");
+  }
+  if (has(/\b(minimal|simple|clean|quiet|refined|restrained|monoline|negative space|wordmark)\b/)) {
+    addPersonalitySignals(state, { expression: -34, energy: -8, market: 12 }, "minimal wording");
+  }
+
+  const summary = summarizePersonalityMatrix(matrix);
+  const directives = getPersonalityDesignDirectives(matrix);
+
+  return { matrix, summary, directives };
+}
+
+function getPersonalityLean(matrix, axis, threshold = 12) {
+  const item = matrix[axis];
+  if (!item) return "neutral";
+  if (item.score >= 50 + threshold) return item.high;
+  if (item.score <= 50 - threshold) return item.low;
+  return "balanced";
+}
+
+function summarizePersonalityMatrix(matrix) {
+  return Object.entries(matrix)
+    .map(([axis, item]) => {
+      const distance = Math.abs(item.score - 50);
+      const label = item.score >= 50 ? item.high : item.low;
+      return { axis, label, distance, score: item.score };
+    })
+    .filter((item) => item.distance >= 10)
+    .sort((a, b) => b.distance - a.distance)
+    .slice(0, 5)
+    .map((item) => `${item.label} ${item.axis}`)
+    .join(", ") || "balanced professional personality";
+}
+
+function getPersonalityDesignDirectives(matrix) {
+  const price = getPersonalityLean(matrix, "price");
+  const tone = getPersonalityLean(matrix, "tone");
+  const craft = getPersonalityLean(matrix, "craft");
+  const market = getPersonalityLean(matrix, "market");
+  const energy = getPersonalityLean(matrix, "energy");
+  const expression = getPersonalityLean(matrix, "expression");
+  const era = getPersonalityLean(matrix, "era");
+  const scale = getPersonalityLean(matrix, "scale");
+
+  const spacing = expression === "minimal" || price === "luxury" || market === "premium"
+    ? "generous"
+    : expression === "expressive" || tone === "playful"
+      ? "compact-energy"
+      : "balanced";
+  const iconStyle = expression === "minimal" || price === "luxury"
+    ? "reduced symbolic mark with negative space"
+    : tone === "playful" || expression === "expressive"
+      ? "distinct characterful mark with simplified details"
+      : craft === "handcrafted"
+        ? "material-aware trade symbol"
+        : "clean geometric brand mark";
+  const layoutBias = price === "luxury" || market === "premium" || era === "timeless"
+    ? "restrained"
+    : energy === "aggressive" || expression === "expressive"
+      ? "dynamic"
+      : scale === "enterprise"
+        ? "institutional"
+        : "balanced";
+
+  return {
+    spacing,
+    iconStyle,
+    layoutBias,
+    paletteBias: market === "premium" || price === "luxury" ? "premium restrained contrast" : tone === "playful" ? "friendly high-contrast color" : "professional high-contrast palette",
+    scoringBias: `${spacing} spacing, ${iconStyle}, ${layoutBias} layout`,
+  };
 }
 
 const TYPOGRAPHY_SYSTEMS = {
@@ -399,17 +608,41 @@ const TYPOGRAPHY_SYSTEMS = {
   },
 };
 
-function selectTypography({ subject, styles }) {
+function applyTypographyPersonality(base, personality) {
+  if (!personality) return base;
+  const expression = personality.matrix.expression.score;
+  const price = personality.matrix.price.score;
+  const market = personality.matrix.market.score;
+  const energy = personality.matrix.energy.score;
+  const era = personality.matrix.era.score;
+  const tone = personality.matrix.tone.score;
+
+  return {
+    ...base,
+    trackingBase: clampPersonalityScore(50 + (base.trackingBase || 0) * 10 + (price > 64 || market > 64 ? 10 : 0) + (expression < 38 ? 8 : 0) - (energy > 68 ? 6 : 0)) / 10 - 5,
+    subtitleTracking: Math.max(3, Math.min(9, (base.subtitleTracking || 5) + (price > 64 ? 1 : 0) + (expression < 38 ? 1 : 0) - (tone > 66 ? 1 : 0))),
+    lineGapRatio: Math.max(0.88, Math.min(1.08, (base.lineGapRatio || 0.94) + (era > 64 ? 0.03 : 0) + (expression < 38 ? 0.02 : 0) - (energy > 66 ? 0.02 : 0))),
+    hierarchy: `${base.hierarchy}; personality: ${personality.directives.spacing} spacing with ${personality.directives.layoutBias} hierarchy`,
+  };
+}
+
+function selectTypography({ subject, styles, personality = null }) {
   const primary = styles[0]?.key || "minimal";
-  if (["law", "finance", "insurance"].includes(subject)) return TYPOGRAPHY_SYSTEMS.authoritySerif;
-  if (primary === "luxury" || subject === "ranch") return TYPOGRAPHY_SYSTEMS.luxurySerif;
-  if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security", "tattoo"].includes(subject)) return TYPOGRAPHY_SYSTEMS.tradeSans;
-  if (["pizza", "restaurant", "coffee"].includes(subject)) return TYPOGRAPHY_SYSTEMS.hospitalitySans;
-  if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) return TYPOGRAPHY_SYSTEMS.editorialSerif;
-  if (["pet", "education", "nonprofit"].includes(subject) || primary === "playful") return TYPOGRAPHY_SYSTEMS.playfulRounded;
-  if (primary === "vintage" || primary === "western") return TYPOGRAPHY_SYSTEMS.vintageDisplay;
-  if (["tech", "agency", "gaming"].includes(subject) || primary === "futuristic" || primary === "minimal") return TYPOGRAPHY_SYSTEMS.geometricSans;
-  return { ...TYPOGRAPHY_SYSTEMS.geometricSans, label: styles[0]?.typography || TYPOGRAPHY_SYSTEMS.geometricSans.label };
+  let selected = null;
+  if (personality?.matrix.price.score >= 68 || personality?.matrix.market.score >= 70 || primary === "luxury") selected = TYPOGRAPHY_SYSTEMS.luxurySerif;
+  else if (personality?.matrix.craft.score >= 68 || personality?.matrix.era.score <= 34 || ["tech", "agency", "gaming"].includes(subject) || primary === "futuristic") selected = TYPOGRAPHY_SYSTEMS.geometricSans;
+  else if (personality?.matrix.tone.score >= 68 || primary === "playful" || ["pet", "education", "nonprofit"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.playfulRounded;
+  else if (personality?.matrix.energy.score >= 68 || personality?.matrix.gender.score <= 32) selected = TYPOGRAPHY_SYSTEMS.tradeSans;
+  else if (personality?.matrix.era.score >= 66) selected = TYPOGRAPHY_SYSTEMS.vintageDisplay;
+  else if (["law", "finance", "insurance"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.authoritySerif;
+  else if (subject === "ranch") selected = TYPOGRAPHY_SYSTEMS.luxurySerif;
+  else if (["construction", "plastering", "roofing", "plumbing", "electrical", "automotive", "fitness", "logistics", "security", "tattoo"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.tradeSans;
+  else if (["pizza", "restaurant", "coffee"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.hospitalitySans;
+  else if (["fashion", "wedding-photo", "wellness", "architecture", "cannabis"].includes(subject)) selected = TYPOGRAPHY_SYSTEMS.editorialSerif;
+  else if (primary === "vintage" || primary === "western") selected = TYPOGRAPHY_SYSTEMS.vintageDisplay;
+  else if (primary === "minimal") selected = TYPOGRAPHY_SYSTEMS.geometricSans;
+  else selected = { ...TYPOGRAPHY_SYSTEMS.geometricSans, label: styles[0]?.typography || TYPOGRAPHY_SYSTEMS.geometricSans.label };
+  return applyTypographyPersonality(selected, personality);
 }
 
 function selectAudience({ subject, positioning }) {
@@ -437,9 +670,15 @@ function selectAudience({ subject, positioning }) {
   return map[subject] || (positioning === "premium" ? "customers who expect a polished premium brand" : "customers who need a clear, memorable brand");
 }
 
-function selectPalette({ subject, styles, logoColors }) {
+function selectPalette({ subject, styles, logoColors, personality = null }) {
   if (logoColors) return logoColors;
   const primary = styles[0]?.key || "minimal";
+  if (personality?.matrix.price.score >= 68 || personality?.matrix.market.score >= 70) return "ink black, warm ivory, restrained champagne accent";
+  if (personality?.matrix.energy.score >= 70) return "deep black, white, sharp red or electric accent";
+  if (personality?.matrix.tone.score >= 70) return "friendly high-contrast palette with one memorable warm accent";
+  if (personality?.matrix.gender.score >= 70 && personality?.matrix.energy.score <= 42) return "soft ivory, muted rose, deep olive or charcoal";
+  if (personality?.matrix.craft.score >= 70) return "ink black, clean white, electric blue or violet accent";
+  if (personality?.matrix.reach.score <= 34 && personality?.matrix.craft.score <= 40) return "charcoal, cream, earthy local accent";
   if (subject === "pizza") return "tomato red, mozzarella cream, basil green, oven charcoal";
   if (subject === "restaurant") return "charcoal, warm cream, copper or ingredient accent";
   if (subject === "ranch") return "deep green, warm ivory, muted gold";
@@ -487,11 +726,20 @@ const ICON_CREATIVITY_SYSTEMS = {
   },
 };
 
-function selectIconSystem({ subject, styles, logoSymbol = "" }) {
+function selectIconSystem({ subject, styles, logoSymbol = "", personality = null }) {
   const styleKeys = styles.map((style) => style.key);
   const symbolText = logoSymbol.toLowerCase();
   if (/(mascot|animal|character|hippo|horse|dog|cat)/.test(symbolText) || ["hippo", "hippo-football", "pet"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.mascotReduction;
+  }
+  if (personality?.matrix.expression.score <= 34 || personality?.matrix.price.score >= 68) {
+    return ICON_CREATIVITY_SYSTEMS.editorialEmblem;
+  }
+  if (personality?.matrix.expression.score >= 70 || personality?.matrix.tone.score >= 70) {
+    return ICON_CREATIVITY_SYSTEMS.mascotReduction;
+  }
+  if (personality?.matrix.craft.score >= 68 || personality?.matrix.era.score <= 36) {
+    return ICON_CREATIVITY_SYSTEMS.abstractSystem;
   }
   if (["luxury", "fashion", "feminine"].some((key) => styleKeys.includes(key)) || ["wedding-photo", "ranch", "fashion"].includes(subject)) {
     return ICON_CREATIVITY_SYSTEMS.editorialEmblem;
@@ -505,7 +753,9 @@ function selectIconSystem({ subject, styles, logoSymbol = "" }) {
   return ICON_CREATIVITY_SYSTEMS.monogramFusion;
 }
 
-function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem }) {
+function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality }) {
+  const directives = personality?.directives || {};
+  const personalitySummary = personality?.summary || "balanced professional personality";
   const base = getConceptLibrary(subject, profile).map(([name, symbol, type, basePalette, layout, whyFits]) => ({
     name,
     style: styles[0]?.key || "professional",
@@ -514,8 +764,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typography: typography?.label || type,
     typographySystem: typography,
     palette: logoColors || palette || basePalette,
-    layout,
-    whyFits,
+    layout: `${layout}; ${directives.layoutBias || "balanced"} layout with ${directives.spacing || "balanced"} spacing`,
+    whyFits: `${whyFits} Personality fit: ${personalitySummary}.`,
     source: "library",
   }));
 
@@ -528,8 +778,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typography: typography?.label || style.typography,
       typographySystem: typography,
       palette: logoColors || style.palette,
-      layout: "large ownable icon above a highly readable wordmark",
-      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon.`,
+      layout: `large ownable icon above a highly readable wordmark; ${directives.layoutBias || "balanced"} composition`,
+      whyFits: `It translates the ${subject.replace("-", " ")} concept through a ${style.key} visual language instead of using a generic icon. Personality fit: ${personalitySummary}.`,
       source: "style",
     },
     {
@@ -540,8 +790,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
       typography: typography?.label || style.typography,
       typographySystem: typography,
       palette: logoColors || style.palette,
-      layout: "wordmark-led logo with small supporting icon",
-      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood.`,
+      layout: `wordmark-led logo with small supporting icon; ${directives.spacing || "balanced"} spacing`,
+      whyFits: `It keeps the brand name readable while still reflecting the requested category and mood. Personality fit: ${personalitySummary}.`,
       source: "style",
     },
   ]));
@@ -554,8 +804,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typography: typography?.label || "clean readable brand wordmark",
     typographySystem: typography,
     palette,
-    layout,
-    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo.`,
+    layout: `${layout}; ${directives.layoutBias || "balanced"} personality bias`,
+    whyFits: `This direction gives the brand a different composition so the options are not small variations of the same logo. It is tuned for ${personalitySummary}.`,
     source: "layout",
   }));
 
@@ -567,8 +817,8 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typography: typography?.label || "readable brand typography",
     typographySystem: typography,
     palette: logoColors || palette,
-    layout: index % 2 === 0 ? "large icon with compact wordmark" : "wordmark-led mark with embedded category cue",
-    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark.`,
+    layout: index % 2 === 0 ? `large icon with compact wordmark; ${directives.spacing || "balanced"} spacing` : `wordmark-led mark with embedded category cue; ${directives.layoutBias || "balanced"} layout`,
+    whyFits: `It explores a different brandable icon system so the final options do not repeat the same stock-looking mark. The icon logic follows ${directives.iconStyle || "a clean brand mark"}.`,
     source: "icon",
   }));
 
@@ -581,14 +831,14 @@ function buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoCo
     typographySystem: typography,
     palette: logoColors || palette,
     layout: index % 2 === 0 ? "centered mark over readable wordmark" : "wide professional lockup",
-    whyFits: `It designs the logo for a specific real-world use case: ${angle}.`,
+    whyFits: `It designs the logo for a specific real-world use case: ${angle}, while matching ${personalitySummary}.`,
     source: "positioning",
   }));
 
   return [...base, ...styleConcepts, ...layoutConcepts, ...iconModes, ...positioningConcepts].slice(0, 28);
 }
 
-function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "" }) {
+function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid = "", personality = null }) {
   const text = `${concept.name} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
   const aliases = {
     realestate: ["real estate", "property", "home", "house", "brokerage", "realtor"],
@@ -624,6 +874,19 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
   if (/(monogram|initials)/.test(text) && !/(monogram|initial|letter)/.test(logoSymbol.toLowerCase())) score -= subject === "abstract" ? 0 : 5;
   if (subject !== "abstract" && !subjectMatches) score -= 8;
   if (concept.source === "icon" && concept.iconSystem?.mode) score += 5;
+  if (personality) {
+    const layoutText = String(concept.layout || "").toLowerCase();
+    const whyText = String(concept.whyFits || "").toLowerCase();
+    if (personality.matrix.price.score >= 68 && /(premium|restrained|refined|editorial|luxury|generous)/.test(text)) score += 8;
+    if (personality.matrix.price.score <= 34 && /(friendly|clear|local|accessible|readable)/.test(text)) score += 6;
+    if (personality.matrix.tone.score >= 68 && /(playful|friendly|character|mascot|warm)/.test(text)) score += 7;
+    if (personality.matrix.energy.score >= 68 && /(bold|dynamic|strong|performance|large icon)/.test(text)) score += 7;
+    if (personality.matrix.energy.score <= 34 && /(calm|restrained|quiet|refined|balanced)/.test(text)) score += 6;
+    if (personality.matrix.expression.score <= 34 && /(minimal|negative|restrained|simple|clean)/.test(text)) score += 7;
+    if (personality.matrix.expression.score >= 68 && /(expressive|mascot|object|distinct|characterful)/.test(text)) score += 7;
+    if (personality.matrix.craft.score <= 34 && /(craft|material|trade|hand|local)/.test(text)) score += 5;
+    if (layoutText.includes(personality.directives.layoutBias) || whyText.includes(personality.directives.iconStyle.split(" ")[0])) score += 4;
+  }
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {
       if (word.length > 3 && text.includes(word)) score += SCORING_WEIGHTS.avoidWordPenalty;
@@ -650,14 +913,15 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const subject = getSubject(wordsResult.words);
   const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
   const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
-  const positioning = inferPositioning({ subject, styles, source: wordsResult.source });
-  const typography = selectTypography({ subject, styles });
-  const palette = selectPalette({ subject, styles, logoColors });
-  const iconSystem = selectIconSystem({ subject, styles, logoSymbol });
+  const personality = inferBrandPersonality({ subject, brandName: inferredName, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt, logoPrompt, styles });
+  const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
+  const typography = selectTypography({ subject, styles, personality });
+  const palette = selectPalette({ subject, styles, logoColors, personality });
+  const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality });
   const audience = selectAudience({ subject, positioning });
-  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem });
+  const pool = buildInternalConceptPool({ subject, profile, styles, logoSymbol, logoColors, typography, palette, iconSystem, personality });
   const scored = pool
-    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid }) }))
+    .map((concept) => ({ ...concept, score: scoreLogoConcept(concept, { subject, styles, logoSymbol, logoAvoid, personality }) }))
     .sort((a, b) => b.score - a.score);
 
   const diversified = [];
@@ -686,6 +950,9 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     brandName: inferredName,
     category: subject,
     styles,
+    personalityMatrix: personality.matrix,
+    personalitySummary: personality.summary,
+    personalityDirectives: personality.directives,
     positioning,
     typography: typography.label,
     typographySystem: typography,
@@ -696,6 +963,11 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     scores: scored.slice(0, 8).map(({ name, score, source }) => ({ name, score, source })),
     pipeline: {
       brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning },
+      brandPersonality: {
+        summary: personality.summary,
+        matrix: personality.matrix,
+        directives: personality.directives,
+      },
       industryDetection: { category: subject, confidence: subject === "abstract" ? "medium" : "high" },
       styleDetection: styles.map((style) => style.key),
       typographySelection: typography.label,
@@ -940,13 +1212,16 @@ function buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry,
   return {
     brandName: pipeline.brandName,
     category: pipeline.category,
-    personality: styleText,
+    personality: pipeline.personalitySummary || styleText,
+    personalityMatrix: pipeline.personalityMatrix,
+    personalityDirectives: pipeline.personalityDirectives,
     targetAudience: pipeline.targetAudience,
     visualTerritory: pipeline.concepts.map((concept) => concept.name).join(", "),
     avoid: logoAvoid || "Avoid random generic icons, misspelled text, crowded clip-art, and visuals unrelated to the brand words.",
     concepts: pipeline.concepts,
     pipeline: pipeline.pipeline,
     scores: pipeline.scores,
+    styles: pipeline.styles,
     typographySystem: pipeline.typographySystem,
     iconSystem: pipeline.iconSystem,
   };
@@ -1877,8 +2152,11 @@ function buildLogoSvg({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymb
   const typographySystem = concept.typographySystem || creativeDirector.typographySystem || TYPOGRAPHY_SYSTEMS.geometricSans;
   const fontFamily = typographySystem.primaryFamily || "Inter, Arial, Helvetica, sans-serif";
   const supportFamily = typographySystem.supportFamily || fontFamily;
-  const layout = subject === "plastering" ? variant % 4 : (hash + variant) % 4;
-  const markTransform = layout === 1 ? "translate(0 -42) scale(1.05)" : layout === 2 ? "translate(0 -28) scale(.98)" : layout === 3 ? "translate(0 -12) scale(.94)" : "";
+  const personalityDirectives = creativeDirector.personalityDirectives || {};
+  const preferredLayout = personalityDirectives.layoutBias === "restrained" ? 3 : personalityDirectives.layoutBias === "dynamic" ? 1 : personalityDirectives.layoutBias === "institutional" ? 2 : null;
+  const layout = subject === "plastering" ? variant % 4 : preferredLayout ?? ((hash + variant) % 4);
+  const markScale = personalityDirectives.layoutBias === "dynamic" ? 1.1 : personalityDirectives.spacing === "generous" ? 0.96 : 1;
+  const markTransform = layout === 1 ? `translate(0 -42) scale(${(1.05 * markScale).toFixed(2)})` : layout === 2 ? `translate(0 -28) scale(${(0.98 * markScale).toFixed(2)})` : layout === 3 ? `translate(0 -12) scale(${(0.94 * markScale).toFixed(2)})` : markScale !== 1 ? `scale(${markScale.toFixed(2)})` : "";
   const nameY = layout === 1 ? 748 : layout === 2 ? 700 : layout === 3 ? 720 : 730;
   const { wordmark, bottomY } = getWordmarkSvg({ displayName, fontFamily, nameY, layout, inkToken, typographySystem });
   const lineY = bottomY + 48;
