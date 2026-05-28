@@ -630,6 +630,149 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
   };
 }
 
+const BRAND_KIT_COLOR_LIBRARY = {
+  black: "#111111",
+  white: "#ffffff",
+  cream: "#f6f1e8",
+  gold: "#b08d45",
+  blue: "#2457d6",
+  navy: "#0d1b2a",
+  green: "#1f5b46",
+  red: "#9f2d2d",
+  pink: "#d78aa3",
+  purple: "#6247aa",
+  orange: "#c86b2d",
+  yellow: "#d6a930",
+  silver: "#b8bec7",
+  gray: "#6f737a",
+  grey: "#6f737a",
+  brown: "#6b4a32",
+  tan: "#c8a77b",
+  beige: "#e6d9c7",
+  teal: "#167c80",
+  chrome: "#aeb6c2",
+  rainbow: "#6f5cff",
+};
+
+function getHexForColorWord(color = "") {
+  return BRAND_KIT_COLOR_LIBRARY[String(color || "").toLowerCase()] || "";
+}
+
+function getPaletteFromLogoContext(parsedLogo = {}, logoEditor = {}, creativeBrief = {}) {
+  const colorWords = String(parsedLogo.colors || creativeBrief?.concepts?.[0]?.palette || "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .map(getHexForColorWord)
+    .filter(Boolean);
+
+  const seed = [
+    logoEditor.ink,
+    logoEditor.accent,
+    ...colorWords,
+    parsedLogo.style?.includes("luxury") ? "#b08d45" : "",
+    parsedLogo.industry?.includes("skincare") ? "#f4dfd0" : "",
+    parsedLogo.industry?.includes("AI") || parsedLogo.industry?.includes("tech") ? "#2457d6" : "",
+    parsedLogo.industry?.includes("ranch") ? "#6b4a32" : "",
+    "#111111",
+    "#f6f1e8",
+  ].filter(Boolean);
+
+  const unique = [...new Set(seed.map((color) => String(color).trim()).filter(Boolean))];
+  const primary = unique.slice(0, 3);
+  const secondary = [...new Set([logoEditor.paper || "#f7f4ed", "#ffffff", "#777067", ...unique.slice(3)])].slice(0, 3);
+
+  return {
+    primary: primary.length ? primary : ["#111111", "#b08d45", "#f6f1e8"],
+    secondary: secondary.length ? secondary : ["#ffffff", "#777067", "#f7f4ed"],
+  };
+}
+
+function getTypographyPairing(parsedLogo = {}) {
+  const text = `${parsedLogo.style || ""} ${parsedLogo.industry || ""} ${parsedLogo.typography || ""}`.toLowerCase();
+  if (text.includes("luxury") || text.includes("skincare") || text.includes("real estate") || text.includes("wedding")) {
+    return {
+      headline: "Editorial serif",
+      supporting: "Quiet modern sans",
+      note: "High contrast type with calm spacing gives the brand a more premium editorial feel.",
+    };
+  }
+  if (text.includes("ai") || text.includes("startup") || text.includes("tech") || text.includes("saas")) {
+    return {
+      headline: "Geometric sans",
+      supporting: "Technical neutral sans",
+      note: "Clean geometry and tight hierarchy keep the system modern, scalable, and product-ready.",
+    };
+  }
+  if (text.includes("fitness") || text.includes("construction") || text.includes("automotive")) {
+    return {
+      headline: "Bold condensed sans",
+      supporting: "Readable utility sans",
+      note: "Stronger weight and compact rhythm help the identity feel confident without adding clutter.",
+    };
+  }
+  if (text.includes("kids") || text.includes("playful")) {
+    return {
+      headline: "Rounded display",
+      supporting: "Friendly sans",
+      note: "Softer forms keep the brand approachable while preserving readability.",
+    };
+  }
+  return {
+    headline: "Modern wordmark",
+    supporting: "Neutral sans",
+    note: "Simple type and generous spacing keep the identity flexible across social, web, and print.",
+  };
+}
+
+function createMiniBrandAssetSvg({ brandName = "Brand", initials = "BT", primary = "#111111", accent = "#b08d45", paper = "#f7f4ed", variant = "avatar" }) {
+  const safeBrand = escapeSvgText(brandName || "Brand");
+  const safeInitials = escapeSvgText(initials || "BT");
+  const isMono = variant === "mono";
+  const background = isMono ? "#ffffff" : primary;
+  const foreground = isMono ? "#111111" : "#ffffff";
+  const line = isMono ? "#111111" : accent;
+
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900">
+  <rect width="900" height="900" rx="${variant === "avatar" ? 450 : 0}" fill="${variant === "avatar" ? background : paper}"/>
+  <g transform="translate(450 386)">
+    <circle r="150" fill="${variant === "avatar" ? "#ffffff" : "transparent"}" fill-opacity="${variant === "avatar" ? ".08" : "0"}" stroke="${line}" stroke-width="18"/>
+    <text x="0" y="32" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="120" font-weight="850" fill="${foreground}" letter-spacing="-2">${safeInitials}</text>
+  </g>
+  <text x="450" y="660" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="52" font-weight="820" fill="${variant === "avatar" ? foreground : primary}" letter-spacing="-1">${safeBrand}</text>
+</svg>`.trim();
+
+  return createDataUriFromSvg(svg);
+}
+
+function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreativeBrief = {}, logoImage = "" }) {
+  const brandName = parsedLogo.brandName || logoCreativeBrief?.brandName || "Brand";
+  const initials = getInitialsFromBrandName(brandName);
+  const palette = getPaletteFromLogoContext(parsedLogo, logoEditor, logoCreativeBrief);
+  const typography = getTypographyPairing(parsedLogo);
+  const primary = palette.primary[0] || "#111111";
+  const accent = palette.primary[1] || "#b08d45";
+  const paper = palette.secondary[0] || "#f7f4ed";
+  const firstConcept = logoCreativeBrief?.concepts?.[0] || {};
+
+  return {
+    brandName,
+    initials,
+    primaryColors: palette.primary,
+    secondaryColors: palette.secondary,
+    typography,
+    styleDirection: firstConcept.whyFits || logoCreativeBrief?.visualTerritory || `${parsedLogo.style || "Clean modern"} identity for ${parsedLogo.industry || "a modern brand"}.`,
+    logoUsage: [
+      "Website header",
+      "Social profile",
+      "Email signature",
+    ],
+    socialAvatar: createMiniBrandAssetSvg({ brandName, initials, primary, accent, paper, variant: "avatar" }),
+    monochrome: createMiniBrandAssetSvg({ brandName, initials, primary, accent, paper: "#ffffff", variant: "mono" }),
+    sourceLogo: logoImage,
+  };
+}
+
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
   const displayName = escapeSvgText(brandName || "Brandthat");
   const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
@@ -4186,6 +4329,15 @@ function GeneratorCard({
       copy: String(copy || "").replace(/\s+/g, " ").replace(/; Creative Director:.*$/i, "").slice(0, 130),
     }));
   }, [logoCreativeBrief, parsedLogoPreview]);
+  const lightweightBrandKit = useMemo(
+    () => buildLightweightBrandKit({
+      parsedLogo: parsedLogoPreview,
+      logoEditor,
+      logoCreativeBrief,
+      logoImage,
+    }),
+    [parsedLogoPreview, logoEditor, logoCreativeBrief, logoImage]
+  );
 
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
@@ -4427,6 +4579,8 @@ Generate another logo from the same creative direction. Preserve the strongest p
             </div>
           </div>
 
+          <LightweightBrandKitPanel brandKit={lightweightBrandKit} />
+
           {editableLogo && (
             <div className="logoRefinePanel">
               <div>
@@ -4550,6 +4704,80 @@ Generate another logo from the same creative direction. Preserve the strongest p
         </details>
       )}
     </div>
+  );
+}
+
+function LightweightBrandKitPanel({ brandKit }) {
+  if (!brandKit) return null;
+
+  const downloadAsset = (asset, label) => {
+    if (!asset) return;
+    downloadGeneratedImage(asset, `${brandKit.brandName}-${label}`);
+  };
+
+  return (
+    <section className="lightBrandKit">
+      <div className="lightBrandKitTop">
+        <div>
+          <div className="tinyTag">BRAND KIT</div>
+          <h3>Starter identity system</h3>
+        </div>
+        <span>{brandKit.brandName}</span>
+      </div>
+
+      <div className="kitEditorialGrid">
+        <div className="kitColorColumn">
+          <span>Primary colors</span>
+          <div className="kitSwatches">
+            {brandKit.primaryColors.map((color) => (
+              <i key={color} style={{ background: color }} title={color}></i>
+            ))}
+          </div>
+          <small>{brandKit.primaryColors.join(" / ")}</small>
+        </div>
+
+        <div className="kitColorColumn">
+          <span>Secondary colors</span>
+          <div className="kitSwatches">
+            {brandKit.secondaryColors.map((color) => (
+              <i key={color} style={{ background: color }} title={color}></i>
+            ))}
+          </div>
+          <small>{brandKit.secondaryColors.join(" / ")}</small>
+        </div>
+
+        <div className="kitTypeColumn">
+          <span>Typography</span>
+          <strong>{brandKit.typography.headline}</strong>
+          <small>{brandKit.typography.supporting}</small>
+          <p>{brandKit.typography.note}</p>
+        </div>
+
+        <div className="kitDirectionColumn">
+          <span>Style direction</span>
+          <p>{brandKit.styleDirection}</p>
+        </div>
+      </div>
+
+      <div className="kitUsageRow">
+        <div className="kitUsageExamples">
+          {brandKit.logoUsage.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+
+        <div className="kitAssetPair">
+          <div>
+            <img src={brandKit.socialAvatar} alt={`${brandKit.brandName} social avatar preview`} />
+            <button onClick={() => downloadAsset(brandKit.socialAvatar, "social-avatar")}>Social avatar</button>
+          </div>
+          <div>
+            <img src={brandKit.monochrome} alt={`${brandKit.brandName} monochrome logo preview`} />
+            <button onClick={() => downloadAsset(brandKit.monochrome, "monochrome")}>Monochrome</button>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -5556,11 +5784,164 @@ textarea{height:170px;resize:none;line-height:1.6}
 @media(max-width:820px){
   .directorNoteRow{grid-template-columns:1fr;gap:4px}
   .logoFrame{padding:24px}
+  .kitEditorialGrid,.kitUsageRow{grid-template-columns:1fr}
+  .kitAssetPair{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  .lightBrandKitTop{flex-direction:column}
 }
 
 .brandPreviewCard .resultActions button{
   background:white;
   color:#111;
+}
+
+.lightBrandKit{
+  margin-top:24px;
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:30px;
+  padding:28px;
+  box-shadow:0 24px 70px rgba(0,0,0,.04);
+}
+
+.lightBrandKitTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  margin-bottom:24px;
+}
+
+.lightBrandKitTop h3{
+  font-size:30px;
+  letter-spacing:-.04em;
+  margin:0;
+}
+
+.lightBrandKitTop>span{
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:9px 12px;
+  font-size:12px;
+  font-weight:900;
+  color:#555;
+}
+
+.kitEditorialGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1.15fr 1.3fr;
+  gap:16px;
+}
+
+.kitColorColumn,.kitTypeColumn,.kitDirectionColumn{
+  border-top:1px solid rgba(0,0,0,.1);
+  padding-top:16px;
+  min-height:145px;
+}
+
+.kitColorColumn>span,.kitTypeColumn>span,.kitDirectionColumn>span{
+  display:block;
+  color:#9b7b3f;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.6px;
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+
+.kitSwatches{
+  display:flex;
+  gap:9px;
+  margin-bottom:14px;
+}
+
+.kitSwatches i{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  border:1px solid rgba(0,0,0,.1);
+  display:block;
+}
+
+.kitColorColumn small,.kitTypeColumn small{
+  color:#666;
+  line-height:1.5;
+}
+
+.kitTypeColumn strong{
+  display:block;
+  font-size:20px;
+  letter-spacing:-.03em;
+  margin-bottom:4px;
+}
+
+.kitTypeColumn p,.kitDirectionColumn p{
+  color:#666;
+  line-height:1.65;
+  margin:12px 0 0;
+  font-size:14px;
+}
+
+.kitUsageRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:22px;
+  align-items:end;
+  margin-top:26px;
+  border-top:1px solid rgba(0,0,0,.08);
+  padding-top:22px;
+}
+
+.kitUsageExamples{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.kitUsageExamples span{
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:10px 12px;
+  font-size:13px;
+  font-weight:800;
+}
+
+.kitAssetPair{
+  display:flex;
+  gap:14px;
+}
+
+.kitAssetPair div{
+  width:122px;
+  text-align:center;
+}
+
+.kitAssetPair img{
+  width:86px;
+  height:86px;
+  object-fit:cover;
+  border-radius:22px;
+  border:1px solid rgba(0,0,0,.08);
+  background:#fafafa;
+  display:block;
+  margin:0 auto 9px;
+}
+
+.kitAssetPair button{
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:999px;
+  padding:8px 10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  color:#111;
+}
+
+@media(max-width:820px){
+  .kitEditorialGrid,.kitUsageRow{grid-template-columns:1fr}
+  .kitAssetPair{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  .lightBrandKitTop{flex-direction:column}
 }
 
 .logoActionStack{
