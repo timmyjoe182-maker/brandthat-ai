@@ -49,7 +49,9 @@ Creative Director interpretation:
 - Human-design realism: ${director.humanDesign?.summary || "intentional composition, premium spacing, and non-template balance"}
 - Design trend intelligence: ${director.trendIntelligence?.summary || "contemporary, scalable, non-generic brand system"}
 - Generation memory: ${director.generationMemory?.summary || "no prior logo memory"}
+- Previous successful direction to preserve/evolve: ${director.generationMemory?.anchor ? `Style: ${director.generationMemory.anchor.style || "keep current style"}; Symbol: ${director.generationMemory.anchor.symbol || "keep current icon logic"}; Typography: ${director.generationMemory.anchor.typography || "keep current typography quality"}; Palette: ${director.generationMemory.anchor.palette || "keep current palette"}; Layout: ${director.generationMemory.anchor.layout || "keep current layout logic"}` : "none"}
 - Internal Creative Director review: ${director.creativeDirectorReview?.summary || "concepts reviewed for brand fit, spacing, hierarchy, uniqueness, and premium feel"}
+- Regeneration behavior: ${director.generationMemory?.anchor ? "preserve the successful brand identity, typography, palette, and layout logic from the previous result; evolve only the requested weak area so this feels like another concept from the same creative direction" : "create the strongest first direction from the brief"}
 - Target audience: ${director.targetAudience}
 - Visual territory: ${director.visualTerritory}
 - Avoid generic mismatch: ${director.avoid}
@@ -643,6 +645,19 @@ function normalizeMemoryList(value) {
   return Array.isArray(value) ? value.map((item) => String(item || "").toLowerCase().trim()).filter(Boolean).slice(0, 18) : [];
 }
 
+function normalizeMemoryDirection(value = null) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    name: String(value.name || "").trim(),
+    style: String(value.style || value.logoStyle || "").trim(),
+    symbol: String(value.symbol || "").trim(),
+    typography: String(value.typography || "").trim(),
+    palette: String(value.palette || "").trim(),
+    layout: String(value.layout || "").trim(),
+    whyFits: String(value.whyFits || "").trim(),
+  };
+}
+
 function normalizeGenerationMemory(memory = {}) {
   return {
     concepts: normalizeMemoryList(memory.concepts),
@@ -656,31 +671,36 @@ function normalizeGenerationMemory(memory = {}) {
     generatedPalettes: normalizeMemoryList(memory.generatedPalettes),
     generatedTypography: normalizeMemoryList(memory.generatedTypography),
     generatedCompositions: normalizeMemoryList(memory.generatedCompositions),
+    lastSuccessfulDirection: normalizeMemoryDirection(memory.lastSuccessfulDirection),
+    continuityIntent: String(memory.continuityIntent || "").trim(),
   };
 }
 
 function buildGenerationMemoryIntelligence(memory = {}) {
   const normalized = normalizeGenerationMemory(memory);
   const avoid = [
-    ...normalized.concepts,
     ...normalized.rejectedStyles,
     ...normalized.rejectedIconDirections,
     ...normalized.rejectedPalettes,
     ...normalized.compositions,
-    ...normalized.generatedStyles,
-    ...normalized.generatedIconDirections,
-    ...normalized.generatedPalettes,
-    ...normalized.generatedCompositions,
   ].filter(Boolean);
-  const preferences = normalized.typographyPreferences;
+  const anchor = normalized.lastSuccessfulDirection;
+  const anchorPreferences = anchor
+    ? [anchor.typography, anchor.palette, anchor.layout, anchor.style].filter(Boolean)
+    : [];
+  const preferences = [...new Set([...normalized.typographyPreferences, ...anchorPreferences.map((item) => item.toLowerCase())])];
+  const hasContinuity = Boolean(anchor || normalized.continuityIntent);
 
   return {
     ...normalized,
     avoid,
+    anchor,
     preferences,
-    hasMemory: avoid.length > 0 || preferences.length > 0,
-    summary: avoid.length
-      ? `avoid recent/rejected directions: ${avoid.slice(0, 8).join(", ")}${preferences.length ? `; keep typography preferences: ${preferences.slice(0, 4).join(", ")}` : ""}`
+    hasMemory: avoid.length > 0 || preferences.length > 0 || hasContinuity,
+    summary: hasContinuity
+      ? `evolve from prior successful direction${anchor?.name ? ` (${anchor.name})` : ""}; preserve useful typography, palette, layout, and brand identity while improving weak areas${normalized.continuityIntent ? `; user intent: ${normalized.continuityIntent}` : ""}${avoid.length ? `; avoid rejected: ${avoid.slice(0, 5).join(", ")}` : ""}`
+      : avoid.length
+      ? `avoid rejected directions: ${avoid.slice(0, 8).join(", ")}${preferences.length ? `; keep typography preferences: ${preferences.slice(0, 4).join(", ")}` : ""}`
       : preferences.length
         ? `honor typography preferences: ${preferences.slice(0, 4).join(", ")}`
         : "no prior logo memory",
@@ -691,6 +711,31 @@ function conceptMatchesMemory(concept, memoryIntelligence) {
   if (!memoryIntelligence?.hasMemory) return false;
   const text = `${concept.name} ${concept.style} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
   return memoryIntelligence.avoid.some((item) => item.length > 3 && text.includes(item));
+}
+
+function scoreConceptContinuity(concept, memoryIntelligence) {
+  const anchor = memoryIntelligence?.anchor;
+  if (!anchor) return 0;
+
+  const conceptText = `${concept.name} ${concept.style} ${concept.symbol} ${concept.typography} ${concept.palette} ${concept.layout} ${concept.whyFits}`.toLowerCase();
+  const intent = String(memoryIntelligence.continuityIntent || "").toLowerCase();
+  let score = 0;
+
+  const shouldChangeIcon = /(different icon|try different icon|improve icon|remove the icon|no icon|monogram instead)/.test(intent);
+  const shouldSimplify = /(simpler|simple|less|minimal|cleaner)/.test(intent);
+  const shouldModernize = /(modern|spacing|premium|luxury|expensive)/.test(intent);
+
+  if (anchor.style && conceptText.includes(anchor.style.toLowerCase())) score += 7;
+  if (anchor.typography && conceptText.includes(anchor.typography.toLowerCase().split(";")[0].slice(0, 26))) score += 8;
+  if (anchor.palette && conceptText.includes(anchor.palette.toLowerCase().split(",")[0])) score += 6;
+  if (anchor.layout && conceptText.includes(anchor.layout.toLowerCase().split(" ").slice(0, 3).join(" "))) score += shouldChangeIcon ? 9 : 6;
+  if (anchor.symbol && !shouldChangeIcon && conceptText.includes(anchor.symbol.toLowerCase().split(" ").slice(0, 2).join(" "))) score += 5;
+  if (anchor.symbol && shouldChangeIcon && conceptText.includes(anchor.symbol.toLowerCase().split(" ").slice(0, 2).join(" "))) score -= 10;
+  if (shouldSimplify && /(minimal|simple|clean|restrained|fewer|scalable|negative space)/.test(conceptText)) score += 9;
+  if (shouldModernize && /(premium|modern|refined|spacing|whitespace|restrained|editorial)/.test(conceptText)) score += 8;
+  if (/(evolve|same creative direction|preserve|keep)/.test(intent) && /(alternative|refined|variation|evolved|same system|lockup)/.test(conceptText)) score += 5;
+
+  return score;
 }
 
 function updateGenerationMemory(memory = {}, { concepts = [], typographySystem = {}, palette = "", humanDesign = {}, trend = {} }) {
@@ -708,7 +753,9 @@ function updateGenerationMemory(memory = {}, { concepts = [], typographySystem =
     generatedPalettes: addUnique(normalized.generatedPalettes, concepts.map((concept) => concept.palette).concat(palette || []), 16),
     generatedTypography: addUnique(normalized.generatedTypography, concepts.map((concept) => concept.typography).concat(typographySystem.label || []), 16),
     generatedCompositions: addUnique(normalized.generatedCompositions, concepts.map((concept) => concept.layout).concat(humanDesign?.composition || []), 16),
-    summary: `remembered ${concepts.length} concepts; next retry should diversify style, icon, palette, typography, and composition`,
+    lastSuccessfulDirection: normalizeMemoryDirection(concepts[0]) || normalized.lastSuccessfulDirection,
+    continuityIntent: normalized.continuityIntent,
+    summary: `remembered ${concepts.length} concepts; next retry should evolve from the strongest direction while preserving useful typography, palette, layout, and brand identity`,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1140,10 +1187,12 @@ function scoreLogoConcept(concept, { subject, styles, logoSymbol = "", logoAvoid
   }
   if (memoryIntelligence?.hasMemory) {
     if (conceptMatchesMemory(concept, memoryIntelligence)) score -= 22;
+    score += scoreConceptContinuity(concept, memoryIntelligence);
     memoryIntelligence.preferences.forEach((preference) => {
       if (preference.length > 3 && text.includes(preference)) score += 6;
     });
-    if (/(different|alternative|diversify|new composition|different composition|new icon)/.test(text)) score += 6;
+    if (memoryIntelligence.anchor && /(refined|evolved|alternative|same system|lockup|variation)/.test(text)) score += 4;
+    if (!memoryIntelligence.anchor && /(different|alternative|diversify|new composition|different composition|new icon)/.test(text)) score += 6;
   }
   if (logoAvoid) {
     logoAvoid.toLowerCase().split(/\s+/).filter(Boolean).forEach((word) => {

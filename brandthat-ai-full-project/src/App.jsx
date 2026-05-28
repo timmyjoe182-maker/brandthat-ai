@@ -4153,6 +4153,24 @@ function GeneratorCard({
     }),
     [prompt, creativeTone, selectedPlatform, logoIndustry, logoSymbol, logoColors, logoAvoid]
   );
+  const getCurrentLogoDirection = () => {
+    const direction = logoCreativeBrief?.concepts?.[0] || logoVariations?.[0] || {};
+    return {
+      name: direction.name || "Current logo direction",
+      style: direction.style || direction.logoStyle || selectedPlatform || parsedLogoPreview.style,
+      symbol: direction.symbol || logoSymbol || parsedLogoPreview.symbol,
+      typography: direction.typography || parsedLogoPreview.typography,
+      palette: direction.palette || logoColors || parsedLogoPreview.colors,
+      layout: direction.layout || parsedLogoPreview.layout,
+      whyFits: direction.whyFits || "This direction is tied to the current brand request.",
+    };
+  };
+  const buildContinuityMemory = (intent = "Generate another concept from the same creative direction.", extra = {}) => ({
+    ...(logoGenerationMemory || {}),
+    ...extra,
+    lastSuccessfulDirection: getCurrentLogoDirection(),
+    continuityIntent: intent,
+  });
 
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
@@ -4186,10 +4204,7 @@ Preserve the original brand name, industry, style direction, colors, and symbol 
       logoSymbol: refinedParsedLogo.symbol || parsedLogoPreview.symbol || logoSymbol,
       logoColors: refinedParsedLogo.colors || parsedLogoPreview.colors || logoColors,
       logoAvoid: refinedParsedLogo.avoid || parsedLogoPreview.avoid || logoAvoid,
-      generationMemory: {
-        ...(logoCreativeBrief || {}),
-        refinement: cleanInstruction,
-      },
+      generationMemory: buildContinuityMemory(cleanInstruction),
     });
   };
 
@@ -4369,8 +4384,19 @@ Preserve the original brand name, industry, style direction, colors, and symbol 
                 <button onClick={saveCurrentOutput}>Save to Workspace</button>
                 <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
                 <button onClick={() => {
-                  rememberRejectedLogoDirection?.(logoCreativeBrief?.concepts?.[0] || logoVariations?.[0] || {}, "generate another version");
-                  generate();
+                  const continuityPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
+
+Generate another logo from the same creative direction. Preserve the strongest parts of the current brand identity, typography, color logic, and layout. Improve weak areas with cleaner spacing, better icon restraint, and a more premium finish.`.trim();
+                  generate(null, {
+                    prompt: continuityPrompt,
+                    creativeTone: parsedLogoPreview.brandName || creativeTone,
+                    selectedPlatform: parsedLogoPreview.style || selectedPlatform,
+                    logoIndustry: parsedLogoPreview.industry || logoIndustry,
+                    logoSymbol: parsedLogoPreview.symbol || logoSymbol,
+                    logoColors: parsedLogoPreview.colors || logoColors,
+                    logoAvoid: parsedLogoPreview.avoid || logoAvoid,
+                    generationMemory: buildContinuityMemory("Generate another concept from the same creative direction. Preserve successful qualities and improve weak areas."),
+                  });
                 }}>Generate Another Version</button>
               </div>
             </div>
@@ -4522,11 +4548,13 @@ function LogoCreativeDirectorPanel({
   if (!creativeBrief && directions.length === 0) return null;
 
   const regenerateWithInstruction = (instruction, direction = null) => {
-    rememberRejectedLogoDirection?.(direction || creativeBrief?.concepts?.[0] || {}, instruction);
+    const isExplicitReject = /different icon|do not repeat|manual reject|avoid|remove/i.test(instruction);
+    if (isExplicitReject) rememberRejectedLogoDirection?.(direction || creativeBrief?.concepts?.[0] || {}, instruction);
     const directionText = direction
       ? `Use this selected direction: ${direction.name}. Symbol/icon: ${direction.symbol}. Typography: ${direction.typography}. Palette: ${direction.palette}. Layout: ${direction.layout}. Why it fits: ${direction.whyFits}.`
       : "";
-    const nextPrompt = `${prompt || ""}\n\n${instruction}\n${directionText}`.trim();
+    const continuityText = "Preserve successful qualities from the current logo direction. Maintain the same brand identity and evolve the requested weak area instead of restarting.";
+    const nextPrompt = `${prompt || ""}\n\n${instruction}\n${continuityText}\n${directionText}`.trim();
     const nextBrandName = creativeBrief?.brandName || "";
     const nextIndustry = creativeBrief?.category || "";
     const nextStyle = direction?.logoStyle || "";
@@ -4546,6 +4574,10 @@ function LogoCreativeDirectorPanel({
       selectedPlatform: nextStyle,
       logoSymbol: nextSymbol,
       logoColors: nextColors,
+      generationMemory: {
+        lastSuccessfulDirection: direction || creativeBrief?.concepts?.[0] || null,
+        continuityIntent: instruction,
+      },
     });
   };
 
