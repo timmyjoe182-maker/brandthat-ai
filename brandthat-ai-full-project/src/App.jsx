@@ -640,6 +640,47 @@ function getWorkspaceSnapshot(brand) {
   ];
 }
 
+class LogoGenerationErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      hasError: true,
+      message: error?.message || "The logo generator could not render.",
+    };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Brandthat logo generator render error:", error, errorInfo);
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, message: "" });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="generateCard generatorFallback">
+          <div className="tinyTag">LOGO GENERATOR</div>
+          <h2>Something interrupted the logo preview.</h2>
+          <p>{this.state.message}</p>
+          <button className="btn dark" onClick={() => this.setState({ hasError: false, message: "" })}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [user, setUser] = useState(null);
@@ -671,6 +712,7 @@ export default function App() {
   const [logoTransparentSvg, setLogoTransparentSvg] = useState("");
   const [logoVariations, setLogoVariations] = useState([]);
   const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);
+  const [logoGenerationError, setLogoGenerationError] = useState("");
   const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
@@ -2120,6 +2162,7 @@ Requirements:
     }
 
     setLoading(true);
+    setLogoGenerationError("");
     setLogoImage("");
     setLogoImageSource("");
 
@@ -2184,8 +2227,10 @@ ${promptValue}`
       if (activeTool.key === "logo" && isFree) incrementDailyFreeUse();
       if (activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
     } catch (error) {
+      console.error("Brandthat generation request failed:", error);
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
       if (activeTool.key === "logo") {
+        setLogoGenerationError(error?.message || "Logo generation failed. Please try again with a clearer brand name and direction.");
         setResult("");
         setLogoImage("");
         setLogoImageSource("");
@@ -2246,6 +2291,7 @@ ${promptValue}`
     setLogoTransparentSvg("");
     setLogoVariations([]);
     setLogoCreativeBrief(null);
+    setLogoGenerationError("");
   };
 
   const restoreRecentLogo = (entry) => {
@@ -2313,23 +2359,21 @@ ${promptValue}`
         <>
           <main className="hero logoHero">
             <div className="heroTop">
-              <div className="eyebrow">AI LOGO GENERATOR + BRAND IDENTITY SYSTEM</div>
+              <div className="eyebrow">AI LOGO GENERATOR</div>
               <h1 className="heroTitle">
                 <span>Create a logo people trust.</span>
                 <span>Build the brand.</span>
               </h1>
-              <p className="lead">Generate a usable logo, Creative Director notes, SVG exports, transparent files, captions, hashtags, and a saved Brand Workspace from one idea.</p>
+              <p className="lead">Generate a usable logo, clear brand direction, export-ready files, captions, hashtags, and a saved workspace from one idea.</p>
 
-              <HeroProofPanel />
-              
               <div className="heroCtas">
                 <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Generate Your Free Logo</button>
-                <button className="btn light" onClick={() => selectTool("captions")}>Try Free Captions</button>
-                <button className="btn light" onClick={() => selectTool("hashtags")}>Free Hashtag Generator</button>
+                <button className="btn light" onClick={() => setPage("workspace")}>Build a Brand Kit</button>
               </div>
             </div>
 
-            <GeneratorCard
+            <LogoGenerationErrorBoundary resetKey={`${activeToolKey}-${loading}-${logoImage}-${logoGenerationError}`}>
+              <GeneratorCard
               activeTool={activeToolKey === "logo" ? activeTool : toolMap.logo}
               prompt={prompt}
               setPrompt={setPrompt}
@@ -2348,6 +2392,7 @@ ${promptValue}`
               generate={generate}
               loading={loading}
               result={result}
+              logoGenerationError={logoGenerationError}
               logoImage={logoImage}
               setLogoImage={setLogoImage}
               logoImageSource={logoImageSource}
@@ -2374,10 +2419,9 @@ ${promptValue}`
               rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               toggleFavorite={toggleFavorite}
               remixOutput={remixOutput}
-            />
+              />
+            </LogoGenerationErrorBoundary>
           </main>
-
-          <ConversionTrustBar />
 
           <section className="freeToolsSection">
             <div>
@@ -2400,9 +2444,6 @@ ${promptValue}`
               </button>
             </div>
           </section>
-
-          <BeforeAfterSection />
-          <CreativeDirectorExplainer />
 
           <HomepageSEOContent openSeoPage={openSeoPage} />
         </>
@@ -2468,6 +2509,7 @@ ${promptValue}`
           generate={generate}
           loading={loading}
           result={result}
+          logoGenerationError={logoGenerationError}
           logoImage={logoImage}
           setLogoImage={setLogoImage}
           logoImageSource={logoImageSource}
@@ -2556,7 +2598,8 @@ ${promptValue}`
             </div>
           )}
 
-          <GeneratorCard
+          <LogoGenerationErrorBoundary resetKey={`${activeToolKey}-${loading}-${logoImage}-${logoGenerationError}`}>
+            <GeneratorCard
             activeTool={activeTool}
             prompt={prompt}
             setPrompt={setPrompt}
@@ -2575,6 +2618,7 @@ ${promptValue}`
             generate={generate}
             loading={loading}
             result={result}
+            logoGenerationError={logoGenerationError}
             logoImage={logoImage}
             setLogoImage={setLogoImage}
             logoImageSource={logoImageSource}
@@ -2600,7 +2644,8 @@ ${promptValue}`
             rememberRejectedLogoDirection={rememberRejectedLogoDirection}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
-          />
+            />
+          </LogoGenerationErrorBoundary>
         </section>
       )}
 
@@ -3047,6 +3092,7 @@ function SEOPage({
   generate,
   loading,
   result,
+  logoGenerationError,
   logoImage,
   setLogoImage,
   logoImageSource,
@@ -3082,7 +3128,8 @@ function SEOPage({
       <p className="pageLead">{seoPage.intro}</p>
 
       <div id="brandthat-generator">
-        <GeneratorCard
+        <LogoGenerationErrorBoundary resetKey={`${activeTool.key}-${loading}-${logoImage}-${logoGenerationError}`}>
+          <GeneratorCard
           activeTool={activeTool}
           prompt={prompt}
           setPrompt={setPrompt}
@@ -3101,6 +3148,7 @@ function SEOPage({
           generate={generate}
           loading={loading}
           result={result}
+          logoGenerationError={logoGenerationError}
           logoImage={logoImage}
           setLogoImage={setLogoImage}
           logoImageSource={logoImageSource}
@@ -3127,7 +3175,8 @@ function SEOPage({
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
           toggleFavorite={toggleFavorite}
           remixOutput={remixOutput}
-        />
+          />
+        </LogoGenerationErrorBoundary>
       </div>
 
       <div className="seoArticle">
@@ -3738,6 +3787,7 @@ function GeneratorCard({
   generate,
   loading,
   result,
+  logoGenerationError = "",
   logoImage,
   setLogoImage = () => {},
   logoImageSource = "",
@@ -3761,36 +3811,11 @@ function GeneratorCard({
   clearGenerator,
   saveCurrentOutput,
   setLogoAsBrandProfile,
+  rememberRejectedLogoDirection,
   toggleFavorite,
   remixOutput
 }) {
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
-  const logoStarterPrompts = [
-    {
-      label: "Premium wordmark",
-      style: "premium wordmark, refined typography, elegant spacing",
-      brand: "Modern brand name",
-      prompt: "Create a premium typography-led logo for a modern brand. Focus on custom letter spacing, strong hierarchy, restrained color, and a mark that feels credible on a website, packaging, and social profile."
-    },
-    {
-      label: "Tech platform",
-      style: "modern SaaS identity, abstract symbol, clean system",
-      brand: "Platform name",
-      prompt: "Create a clean modern platform logo with an abstract symbol, strong wordmark, premium spacing, and a visual system that feels trustworthy, fast, and scalable."
-    },
-    {
-      label: "Local service",
-      style: "professional local service identity, strong mark, clear typography",
-      brand: "Business name",
-      prompt: "Create a professional local service logo that feels established, trustworthy, and easy to read. Avoid clipart. Make the icon specific to the business description and usable on trucks, signs, uniforms, and social media."
-    },
-    {
-      label: "Editorial brand",
-      style: "editorial brand identity, high-end serif, subtle symbol",
-      brand: "Studio name",
-      prompt: "Create an editorial logo for a premium studio or personal brand. Make it tasteful, minimal, distinctive, and built around typography, spacing, and a subtle memorable mark."
-    }
-  ];
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -3857,22 +3882,6 @@ function GeneratorCard({
             </label>
           </div>
 
-          <div className="logoStarterChips" aria-label="Logo prompt starters">
-            {logoStarterPrompts.map((starter) => (
-              <button
-                key={starter.label}
-                type="button"
-                onClick={() => {
-                  setSelectedPlatform(starter.style);
-                  setCreativeTone(starter.brand);
-                  setPrompt(starter.prompt);
-                }}
-              >
-                {starter.label}
-              </button>
-            ))}
-          </div>
-
           <textarea
             className="mainPromptBox"
             placeholder={getMainPromptPlaceholder(activeTool)}
@@ -3910,10 +3919,10 @@ function GeneratorCard({
       )}
 
       <div className="generatorButtons">
-        <button className="btn dark" onClick={generate}>
+        <button className="btn dark" onClick={generate} disabled={loading}>
           {loading ? getLoadingText(activeTool.key) : getGenerateButtonText(activeTool.key, activeTool.shortTitle)}
         </button>
-        <button className="btn light" onClick={clearGenerator}>Clear</button>
+        <button className="btn light" onClick={clearGenerator} disabled={loading}>Clear</button>
       </div>
 
       {loading && (
@@ -3930,6 +3939,14 @@ function GeneratorCard({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTool.key === "logo" && logoGenerationError && !loading && (
+        <div className="generatorErrorPanel">
+          <strong>Logo generation did not finish.</strong>
+          <span>{logoGenerationError}</span>
+          <button onClick={generate}>Try again</button>
         </div>
       )}
 
@@ -4745,9 +4762,15 @@ textarea{height:170px;resize:none;line-height:1.6}
 .generatorButtons{display:grid;grid-template-columns:1fr 130px;gap:12px;margin-top:16px}
 .btn{border:none;border-radius:18px;padding:16px 24px;font-weight:800;cursor:pointer;font-size:15px;transition:.2s ease;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{transform:translateY(-2px);opacity:.96}
+.btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
 .btn.dark{background:#111;color:white}
 .btn.light{background:white;color:#111;border:1px solid rgba(0,0,0,.08)}
 .btn.full{width:100%;margin-top:18px}
+.generatorFallback p{color:#666;line-height:1.7}
+.generatorErrorPanel{margin-top:18px;border:1px solid rgba(180,0,0,.18);background:#fff7f7;border-radius:18px;padding:16px 18px;display:grid;gap:8px}
+.generatorErrorPanel strong{font-size:15px}
+.generatorErrorPanel span{color:#666;line-height:1.5}
+.generatorErrorPanel button{width:max-content;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-weight:850;cursor:pointer;color:#111}
 .whiteBtn{background:white;color:#111;border:none}
 .logoImageBox{margin-top:26px;background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:28px;padding:22px;text-align:center}
 .logoImageBox img{width:100%;max-width:420px;border-radius:22px;display:block;margin:0 auto}
