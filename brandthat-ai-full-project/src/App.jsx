@@ -41,10 +41,10 @@ function isBrandthatTester(user) {
 const tools = [
   {
     key: "logo",
-    title: "Visual Identity Generator",
+    title: "Create Your AI Logo",
     shortTitle: "Logos",
-    desc: "Create a logo and visual direction that support the brand plan.",
-    label: "VISUAL IDENTITY",
+    desc: "Generate a clean logo concept and identity direction for your brand.",
+    label: "AI LOGO GENERATOR",
     platformLabel: "Logo style",
     platforms: ["Modern Minimal", "Luxury Wordmark", "Bold Monogram", "Editorial Serif", "Clean Tech", "Founder Brand", "Beauty / Wellness", "Restaurant / Hospitality", "Real Estate", "Social Media Icon"],
     placeholder: "Example: Create a black-and-white premium logo for Brandthat.ai, an AI creative studio for modern creators and brands.",
@@ -118,14 +118,14 @@ const tools = [
   },
   {
     key: "brand",
-    title: "Brand Plan Builder",
-    shortTitle: "Brand Plan",
-    desc: "Turn a rough idea into positioning, visual direction, roadmap, and next steps.",
-    label: "IDEA TO BRAND PLAN",
+    title: "Brand Creation Generator",
+    shortTitle: "Brand Creation",
+    desc: "Generate brand names, positioning, voice, and launch direction.",
+    label: "BRAND CREATION GENERATOR",
     platformLabel: "Brand focus",
     platforms: ["New Business", "Creator Brand", "Product Brand", "Luxury Brand", "Local Business", "Agency / Studio", "Personal Brand", "Online Tool / SaaS"],
-    placeholder: "Example: I want to create a premium mobile coffee cart for weddings and private events.",
-    promptGuide: "Help the user turn a rough idea into a complete brand plan. Include brand direction, positioning, audience, core offer, voice, visual identity direction, launch roadmap, and workspace next steps."
+    placeholder: "Example: I want to create a premium AI tool that helps small businesses make content and branding faster.",
+    promptGuide: "Help the user create a brand from a word, sentence, or paragraph. Include names, positioning, audience, tagline, voice, visual direction, offers, and launch direction."
   },
   {
     key: "audit",
@@ -379,8 +379,8 @@ function getCurrentSeoMeta(page) {
   }
 
   return {
-    title: "Brandthat.ai | Turn an Idea Into a Brand, Roadmap & Workspace",
-    description: "Turn a rough business idea into a defined brand, visual identity direction, practical launch roadmap, and saved Brand Workspace with Brandthat.ai.",
+    title: "Brandthat.ai | AI Logo Generator, Free Caption Generator & Brand Workspace",
+    description: "Create AI logos, free captions, free hashtags, growth roadmaps, and brand workspaces. Brandthat.ai helps creators, startups, and small businesses build brands faster.",
     canonical: "https://brandthat.ai/",
   };
 }
@@ -1523,7 +1523,7 @@ export default function App() {
 
     upsertMeta("meta[name='keywords']", {
       name: "keywords",
-      content: "brand strategy generator, brand plan generator, AI brand builder, brand workspace, brand roadmap generator, AI logo generator, brand kit generator, free caption generator, free hashtag generator",
+      content: "AI logo generator, free caption generator, free hashtag generator, brand workspace, brand kit generator, Instagram caption generator, TikTok hook generator, growth roadmap generator, brand bio generator",
     });
 
     upsertMeta("meta[property='og:type']", {
@@ -1799,8 +1799,8 @@ export default function App() {
   }, [logoGenerationMemory]);
 
   useEffect(() => {
-    if (page === "home" && activeToolKey !== "brand") {
-      setActiveToolKey("brand");
+    if (page === "home" && activeToolKey !== "logo") {
+      setActiveToolKey("logo");
     }
   }, [page, activeToolKey]);
 
@@ -2709,10 +2709,9 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
 
   const startWorkspaceFromCurrentLogo = () => {
     const context = getCurrentLogoBrandContext();
-    const generatedBrandPlan = activeToolKey === "brand" ? result : "";
 
     if (!user?.id) {
-      openAuth("signup", "Create a free Brandthat account to keep this brand plan, visual direction, roadmap, and workspace together as your project.", "save_logo_project");
+      openAuth("signup", "Create a free Brandthat account to keep this logo, strategy, brand kit, and roadmap together as your brand project.", "save_logo_project");
       return;
     }
 
@@ -2725,19 +2724,19 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setWorkspaceDraft({
       ...getDefaultWorkspaceDraft(),
       name: context.brandName || "New Brand",
-      description: context.strategy.coreMessage || generatedBrandPlan.split("\n").filter(Boolean).slice(0, 3).join(" ") || `${context.brandName || "This brand"} is a ${context.industry || "modern"} brand ready for launch.`,
+      description: context.strategy.coreMessage || `${context.brandName || "This brand"} is a ${context.industry || "modern"} brand ready for launch.`,
       logoDirection: [
-        context.visualDirection || (generatedBrandPlan ? "Visual identity direction created from the brand plan." : ""),
+        context.visualDirection,
         context.symbol ? `Symbol: ${context.symbol}` : "",
         context.colors ? `Colors: ${context.colors}` : "",
       ].filter(Boolean).join("\n"),
       tone: context.style || "Modern",
       style: context.style || "",
       audience: context.strategy.targetCustomer || "",
-      offer: context.strategy.coreMessage || generatedBrandPlan.split("\n").find((line) => /offer|message|position/i.test(line)) || "",
+      offer: context.strategy.coreMessage || "",
       differentiator: context.strategy.positioning || "",
       competitors: context.strategy.competitorCategory || "",
-      launchGoal: "Launch the brand with clear positioning, visual identity direction, first content, and a 30-day growth roadmap.",
+      launchGoal: "Launch the brand with a logo, profile identity, first captions, hashtags, and a 30-day growth roadmap.",
       logoImage,
     });
     setPage("workspace");
@@ -2747,7 +2746,6 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
 
   const buildGrowthRoadmapFromCurrentLogo = () => {
     const context = getCurrentLogoBrandContext();
-    const generatedBrandPlan = activeToolKey === "brand" ? result : "";
     const roadmapPrompt = `Create a practical 30-day launch and growth roadmap for this brand.
 
 Brand name: ${context.brandName || "The brand"}
@@ -2755,8 +2753,7 @@ Industry: ${context.industry || "Use the brand idea"}
 Positioning: ${context.strategy.positioning || "modern, clear, trustworthy"}
 Target customer: ${context.strategy.targetCustomer || "ideal customers for this business"}
 Core message: ${context.strategy.coreMessage || prompt}
-Brand plan context: ${generatedBrandPlan || "Use the current idea and visual direction."}
-Visual direction: ${context.visualDirection || "use the brand plan's visual direction"}
+Visual direction: ${context.visualDirection || "use the generated logo direction"}
 Goal: build awareness, publish consistently, and turn the new brand identity into social content, website messaging, and first customer interest.
 
 Include weekly priorities, post types, posting frequency, what to post, simple CTAs, and what to measure.`;
@@ -2870,7 +2867,7 @@ Rules:
         bios: "Generate exactly 10 polished bio options. Make them clear, concise, profile-ready, and specific to the user's brand or idea.",
         email: "Generate exactly 10 complete email options. Each option must include a subject line, short preview text, concise body copy, and a clear CTA. Make the emails accurate to the user's request and ready to send after light editing.",
         strategy: "Generate exactly 10 practical social strategy ideas. Each option should be specific, actionable, and useful for the selected platform or campaign.",
-        brand: "Create one complete brand plan from the user's idea. Use 10 numbered sections: brand direction, positioning, target customer, core offer, brand personality, visual identity direction, color/type direction, first launch roadmap, content ideas, and workspace next steps.",
+        brand: "Generate exactly 10 brand creation directions. Each option should include a brand name or concept, positioning, audience, and launch angle.",
         audit: "Create a premium brand audit. Include strengths, weaknesses, positioning gaps, audience clarity, offer clarity, trust gaps, content gaps, visual identity opportunities, and a prioritized action plan.",
         campaign: "Create a complete campaign system. Include campaign promise, audience angle, creative direction, hooks, captions, email ideas, CTA options, and a 14-day content calendar.",
         growth: "Create a detailed follower-growth roadmap. If the user says 100K followers, build a 30/60/90-day plan with posting frequency, best posting windows, content pillars, weekly schedule, daily engagement routine, collaboration ideas, milestone targets, metrics to track, and what to post on each platform."
@@ -2900,7 +2897,7 @@ Do not add closing notes.
 Do not mention Brandthat.ai unless the user specifically asks for that brand.
 
 Rules:
-- Exactly 10 numbered sections or results.
+- Exactly 10 results.
 - Every result must directly relate to what the user typed.
 - Make each result copy-ready, practical, and strategically useful.
 - Avoid generic filler and cheesy phrasing.
@@ -3118,12 +3115,20 @@ Requirements:
       return;
     }
 
-    const canUseWithoutAuth = true;
+    const isFreeSimpleTool = activeTool.key === "hashtags" || activeTool.key === "captions";
+    const canUseWithoutAuth = isFreeSimpleTool || activeTool.key === "logo";
     const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const logoLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isPro;
 
     if (!currentUser && !canUseWithoutAuth) {
       openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
+      return;
+    }
+
+    if (activeTool.key !== "logo" && activeTool.key !== "hashtags" && activeTool.key !== "captions" && !activeBrand) {
+      setPage("workspace");
+      notify("warning", "Create a workspace first", "Text tools are stronger when they are connected to a saved brand workspace.");
+      setResult("Create a Brand Workspace first so your saved captions, hooks, bios, and brand assets stay organized.");
       return;
     }
 
@@ -3344,7 +3349,7 @@ ${promptValue}`
 
         <div className="navLinks">
           <button onClick={() => setPage("workspace")}>Workspace</button>
-          <button onClick={() => openSeoPage("seo-logo")}>Visual Identity</button>
+          <button onClick={() => openSeoPage("seo-logo")}>AI Logo Generator</button>
           <button onClick={() => setPage("features")}>Tools</button>
           <button onClick={() => setPage("pricing")}>Pricing</button>
         </div>
@@ -3368,23 +3373,22 @@ ${promptValue}`
         <>
           <main className="hero logoHero">
             <div className="heroTop">
-              <div className="eyebrow">IDEA TO BRAND PLAN</div>
+              <div className="eyebrow">AI LOGO GENERATOR</div>
               <h1 className="heroTitle">
-                <span>Turn your idea into a brand.</span>
-                <span>Leave with a plan.</span>
+                <span>Create a logo people trust.</span>
+                <span>Build the brand.</span>
               </h1>
-              <p className="lead">Describe the business you want to build. BrandThat turns it into positioning, visual direction, a practical roadmap, and a workspace to keep going.</p>
+              <p className="lead">Generate a usable logo, clear brand direction, export-ready files, captions, hashtags, and a saved workspace from one idea.</p>
 
               <div className="heroCtas">
-                <button className="btn dark" onClick={() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Start With Your Idea</button>
-                <button className="btn light" onClick={() => setPage("workspace")}>Open Brand Workspace</button>
+                <button className="btn dark" onClick={() => openSeoPage("seo-logo")}>Generate Your Free Logo</button>
+                <button className="btn light" onClick={() => setPage("workspace")}>Build a Brand Kit</button>
               </div>
             </div>
 
-            <div id="brandthat-generator">
             <LogoGenerationErrorBoundary resetKey={`${activeToolKey}-${loading}-${logoImage}-${logoGenerationError}`}>
               <GeneratorCard
-              activeTool={activeToolKey === "brand" ? activeTool : toolMap.brand}
+              activeTool={activeToolKey === "logo" ? activeTool : toolMap.logo}
               prompt={prompt}
               setPrompt={setPrompt}
               selectedPlatform={selectedPlatform}
@@ -3437,27 +3441,26 @@ ${promptValue}`
               remixOutput={remixOutput}
               />
             </LogoGenerationErrorBoundary>
-            </div>
           </main>
 
           <section className="freeToolsSection">
             <div>
-              <div className="tinyTag">CORE JOURNEY</div>
-              <h2>Idea → Brand → Roadmap → Workspace.</h2>
-              <p className="sectionLead">Start with a rough idea, shape it into a clear brand direction, build the next-step roadmap, then save the project when it is worth continuing.</p>
+              <div className="tinyTag">FREE TOOLS</div>
+              <h2>Start free. Upgrade when the brand is worth saving.</h2>
+              <p className="sectionLead">Captions, hashtags, hooks, bios, strategy, campaigns, and growth plans stay free. Paid plans unlock logo generation volume, saved workspaces, and exportable brand systems.</p>
             </div>
             <div className="freeToolCards">
-              <button onClick={() => selectTool("brand")}>
-                <strong>Brand Plan</strong>
-                <span>Positioning, audience, offer, voice, and visual direction.</span>
+              <button onClick={() => selectTool("captions")}>
+                <strong>Caption Generator</strong>
+                <span>10 copy-ready captions for any platform.</span>
+              </button>
+              <button onClick={() => selectTool("hashtags")}>
+                <strong>Hashtag Generator</strong>
+                <span>50 relevant hashtags in one clean block.</span>
               </button>
               <button onClick={() => selectTool("growth")}>
-                <strong>Roadmap</strong>
-                <span>Practical launch actions, content rhythm, and next steps.</span>
-              </button>
-              <button onClick={() => setPage("workspace")}>
-                <strong>Workspace</strong>
-                <span>Save the brand system and keep building from one place.</span>
+                <strong>Growth Roadmap</strong>
+                <span>Turn goals like 100K followers into a practical plan.</span>
               </button>
             </div>
           </section>
@@ -3859,7 +3862,7 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
             onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, offer: e.target.value })}
           />
           <textarea
-            placeholder="Differentiator. Example: Idea-first brand building with strategy, visual direction, roadmap, and a saved workspace."
+            placeholder="Differentiator. Example: Logo-first brand building with saved workspaces and launch-ready content."
             value={workspaceDraft.differentiator || ""}
             onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, differentiator: e.target.value })}
           />
@@ -4160,30 +4163,31 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
 function HomepageSEOContent({ openSeoPage }) {
   return (
     <section className="seoHomeSection">
-      <div className="tinyTag">AI BRAND BUILDER</div>
-      <h2>Brandthat.ai helps creators and small businesses turn rough ideas into brand plans they can actually build from.</h2>
+      <div className="tinyTag">AI BRANDING TOOLS</div>
+      <h2>Brandthat.ai helps creators and small businesses create logos, captions, hashtags, and brand kits faster.</h2>
       <p>
-        Start with an idea, shape the positioning and visual direction, build a practical launch roadmap, then save the project into a Brand Workspace when it is worth continuing.
+        Start with the AI Logo Generator, use the free caption and hashtag generators to publish faster, then save your strongest work into a Brand Workspace when you are ready to build a complete brand system.
       </p>
       <div className="seoInternalLinks">
-        <button onClick={() => openSeoPage("seo-brand")}>Brand Plan Generator</button>
-        <button onClick={() => openSeoPage("seo-growth")}>Growth Roadmap Generator</button>
-        <button onClick={() => openSeoPage("seo-logo")}>Visual Identity Generator</button>
+        <button onClick={() => openSeoPage("seo-logo")}>AI Logo Generator</button>
         <button onClick={() => openSeoPage("seo-instagram")}>Instagram Caption Generator</button>
         <button onClick={() => openSeoPage("seo-hashtag")}>Free Hashtag Generator</button>
+        <button onClick={() => openSeoPage("seo-growth")}>Growth Roadmap Generator</button>
+        <button onClick={() => openSeoPage("seo-tiktok")}>TikTok Hook Generator</button>
+        <button onClick={() => openSeoPage("seo-bio")}>Brand Bio Generator</button>
       </div>
       <div className="seoTextGrid simpleSeoGrid">
         <div>
-          <h3>Idea-first brand building</h3>
-          <p>Turn a business idea into positioning, audience clarity, offer direction, voice, and a visual identity path before worrying about individual assets.</p>
+          <h3>Logo-first brand building</h3>
+          <p>Create a visual direction first, then build matching captions, bios, hashtags, hooks, emails, and launch copy around the same brand.</p>
         </div>
         <div>
-          <h3>Roadmap before random content</h3>
-          <p>Build a clear next-step plan with content rhythm, launch actions, and growth priorities so the brand has momentum after generation.</p>
+          <h3>Free tools people can use immediately</h3>
+          <p>The caption generator and hashtag generator help creators test ideas quickly before creating a saved workspace.</p>
         </div>
         <div>
-          <h3>Workspace when it matters</h3>
-          <p>Save the brand plan, logo direction, roadmap, captions, and assets so future work builds from the same command center.</p>
+          <h3>Simple workspace when it matters</h3>
+          <p>Save the brand name, voice, logo, and growth goal so every future output feels more consistent.</p>
         </div>
       </div>
     </section>
@@ -4348,7 +4352,7 @@ function SEOPage({
         <div className="seoArticleBlock">
           <h2>Explore more Brandthat.ai tools</h2>
           <div className="seoInternalLinks">
-            <button onClick={() => openSeoPage("seo-logo")}>Visual Identity Generator</button>
+            <button onClick={() => openSeoPage("seo-logo")}>AI Logo Generator</button>
             <button onClick={() => openSeoPage("seo-instagram")}>Instagram Caption Generator</button>
             <button onClick={() => openSeoPage("seo-tiktok")}>TikTok Hook Generator</button>
             <button onClick={() => openSeoPage("seo-bio")}>Brand Bio Generator</button>
@@ -5436,8 +5440,6 @@ Generate another logo from the same creative direction. Preserve the strongest p
           <div className="resultTop">
             <span>{getTenResultHeader(activeTool.key)}</span>
             <div className="resultActions">
-              {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
-              {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Workspace</button>}
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
@@ -5794,7 +5796,7 @@ function getToolSubline(toolKey) {
     hashtags: "Choose a platform, describe your post, and get 50 relevant copy-ready hashtags. No login required.",
     email: "Write complete email copy with subject lines, preview text, and calls to action.",
     strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
-    brand: "Start with a rough idea and get a brand direction, visual identity, roadmap, and workspace next steps.",
+    brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction.",
     audit: "Audit a brand, offer, profile, or website and get specific improvements.",
     campaign: "Build a campaign with angles, posts, emails, hooks, CTAs, and a simple calendar.",
     growth: "Create a realistic follower roadmap with posting cadence, timing, content pillars, and weekly milestones."
@@ -5811,7 +5813,7 @@ function getStylePlaceholder(toolKey) {
     hashtags: "Choose social media",
     email: "Email type or campaign goal",
     strategy: "Platform, campaign, or growth focus",
-    brand: "New business, local service, product, creator brand, or startup",
+    brand: "Brand category, market, or business type",
     audit: "Website, offer, profile, positioning, launch plan, or full brand",
     campaign: "Launch, promo, brand reveal, content series, or lead magnet",
     growth: "Instagram, TikTok, YouTube Shorts, LinkedIn, or multi-platform"
@@ -5828,7 +5830,7 @@ function getTonePlaceholder(toolKey) {
     hashtags: "",
     email: "Email tone",
     strategy: "Strategy tone or brand voice",
-    brand: "Premium, friendly, bold, calm, playful, expert, or modern",
+    brand: "Brand personality",
     audit: "Direct, premium, strategic, honest",
     campaign: "Energetic, premium, conversion-focused, social-native",
     growth: "Practical, ambitious, consistent, platform-native"
@@ -5846,9 +5848,6 @@ function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "hashtags") {
     return "Describe what you need hashtags for. Example: Sunset dinner at a California ranch with miniature cows, alpacas, and luxury countryside lifestyle content.";
   }
-  if (activeTool.key === "brand") {
-    return "Describe your idea in plain English. Example: I want to start a high-end mobile coffee cart for weddings and private events, but I need the brand, launch plan, and content direction.";
-  }
   return activeTool.placeholder;
 }
 
@@ -5861,7 +5860,7 @@ function getGenerateButtonText(toolKey, shortTitle) {
     hashtags: "Generate 50 Hashtags",
     email: "Generate 10 Emails",
     strategy: "Generate 10 Strategy Ideas",
-    brand: "Build My Brand Plan",
+    brand: "Generate 10 Brand Directions",
     audit: "Audit Brand",
     campaign: "Build Campaign",
     growth: "Build Growth Roadmap"
@@ -5876,7 +5875,7 @@ function getTenResultHeader(toolKey) {
     bios: "10 BIO OPTIONS",
     email: "10 EMAIL OPTIONS",
     strategy: "10 STRATEGY IDEAS",
-    brand: "BRAND PLAN",
+    brand: "10 BRAND DIRECTIONS",
     audit: "BRAND AUDIT",
     campaign: "CAMPAIGN PLAN",
     growth: "GROWTH ROADMAP"
@@ -5893,7 +5892,7 @@ function getLoadingText(toolKey) {
     hashtags: "Generating 50 hashtags...",
     email: "Generating 10 email options...",
     strategy: "Generating 10 strategy ideas...",
-    brand: "Building your brand plan...",
+    brand: "Generating 10 brand directions...",
     audit: "Auditing your brand...",
     campaign: "Building your campaign...",
     growth: "Building your growth roadmap..."
@@ -5910,7 +5909,7 @@ function getLoadingSubtext(toolKey) {
     hashtags: "Creating one clean copy-ready hashtag block.",
     email: "Creating ten accurate emails with subject, preview, body, and CTA.",
     strategy: "Creating ten specific strategy moves you can use.",
-    brand: "Turning the idea into positioning, visual direction, roadmap, and workspace next steps.",
+    brand: "Creating ten brand concepts with positioning and launch direction.",
     audit: "Finding positioning, trust, offer, content, and conversion gaps.",
     campaign: "Creating angles, posts, emails, hooks, and launch actions.",
     growth: "Mapping posting cadence, timing, content pillars, and milestone targets."
