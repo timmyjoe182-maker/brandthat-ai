@@ -2678,6 +2678,87 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
+  const getCurrentLogoBrandContext = () => {
+    const parsedLogo = parseNaturalLogoPrompt({
+      prompt,
+      brandName: creativeTone,
+      style: selectedPlatform,
+      industry: logoIndustry,
+      symbol: logoSymbol,
+      colors: logoColors,
+      avoid: logoAvoid,
+    });
+    const strategy = logoCreativeBrief?.brandStrategy || {};
+    const primaryConcept = logoCreativeBrief?.concepts?.[0] || {};
+
+    return {
+      parsedLogo,
+      strategy,
+      primaryConcept,
+      brandName: parsedLogo.brandName || creativeTone || logoCreativeBrief?.brandName || "",
+      industry: parsedLogo.industry || logoIndustry || logoCreativeBrief?.category || "",
+      style: parsedLogo.style || selectedPlatform || primaryConcept.style || "",
+      colors: parsedLogo.colors || logoColors || primaryConcept.palette || strategy.suggestedColorDirection || "",
+      symbol: parsedLogo.symbol || logoSymbol || primaryConcept.symbol || "",
+      visualDirection: strategy.suggestedVisualDirection || primaryConcept.whyFits || logoCreativeBrief?.visualTerritory || "",
+    };
+  };
+
+  const startWorkspaceFromCurrentLogo = () => {
+    const context = getCurrentLogoBrandContext();
+
+    setWorkspaceDraft({
+      ...getDefaultWorkspaceDraft(),
+      name: context.brandName || "New Brand",
+      description: context.strategy.coreMessage || `${context.brandName || "This brand"} is a ${context.industry || "modern"} brand ready for launch.`,
+      logoDirection: [
+        context.visualDirection,
+        context.symbol ? `Symbol: ${context.symbol}` : "",
+        context.colors ? `Colors: ${context.colors}` : "",
+      ].filter(Boolean).join("\n"),
+      tone: context.style || "Modern",
+      style: context.style || "",
+      audience: context.strategy.targetCustomer || "",
+      offer: context.strategy.coreMessage || "",
+      differentiator: context.strategy.positioning || "",
+      competitors: context.strategy.competitorCategory || "",
+      launchGoal: "Launch the brand with a logo, profile identity, first captions, hashtags, and a 30-day growth roadmap.",
+      logoImage,
+    });
+    setPage("workspace");
+    notify("success", "Brand project prepared", "Your logo, strategy, and direction are ready to save as a workspace.");
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
+  };
+
+  const buildGrowthRoadmapFromCurrentLogo = () => {
+    const context = getCurrentLogoBrandContext();
+    const roadmapPrompt = `Create a practical 30-day launch and growth roadmap for this brand.
+
+Brand name: ${context.brandName || "The brand"}
+Industry: ${context.industry || "Use the brand idea"}
+Positioning: ${context.strategy.positioning || "modern, clear, trustworthy"}
+Target customer: ${context.strategy.targetCustomer || "ideal customers for this business"}
+Core message: ${context.strategy.coreMessage || prompt}
+Visual direction: ${context.visualDirection || "use the generated logo direction"}
+Goal: build awareness, publish consistently, and turn the new brand identity into social content, website messaging, and first customer interest.
+
+Include weekly priorities, post types, posting frequency, what to post, simple CTAs, and what to measure.`;
+
+    setActiveToolKey("growth");
+    setSelectedPlatform(context.industry || "Multi-platform");
+    setCreativeTone(context.brandName || "");
+    setLogoIndustry("");
+    setLogoSymbol("");
+    setLogoColors("");
+    setLogoAvoid("");
+    setPrompt(roadmapPrompt);
+    setResult("");
+    setLogoImage("");
+    setLogoImageSource("");
+    setPage("studio");
+    setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  };
+
   const getSystemPrompt = () => {
     const workspaceContext = activeBrand
       ? `
@@ -3337,6 +3418,8 @@ ${promptValue}`
               clearGenerator={clearGenerator}
               saveCurrentOutput={saveCurrentOutput}
               setLogoAsBrandProfile={setLogoAsBrandProfile}
+              onStartWorkspace={startWorkspaceFromCurrentLogo}
+              onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
               rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               toggleFavorite={toggleFavorite}
               remixOutput={remixOutput}
@@ -3454,10 +3537,12 @@ ${promptValue}`
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
-              saveCurrentOutput={saveCurrentOutput}
-              setLogoAsBrandProfile={setLogoAsBrandProfile}
-              rememberRejectedLogoDirection={rememberRejectedLogoDirection}
-              openSeoPage={openSeoPage}
+          saveCurrentOutput={saveCurrentOutput}
+          setLogoAsBrandProfile={setLogoAsBrandProfile}
+          onStartWorkspace={startWorkspaceFromCurrentLogo}
+          onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
+          rememberRejectedLogoDirection={rememberRejectedLogoDirection}
+          openSeoPage={openSeoPage}
         />
       )}
 
@@ -3565,6 +3650,8 @@ ${promptValue}`
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
+            onStartWorkspace={startWorkspaceFromCurrentLogo}
+            onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
             rememberRejectedLogoDirection={rememberRejectedLogoDirection}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
@@ -4132,6 +4219,8 @@ function SEOPage({
   clearGenerator,
   saveCurrentOutput,
   setLogoAsBrandProfile,
+  onStartWorkspace,
+  onBuildGrowthRoadmap,
   rememberRejectedLogoDirection,
   toggleFavorite,
   remixOutput,
@@ -4189,6 +4278,8 @@ function SEOPage({
           clearGenerator={clearGenerator}
           saveCurrentOutput={saveCurrentOutput}
           setLogoAsBrandProfile={setLogoAsBrandProfile}
+          onStartWorkspace={onStartWorkspace}
+          onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
           toggleFavorite={toggleFavorite}
           remixOutput={remixOutput}
@@ -4830,6 +4921,8 @@ function GeneratorCard({
   clearGenerator,
   saveCurrentOutput,
   setLogoAsBrandProfile,
+  onStartWorkspace = () => {},
+  onBuildGrowthRoadmap = () => {},
   rememberRejectedLogoDirection,
   toggleFavorite,
   remixOutput
@@ -5077,11 +5170,15 @@ Designer iteration rules:
           </details>
 
           {prompt.trim() && (
-            <div className="logoParsePreview">
-              <span>Brand: {parsedLogoPreview.brandName || "will infer"}</span>
-              <span>Style: {parsedLogoPreview.style}</span>
-              <span>Industry: {parsedLogoPreview.industry}</span>
-              <span>Colors: {parsedLogoPreview.colors}</span>
+            <div className="brandUnderstoodPanel">
+              <div>
+                <span>BrandThat understood</span>
+                <strong>{parsedLogoPreview.brandName || "Brand name will be inferred"}</strong>
+              </div>
+              <p>
+                {parsedLogoPreview.industry || "Industry will be inferred"} · {parsedLogoPreview.style || "best-fit style"} · {parsedLogoPreview.colors || "brand-fit colors"}
+              </p>
+              <small>Wrong? Edit the prompt or open Advanced options before generating.</small>
             </div>
           )}
         </>
@@ -5177,11 +5274,17 @@ Designer iteration rules:
 
               <div className="logoActionStack">
                 <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
-                <button onClick={openLogoImage}>Open Full Size</button>
-                {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, `${editorFileName}-vector`)}>Download SVG</button>}
-                {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
-                <button onClick={saveCurrentOutput}>Save to Workspace</button>
-                <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
+                <button onClick={() => document.querySelector(".logoRefinePanel textarea")?.focus()}>Refine</button>
+                <button onClick={onStartWorkspace}>Save Brand Project</button>
+                <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>
+                <details className="logoMoreActions">
+                  <summary>More</summary>
+                  <button onClick={openLogoImage}>Open Full Size</button>
+                  {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, `${editorFileName}-vector`)}>Download SVG</button>}
+                  {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
+                  <button onClick={saveCurrentOutput}>Save Output</button>
+                  <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
+                </details>
                 <button onClick={() => {
                   const continuityPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
 
@@ -5200,6 +5303,13 @@ Generate another logo from the same creative direction. Preserve the strongest p
               </div>
             </div>
           </div>
+
+          <BrandJourneyPanel
+            brandName={parsedLogoPreview.brandName || creativeTone || logoCreativeBrief?.brandName}
+            creativeBrief={logoCreativeBrief}
+            onStartWorkspace={onStartWorkspace}
+            onBuildGrowthRoadmap={onBuildGrowthRoadmap}
+          />
 
           <LightweightBrandKitPanel brandKit={lightweightBrandKit} />
 
@@ -5327,6 +5437,40 @@ Generate another logo from the same creative direction. Preserve the strongest p
         </details>
       )}
     </div>
+  );
+}
+
+function BrandJourneyPanel({ brandName = "", creativeBrief = null, onStartWorkspace = () => {}, onBuildGrowthRoadmap = () => {} }) {
+  const strategy = creativeBrief?.brandStrategy || {};
+  const steps = [
+    ["Strategy", strategy.positioning || "Brand direction created"],
+    ["Logo", "Primary mark generated"],
+    ["Brand Kit", "Colors, type, avatar, and exports ready"],
+    ["Roadmap", "Next step: turn this identity into launch content"],
+  ];
+
+  return (
+    <section className="brandJourneyPanel">
+      <div className="brandJourneyTop">
+        <div>
+          <div className="tinyTag">BRAND BUILD FLOW</div>
+          <h3>{brandName ? `${brandName} is becoming a brand system` : "Your brand system is taking shape"}</h3>
+        </div>
+        <span>4 steps ready</span>
+      </div>
+      <div className="brandJourneySteps">
+        {steps.map(([label, copy], index) => (
+          <div key={label}>
+            <strong>{index + 1}. {label}</strong>
+            <p>{copy}</p>
+          </div>
+        ))}
+      </div>
+      <div className="brandJourneyActions">
+        <button className="btn dark" onClick={onStartWorkspace}>Save Brand Project</button>
+        <button className="btn light" onClick={onBuildGrowthRoadmap}>Create 30-Day Roadmap</button>
+      </div>
+    </section>
   );
 }
 
@@ -6642,6 +6786,32 @@ textarea{height:170px;resize:none;line-height:1.6}
   margin-top:0;
 }
 
+.logoMoreActions{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.logoMoreActions summary{
+  cursor:pointer;
+  background:rgba(255,255,255,.1);
+  color:white;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  padding:11px 15px;
+  font-weight:900;
+  width:max-content;
+}
+
+.logoMoreActions[open]{
+  display:flex;
+}
+
+.logoMoreActions button{
+  display:block;
+  margin-top:8px;
+}
+
 .logoGenerationDetails{
   margin-top:18px;
   background:white;
@@ -6699,21 +6869,110 @@ textarea{height:170px;resize:none;line-height:1.6}
   padding:0 10px 10px;
 }
 
-.logoParsePreview{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
+.brandUnderstoodPanel{
   margin-top:14px;
+  background:#111;
+  color:white;
+  border-radius:22px;
+  padding:18px;
+  display:grid;
+  grid-template-columns:220px 1fr;
+  gap:16px;
+  align-items:center;
 }
 
-.logoParsePreview span{
-  background:#f7f4ed;
+.brandUnderstoodPanel span{
+  display:block;
+  color:#d9bd77;
+  font-size:11px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  font-weight:900;
+  margin-bottom:7px;
+}
+
+.brandUnderstoodPanel strong{
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+
+.brandUnderstoodPanel p{
+  margin:0;
+  color:rgba(255,255,255,.82);
+  line-height:1.5;
+  font-weight:800;
+}
+
+.brandUnderstoodPanel small{
+  display:block;
+  color:rgba(255,255,255,.58);
+  margin-top:6px;
+  font-weight:750;
+}
+
+.brandJourneyPanel{
+  margin-top:20px;
+  background:white;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:26px;
+  padding:22px;
+}
+
+.brandJourneyTop{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:flex-start;
+  margin-bottom:18px;
+}
+
+.brandJourneyTop h3{
+  font-size:26px;
+  line-height:1.05;
+  letter-spacing:-.04em;
+  margin:0;
+}
+
+.brandJourneyTop>span{
+  background:#fafafa;
   border:1px solid rgba(0,0,0,.08);
   border-radius:999px;
-  padding:9px 11px;
-  color:#555;
+  padding:9px 12px;
   font-size:12px;
   font-weight:900;
+  color:#555;
+}
+
+.brandJourneySteps{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+
+.brandJourneySteps div{
+  background:#fafafa;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:14px;
+}
+
+.brandJourneySteps strong{
+  display:block;
+  margin-bottom:8px;
+}
+
+.brandJourneySteps p{
+  margin:0;
+  color:#666;
+  line-height:1.45;
+  font-size:13px;
+}
+
+.brandJourneyActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:16px;
 }
 
 .logoRefinePanel{
@@ -7193,6 +7452,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader{flex-direction:column;align-items:flex-start}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
