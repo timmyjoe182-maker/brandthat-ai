@@ -1883,6 +1883,9 @@ export default function App() {
     if (action === "generate") {
       notify("success", "You're logged in", "Generating your brand asset now.");
       setTimeout(() => generate(loggedInUser), 150);
+    } else if (action === "save_logo_project") {
+      notify("success", "You're logged in", "Your brand project is ready to save.");
+      setTimeout(() => startWorkspaceFromCurrentLogo(), 150);
     } else {
       notify("success", "Logged in", "Welcome back to your Brandthat workspace.");
     }
@@ -2707,6 +2710,17 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   const startWorkspaceFromCurrentLogo = () => {
     const context = getCurrentLogoBrandContext();
 
+    if (!user?.id) {
+      openAuth("signup", "Create a free Brandthat account to keep this logo, strategy, brand kit, and roadmap together as your brand project.", "save_logo_project");
+      return;
+    }
+
+    if (!isLogoTestingUnlocked && isFree && brandWorkspaces.length >= 1) {
+      setPage("pricing");
+      notify("warning", "Save more brand projects with Starter", "Your free workspace is already being used. Upgrade when you want saved history, exports, and more brand projects.");
+      return;
+    }
+
     setWorkspaceDraft({
       ...getDefaultWorkspaceDraft(),
       name: context.brandName || "New Brand",
@@ -3411,6 +3425,8 @@ ${promptValue}`
               restoreRecentLogo={restoreRecentLogo}
               user={user}
               userPlan={userPlan}
+              brandWorkspacesCount={brandWorkspaces.length}
+              isLogoTestingUnlocked={isLogoTestingUnlocked}
               dailyRemaining={dailyRemaining}
               starterLogoRemaining={starterLogoRemaining}
               copyToClipboard={copyToClipboard}
@@ -3532,6 +3548,8 @@ ${promptValue}`
           restoreRecentLogo={restoreRecentLogo}
           user={user}
           userPlan={userPlan}
+          brandWorkspacesCount={brandWorkspaces.length}
+          isLogoTestingUnlocked={isLogoTestingUnlocked}
           dailyRemaining={dailyRemaining}
           starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
@@ -3644,6 +3662,8 @@ ${promptValue}`
             restoreRecentLogo={restoreRecentLogo}
             user={user}
             userPlan={userPlan}
+            brandWorkspacesCount={brandWorkspaces.length}
+            isLogoTestingUnlocked={isLogoTestingUnlocked}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -4212,6 +4232,8 @@ function SEOPage({
   restoreRecentLogo,
   user,
   userPlan,
+  brandWorkspacesCount,
+  isLogoTestingUnlocked,
   dailyRemaining,
   starterLogoRemaining,
   copyToClipboard,
@@ -4271,6 +4293,8 @@ function SEOPage({
           restoreRecentLogo={restoreRecentLogo}
           user={user}
           userPlan={userPlan}
+          brandWorkspacesCount={brandWorkspacesCount}
+          isLogoTestingUnlocked={isLogoTestingUnlocked}
           dailyRemaining={dailyRemaining}
           starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
@@ -4914,6 +4938,8 @@ function GeneratorCard({
   restoreRecentLogo = () => {},
   user,
   userPlan,
+  brandWorkspacesCount = 0,
+  isLogoTestingUnlocked = false,
   dailyRemaining,
   starterLogoRemaining,
   copyToClipboard,
@@ -5307,6 +5333,8 @@ Generate another logo from the same creative direction. Preserve the strongest p
           <BrandJourneyPanel
             brandName={parsedLogoPreview.brandName || creativeTone || logoCreativeBrief?.brandName}
             creativeBrief={logoCreativeBrief}
+            isLoggedIn={Boolean(user?.id)}
+            canSaveProject={isLogoTestingUnlocked || userPlan !== "free" || brandWorkspacesCount < 1}
             onStartWorkspace={onStartWorkspace}
             onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           />
@@ -5440,23 +5468,42 @@ Generate another logo from the same creative direction. Preserve the strongest p
   );
 }
 
-function BrandJourneyPanel({ brandName = "", creativeBrief = null, onStartWorkspace = () => {}, onBuildGrowthRoadmap = () => {} }) {
+function BrandJourneyPanel({
+  brandName = "",
+  creativeBrief = null,
+  isLoggedIn = false,
+  canSaveProject = true,
+  onStartWorkspace = () => {},
+  onBuildGrowthRoadmap = () => {}
+}) {
   const strategy = creativeBrief?.brandStrategy || {};
+  const projectName = brandName || "this brand";
   const steps = [
     ["Strategy", strategy.positioning || "Brand direction created"],
     ["Logo", "Primary mark generated"],
     ["Brand Kit", "Colors, type, avatar, and exports ready"],
     ["Roadmap", "Next step: turn this identity into launch content"],
   ];
+  const saveLabel = !isLoggedIn
+    ? "Create Free Account to Keep It"
+    : canSaveProject
+      ? "Save This Brand Project"
+      : "Upgrade to Save More Projects";
+  const ownershipCopy = !isLoggedIn
+    ? "This project is only on this screen right now. Create an account to keep the logo, strategy, kit, and roadmap together."
+    : canSaveProject
+      ? "Save this as a real workspace so you can come back, refine it, and keep building from the same direction."
+      : "Your free workspace is already in use. Upgrade when this brand is worth keeping and building on.";
 
   return (
     <section className="brandJourneyPanel">
       <div className="brandJourneyTop">
         <div>
-          <div className="tinyTag">BRAND BUILD FLOW</div>
-          <h3>{brandName ? `${brandName} is becoming a brand system` : "Your brand system is taking shape"}</h3>
+          <div className="tinyTag">KEEP YOUR PROJECT</div>
+          <h3>{`${projectName} is now more than a logo.`}</h3>
+          <p>{ownershipCopy}</p>
         </div>
-        <span>4 steps ready</span>
+        <span>{isLoggedIn ? "Workspace ready" : "Unsaved project"}</span>
       </div>
       <div className="brandJourneySteps">
         {steps.map(([label, copy], index) => (
@@ -5467,7 +5514,7 @@ function BrandJourneyPanel({ brandName = "", creativeBrief = null, onStartWorksp
         ))}
       </div>
       <div className="brandJourneyActions">
-        <button className="btn dark" onClick={onStartWorkspace}>Save Brand Project</button>
+        <button className="btn dark" onClick={onStartWorkspace}>{saveLabel}</button>
         <button className="btn light" onClick={onBuildGrowthRoadmap}>Create 30-Day Roadmap</button>
       </div>
     </section>
@@ -6933,14 +6980,23 @@ textarea{height:170px;resize:none;line-height:1.6}
   margin:0;
 }
 
+.brandJourneyTop p{
+  max-width:640px;
+  margin:10px 0 0;
+  color:#555;
+  line-height:1.55;
+  font-size:15px;
+}
+
 .brandJourneyTop>span{
-  background:#fafafa;
-  border:1px solid rgba(0,0,0,.08);
+  background:#111;
+  border:1px solid #111;
   border-radius:999px;
   padding:9px 12px;
   font-size:12px;
   font-weight:900;
-  color:#555;
+  color:white;
+  white-space:nowrap;
 }
 
 .brandJourneySteps{
