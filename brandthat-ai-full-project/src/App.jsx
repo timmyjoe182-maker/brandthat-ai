@@ -466,6 +466,35 @@ async function readJsonResponse(response) {
   }
 }
 
+async function fetchJsonWithTimeout(url, options = {}, config = {}) {
+  const timeoutMs = Number(config.timeoutMs || 18000);
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      const error = new Error(data.error || data.text || config.errorMessage || `Request failed with status ${response.status}.`);
+      error.status = response.status;
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(config.timeoutMessage || "This request timed out. Please try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 function cleanGeneratedText(text = "") {
   return String(text)
     .replace(/\*\*/g, "")
@@ -473,6 +502,108 @@ function cleanGeneratedText(text = "") {
     .replace(/^\s*[-•]\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function inferSimpleIndustry(value = "") {
+  const text = String(value || "").toLowerCase();
+  const matches = [
+    ["chocolate / confectionery", ["chocolate", "candy", "candies", "sweet"]],
+    ["restaurant / hospitality", ["restaurant", "pizza", "cafe", "coffee", "food", "bakery"]],
+    ["AI / technology", ["ai", "software", "saas", "startup", "app", "platform"]],
+    ["real estate", ["real estate", "realtor", "property", "homes"]],
+    ["construction / trades", ["construction", "plaster", "roofing", "plumbing", "contractor"]],
+    ["beauty / skincare", ["beauty", "skincare", "salon", "spa"]],
+    ["fitness / coaching", ["fitness", "gym", "coach", "training"]],
+    ["ranch / western lifestyle", ["ranch", "horse", "alpaca", "farm", "western"]],
+    ["law firm", ["law", "legal", "attorney", "lawyer"]],
+  ];
+  return matches.find(([, words]) => words.some((word) => text.includes(word)))?.[0] || "new business / brand";
+}
+
+function createClientBrandPlanFallback(payload = {}) {
+  const idea = cleanGeneratedText(payload.idea || payload.rawPrompt || "");
+  const parsedLogo = parseNaturalLogoPrompt({
+    prompt: `${payload.brandName || ""} ${idea}`,
+    brandName: payload.brandName || "",
+    style: payload.personality || payload.visualDirection || "",
+    industry: "",
+    symbol: "",
+    colors: "",
+    avoid: "",
+  });
+  const brandName = parsedLogo.brandName || payload.brandName || "New Brand";
+  const industry = inferSimpleIndustry(`${brandName} ${idea} ${payload.positioning || ""}`);
+  const targetAudience = payload.audience || `People looking for a clear, trustworthy ${industry} brand.`;
+  const positioning = payload.positioning || `${brandName} should feel specific, credible, and easy to understand in the ${industry} category.`;
+  const visualDirection = payload.visualDirection || `Create a clean, scalable identity that reflects ${industry} without feeling generic or over-designed.`;
+  const typography = "Use readable, premium typography with strong hierarchy, generous spacing, and a simple supporting type style.";
+  const colors = parsedLogo.colors || "Use a restrained palette with strong contrast and one memorable accent color.";
+  const roadmap = [
+    "Week 1: Clarify the offer, write the homepage message, and define the first proof points.",
+    "Week 2: Choose visual direction, typography, colors, profile assets, and first landing page sections.",
+    "Week 3: Publish launch content, test captions, share the brand story, and gather feedback.",
+    "Week 4: Refine the CTA, create outreach copy, measure replies/clicks/leads, and plan the next 30 days.",
+  ];
+
+  const plan = {
+    brandName,
+    brandSummary: `${brandName} is a ${industry} concept built from this idea: ${idea || "a new brand idea"}.`,
+    targetAudience,
+    positioning,
+    brandPersonality: payload.personality || "Modern, clear, useful, and polished.",
+    competitorCategory: `${industry} competitors and template-based alternatives.`,
+    pricePositioning: /luxury|premium|high-end/i.test(idea) ? "Premium, quality-led pricing." : "Accessible but professional pricing.",
+    coreOffer: payload.offer || `A focused ${industry} offer with a clear reason to choose it.`,
+    coreMessage: `${brandName} helps customers quickly understand the offer, trust the brand, and take the next step.`,
+    visualIdentityDirection: visualDirection,
+    moodboardDirection: "Clean brand photography, editorial spacing, refined social assets, and practical launch-ready visuals.",
+    typographySystem: typography,
+    colorSystem: colors,
+    brandVoice: "Direct, specific, polished, and helpful. Avoid vague hype.",
+    taglineIdeas: [`${brandName}, made clear.`, "Built for what comes next.", "Clear direction. Better momentum."],
+    launchRoadmap30Days: roadmap,
+    nextStepActionPlan: ["Save this as a Brand Workspace.", "Generate logo concepts from the visual direction.", "Create captions, hashtags, and launch content from the same brand context."],
+    workspaceContext: { industry, audience: targetAudience, differentiator: positioning, visualDirection, typography, colors },
+    logoContext: { brandName, industry, style: payload.personality || "Modern", symbolIdeas: "Simple monogram, restrained industry cue, or abstract brand mark.", colors, typography, avoid: "Wrong name, clipart, tiny logos, clutter, and unrelated iconography." },
+  };
+
+  return {
+    plan,
+    text: `1. Brand name and summary
+${plan.brandName}
+${plan.brandSummary}
+
+2. Positioning
+${plan.positioning}
+
+3. Target customer
+${plan.targetAudience}
+
+4. Core offer
+${plan.coreOffer}
+
+5. Brand personality
+${plan.brandPersonality}
+
+6. Visual identity direction
+${plan.visualIdentityDirection}
+
+7. Moodboard direction
+${plan.moodboardDirection}
+
+8. Typography system
+${plan.typographySystem}
+
+9. Color system
+${plan.colorSystem}
+
+10. Practical launch roadmap and workspace next steps
+${roadmap.join("\n")}
+
+Next steps:
+${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}`,
+    source: "client-fallback",
+  };
 }
 
 function escapeSvgText(value = "") {
@@ -1398,6 +1529,38 @@ function getWorkspaceSnapshot(brand) {
   ];
 }
 
+function getBrandFieldPreview(value = "", fallback = "Not defined yet.") {
+  const cleanValue = cleanGeneratedText(value);
+  if (!cleanValue) return fallback;
+  return cleanValue.split("\n").filter(Boolean).slice(0, 3).join(" ");
+}
+
+function getBrandRoadmapPreview(brand) {
+  const text = cleanGeneratedText(brand?.launchGoal || "");
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/^[-•*\s]+/, "").trim())
+    .filter(Boolean);
+
+  if (lines.length) return lines.slice(0, 4);
+
+  return [
+    "Finalize the offer and public brand message.",
+    "Generate logo concepts from the identity direction.",
+    "Create launch captions, hashtags, and first outreach copy.",
+    "Save the strongest assets and export the brand kit.",
+  ];
+}
+
+function getBrandNextActions(brand) {
+  const base = [];
+  if (!brand?.logoImage) base.push("Generate or set a logo concept as the brand mark.");
+  if (!countSavedAssets(brand)) base.push("Save the first strategy, roadmap, or logo asset to the workspace.");
+  if (!String(brand?.channels || "").trim()) base.push("Choose primary launch channels for the first 30 days.");
+  base.push("Review the roadmap tomorrow and create the next brand asset.");
+  return base.slice(0, 4);
+}
+
 class LogoGenerationErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -2074,19 +2237,15 @@ export default function App() {
     setLoading(true);
 
     try {
-      const response = await fetch("/.netlify/functions/create-checkout-session", {
+      const data = await fetchJsonWithTimeout("/.netlify/functions/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan, email: currentUser.email })
+      }, {
+        timeoutMs: 15000,
+        errorMessage: "Checkout could not start.",
+        timeoutMessage: "Checkout took too long to start. Please try again."
       });
-
-      const data = await readJsonResponse(response);
-
-      if (!response.ok) {
-        notify("error", "Checkout could not start", data.error || "Please try again in a moment.");
-        setLoading(false);
-        return;
-      }
 
       window.location.href = data.url;
     } catch (error) {
@@ -2166,12 +2325,12 @@ export default function App() {
     setLogoImage("");
     setLogoImageSource("");
     setLogoCreativeBrief(null);
-    setPage("logo");
+    setPage("workspace");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
     trackBrandthatEvent("workspace_created", { hasLogoDirection: Boolean(baseBrand.logoDirection), goal: baseBrand.targetFollowers || baseBrand.launchGoal || "" });
-    notify("success", "Workspace created", `${brand.name} is ready. Start generating brand assets.`);
-    setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
+    notify("success", "Brand headquarters created", `${brand.name} is ready to build from.`);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
   const selectBrand = (brandId) => {
@@ -2744,6 +2903,121 @@ Output exactly 10 numbered sections:
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
+  const getBrandPlanRequestPayload = (promptValue = prompt) => ({
+    idea: workspaceDraft.description || promptValue,
+    brandName: workspaceDraft.name,
+    audience: workspaceDraft.audience,
+    positioning: workspaceDraft.differentiator,
+    personality: workspaceDraft.tone,
+    visualDirection: workspaceDraft.logoDirection || workspaceDraft.style,
+    moodboard: workspaceDraft.style,
+    roadmapGoal: workspaceDraft.targetFollowers || workspaceDraft.launchGoal,
+    offer: workspaceDraft.offer,
+    rawPrompt: promptValue,
+  });
+
+  const applyStructuredBrandPlanToDraft = (plan = {}) => {
+    const workspaceContext = plan.workspaceContext || {};
+    const logoContext = plan.logoContext || {};
+
+    setWorkspaceDraft((current) => ({
+      ...current,
+      name: current.name || plan.brandName || logoContext.brandName || "",
+      description: plan.brandSummary || current.description,
+      audience: plan.targetAudience || workspaceContext.audience || current.audience,
+      offer: plan.coreOffer || workspaceContext.offer || current.offer || "",
+      differentiator: plan.positioning || workspaceContext.differentiator || current.differentiator || "",
+      competitors: plan.competitorCategory || current.competitors || "",
+      tone: tones.includes(plan.brandPersonality) ? plan.brandPersonality : current.tone || "Modern",
+      style: plan.moodboardDirection || workspaceContext.moodboard || logoContext.style || current.style || "",
+      logoDirection: [
+        plan.brandPersonality ? `Brand personality: ${plan.brandPersonality}` : "",
+        plan.visualIdentityDirection || workspaceContext.visualDirection || "",
+        logoContext.symbolIdeas ? `Symbol ideas: ${logoContext.symbolIdeas}` : "",
+        logoContext.typography ? `Typography: ${logoContext.typography}` : plan.typographySystem ? `Typography: ${plan.typographySystem}` : "",
+        logoContext.colors ? `Colors: ${logoContext.colors}` : plan.colorSystem ? `Colors: ${plan.colorSystem}` : "",
+      ].filter(Boolean).join("\n"),
+      launchGoal: workspaceContext.roadmapGoal || current.launchGoal || "Turn the brand plan into logo concepts, launch content, and a saved workspace.",
+    }));
+  };
+
+  const createWorkspaceFromBrandPlan = (plan = {}, planText = "") => {
+    const workspaceContext = plan.workspaceContext || {};
+    const logoContext = plan.logoContext || {};
+    const brandName = plan.brandName || logoContext.brandName || workspaceDraft.name || "New Brand";
+    const existing = brandWorkspaces.find((brand) => brand.name?.toLowerCase() === brandName.toLowerCase());
+    const brandId = existing?.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+    const brandAsset = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `brand-plan-${Date.now()}`,
+      tool: "brand",
+      title: `Brand Plan • ${new Date().toLocaleDateString()}`,
+      content: planText,
+      image: "",
+      createdAt: new Date().toISOString(),
+    };
+    const nextBrand = {
+      ...(existing || {}),
+      id: brandId,
+      name: brandName,
+      description: plan.brandSummary || workspaceDraft.description || "",
+      audience: plan.targetAudience || workspaceContext.audience || workspaceDraft.audience || "",
+      audiencePain: workspaceDraft.audiencePain || "",
+      offer: plan.coreOffer || workspaceContext.offer || workspaceDraft.offer || "",
+      differentiator: plan.positioning || workspaceContext.differentiator || workspaceDraft.differentiator || "",
+      competitors: plan.competitorCategory || workspaceDraft.competitors || "",
+      channels: workspaceDraft.channels || "",
+      growthPlatform: workspaceDraft.growthPlatform || "",
+      currentFollowers: workspaceDraft.currentFollowers || "",
+      targetFollowers: workspaceDraft.targetFollowers || "",
+      weeklyTime: workspaceDraft.weeklyTime || "",
+      logoImage: existing?.logoImage || workspaceDraft.logoImage || "",
+      tone: tones.includes(plan.brandPersonality) ? plan.brandPersonality : workspaceDraft.tone || existing?.tone || "Modern",
+      style: plan.moodboardDirection || workspaceContext.moodboard || logoContext.style || workspaceDraft.style || existing?.style || "",
+      logoDirection: [
+        plan.brandPersonality ? `Brand personality: ${plan.brandPersonality}` : "",
+        plan.visualIdentityDirection || workspaceContext.visualDirection || "",
+        logoContext.symbolIdeas ? `Symbol ideas: ${logoContext.symbolIdeas}` : "",
+        plan.typographySystem ? `Typography: ${plan.typographySystem}` : "",
+        plan.colorSystem ? `Colors: ${plan.colorSystem}` : "",
+      ].filter(Boolean).join("\n"),
+      launchGoal: [
+        plan.nextStepActionPlan?.length ? `Next actions: ${plan.nextStepActionPlan.join(" ")}` : "",
+        plan.launchRoadmap30Days?.length ? plan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus} - ${(item.actions || []).join(", ")}`).join("\n") : workspaceDraft.launchGoal || "",
+      ].filter(Boolean).join("\n\n"),
+      saved: {
+        ...emptySavedBuckets(),
+        ...(existing?.saved || {}),
+        brand: [brandAsset, ...((existing?.saved?.brand || []).filter((item) => item.content !== planText))].slice(0, 8),
+      },
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    };
+
+    setBrandWorkspaces((prev) => [nextBrand, ...prev.filter((brand) => brand.id !== brandId)]);
+    setActiveBrandId(brandId);
+    return nextBrand;
+  };
+
+  const getBrandStrategyContextForLogo = () => {
+    const brandPlanProject = activeToolKey === "brand" ? decodeLogoProjectFromContent(result) : null;
+    const currentBrandPlanText = activeToolKey === "brand" ? stripLogoProjectMetadata(result) : "";
+
+    return {
+      brandName: activeBrand?.name || workspaceDraft.name || creativeTone || "",
+      industry: logoIndustry || "",
+      targetCustomer: activeBrand?.audience || workspaceDraft.audience || "",
+      positioning: activeBrand?.differentiator || workspaceDraft.differentiator || "",
+      coreMessage: activeBrand?.offer || workspaceDraft.offer || "",
+      brandPersonality: activeBrand?.tone || workspaceDraft.tone || "",
+      suggestedVisualDirection: activeBrand?.logoDirection || workspaceDraft.logoDirection || "",
+      suggestedMoodboardDirection: activeBrand?.style || workspaceDraft.style || "",
+      suggestedTypographyDirection: workspaceDraft.logoDirection || "",
+      suggestedColorDirection: logoColors || "",
+      roadmapGoal: activeBrand?.launchGoal || workspaceDraft.launchGoal || workspaceDraft.targetFollowers || "",
+      brandPlanText: currentBrandPlanText,
+      structuredPlan: brandPlanProject?.structuredPlan || null,
+    };
+  };
+
   const getCurrentLogoBrandContext = () => {
     const parsedLogo = parseNaturalLogoPrompt({
       prompt,
@@ -3108,27 +3382,25 @@ Requirements:
       parsedLogo,
       generationMemory: generationMemoryValue,
       contextReset: logoContext.resetReason,
+      brandStrategy: getBrandStrategyContextForLogo(),
       logoPrompt: enhancedLogoPrompt
     };
 
-    let response;
     let data;
 
     try {
-      response = await fetch("/.netlify/functions/logo-image", {
+      data = await fetchJsonWithTimeout("/.netlify/functions/logo-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload)
+      }, {
+        timeoutMs: 22000,
+        errorMessage: "Logo generation failed.",
+        timeoutMessage: "Logo generation took too long. BrandThat created an instant editable fallback instead."
       });
-
-      data = await readJsonResponse(response);
     } catch (error) {
+      if (error?.status === 429) throw error;
       console.warn("Brandthat logo function unavailable, using instant fallback:", error);
-      return createClientFallbackLogo(requestPayload);
-    }
-
-    if (!response.ok) {
-      console.warn("Brandthat logo function returned an error, using instant fallback:", data.error || response.status);
       return createClientFallbackLogo(requestPayload);
     }
 
@@ -3258,8 +3530,50 @@ Requirements:
           `${logoResult.source === "instant-svg" ? "Editable vector logo created." : "AI logo image created."}\n\nBrand direction used:\nBrand name: ${parsedLogo?.brandName || "Inferred from request"}\nIndustry: ${parsedLogo?.industry || "Inferred from request"}\nStyle: ${parsedLogo?.style || "Inferred from request"}\nSymbol or mascot: ${parsedLogo?.symbol || "Inferred from request"}\nColors: ${parsedLogo?.colors || "Inferred from request"}\nTypography: ${parsedLogo?.typography || "Inferred from request"}\nLayout: ${parsedLogo?.layout || "Inferred from request"}\nAvoid: ${parsedLogo?.avoid || "Generic logo issues"}\nNotes: ${promptValue}\n\n${logoResult.note ? `${logoResult.note}\n\n` : ""}Download the logo, open it full size, save it to a workspace, refine it, or generate another version.`
         );
         trackBrandthatEvent("logo_generated", { source: logoResult.source || "unknown", plan: isLogoTestingUnlocked ? "tester" : userPlan });
+      } else if (activeTool.key === "brand") {
+        const brandPlanPayload = getBrandPlanRequestPayload(promptValue);
+        let data;
+
+        try {
+          data = await fetchJsonWithTimeout("/.netlify/functions/brand-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(brandPlanPayload)
+          }, {
+            timeoutMs: 20000,
+            errorMessage: "Brand plan generation failed.",
+            timeoutMessage: "Brand plan generation took too long. BrandThat created a structured fallback plan instead."
+          });
+        } catch (error) {
+          if (error?.status === 429) throw error;
+          console.warn("Brand plan function unavailable, using client fallback:", error);
+          data = createClientBrandPlanFallback(brandPlanPayload);
+        }
+
+        const structuredPlan = data.plan || null;
+        if (structuredPlan) applyStructuredBrandPlanToDraft(structuredPlan);
+
+        const project = structuredPlan
+          ? {
+              structuredPlan,
+              brandName: structuredPlan.brandName,
+              industry: structuredPlan.logoContext?.industry || structuredPlan.workspaceContext?.industry || "",
+              strategy: structuredPlan,
+              logoContext: structuredPlan.logoContext || {},
+              source: data.source || "brand-plan",
+            }
+          : null;
+
+        const cleanPlanText = cleanGeneratedText(data.text || "No brand plan generated.");
+        setResult(cleanGeneratedText(encodeLogoProjectContent(cleanPlanText, project)));
+        if (structuredPlan) {
+          createWorkspaceFromBrandPlan(structuredPlan, cleanPlanText);
+          setPage("workspace");
+          notify("success", "Brand headquarters created", `${structuredPlan.brandName || "Your brand"} is ready to build from.`);
+        }
+        trackBrandthatEvent("brand_plan_generated", { source: data.source || "unknown", plan: userPlan });
       } else {
-        const response = await fetch("/.netlify/functions/generate", {
+        const data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -3268,13 +3582,17 @@ Requirements:
 User request:
 ${promptValue}`
           })
+        }, {
+          timeoutMs: 20000,
+          errorMessage: "Generation failed.",
+          timeoutMessage: "Generation took too long. Please try again with a shorter request."
         });
 
-        const data = await readJsonResponse(response);
-        if (!response.ok) {
-          throw new Error(data.error || "Generation failed.");
+        const cleanText = cleanGeneratedText(data.text || "");
+        if (!cleanText) {
+          throw new Error("BrandThat did not receive a usable response. Please try again.");
         }
-        setResult(cleanGeneratedText(data.text || "No response generated."));
+        setResult(cleanText);
         trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
       }
 
@@ -3503,6 +3821,16 @@ ${promptValue}`
           <div className="tinyTag">SAVED BRAND WORKSPACES</div>
           <h1 className="pageTitle">Build and save your brands.</h1>
           <p className="pageLead">Create one or more brands, save generated captions/hooks/bios/logos, and export a simple brand kit. This is what turns Brandthat into your AI brand system.</p>
+
+          {activeBrand && (
+            <BrandDashboard
+              brand={activeBrand}
+              setPage={setPage}
+              downloadBrandKit={downloadBrandKit}
+              remixOutput={remixOutput}
+              copyToClipboard={copyToClipboard}
+            />
+          )}
 
           <div className="workspaceLayout">
             <WorkspaceCreator
@@ -4032,6 +4360,93 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
 
       <button className="btn dark full" onClick={createWorkspace}>Create Brand Workspace</button>
     </div>
+  );
+}
+
+function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard }) {
+  const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
+  const roadmapItems = getBrandRoadmapPreview(brand);
+  const nextActions = getBrandNextActions(brand);
+  const identityCards = [
+    ["Positioning", brand.differentiator || brand.offer || "Clarify what makes this brand different."],
+    ["Target Audience", brand.audience || "Define the customer this brand is built for."],
+    ["Personality", brand.logoDirection?.match(/Brand personality:\s*([^\n]+)/i)?.[1] || brand.tone || "Modern"],
+    ["Identity Direction", brand.logoDirection || "Generate visual direction from the brand plan."],
+    ["Moodboard", brand.style || "Create an editorial moodboard direction."],
+    ["Typography", brand.logoDirection?.match(/Typography:\s*([^\n]+)/i)?.[1] || "Define the wordmark and supporting type system."],
+    ["Color System", brand.logoDirection?.match(/Colors:\s*([^\n]+)/i)?.[1] || "Choose a primary palette and accent system."],
+    ["Taglines", getBrandFieldPreview(brand.description, "Generate tagline ideas from the brand plan.")],
+  ];
+
+  return (
+    <section className="brandDashboard">
+      <div className="brandDashboardHero">
+        <div className="brandDashboardMark">
+          {brand.logoImage ? (
+            <img src={brand.logoImage} alt={`${brand.name} brand mark`} />
+          ) : (
+            <span>{getInitialsFromBrandName(brand.name)}</span>
+          )}
+        </div>
+
+        <div>
+          <div className="tinyTag">BRAND HEADQUARTERS</div>
+          <h2>{brand.name}</h2>
+          <p>{getBrandFieldPreview(brand.description, "This workspace is ready for a clear brand summary, visual direction, roadmap, and logo concepts.")}</p>
+          <div className="dashboardActions">
+            <button className="btn dark" onClick={() => setPage("logo")}>Generate Logo Concepts</button>
+            <button className="btn light" onClick={downloadBrandKit}>Download Brand Kit</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboardGrid">
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Brand System</span>
+          <div className="dashboardIdentityGrid">
+            {identityCards.map(([label, value]) => (
+              <div key={label}>
+                <strong>{label}</strong>
+                <p>{getBrandFieldPreview(value)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel">
+          <span>Launch Roadmap</span>
+          <ol className="dashboardRoadmap">
+            {roadmapItems.map((item) => <li key={item}>{item}</li>)}
+          </ol>
+        </div>
+
+        <div className="dashboardPanel">
+          <span>Next Actions</span>
+          <div className="dashboardActionList">
+            {nextActions.map((item) => <button key={item} onClick={() => copyToClipboard(item)}>{item}</button>)}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Saved Logo Concepts</span>
+          {savedLogos.length ? (
+            <div className="dashboardLogoStrip">
+              {savedLogos.map((logo) => (
+                <button key={logo.id} onClick={() => remixOutput(logo)}>
+                  <img src={logo.image} alt={logo.title || "Saved logo concept"} />
+                  <strong>{logo.title || "Logo Concept"}</strong>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboardEmptyLogo">
+              <p>No logo concepts saved yet. Generate visual concepts after the brand direction feels right.</p>
+              <button className="btn light" onClick={() => setPage("logo")}>Create First Logo Concept</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -6377,6 +6792,33 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .activeBrandRow{border-color:#111}
 .miniDanger{border:none;background:#111;color:white;border-radius:999px;padding:8px 10px;cursor:pointer;font-weight:800}
 .emptyState{background:#fafafa;border:1px dashed rgba(0,0,0,.18);border-radius:18px;padding:18px;color:#666;margin-top:16px}
+.brandDashboard{background:#111;color:white;border-radius:28px;padding:30px;margin:28px 0 30px;box-shadow:0 28px 80px rgba(0,0,0,.12)}
+.brandDashboard .tinyTag{color:#d9bd77}
+.brandDashboardHero{display:grid;grid-template-columns:180px 1fr;gap:28px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brandDashboardMark{width:180px;aspect-ratio:1;border-radius:26px;background:#f7f4ed;color:#111;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+.brandDashboardMark img{width:100%;height:100%;object-fit:contain;padding:18px}
+.brandDashboardMark span{font-size:52px;font-weight:950;letter-spacing:-.08em}
+.brandDashboardHero h2{font-size:58px;letter-spacing:-.06em;margin:0 0 12px}
+.brandDashboardHero p{color:rgba(255,255,255,.72);font-size:18px;line-height:1.7;max-width:820px;margin:0}
+.dashboardActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.brandDashboard .btn.light{background:white;color:#111}
+.dashboardGrid{display:grid;grid-template-columns:1.3fr .7fr;gap:14px;margin-top:18px}
+.dashboardPanel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px}
+.wideDashboardPanel{grid-column:auto}
+.dashboardPanel>span{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d9bd77;font-weight:900;margin-bottom:14px}
+.dashboardIdentityGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.dashboardIdentityGrid div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+.dashboardIdentityGrid strong{display:block;font-size:14px;margin-bottom:7px}
+.dashboardIdentityGrid p,.dashboardPanel p{color:rgba(255,255,255,.7);line-height:1.6;margin:0;font-size:14px}
+.dashboardRoadmap{margin:0;padding-left:20px;color:rgba(255,255,255,.76)}
+.dashboardRoadmap li{line-height:1.6;margin-bottom:10px}
+.dashboardActionList{display:flex;flex-direction:column;gap:9px}
+.dashboardActionList button{background:white;color:#111;border:none;border-radius:14px;padding:12px 14px;font-weight:850;text-align:left;cursor:pointer;line-height:1.4}
+.dashboardLogoStrip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.dashboardLogoStrip button{background:white;color:#111;border:none;border-radius:16px;padding:12px;text-align:left;cursor:pointer}
+.dashboardLogoStrip img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#f7f4ed;border:1px solid rgba(0,0,0,.08);margin-bottom:10px}
+.dashboardLogoStrip strong{font-size:14px}
+.dashboardEmptyLogo{display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
 .savedAssets{margin-top:46px}
 .savedGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .savedBucket{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px}
@@ -7670,5 +8112,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.dreamHero .heroTop{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:22px}.builderTop{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps{grid-template-columns:1fr}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:22px}.builderTop{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip{grid-template-columns:1fr}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;

@@ -7,6 +7,22 @@ function getOpenAiClient() {
   });
 }
 
+const rateLimitStore = global.brandthatLogoRateLimit || new Map();
+global.brandthatLogoRateLimit = rateLimitStore;
+
+function getClientIp(event) {
+  return event.headers?.["x-nf-client-connection-ip"] || event.headers?.["client-ip"] || event.headers?.["x-forwarded-for"]?.split(",")[0] || "unknown";
+}
+
+function checkRateLimit(event, { limit = 18, windowMs = 60_000 } = {}) {
+  const now = Date.now();
+  const key = getClientIp(event);
+  const bucket = (rateLimitStore.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
+  bucket.push(now);
+  rateLimitStore.set(key, bucket);
+  return bucket.length <= limit;
+}
+
 function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy }) {
   const director = buildCreativeDirector({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy });
   const primaryConcept = director.concepts?.[0] || {};
@@ -3371,18 +3387,51 @@ function runLogoRejectionAgent({ requestBrandName = "", requestIndustry = "", ve
   const expectedName = normalizeLogoIdentity(requestBrandName);
   const actualName = normalizeLogoIdentity(vectorLogo?.creativeBrief?.brandName || "");
   const actualIndustry = String(vectorLogo?.creativeBrief?.category || "").toLowerCase();
-  let rawSvg = String(vectorLogo?.svg || "").toLowerCase();
-  try {
-    rawSvg = decodeURIComponent(rawSvg);
-  } catch {
-    rawSvg = String(vectorLogo?.svg || "").toLowerCase();
+  const expectedIndustry = String(requestIndustry || "").toLowerCase();
+  let rawSvg = String(vectorLogo?.svg || "");
+  if (rawSvg.startsWith("data:image/svg+xml;base64,")) {
+    try {
+      rawSvg = Buffer.from(rawSvg.split(",")[1] || "", "base64").toString("utf8");
+    } catch {
+      rawSvg = String(vectorLogo?.svg || "");
+    }
+  } else {
+    try {
+      rawSvg = decodeURIComponent(rawSvg);
+    } catch {
+      rawSvg = String(vectorLogo?.svg || "");
+    }
   }
+  rawSvg = rawSvg.toLowerCase();
+  const readableSvgText = rawSvg
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ");
 
   if (!expectedName || actualName !== expectedName) reasons.push("brand name mismatch");
-  if (requestIndustry && requestIndustry !== "brand inferred from request" && actualIndustry && actualIndustry !== String(requestIndustry).toLowerCase()) {
+  const relatedIndustryMatch =
+    (expectedIndustry.includes("skincare") && actualIndustry.includes("wellness")) ||
+    (expectedIndustry.includes("beauty") && actualIndustry.includes("wellness")) ||
+    (expectedIndustry.includes("chocolate") && actualIndustry.includes("restaurant")) ||
+    (expectedIndustry.includes("confection") && actualIndustry.includes("chocolate")) ||
+    (expectedIndustry.includes("fitness") && actualIndustry.includes("wellness")) ||
+    (expectedIndustry.includes("construction") && actualIndustry.includes("trades")) ||
+    (expectedIndustry.includes("trades") && actualIndustry.includes("construction"));
+
+  if (
+    expectedIndustry &&
+    expectedIndustry !== "brand inferred from request" &&
+    actualIndustry &&
+    actualIndustry !== expectedIndustry &&
+    !actualIndustry.includes(expectedIndustry.split("/")[0].trim()) &&
+    !expectedIndustry.includes(actualIndustry.split("/")[0].trim()) &&
+    !relatedIndustryMatch
+  ) {
     reasons.push("industry mismatch");
   }
-  if (requestBrandName && !rawSvg.includes(escapeXml(requestBrandName).toLowerCase())) {
+  if (requestBrandName && !normalizeLogoIdentity(readableSvgText).includes(expectedName)) {
     reasons.push("logo text not present in vector output");
   }
 
@@ -3426,7 +3475,14 @@ exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
 
   try {
-    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, parsedLogo, contextReset } = JSON.parse(event.body || "{}");
+    if (!checkRateLimit(event)) {
+      return {
+        statusCode: 429,
+        body: JSON.stringify({ error: "Too many logo generations. Please wait a minute and try again." }),
+      };
+    }
+
+    const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, parsedLogo, contextReset, brandStrategy: providedBrandStrategy } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
       return {
@@ -3453,7 +3509,7 @@ exports.handler = async (event, context) => {
     const requestColors = promptInterpreter.colors || parsedLogo?.colors || logoColors || "";
     const requestAvoid = promptInterpreter.avoid || parsedLogo?.avoid || logoAvoid || "";
     const requestMemory = contextReset ? {} : sanitizeGenerationMemoryForRequest(generationMemory || {}, { brandName: requestBrandName, logoIndustry: requestIndustry });
-    const brandStrategy = runBrandStrategistAgent({
+    const inferredBrandStrategy = runBrandStrategistAgent({
       brandName: requestBrandName,
       logoIndustry: requestIndustry,
       logoStyle: requestStyle,
@@ -3462,6 +3518,15 @@ exports.handler = async (event, context) => {
       userPrompt,
       logoPrompt,
     });
+    const brandStrategy = {
+      ...inferredBrandStrategy,
+      ...(providedBrandStrategy && typeof providedBrandStrategy === "object" ? providedBrandStrategy : {}),
+      brandName: requestBrandName,
+      industry: requestIndustry,
+      suggestedVisualDirection: providedBrandStrategy?.suggestedVisualDirection || inferredBrandStrategy.suggestedVisualDirection,
+      suggestedColorDirection: requestColors || providedBrandStrategy?.suggestedColorDirection || inferredBrandStrategy.suggestedColorDirection,
+      suggestedTypographyDirection: providedBrandStrategy?.suggestedTypographyDirection || providedBrandStrategy?.typography || inferredBrandStrategy.suggestedTypographyDirection,
+    };
 
     const finalPrompt = buildLogoPrompt({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory, brandStrategy });
     const vectorLogo = buildFallbackLogo({ logoPrompt, brandName: requestBrandName, logoStyle: requestStyle, logoIndustry: requestIndustry, logoSymbol: requestSymbol, logoColors: requestColors, logoAvoid: requestAvoid, userPrompt, generationMemory: requestMemory, brandStrategy });

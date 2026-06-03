@@ -4,6 +4,9 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const rateLimitStore = global.brandthatGenerateRateLimit || new Map();
+global.brandthatGenerateRateLimit = rateLimitStore;
+
 function json(statusCode, payload) {
   return {
     statusCode,
@@ -12,8 +15,25 @@ function json(statusCode, payload) {
   };
 }
 
+function getClientIp(event) {
+  return event.headers?.["x-nf-client-connection-ip"] || event.headers?.["client-ip"] || event.headers?.["x-forwarded-for"]?.split(",")[0] || "unknown";
+}
+
+function checkRateLimit(event, { limit = 35, windowMs = 60_000 } = {}) {
+  const now = Date.now();
+  const key = getClientIp(event);
+  const bucket = (rateLimitStore.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
+  bucket.push(now);
+  rateLimitStore.set(key, bucket);
+  return bucket.length <= limit;
+}
+
 exports.handler = async (event) => {
   try {
+    if (!checkRateLimit(event)) {
+      return json(429, { error: "Too many requests. Please wait a minute and try again." });
+    }
+
     const { prompt } = JSON.parse(event.body || "{}");
 
     if (!process.env.OPENAI_API_KEY) {
@@ -98,9 +118,13 @@ Rules:
       temperature: 0.8,
     });
 
-    return json(200, {
-      text: completion.choices?.[0]?.message?.content || "",
-    });
+    const text = completion.choices?.[0]?.message?.content || "";
+
+    if (!text.trim()) {
+      return json(502, { error: "BrandThat did not receive a usable response. Please try again." });
+    }
+
+    return json(200, { text });
   } catch (error) {
     return json(500, {
       error: error.message || "Something went wrong.",
