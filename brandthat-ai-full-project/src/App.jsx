@@ -495,6 +495,10 @@ async function fetchJsonWithTimeout(url, options = {}, config = {}) {
   }
 }
 
+function isUserEmailVerified(currentUser) {
+  return Boolean(currentUser?.email_confirmed_at || currentUser?.confirmed_at);
+}
+
 function cleanGeneratedText(text = "") {
   return String(text)
     .replace(/\*\*/g, "")
@@ -1746,6 +1750,7 @@ class LogoGenerationErrorBoundary extends React.Component {
 
 export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
+  const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
@@ -1807,6 +1812,8 @@ export default function App() {
   const isStarter = userPlan === "starter";
   const isPro = userPlan === "pro";
   const isLogoTestingUnlocked = isBrandthatTester(user);
+  const emailVerified = isUserEmailVerified(user);
+  const authStatus = authLoading ? "loading" : !user ? "logged_out" : !emailVerified ? "email_not_verified" : "logged_in";
 
 
   useEffect(() => {
@@ -1935,7 +1942,7 @@ export default function App() {
   });
 
   const mapGenerationRow = (row) => {
-    const project = row.tool === "logo" ? decodeLogoProjectFromContent(row.content || "") : null;
+    const project = decodeLogoProjectFromContent(row.content || "");
 
     return {
       id: row.id,
@@ -2008,7 +2015,14 @@ export default function App() {
         if (!workspace) return;
         const bucket = row.tool === "logo" ? "logos" : row.tool;
         if (!workspace.saved[bucket]) workspace.saved[bucket] = [];
-        workspace.saved[bucket].push(mapGenerationRow(row));
+        const mappedGeneration = mapGenerationRow(row);
+        workspace.saved[bucket].push(mappedGeneration);
+        if (row.tool === "brand" && mappedGeneration.project?.structuredPlan && !workspace.structuredPlan) {
+          workspace.structuredPlan = normalizeBrandPlan(mappedGeneration.project.structuredPlan, {
+            brandName: workspace.name,
+            idea: workspace.description,
+          });
+        }
       });
 
       if (workspaceList.length > 0) {
@@ -2051,10 +2065,17 @@ export default function App() {
     }
 
     const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const currentUser = data.session?.user || null;
-      setUser(currentUser);
-      if (currentUser) loadSavedWorkspaceData(currentUser);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const currentUser = data.session?.user || null;
+        setUser(currentUser);
+        if (currentUser && isUserEmailVerified(currentUser)) loadSavedWorkspaceData(currentUser);
+      } catch (error) {
+        console.warn("Could not load Supabase session:", error.message);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
     };
 
     getSession();
@@ -2062,7 +2083,8 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user || null;
       setUser(currentUser);
-      if (currentUser) {
+      setAuthLoading(false);
+      if (currentUser && isUserEmailVerified(currentUser)) {
         loadSavedWorkspaceData(currentUser);
       } else {
         setUserPlan("free");
@@ -2154,6 +2176,20 @@ export default function App() {
     }
   }, [activeBrand?.id]);
 
+  useEffect(() => {
+    const protectedPage = page === "workspace" || page === "studio" || page === "logo" || Boolean(seoPages[page]);
+    if (!protectedPage || authLoading || authStatus === "logged_in") return;
+
+    setPage("home");
+    openAuth(
+      authStatus === "email_not_verified" ? "login" : "signup",
+      authStatus === "email_not_verified"
+        ? "Check your email to verify your account before continuing."
+        : "Create your free BrandThat account to start building your brand.",
+      "open_tool"
+    );
+  }, [authLoading, authStatus, page]);
+
   const notify = (type, title, message = "") => {
     setAppNotice({ type, title, message });
     window.clearTimeout(window.brandthatNoticeTimer);
@@ -2173,7 +2209,64 @@ export default function App() {
     setShowAuth(true);
   };
 
+  const requireVerifiedAccount = async (action = null, message = "Create your free BrandThat account to start building your brand.") => {
+    if (authLoading) {
+      notify("warning", "Checking your account", "Give BrandThat a moment to finish loading your session.");
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      const session = data.session || null;
+      const currentUser = session?.user || null;
+
+      if (!session?.access_token || !currentUser) {
+        openAuth("signup", message, action);
+        return null;
+      }
+
+      setUser(currentUser);
+
+      if (!isUserEmailVerified(currentUser)) {
+        openAuth("login", "Check your email to verify your account before continuing.", action);
+        return null;
+      }
+
+      return session;
+    } catch (error) {
+      console.warn("Supabase session check failed:", error.message);
+      openAuth("login", "Please log in again before continuing.", action);
+      return null;
+    }
+  };
+
+  const getAuthorizedHeaders = async (action = "generate") => {
+    const session = await requireVerifiedAccount(action);
+    if (!session) return null;
+
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    };
+  };
+
+  const openProtectedPage = async (nextPage, action = null) => {
+    const session = await requireVerifiedAccount(action || nextPage);
+    if (!session) return;
+    setPage(nextPage);
+  };
+
   const finishAuthSuccess = (loggedInUser) => {
+    if (!isUserEmailVerified(loggedInUser)) {
+      setUser(loggedInUser);
+      setAuthMode("login");
+      setAuthMessage("Check your email to verify your account before continuing.");
+      setShowAuth(true);
+      return;
+    }
+
     setUser(loggedInUser);
     setShowAuth(false);
     setAuthEmail("");
@@ -2237,10 +2330,16 @@ export default function App() {
       setUserPlan("free");
 
       if (data?.session?.user) {
-        finishAuthSuccess(data.session.user);
+        if (isUserEmailVerified(data.session.user)) {
+          finishAuthSuccess(data.session.user);
+        } else {
+          setUser(data.session.user);
+          setAuthMode("login");
+          setAuthMessage("Account created. Check your email to verify your account before continuing.");
+        }
       } else {
         setAuthMode("login");
-        setAuthMessage("Account created. Check your inbox and spam folder to confirm your email, then log in here. If no email arrives, check Supabase Auth email settings.");
+        setAuthMessage("Account created. Check your email to verify your account before continuing.");
       }
     } catch (error) {
       setAuthMessage("Something went wrong creating your account. Please try again.");
@@ -2277,6 +2376,13 @@ export default function App() {
           setAuthMessage(error.message || "Login failed. Please try again.");
         }
 
+        setLoading(false);
+        return;
+      }
+
+      if (!isUserEmailVerified(data.user)) {
+        setUser(data.user);
+        setAuthMessage("Check your email to verify your account before continuing.");
         setLoading(false);
         return;
       }
@@ -2401,6 +2507,9 @@ export default function App() {
   };
 
   const createWorkspace = async () => {
+    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to save a Brand Workspace.");
+    if (!session) return;
+
     if (!workspaceDraft.name.trim()) {
       notify("error", "Add a brand name first", "Your workspace needs a name before it can be saved.");
       return;
@@ -2431,12 +2540,14 @@ export default function App() {
 
     let brand = baseBrand;
 
-    if (user?.id) {
+    const ownerId = session.user.id;
+
+    if (ownerId) {
       try {
         const { data, error } = await supabase
           .from("brand_workspaces")
           .insert({
-            user_id: user.id,
+            user_id: ownerId,
             name: baseBrand.name,
             description: baseBrand.description,
             logo_direction: baseBrand.logoDirection,
@@ -2521,6 +2632,9 @@ export default function App() {
   };
 
   const saveCurrentOutput = async () => {
+    const session = await requireVerifiedAccount("save_output", "Create your free BrandThat account to save generations to your workspace.");
+    if (!session) return;
+
     if (!activeBrand) {
       notify("error", "Create a Brand Workspace first", "Then you can save outputs, favorites, and brand kits to that workspace.");
       return;
@@ -2578,12 +2692,12 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    if (user?.id) {
+    if (session.user?.id) {
       try {
         const { data, error } = await supabase
           .from("saved_generations")
           .insert({
-            user_id: user.id,
+            user_id: session.user.id,
             workspace_id: activeBrand.id,
             tool: activeTool.key,
             title: entry.title,
@@ -2621,6 +2735,9 @@ export default function App() {
   };
 
   const setLogoAsBrandProfile = async () => {
+    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to update your Brand Workspace.");
+    if (!session) return;
+
     if (!activeBrand) {
       notify("error", "Create a Brand Workspace first", "Then you can set a generated logo as the brand profile image.");
       return;
@@ -2639,13 +2756,13 @@ export default function App() {
       )
     );
 
-    if (user?.id) {
+    if (session.user?.id) {
       try {
         const { error } = await supabase
           .from("brand_workspaces")
           .update({ logo_image_url: logoImage, updated_at: new Date().toISOString() })
           .eq("id", activeBrand.id)
-          .eq("user_id", user.id);
+          .eq("user_id", session.user.id);
 
         if (error) throw error;
       } catch (error) {
@@ -2658,6 +2775,9 @@ export default function App() {
   };
 
   const setSavedLogoAsBrandProfile = async (entry) => {
+    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to update your Brand Workspace.");
+    if (!session) return;
+
     if (!activeBrand || !entry?.image) {
       notify("error", "No saved logo selected", "Choose a saved logo with an image first.");
       return;
@@ -2671,13 +2791,13 @@ export default function App() {
       )
     );
 
-    if (user?.id) {
+    if (session.user?.id) {
       try {
         const { error } = await supabase
           .from("brand_workspaces")
           .update({ logo_image_url: entry.image, updated_at: new Date().toISOString() })
           .eq("id", activeBrand.id)
-          .eq("user_id", user.id);
+          .eq("user_id", session.user.id);
 
         if (error) throw error;
       } catch (error) {
@@ -2956,7 +3076,10 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setStarterLogoCount(newCount);
   };
 
-  const selectTool = (toolKey) => {
+  const selectTool = async (toolKey) => {
+    const session = await requireVerifiedAccount("open_tool", "Create your free BrandThat account to start building your brand.");
+    if (!session) return;
+
     const nextTool = toolMap[toolKey] || tools[0];
     setActiveToolKey(nextTool.key);
     setSelectedPlatform("");
@@ -2975,9 +3098,12 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
-  const openSeoPage = (seoKey) => {
+  const openSeoPage = async (seoKey) => {
     const seoPage = seoPages[seoKey];
     if (!seoPage) return;
+    const session = await requireVerifiedAccount("open_tool", "Create your free BrandThat account to start building your brand.");
+    if (!session) return;
+
     const nextTool = toolMap[seoPage.toolKey] || tools[0];
 
     window.history.pushState({}, "", seoPage.path);
@@ -2996,7 +3122,10 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
-  const buildGuidedBrandPlan = () => {
+  const buildGuidedBrandPlan = async () => {
+    const session = await requireVerifiedAccount("generate", "Create your free BrandThat account to start building your brand.");
+    if (!session) return;
+
     const idea = workspaceDraft.description.trim();
     if (!idea) {
       notify("error", "Start with the idea", "Add a quick description of the business or brand you want to build.");
@@ -3105,7 +3234,7 @@ Output a thesis-first brand plan:
     }));
   };
 
-  const createWorkspaceFromBrandPlan = (plan = {}, planText = "") => {
+  const createWorkspaceFromBrandPlan = async (plan = {}, planText = "", session = null) => {
     const normalizedPlan = normalizeBrandPlan(plan, getBrandPlanRequestPayload(planText));
     const workspaceContext = normalizedPlan.workspaceContext || {};
     const logoContext = normalizedPlan.logoContext || {};
@@ -3120,7 +3249,7 @@ Output a thesis-first brand plan:
       image: "",
       createdAt: new Date().toISOString(),
     };
-    const nextBrand = {
+    let nextBrand = {
       ...(existing || {}),
       id: brandId,
       name: brandName,
@@ -3161,9 +3290,66 @@ Output a thesis-first brand plan:
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
 
+    if (session?.user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("brand_workspaces")
+          .insert({
+            user_id: session.user.id,
+            name: nextBrand.name,
+            description: nextBrand.description,
+            logo_direction: nextBrand.logoDirection,
+            audience: nextBrand.audience,
+            tone: nextBrand.tone,
+            style: nextBrand.style,
+            launch_goal: nextBrand.launchGoal,
+          })
+          .select("*")
+          .single();
+
+        if (error) throw error;
+
+        nextBrand = {
+          ...nextBrand,
+          id: data.id,
+          createdAt: data.created_at || nextBrand.createdAt,
+        };
+
+        const storageContent = encodeLogoProjectContent(planText, {
+          structuredPlan: normalizedPlan,
+          brandName: normalizedPlan.brandName,
+          strategy: normalizedPlan,
+          logoContext: normalizedPlan.logoContext || {},
+          source: "brand-plan",
+        });
+
+        const { data: generationData, error: generationError } = await supabase
+          .from("saved_generations")
+          .insert({
+            user_id: session.user.id,
+            workspace_id: nextBrand.id,
+            tool: "brand",
+            title: brandAsset.title,
+            content: storageContent,
+            image_url: "",
+          })
+          .select("*")
+          .single();
+
+        if (!generationError && generationData) {
+          nextBrand.saved = {
+            ...nextBrand.saved,
+            brand: [mapGenerationRow(generationData)],
+          };
+        }
+      } catch (error) {
+        notify("warning", "Workspace saved locally", `We could not sync this workspace to your account yet. ${error.message || ""}`);
+      }
+    }
+
     brandthatDevLog("parsed workspace object", nextBrand);
-    setBrandWorkspaces((prev) => [nextBrand, ...prev.filter((brand) => brand.id !== brandId)]);
-    setActiveBrandId(brandId);
+    setBrandWorkspaces((prev) => [nextBrand, ...prev.filter((brand) => brand.id !== brandId && brand.id !== nextBrand.id)]);
+    setActiveBrandId(nextBrand.id);
     return nextBrand;
   };
 
@@ -3214,14 +3400,12 @@ Output a thesis-first brand plan:
     };
   };
 
-  const startWorkspaceFromCurrentLogo = () => {
+  const startWorkspaceFromCurrentLogo = async () => {
+    const session = await requireVerifiedAccount("save_logo_project", "Create your free BrandThat account to save this brand project.");
+    if (!session) return;
+
     const context = getCurrentLogoBrandContext();
     const generatedBrandPlan = activeToolKey === "brand" ? stripLogoProjectMetadata(result) : "";
-
-    if (!user?.id) {
-      openAuth("signup", "Create a free Brandthat account to keep this brand plan, identity direction, roadmap, and logo concepts together as your project.", "save_logo_project");
-      return;
-    }
 
     if (!isLogoTestingUnlocked && isFree && brandWorkspaces.length >= 1) {
       setPage("pricing");
@@ -3253,7 +3437,10 @@ Output a thesis-first brand plan:
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
-  const buildGrowthRoadmapFromCurrentLogo = () => {
+  const buildGrowthRoadmapFromCurrentLogo = async () => {
+    const session = await requireVerifiedAccount("generate", "Create your free BrandThat account to build a growth roadmap.");
+    if (!session) return;
+
     const context = getCurrentLogoBrandContext();
     const generatedBrandPlan = activeToolKey === "brand" ? stripLogoProjectMetadata(result) : "";
     const roadmapPrompt = `Create a practical 30-day launch and growth roadmap for this brand.
@@ -3557,11 +3744,15 @@ Requirements:
     };
 
     let data;
+    const authorizedHeaders = overrides.authHeaders || await getAuthorizedHeaders("generate");
+    if (!authorizedHeaders) {
+      throw new Error("Create your free BrandThat account to start building your brand.");
+    }
 
     try {
       data = await fetchJsonWithTimeout("/.netlify/functions/logo-image", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authorizedHeaders,
         body: JSON.stringify(requestPayload)
       }, {
         timeoutMs: 22000,
@@ -3625,14 +3816,15 @@ Requirements:
       return;
     }
 
-    const canUseWithoutAuth = true;
+    const authSession = await requireVerifiedAccount("generate", "Create your free BrandThat account to start building your brand.");
+    if (!authSession) return;
+    const authHeaders = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authSession.access_token}`,
+    };
+
     const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const logoLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isPro;
-
-    if (!currentUser && !canUseWithoutAuth) {
-      openAuth("login", "Log in or create a free account to generate and save your brand asset.", "generate");
-      return;
-    }
 
     if (!logoLimitsBypassed && activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
       setPage("pricing");
@@ -3658,7 +3850,7 @@ Requirements:
 
     try {
       if (activeTool.key === "logo") {
-        const logoResult = await createLogoImage(logoOverrides);
+        const logoResult = await createLogoImage({ ...logoOverrides, authHeaders });
         const logoTitle = parsedLogo?.brandName || brandNameValue || promptValue.split(/\s+/).slice(0, 4).join(" ") || "Brandthat Logo";
         const logoEntry = {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
@@ -3707,7 +3899,7 @@ Requirements:
         try {
           data = await fetchJsonWithTimeout("/.netlify/functions/brand-plan", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders,
             body: JSON.stringify(brandPlanPayload)
           }, {
             timeoutMs: 20000,
@@ -3740,7 +3932,7 @@ Requirements:
         const cleanPlanText = cleanGeneratedText(data.text || "No brand plan generated.");
         setResult(cleanGeneratedText(encodeLogoProjectContent(cleanPlanText, project)));
         if (structuredPlan) {
-          createWorkspaceFromBrandPlan(structuredPlan, cleanPlanText);
+          await createWorkspaceFromBrandPlan(structuredPlan, cleanPlanText, authSession);
           setPage("workspace");
           notify("success", "Brand headquarters created", `${structuredPlan.brandName || "Your brand"} is ready to build from.`);
         }
@@ -3748,7 +3940,7 @@ Requirements:
       } else {
         const data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({
             prompt: `${getSystemPrompt()}
 
@@ -3911,16 +4103,22 @@ ${promptValue}`
 
         <div className="navLinks">
           <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Brand Builder</button>
-          <button onClick={() => setPage("workspace")}>Workspace</button>
+          <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
           <button onClick={() => openSeoPage("seo-logo")}>Logo Concepts</button>
           <button onClick={() => setPage("features")}>Tools</button>
           <button onClick={() => setPage("pricing")}>Pricing</button>
         </div>
 
-        {user ? (
-          <button className="accountBtn" onClick={logOut}>Log out</button>
+        {authStatus === "logged_in" ? (
+          <div className="accountMenu">
+            <span>{user.email || "Account"}</span>
+            <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
+            <button onClick={logOut}>Log out</button>
+          </div>
+        ) : authStatus === "email_not_verified" ? (
+          <button className="accountBtn" onClick={() => openAuth("login", "Check your email to verify your account before continuing.")}>Verify email</button>
         ) : (
-          <button className="accountBtn" onClick={() => openAuth("login")}>Log in</button>
+          <button className="accountBtn" onClick={() => openAuth("login")}>{authLoading ? "Loading..." : "Log in"}</button>
         )}
       </nav>
 
@@ -3944,7 +4142,7 @@ ${promptValue}`
 
               <div className="heroCtas">
                 <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Start With an Idea</button>
-                <button className="btn light" onClick={() => setPage("workspace")}>Open Workspace</button>
+                <button className="btn light" onClick={() => openProtectedPage("workspace", "workspace")}>Open Workspace</button>
               </div>
 
               <div className="journeyLine" aria-label="BrandThat journey">
@@ -4105,16 +4303,16 @@ ${promptValue}`
       {page === "pricing" && (
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
-          <h1 className="pageTitle">Use the text tools free. Upgrade for logos and workspaces.</h1>
-          <p className="pageLead">Captions, hashtags, hooks, bios, email copy, strategy, campaigns, and growth roadmaps are free to use. Paid plans are for AI logo generation, saved Brand Workspaces, history, and downloadable brand kits.</p>
+          <h1 className="pageTitle">Create a free account. Upgrade for logos and workspaces.</h1>
+          <p className="pageLead">A verified BrandThat account is required to use the tools. Free accounts can start building with text tools. Paid plans are for AI logo generation, saved Brand Workspaces, history, and downloadable brand kits.</p>
 
           <div className="pricingGrid threePlans"><PriceCard
               name="FREE"
               price="$0"
               bestFor="Best for testing captions, hashtags, and simple brand ideas"
-              desc="Use the free text tools without building a workspace."
-              features={["Free caption generator", "Free hashtag generator", "Free hooks and bios", "Free email and strategy tools", "Free campaign and growth roadmap tools", "Logo generation not included"]}
-              onClick={() => setPage("features")}
+              desc="Use BrandThat's text tools with a verified free account."
+              features={["Verified account required", "Caption generator", "Hashtag generator", "Hooks and bios", "Email and strategy tools", "Logo generation not included"]}
+              onClick={() => openAuth("signup", "Create your free BrandThat account to start building your brand.")}
             />
             <PriceCard
               name="STARTER"
@@ -4150,7 +4348,7 @@ ${promptValue}`
               <strong>Active Brand:</strong> {activeBrand.name}
               {activeBrand.logoImage && <img className="activeBrandLogo" src={activeBrand.logoImage} alt={`${activeBrand.name} logo`} />}
               <span>{getBrandReadinessScore(activeBrand)}% ready</span>
-              <button onClick={() => setPage("workspace")}>View Workspace</button>
+              <button onClick={() => openProtectedPage("workspace", "workspace")}>View Workspace</button>
             </div>
           )}
 
@@ -4245,7 +4443,7 @@ ${promptValue}`
             <h2>{authMode === "signup" ? "Create your account." : "Welcome back."}</h2>
             <p>
               {authMode === "signup"
-                ? "Create one account to save your workspaces, logo generations, captions, hooks, bios, and brand kits."
+                ? "Create your free BrandThat account to start building your brand. Verify your email before using the tools."
                 : "Log in with the email and password you used when creating your Brandthat account."}
             </p>
 
@@ -6863,6 +7061,10 @@ body{margin:0}
 .navLinks{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
 .navLinks button,.accountBtn{background:none;border:none;font-weight:700;cursor:pointer;color:#111;font-size:15px}
 .accountBtn{background:#111;color:white;padding:12px 18px;border-radius:999px}
+.accountMenu{display:flex;align-items:center;gap:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 8px 6px 14px;max-width:360px}
+.accountMenu span{font-size:12px;font-weight:800;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.accountMenu button{border:none;background:#111;color:white;border-radius:999px;padding:9px 11px;font-weight:800;cursor:pointer;font-size:12px}
+.accountMenu button:first-of-type{background:#f6f4ef;color:#111;border:1px solid rgba(0,0,0,.08)}
 .hero{max-width:1280px;margin:0 auto;padding:38px 6vw 40px}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .dreamHero{display:grid;grid-template-columns:.82fr 1.18fr;gap:42px;align-items:start;padding-top:54px;padding-bottom:70px}
@@ -8288,5 +8490,5 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
 @media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.dreamHero .heroTop{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.pricingGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}}
-@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn{grid-column:2;grid-row:1}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:22px}.builderTop{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip{grid-template-columns:1fr}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:820px){h1,.heroTitle{font-size:52px}h2{font-size:36px}.nav{grid-template-columns:1fr auto;gap:12px;padding:24px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:22px}.builderTop{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.pricingGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip{grid-template-columns:1fr}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;

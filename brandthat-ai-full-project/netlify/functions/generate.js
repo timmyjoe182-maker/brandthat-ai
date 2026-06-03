@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const { requireVerifiedUser } = require("./lib/auth.js");
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -29,6 +30,16 @@ function checkRateLimit(event, { limit = 35, windowMs = 60_000 } = {}) {
 }
 
 exports.handler = async (event) => {
+  const auth = await requireVerifiedUser(event).catch(() => ({
+    error: {
+      statusCode: 401,
+      message: "Please log in again to continue.",
+    },
+  }));
+  if (auth.error) {
+    return json(auth.error.statusCode, { error: auth.error.message });
+  }
+
   try {
     if (!checkRateLimit(event)) {
       return json(429, { error: "Too many requests. Please wait a minute and try again." });

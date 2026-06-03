@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const { requireVerifiedUser } = require("./lib/auth.js");
 
 function getOpenAiClient() {
   if (!process.env.OPENAI_API_KEY) return null;
@@ -3473,6 +3474,19 @@ async function generateOpenAiLogo({ finalPrompt, signal }) {
 
 exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
+
+  const auth = await requireVerifiedUser(event).catch(() => ({
+    error: {
+      statusCode: 401,
+      message: "Please log in again to continue.",
+    },
+  }));
+  if (auth.error) {
+    return {
+      statusCode: auth.error.statusCode,
+      body: JSON.stringify({ error: auth.error.message }),
+    };
+  }
 
   try {
     if (!checkRateLimit(event)) {
