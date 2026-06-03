@@ -520,6 +520,118 @@ function inferSimpleIndustry(value = "") {
   return matches.find(([, words]) => words.some((word) => text.includes(word)))?.[0] || "new business / brand";
 }
 
+const WORKSPACE_DATA_VERSION = "2026-06-thesis-v1";
+
+function brandthatDevLog(label, payload) {
+  if (import.meta?.env?.DEV) {
+    console.log(`[BrandThat debug] ${label}`, payload);
+  }
+}
+
+function inferStrategicOpportunity(value = "") {
+  const text = String(value || "").toLowerCase();
+  const signals = [
+    ["luxury", ["luxury", "premium", "high-end", "private", "elegant", "exclusive"]],
+    ["convenience", ["fast", "easy", "simple", "delivery", "quick", "same-day"]],
+    ["trust", ["law", "legal", "medical", "clinic", "finance", "real estate", "contractor", "repair"]],
+    ["craftsmanship", ["handmade", "artisan", "crafted", "ranch", "alpaca", "wool", "textile", "chocolate", "plaster"]],
+    ["speed", ["ai", "automation", "software", "saas", "startup", "workflow"]],
+    ["status", ["fashion", "wedding", "estate", "jewelry", "hotel"]],
+    ["sustainability", ["organic", "natural", "eco", "sustainable", "farm", "wellness"]],
+    ["innovation", ["ai", "tech", "platform", "app", "future"]],
+    ["nostalgia", ["vintage", "retro", "classic", "heritage", "western"]],
+    ["affordability", ["affordable", "budget", "family", "local", "everyday"]],
+    ["joy", ["kids", "party", "candy", "confetti", "play", "fun"]],
+  ];
+  return signals.find(([, words]) => words.some((word) => text.includes(word)))?.[0] || "trust";
+}
+
+function getThesisFallback(plan = {}, payload = {}) {
+  const brandName = cleanGeneratedText(plan.brandName || payload.brandName || "New Brand");
+  const idea = cleanGeneratedText(payload.idea || payload.rawPrompt || plan.brandSummary || brandName);
+  const industry = plan.logoContext?.industry || plan.workspaceContext?.industry || inferSimpleIndustry(`${brandName} ${idea}`);
+  const coreOpportunity = plan.coreOpportunity || inferStrategicOpportunity(`${brandName} ${idea} ${industry}`);
+
+  return {
+    coreOpportunity,
+    brandThesis: `${brandName} should be built around ${coreOpportunity}: customers are not just buying from the ${industry} category, they are looking for a more specific reason to feel confident choosing this brand. The brand should turn "${idea}" into a clear promise, a visual direction, and a launch plan that all prove why this business deserves attention now.`,
+  };
+}
+
+function normalizeRoadmapItems(value, fallback = []) {
+  const fallbackRoadmap = fallback.length ? fallback : [
+    { week: "Week 1", focus: "Define the thesis", actions: ["Write the one-sentence brand promise.", "Choose the proof points that make the promise believable."] },
+    { week: "Week 2", focus: "Shape the identity", actions: ["Turn the thesis into moodboard, typography, and color decisions.", "Reject any visual choice that feels generic."] },
+    { week: "Week 3", focus: "Publish proof", actions: ["Create launch content that explains why the brand exists.", "Test which message earns the strongest response."] },
+    { week: "Week 4", focus: "Build momentum", actions: ["Save the strongest assets to the workspace.", "Plan the next month around the clearest customer reaction."] },
+  ];
+
+  const items = Array.isArray(value) ? value : String(value || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => ({ week: `Week ${index + 1}`, focus: line, actions: [] }));
+
+  const normalized = items.slice(0, 4).map((item, index) => {
+    const fallbackItem = fallbackRoadmap[index] || fallbackRoadmap[0];
+    const week = cleanGeneratedText(item?.week) || fallbackItem.week || `Week ${index + 1}`;
+    const focus = cleanGeneratedText(item?.focus) || fallbackItem.focus || "Build the brand plan";
+    const actions = Array.isArray(item?.actions)
+      ? item.actions.map(cleanGeneratedText).filter(Boolean)
+      : String(item?.actions || "").split(/;|\n/).map(cleanGeneratedText).filter(Boolean);
+
+    return {
+      week,
+      focus,
+      actions: actions.length ? actions.slice(0, 5) : fallbackItem.actions,
+    };
+  });
+
+  return normalized.length ? normalized : fallbackRoadmap;
+}
+
+function normalizeBrandPlan(plan = {}, payload = {}) {
+  const fallback = getThesisFallback(plan, payload);
+  const brandName = cleanGeneratedText(plan.brandName || payload.brandName) || "New Brand";
+  const industry = plan.logoContext?.industry || plan.workspaceContext?.industry || inferSimpleIndustry(`${brandName} ${payload.idea || payload.rawPrompt || ""}`);
+  const coreOpportunity = cleanGeneratedText(plan.coreOpportunity) || fallback.coreOpportunity;
+  const brandThesis = cleanGeneratedText(plan.brandThesis) || fallback.brandThesis;
+  const launchRoadmap30Days = normalizeRoadmapItems(plan.launchRoadmap30Days);
+
+  return {
+    ...plan,
+    brandName,
+    coreOpportunity,
+    brandThesis,
+    brandSummary: cleanGeneratedText(plan.brandSummary) || `${brandName} is a ${industry} brand plan built around ${coreOpportunity}.`,
+    targetAudience: cleanGeneratedText(plan.targetAudience) || `Customers who need a specific reason to trust ${brandName} in the ${industry} category.`,
+    positioning: cleanGeneratedText(plan.positioning) || `${brandName} should be positioned around ${coreOpportunity}, not generic category claims.`,
+    coreOffer: cleanGeneratedText(plan.coreOffer) || `A focused offer that makes the ${coreOpportunity} thesis tangible for the first customer.`,
+    moodboardDirection: cleanGeneratedText(plan.moodboardDirection) || `Use references that make the ${coreOpportunity} thesis visible through real customer moments, materials, and applications.`,
+    typographySystem: cleanGeneratedText(plan.typographySystem) || `Use type that supports ${coreOpportunity}: readable, distinctive, and aligned with the customer's reason to believe.`,
+    colorSystem: cleanGeneratedText(plan.colorSystem) || `Use a restrained palette that makes the ${coreOpportunity} promise recognizable across web, social, and launch assets.`,
+    brandVoice: cleanGeneratedText(plan.brandVoice) || `Specific, grounded, and tied to the ${coreOpportunity} thesis.`,
+    taglineIdeas: Array.isArray(plan.taglineIdeas) && plan.taglineIdeas.length ? plan.taglineIdeas.map(cleanGeneratedText).filter(Boolean) : [`${brandName}, built around ${coreOpportunity}.`],
+    launchRoadmap30Days,
+    nextStepActionPlan: Array.isArray(plan.nextStepActionPlan) && plan.nextStepActionPlan.length
+      ? plan.nextStepActionPlan.map(cleanGeneratedText).filter(Boolean)
+      : [`Save this ${coreOpportunity}-led plan to the workspace.`, "Generate identity assets from the thesis.", "Use the roadmap to test the strongest proof points."],
+    workspaceContext: {
+      ...(plan.workspaceContext || {}),
+      coreOpportunity,
+      brandThesis,
+      industry,
+    },
+    logoContext: {
+      ...(plan.logoContext || {}),
+      brandName,
+      coreOpportunity,
+      brandThesis,
+      industry,
+    },
+  };
+}
+
 function createClientBrandPlanFallback(payload = {}) {
   const idea = cleanGeneratedText(payload.idea || payload.rawPrompt || "");
   const parsedLogo = parseNaturalLogoPrompt({
@@ -533,72 +645,74 @@ function createClientBrandPlanFallback(payload = {}) {
   });
   const brandName = parsedLogo.brandName || payload.brandName || "New Brand";
   const industry = inferSimpleIndustry(`${brandName} ${idea} ${payload.positioning || ""}`);
-  const targetAudience = payload.audience || `People looking for a clear, trustworthy ${industry} brand.`;
-  const positioning = payload.positioning || `${brandName} should feel specific, credible, and easy to understand in the ${industry} category.`;
-  const visualDirection = payload.visualDirection || `Create a clean, scalable identity that reflects ${industry} without feeling generic or over-designed.`;
-  const typography = "Use readable, premium typography with strong hierarchy, generous spacing, and a simple supporting type style.";
-  const colors = parsedLogo.colors || "Use a restrained palette with strong contrast and one memorable accent color.";
-  const roadmap = [
-    "Week 1: Clarify the offer, write the homepage message, and define the first proof points.",
-    "Week 2: Choose visual direction, typography, colors, profile assets, and first landing page sections.",
-    "Week 3: Publish launch content, test captions, share the brand story, and gather feedback.",
-    "Week 4: Refine the CTA, create outreach copy, measure replies/clicks/leads, and plan the next 30 days.",
-  ];
+  const coreOpportunity = inferStrategicOpportunity(`${brandName} ${idea} ${industry} ${payload.personality || ""}`);
+  const targetAudience = payload.audience || `Buyers in the ${industry} category who will notice whether ${brandName} feels rooted in ${coreOpportunity} instead of a generic offer.`;
+  const positioning = payload.positioning || `Position ${brandName} around ${coreOpportunity}: make the idea feel specific, believable, and more emotionally useful than template competitors.`;
+  const visualDirection = payload.visualDirection || `Shape the identity around ${coreOpportunity} with restrained symbols, practical applications, and category cues that connect directly to ${industry}.`;
+  const typography = `Choose typography that supports ${coreOpportunity}: a distinctive wordmark direction paired with a neutral support style so ${brandName} feels ownable and still easy to use.`;
+  const colors = parsedLogo.colors || `Use a restrained palette tied to ${coreOpportunity}, with one memorable accent and enough contrast for web, social, and logo use.`;
 
-  const plan = {
+  const basePlan = {
     brandName,
-    brandSummary: `${brandName} is a ${industry} concept built from this idea: ${idea || "a new brand idea"}.`,
+    coreOpportunity,
+    brandThesis: `${brandName} should be built around ${coreOpportunity}: customers are not buying a generic ${industry} offer, they are looking for a brand that makes "${idea || brandName}" feel more believable, memorable, and worth choosing. Every section should prove that thesis through audience, positioning, visuals, type, color, and launch actions.`,
+    brandSummary: `${brandName} is a ${industry} concept built around ${coreOpportunity}, using the original idea as the source of strategic direction.`,
     targetAudience,
     positioning,
-    brandPersonality: payload.personality || "Modern, clear, useful, and polished.",
-    competitorCategory: `${industry} competitors and template-based alternatives.`,
-    pricePositioning: /luxury|premium|high-end/i.test(idea) ? "Premium, quality-led pricing." : "Accessible but professional pricing.",
-    coreOffer: payload.offer || `A focused ${industry} offer with a clear reason to choose it.`,
-    coreMessage: `${brandName} helps customers quickly understand the offer, trust the brand, and take the next step.`,
+    brandPersonality: payload.personality || `Specific, ${coreOpportunity}-led, grounded, and useful.`,
+    competitorCategory: `${industry} competitors that describe the category without giving customers a sharper ${coreOpportunity}-led reason to choose.`,
+    pricePositioning: /luxury|premium|high-end/i.test(idea) ? `Premium pricing because the ${coreOpportunity} thesis depends on restraint, taste, and stronger proof.` : `Accessible but credible pricing because the ${coreOpportunity} promise still needs the brand to feel intentional.`,
+    coreOffer: payload.offer || `A focused ${industry} offer that makes the ${coreOpportunity} thesis tangible in the first customer interaction.`,
+    coreMessage: `${brandName} turns ${idea || industry} into a ${coreOpportunity}-led reason to care.`,
     visualIdentityDirection: visualDirection,
-    moodboardDirection: "Clean brand photography, editorial spacing, refined social assets, and practical launch-ready visuals.",
+    moodboardDirection: `Use moodboard references that show ${coreOpportunity} in real-world ${industry} moments, not generic brand photography.`,
     typographySystem: typography,
     colorSystem: colors,
-    brandVoice: "Direct, specific, polished, and helpful. Avoid vague hype.",
-    taglineIdeas: [`${brandName}, made clear.`, "Built for what comes next.", "Clear direction. Better momentum."],
-    launchRoadmap30Days: roadmap,
-    nextStepActionPlan: ["Save this as a Brand Workspace.", "Generate logo concepts from the visual direction.", "Create captions, hashtags, and launch content from the same brand context."],
-    workspaceContext: { industry, audience: targetAudience, differentiator: positioning, visualDirection, typography, colors },
-    logoContext: { brandName, industry, style: payload.personality || "Modern", symbolIdeas: "Simple monogram, restrained industry cue, or abstract brand mark.", colors, typography, avoid: "Wrong name, clipart, tiny logos, clutter, and unrelated iconography." },
+    brandVoice: `Use direct, specific language that keeps explaining why ${brandName}'s ${coreOpportunity} promise matters to this customer.`,
+    taglineIdeas: [`${brandName}, built around ${coreOpportunity}.`, `${coreOpportunity[0].toUpperCase()}${coreOpportunity.slice(1)} made visible.`, `A sharper way to choose ${industry.replace(/\s*\/.*$/, "")}.`],
+    launchRoadmap30Days: normalizeRoadmapItems([]),
+    nextStepActionPlan: [`Save this ${coreOpportunity}-led plan as a Brand Workspace.`, "Generate logo concepts from the thesis, typography, and color direction.", "Create captions, hashtags, and launch content from the same brand context."],
+    workspaceContext: { coreOpportunity, brandThesis: "", industry, audience: targetAudience, differentiator: positioning, visualDirection, typography, colors },
+    logoContext: { brandName, coreOpportunity, brandThesis: "", industry, style: payload.personality || coreOpportunity, symbolIdeas: `Use a restrained ${industry} cue that supports ${coreOpportunity}.`, colors, typography, avoid: "Wrong name, clipart, tiny logos, clutter, and unrelated iconography." },
   };
+  const plan = normalizeBrandPlan(basePlan, payload);
 
   return {
     plan,
-    text: `1. Brand name and summary
+    text: `1. Core opportunity and brand thesis
+Core opportunity: ${plan.coreOpportunity}
+${plan.brandThesis}
+
+2. Brand name and summary
 ${plan.brandName}
 ${plan.brandSummary}
 
-2. Positioning
+3. Positioning
 ${plan.positioning}
 
-3. Target customer
+4. Target customer
 ${plan.targetAudience}
 
-4. Core offer
+5. Core offer
 ${plan.coreOffer}
 
-5. Brand personality
+6. Brand personality
 ${plan.brandPersonality}
 
-6. Visual identity direction
+7. Visual identity direction
 ${plan.visualIdentityDirection}
 
-7. Moodboard direction
+8. Moodboard direction
 ${plan.moodboardDirection}
 
-8. Typography system
+9. Typography system
 ${plan.typographySystem}
 
-9. Color system
+10. Color system
 ${plan.colorSystem}
 
-10. Practical launch roadmap and workspace next steps
-${roadmap.join("\n")}
+11. Practical launch roadmap and workspace next steps
+${plan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus}\n${item.actions.map((action) => `- ${action}`).join("\n")}`).join("\n\n")}
 
 Next steps:
 ${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}`,
@@ -1535,30 +1649,58 @@ function getBrandFieldPreview(value = "", fallback = "Not defined yet.") {
   return cleanValue.split("\n").filter(Boolean).slice(0, 3).join(" ");
 }
 
+function getWorkspacePlan(brand) {
+  if (brand?.structuredPlan) return normalizeBrandPlan(brand.structuredPlan, { brandName: brand.name, idea: brand.description });
+
+  return normalizeBrandPlan({
+    brandName: brand?.name || "",
+    brandSummary: brand?.description || "",
+    targetAudience: brand?.audience || "",
+    positioning: brand?.differentiator || "",
+    coreOffer: brand?.offer || "",
+    brandPersonality: brand?.tone || "",
+    moodboardDirection: brand?.style || "",
+    visualIdentityDirection: brand?.logoDirection || "",
+    launchRoadmap30Days: brand?.launchGoal || "",
+  }, {
+    brandName: brand?.name || "",
+    idea: `${brand?.description || ""} ${brand?.logoDirection || ""} ${brand?.launchGoal || ""}`,
+  });
+}
+
 function getBrandRoadmapPreview(brand) {
-  const text = cleanGeneratedText(brand?.launchGoal || "");
-  const lines = text
-    .split("\n")
-    .map((line) => line.replace(/^[-•*\s]+/, "").trim())
-    .filter(Boolean);
-
-  if (lines.length) return lines.slice(0, 4);
-
-  return [
-    "Finalize the offer and public brand message.",
-    "Generate logo concepts from the identity direction.",
-    "Create launch captions, hashtags, and first outreach copy.",
-    "Save the strongest assets and export the brand kit.",
-  ];
+  const plan = getWorkspacePlan(brand);
+  return normalizeRoadmapItems(plan.launchRoadmap30Days).map((item) => {
+    const actions = Array.isArray(item.actions) && item.actions.length ? ` — ${item.actions.slice(0, 2).join(" ")}` : "";
+    return `${item.week}: ${item.focus}${actions}`;
+  });
 }
 
 function getBrandNextActions(brand) {
+  if (brand?.structuredPlan?.nextStepActionPlan?.length) {
+    return brand.structuredPlan.nextStepActionPlan.map(cleanGeneratedText).filter(Boolean).slice(0, 4);
+  }
+
   const base = [];
   if (!brand?.logoImage) base.push("Generate or set a logo concept as the brand mark.");
   if (!countSavedAssets(brand)) base.push("Save the first strategy, roadmap, or logo asset to the workspace.");
   if (!String(brand?.channels || "").trim()) base.push("Choose primary launch channels for the first 30 days.");
   base.push("Review the roadmap tomorrow and create the next brand asset.");
   return base.slice(0, 4);
+}
+
+function getInitialStoredWorkspaces() {
+  const storedVersion = localStorage.getItem("brandthat_workspace_data_version");
+  if (storedVersion !== WORKSPACE_DATA_VERSION) {
+    localStorage.setItem("brandthat_workspace_data_version", WORKSPACE_DATA_VERSION);
+    localStorage.removeItem("brandthat_brand_workspaces");
+    localStorage.removeItem("brandthat_active_brand_id");
+    localStorage.removeItem("brandthat_workspace_draft");
+    brandthatDevLog("cleared legacy local workspace cache", { storedVersion, nextVersion: WORKSPACE_DATA_VERSION });
+    return [];
+  }
+
+  return safeParse("brandthat_brand_workspaces", []);
 }
 
 class LogoGenerationErrorBoundary extends React.Component {
@@ -1645,7 +1787,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [recentLogoResults, setRecentLogoResults] = useState(() => safeParse("brandthat_recent_logo_results", []));
 
-  const [brandWorkspaces, setBrandWorkspaces] = useState(() => safeParse("brandthat_brand_workspaces", []));
+  const [brandWorkspaces, setBrandWorkspaces] = useState(getInitialStoredWorkspaces);
   const [activeBrandId, setActiveBrandId] = useState(localStorage.getItem("brandthat_active_brand_id") || "");
   const activeBrand = brandWorkspaces.find((brand) => brand.id === activeBrandId) || brandWorkspaces[0] || null;
 
@@ -1786,6 +1928,8 @@ export default function App() {
     tone: row.tone || "Modern",
     style: row.style || "",
     launchGoal: row.launch_goal || "",
+    structuredPlan: null,
+    workspaceDataVersion: WORKSPACE_DATA_VERSION,
     saved: emptySavedBuckets(),
     createdAt: row.created_at || new Date().toISOString(),
   });
@@ -1939,6 +2083,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem("brandthat_workspace_data_version", WORKSPACE_DATA_VERSION);
     localStorage.setItem("brandthat_brand_workspaces", JSON.stringify(brandWorkspaces));
   }, [brandWorkspaces]);
 
@@ -2547,6 +2692,7 @@ export default function App() {
   const buildWorkspaceKit = () => {
     if (!activeBrand) return "Create a Brand Workspace first.";
 
+    const plan = getWorkspacePlan(activeBrand);
     const saved = activeBrand.saved || {};
     const captions = saved.captions?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved captions yet.";
     const hooks = saved.hooks?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved hooks yet.";
@@ -2556,6 +2702,12 @@ export default function App() {
 
 Brand Name:
 ${activeBrand.name}
+
+Core Opportunity:
+${plan.coreOpportunity || "Not added yet."}
+
+Brand Thesis:
+${plan.brandThesis || "Not added yet."}
 
 Logo Direction:
 ${activeBrand.logoDirection || "Not added yet."}
@@ -2601,6 +2753,9 @@ ${activeBrand.weeklyTime || "Not added yet."}
 
 Launch Goal:
 ${activeBrand.launchGoal || "Not added yet."}
+
+Structured Roadmap:
+${normalizeRoadmapItems(plan.launchRoadmap30Days).map((item) => `${item.week}: ${item.focus}\n${item.actions.map((action) => `- ${action}`).join("\n")}`).join("\n\n")}
 
 Brand Readiness Score:
 ${getBrandReadinessScore(activeBrand)}%
@@ -2735,7 +2890,10 @@ ${entry.content || "Use the saved logo direction and improve it."}`);
   };
 
   function buildBrandPrompt(brand) {
+    const plan = getWorkspacePlan(brand);
     return `Brand name: ${brand.name}
+Core opportunity: ${plan.coreOpportunity || "Not provided"}
+Brand thesis: ${plan.brandThesis || "Not provided"}
 Brand description: ${brand.description}
 Audience: ${brand.audience}
 Audience pain/desire: ${brand.audiencePain || "Not provided"}
@@ -2745,6 +2903,9 @@ Competitors/references: ${brand.competitors || "Not provided"}
 Brand tone: ${brand.tone}
 Logo direction: ${brand.logoDirection}
 Visual style: ${brand.style}
+Moodboard direction: ${plan.moodboardDirection || "Not provided"}
+Typography direction: ${plan.typographySystem || "Not provided"}
+Color direction: ${plan.colorSystem || "Not provided"}
 Primary channels: ${brand.channels || "Not provided"}
 Growth platform: ${brand.growthPlatform || "Not provided"}
 Current followers: ${brand.currentFollowers || "Not provided"}
@@ -2874,17 +3035,17 @@ Suggest primary and secondary colors with rationale.
 Roadmap goal:
 ${workspaceDraft.targetFollowers || workspaceDraft.launchGoal || "Create a practical 30-day launch roadmap."}
 
-Output exactly 10 numbered sections:
-1. Brand name and one-line idea
-2. Positioning
-3. Target customer
-4. Core offer
-5. Brand personality
+Output a thesis-first brand plan:
+1. Core opportunity
+2. Brand Thesis
+3. Positioning
+4. Target customer
+5. Core offer
 6. Visual identity direction
 7. Moodboard direction
 8. Typography system
 9. Color system
-10. Practical launch roadmap and workspace next steps`;
+10. Practical launch roadmap and next actions`;
 
     setActiveToolKey("brand");
     setSelectedPlatform(workspaceDraft.style || "New Business");
@@ -2917,34 +3078,38 @@ Output exactly 10 numbered sections:
   });
 
   const applyStructuredBrandPlanToDraft = (plan = {}) => {
-    const workspaceContext = plan.workspaceContext || {};
-    const logoContext = plan.logoContext || {};
+    const normalizedPlan = normalizeBrandPlan(plan, getBrandPlanRequestPayload());
+    const workspaceContext = normalizedPlan.workspaceContext || {};
+    const logoContext = normalizedPlan.logoContext || {};
 
     setWorkspaceDraft((current) => ({
       ...current,
-      name: current.name || plan.brandName || logoContext.brandName || "",
-      description: plan.brandSummary || current.description,
-      audience: plan.targetAudience || workspaceContext.audience || current.audience,
-      offer: plan.coreOffer || workspaceContext.offer || current.offer || "",
-      differentiator: plan.positioning || workspaceContext.differentiator || current.differentiator || "",
-      competitors: plan.competitorCategory || current.competitors || "",
-      tone: tones.includes(plan.brandPersonality) ? plan.brandPersonality : current.tone || "Modern",
-      style: plan.moodboardDirection || workspaceContext.moodboard || logoContext.style || current.style || "",
+      name: current.name || normalizedPlan.brandName || logoContext.brandName || "",
+      description: normalizedPlan.brandSummary || current.description,
+      audience: normalizedPlan.targetAudience || workspaceContext.audience || current.audience,
+      offer: normalizedPlan.coreOffer || workspaceContext.offer || current.offer || "",
+      differentiator: normalizedPlan.positioning || workspaceContext.differentiator || current.differentiator || "",
+      competitors: normalizedPlan.competitorCategory || current.competitors || "",
+      tone: tones.includes(normalizedPlan.brandPersonality) ? normalizedPlan.brandPersonality : current.tone || "Modern",
+      style: normalizedPlan.moodboardDirection || workspaceContext.moodboard || logoContext.style || current.style || "",
       logoDirection: [
-        plan.brandPersonality ? `Brand personality: ${plan.brandPersonality}` : "",
-        plan.visualIdentityDirection || workspaceContext.visualDirection || "",
+        normalizedPlan.coreOpportunity ? `Core opportunity: ${normalizedPlan.coreOpportunity}` : "",
+        normalizedPlan.brandThesis ? `Brand thesis: ${normalizedPlan.brandThesis}` : "",
+        normalizedPlan.brandPersonality ? `Brand personality: ${normalizedPlan.brandPersonality}` : "",
+        normalizedPlan.visualIdentityDirection || workspaceContext.visualDirection || "",
         logoContext.symbolIdeas ? `Symbol ideas: ${logoContext.symbolIdeas}` : "",
-        logoContext.typography ? `Typography: ${logoContext.typography}` : plan.typographySystem ? `Typography: ${plan.typographySystem}` : "",
-        logoContext.colors ? `Colors: ${logoContext.colors}` : plan.colorSystem ? `Colors: ${plan.colorSystem}` : "",
+        logoContext.typography ? `Typography: ${logoContext.typography}` : normalizedPlan.typographySystem ? `Typography: ${normalizedPlan.typographySystem}` : "",
+        logoContext.colors ? `Colors: ${logoContext.colors}` : normalizedPlan.colorSystem ? `Colors: ${normalizedPlan.colorSystem}` : "",
       ].filter(Boolean).join("\n"),
       launchGoal: workspaceContext.roadmapGoal || current.launchGoal || "Turn the brand plan into logo concepts, launch content, and a saved workspace.",
     }));
   };
 
   const createWorkspaceFromBrandPlan = (plan = {}, planText = "") => {
-    const workspaceContext = plan.workspaceContext || {};
-    const logoContext = plan.logoContext || {};
-    const brandName = plan.brandName || logoContext.brandName || workspaceDraft.name || "New Brand";
+    const normalizedPlan = normalizeBrandPlan(plan, getBrandPlanRequestPayload(planText));
+    const workspaceContext = normalizedPlan.workspaceContext || {};
+    const logoContext = normalizedPlan.logoContext || {};
+    const brandName = normalizedPlan.brandName || logoContext.brandName || workspaceDraft.name || "New Brand";
     const existing = brandWorkspaces.find((brand) => brand.name?.toLowerCase() === brandName.toLowerCase());
     const brandId = existing?.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
     const brandAsset = {
@@ -2959,30 +3124,34 @@ Output exactly 10 numbered sections:
       ...(existing || {}),
       id: brandId,
       name: brandName,
-      description: plan.brandSummary || workspaceDraft.description || "",
-      audience: plan.targetAudience || workspaceContext.audience || workspaceDraft.audience || "",
+      workspaceDataVersion: WORKSPACE_DATA_VERSION,
+      structuredPlan: normalizedPlan,
+      description: normalizedPlan.brandSummary || workspaceDraft.description || "",
+      audience: normalizedPlan.targetAudience || workspaceContext.audience || workspaceDraft.audience || "",
       audiencePain: workspaceDraft.audiencePain || "",
-      offer: plan.coreOffer || workspaceContext.offer || workspaceDraft.offer || "",
-      differentiator: plan.positioning || workspaceContext.differentiator || workspaceDraft.differentiator || "",
-      competitors: plan.competitorCategory || workspaceDraft.competitors || "",
+      offer: normalizedPlan.coreOffer || workspaceContext.offer || workspaceDraft.offer || "",
+      differentiator: normalizedPlan.positioning || workspaceContext.differentiator || workspaceDraft.differentiator || "",
+      competitors: normalizedPlan.competitorCategory || workspaceDraft.competitors || "",
       channels: workspaceDraft.channels || "",
       growthPlatform: workspaceDraft.growthPlatform || "",
       currentFollowers: workspaceDraft.currentFollowers || "",
       targetFollowers: workspaceDraft.targetFollowers || "",
       weeklyTime: workspaceDraft.weeklyTime || "",
       logoImage: existing?.logoImage || workspaceDraft.logoImage || "",
-      tone: tones.includes(plan.brandPersonality) ? plan.brandPersonality : workspaceDraft.tone || existing?.tone || "Modern",
-      style: plan.moodboardDirection || workspaceContext.moodboard || logoContext.style || workspaceDraft.style || existing?.style || "",
+      tone: tones.includes(normalizedPlan.brandPersonality) ? normalizedPlan.brandPersonality : workspaceDraft.tone || existing?.tone || "Modern",
+      style: normalizedPlan.moodboardDirection || workspaceContext.moodboard || logoContext.style || workspaceDraft.style || existing?.style || "",
       logoDirection: [
-        plan.brandPersonality ? `Brand personality: ${plan.brandPersonality}` : "",
-        plan.visualIdentityDirection || workspaceContext.visualDirection || "",
+        normalizedPlan.coreOpportunity ? `Core opportunity: ${normalizedPlan.coreOpportunity}` : "",
+        normalizedPlan.brandThesis ? `Brand thesis: ${normalizedPlan.brandThesis}` : "",
+        normalizedPlan.brandPersonality ? `Brand personality: ${normalizedPlan.brandPersonality}` : "",
+        normalizedPlan.visualIdentityDirection || workspaceContext.visualDirection || "",
         logoContext.symbolIdeas ? `Symbol ideas: ${logoContext.symbolIdeas}` : "",
-        plan.typographySystem ? `Typography: ${plan.typographySystem}` : "",
-        plan.colorSystem ? `Colors: ${plan.colorSystem}` : "",
+        normalizedPlan.typographySystem ? `Typography: ${normalizedPlan.typographySystem}` : "",
+        normalizedPlan.colorSystem ? `Colors: ${normalizedPlan.colorSystem}` : "",
       ].filter(Boolean).join("\n"),
       launchGoal: [
-        plan.nextStepActionPlan?.length ? `Next actions: ${plan.nextStepActionPlan.join(" ")}` : "",
-        plan.launchRoadmap30Days?.length ? plan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus} - ${(item.actions || []).join(", ")}`).join("\n") : workspaceDraft.launchGoal || "",
+        normalizedPlan.nextStepActionPlan?.length ? `Next actions: ${normalizedPlan.nextStepActionPlan.join(" ")}` : "",
+        normalizedPlan.launchRoadmap30Days?.length ? normalizedPlan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus} - ${(item.actions || []).join(", ")}`).join("\n") : workspaceDraft.launchGoal || "",
       ].filter(Boolean).join("\n\n"),
       saved: {
         ...emptySavedBuckets(),
@@ -2992,6 +3161,7 @@ Output exactly 10 numbered sections:
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
 
+    brandthatDevLog("parsed workspace object", nextBrand);
     setBrandWorkspaces((prev) => [nextBrand, ...prev.filter((brand) => brand.id !== brandId)]);
     setActiveBrandId(brandId);
     return nextBrand;
@@ -3550,7 +3720,10 @@ Requirements:
           data = createClientBrandPlanFallback(brandPlanPayload);
         }
 
-        const structuredPlan = data.plan || null;
+        brandthatDevLog("raw brand-plan response", data);
+
+        const structuredPlan = data.plan ? normalizeBrandPlan(data.plan, brandPlanPayload) : null;
+        brandthatDevLog("normalized brand-plan response", structuredPlan);
         if (structuredPlan) applyStructuredBrandPlanToDraft(structuredPlan);
 
         const project = structuredPlan
@@ -4364,18 +4537,21 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
 }
 
 function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard }) {
+  const plan = getWorkspacePlan(brand);
+  brandthatDevLog("rendered workspace data", { brand, plan });
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
   const roadmapItems = getBrandRoadmapPreview(brand);
   const nextActions = getBrandNextActions(brand);
   const identityCards = [
-    ["Positioning", brand.differentiator || brand.offer || "Clarify what makes this brand different."],
-    ["Target Audience", brand.audience || "Define the customer this brand is built for."],
-    ["Personality", brand.logoDirection?.match(/Brand personality:\s*([^\n]+)/i)?.[1] || brand.tone || "Modern"],
-    ["Identity Direction", brand.logoDirection || "Generate visual direction from the brand plan."],
-    ["Moodboard", brand.style || "Create an editorial moodboard direction."],
-    ["Typography", brand.logoDirection?.match(/Typography:\s*([^\n]+)/i)?.[1] || "Define the wordmark and supporting type system."],
-    ["Color System", brand.logoDirection?.match(/Colors:\s*([^\n]+)/i)?.[1] || "Choose a primary palette and accent system."],
-    ["Taglines", getBrandFieldPreview(brand.description, "Generate tagline ideas from the brand plan.")],
+    ["Core Opportunity", plan.coreOpportunity || "Generate a core strategic opportunity."],
+    ["Brand Thesis", plan.brandThesis || "Generate a brand thesis."],
+    ["Positioning", plan.positioning || brand.differentiator || "Clarify what makes this brand different."],
+    ["Audience", plan.targetAudience || brand.audience || "Define the customer this brand is built for."],
+    ["Moodboard Direction", plan.moodboardDirection || brand.style || "Create an editorial moodboard direction."],
+    ["Typography Direction", plan.typographySystem || "Define the wordmark and supporting type system."],
+    ["Color Direction", plan.colorSystem || "Choose a primary palette and accent system."],
+    ["Voice", plan.brandVoice || brand.tone || "Define how this brand should sound."],
+    ["Taglines", Array.isArray(plan.taglineIdeas) ? plan.taglineIdeas.join(" / ") : "Generate tagline ideas from the brand plan."],
   ];
 
   return (
@@ -4392,7 +4568,7 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
         <div>
           <div className="tinyTag">BRAND HEADQUARTERS</div>
           <h2>{brand.name}</h2>
-          <p>{getBrandFieldPreview(brand.description, "This workspace is ready for a clear brand summary, visual direction, roadmap, and logo concepts.")}</p>
+          <p>{getBrandFieldPreview(plan.brandSummary || brand.description, "This workspace is ready for a clear brand summary, visual direction, roadmap, and logo concepts.")}</p>
           <div className="dashboardActions">
             <button className="btn dark" onClick={() => setPage("logo")}>Generate Logo Concepts</button>
             <button className="btn light" onClick={downloadBrandKit}>Download Brand Kit</button>

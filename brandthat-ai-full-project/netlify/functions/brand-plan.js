@@ -90,6 +90,33 @@ function inferIndustry(text = "") {
   return match?.[0] || "new business / brand";
 }
 
+function suggestBrandNameFromIdea(idea = "") {
+  const lower = String(idea || "").toLowerCase();
+
+  if (lower.includes("alpaca") && lower.includes("wool")) return "Alpaca Wool Co";
+  if (lower.includes("alpaca")) return "Alpaca House";
+  if (lower.includes("chocolate") || lower.includes("candy") || lower.includes("candies")) return "Cocoa & Co";
+  if (lower.includes("pizza")) return "Stone & Slice";
+  if (lower.includes("coffee")) return "Foundry Coffee";
+  if (lower.includes("ranch")) return "Range & Root";
+  if (lower.includes("skincare") || lower.includes("skin")) return "Aurelle Skin";
+  if (lower.includes("real estate") || lower.includes("property")) return "Vale & Stone";
+  if (lower.includes("fitness") || lower.includes("gym")) return "Iron Method";
+  if (lower.includes("ai") || lower.includes("software") || lower.includes("saas")) return "NexusForge";
+  if (lower.includes("law") || lower.includes("legal")) return "Cedar Counsel";
+  if (lower.includes("construction") || lower.includes("plaster") || lower.includes("contractor")) return "Capital Craft";
+
+  const meaningfulWords = clean(idea)
+    .replace(/\b(i|we|my|our|need|want|make|create|start|starting|sell|selling|sells|business|company|brand|high|quality|premium|local|new|for|the|a|an|and|of|to|with|called|named|naed)\b/gi, " ")
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-z0-9'.-]/gi, ""))
+    .filter((word) => word.length > 2)
+    .slice(0, 2);
+
+  if (meaningfulWords.length) return titleCase(`${meaningfulWords.join(" ")} Studio`);
+  return "New Brand";
+}
+
 function inferBrandName({ brandName = "", idea = "" } = {}) {
   const explicit = clean(brandName);
   if (explicit) return titleCase(explicit);
@@ -114,8 +141,7 @@ function inferBrandName({ brandName = "", idea = "" } = {}) {
     }
   }
 
-  const words = text.split(/\s+/).filter(Boolean);
-  return titleCase(words.slice(0, 3).join(" ")) || "New Brand";
+  return suggestBrandNameFromIdea(text);
 }
 
 function extractColors(text = "") {
@@ -143,10 +169,20 @@ function inferCoreOpportunity({ idea = "", industry = "", personality = "" } = {
   return signals.find(([, words]) => words.some((word) => text.includes(word)))?.[0] || "trust";
 }
 
+function describeIdeaForThesis(value = "") {
+  return cleanSentencePart(value)
+    .replace(/^(i|we)\s+(sell|make|offer|create|provide|run|build)\s+/i, "")
+    .replace(/\bhigh quality\b/gi, "high-quality")
+    .replace(/\bmy\b/gi, "the")
+    .toLowerCase();
+}
+
 function buildBrandThesis({ brandName = "", industry = "", idea = "", opportunity = "", visualDefaults = {}, audience = "", positioning = "" } = {}) {
   const customer = cleanSentencePart(audience || visualDefaults.audience || `customers in the ${industry} category`);
   const difference = cleanSentencePart(positioning || visualDefaults.positioning || `a clearer, more specific version of a ${industry} brand`);
-  return `${brandName} should be built around ${opportunity}: the customer is ${customer.toLowerCase()}, and they buy when the brand makes that choice feel more emotionally certain, useful, or rewarding. The brand is different because it turns ${cleanSentencePart(idea || industry).toLowerCase()} into ${difference.toLowerCase()}, creating a reason to choose it beyond price or availability. Every visual and message decision should reinforce that ${opportunity} promise.`;
+  const differenceLead = cleanSentencePart(difference.split(".")[0] || difference);
+  const ideaPhrase = describeIdeaForThesis(idea || industry);
+  return `${brandName} should be built around ${opportunity}: the customer is ${customer.toLowerCase()}, and they buy when the brand makes that choice feel more emotionally certain, useful, or rewarding. The brand is different because it treats ${ideaPhrase} as a specific customer story instead of a generic category claim. The strategic job is to ${differenceLead.toLowerCase()}. This creates a reason to choose it beyond price or availability. Every visual and message decision should reinforce that ${opportunity} promise.`;
 }
 
 const GENERIC_SECTION_PATTERNS = [
