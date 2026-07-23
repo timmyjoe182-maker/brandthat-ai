@@ -33,7 +33,7 @@ exports.handler = async (event) => {
       const email = session.customer_email;
       const customerId = session.customer;
       const subscriptionId = session.subscription;
-      const plan = session.metadata?.plan || "pro";
+      const plan = "member";
 
       const { data: users } = await supabaseAdmin.auth.admin.listUsers();
 

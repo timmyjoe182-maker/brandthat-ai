@@ -2,22 +2,25 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient.js";
 
 const PLAN_COPY = {
-  free: {
-    name: "Free",
-    badge: "Free Tools",
-    description: "Free caption, hashtag, hook, bio, email, strategy, brand, campaign, and growth tools. Logo generation and saved workspaces require an account or paid plan.",
+  trial: {
+    name: "Trial",
+    badge: "Try BrandThat",
+    description: "Create a verified account and try the brand builder, generators, logo concepts, and workspace before BrandThat asks you to subscribe.",
   },
-  starter: {
-    name: "Starter",
-    badge: "$10/mo",
-    description: "Everything free plus saved Brand Workspaces, content history, brand kit exports, and 10 AI logo generations per month.",
-  },
-  pro: {
-    name: "Pro",
-    badge: "$20/mo",
-    description: "Everything in Starter plus unlimited AI logo generations and the full saved Brand Workspace experience.",
+  member: {
+    name: "BrandThat Membership",
+    badge: "$9.99/mo",
+    description: "One flat monthly plan with every generator, AI logo concepts, Brand Workspaces, saved history, and brand kit exports unlocked.",
   },
 };
+
+const MEMBER_PLAN = "member";
+const TRIAL_GENERATION_LIMIT = 3;
+
+function normalizePlan(plan = "free") {
+  if (plan === "member" || plan === "starter" || plan === "pro") return MEMBER_PLAN;
+  return "free";
+}
 
 const BRANDTHAT_TESTER_EMAILS = String(import.meta.env.VITE_BRANDTHAT_TESTER_EMAILS || "timmyjoe21@gmail.com,timmyjoe182@gmail.com")
   .split(",")
@@ -171,7 +174,7 @@ const seoPages = {
     intro: "Generate a clean logo image, brand direction, palette, typography, and profile-ready visual system from one simple brand idea.",
     examples: ["Create a premium black-and-white logo for a modern AI branding platform named Brandthat.ai. Use a clean wordmark, strong favicon-ready icon, and luxury technology feel.", "Design a circular vintage mascot logo for a coffee brand. Include a wolf icon, cream and black palette, premium typography, and packaging-ready composition.", "Create an elegant ranch lifestyle logo with refined typography, subtle animal-inspired mark, warm neutral colors, and a high-end boutique brand feeling."],
     faqs: [
-      ["Does Brandthat.ai create actual logo images?", "Yes. Pro unlocks unlimited AI logo image generation, while free users get daily logo concept access."],
+      ["Does Brandthat.ai create actual logo images?", "Yes. The $9.99/month membership unlocks AI logo concepts, refinements, downloads, and saved workspaces after the trial."],
       ["What should I type?", "Enter your brand name, audience, style, colors, and what you want the logo to feel like."],
       ["Who is this for?", "Founders, creators, local businesses, agencies, and anyone building a modern brand."]
     ]
@@ -397,8 +400,7 @@ function getSeoSchema(page, meta) {
     description: meta.description,
     offers: [
       { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
-      { "@type": "Offer", name: "Starter", price: "10", priceCurrency: "USD" },
-      { "@type": "Offer", name: "Pro", price: "20", priceCurrency: "USD" }
+      { "@type": "Offer", name: "BrandThat Membership", price: "9.99", priceCurrency: "USD" }
     ],
     featureList: [
       "AI logo generator",
@@ -1752,7 +1754,8 @@ export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [userPlan, setUserPlan] = useState(localStorage.getItem("brandthat_plan") || "free");
+  const [userPlan, setUserPlan] = useState(normalizePlan(localStorage.getItem("brandthat_plan") || "free"));
+  const [trialGenerationCount, setTrialGenerationCount] = useState(getStoredNumber("brandthat_trial_generation_count", 0));
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
   const [starterLogoCount, setStarterLogoCount] = useState(getStoredNumber("brandthat_starter_logo_count", 0));
 
@@ -1808,9 +1811,9 @@ export default function App() {
 
   const dailyRemaining = Math.max(0, 1 - dailyFreeCount);
   const starterLogoRemaining = Math.max(0, 10 - starterLogoCount);
-  const isFree = userPlan === "free";
-  const isStarter = userPlan === "starter";
-  const isPro = userPlan === "pro";
+  const isMember = normalizePlan(userPlan) === MEMBER_PLAN;
+  const isFree = !isMember;
+  const trialRemaining = Math.max(0, TRIAL_GENERATION_LIMIT - trialGenerationCount);
   const isLogoTestingUnlocked = isBrandthatTester(user);
   const emailVerified = isUserEmailVerified(user);
   const authStatus = authLoading ? "loading" : !user ? "logged_out" : !emailVerified ? "email_not_verified" : "logged_in";
@@ -1981,8 +1984,9 @@ export default function App() {
         .maybeSingle();
 
       if (profile?.plan) {
-        localStorage.setItem("brandthat_plan", profile.plan);
-        setUserPlan(profile.plan);
+        const nextPlan = normalizePlan(profile.plan);
+        localStorage.setItem("brandthat_plan", nextPlan);
+        setUserPlan(nextPlan);
       }
 
       const today = getTodayKey();
@@ -2056,9 +2060,11 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("success") === "true") {
       const pendingPlan = localStorage.getItem("brandthat_pending_plan");
-      if (pendingPlan === "starter" || pendingPlan === "pro") {
-        localStorage.setItem("brandthat_plan", pendingPlan);
-        setUserPlan(pendingPlan);
+      if (pendingPlan === MEMBER_PLAN) {
+        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
+        localStorage.removeItem("brandthat_trial_generation_count");
+        setUserPlan(MEMBER_PLAN);
+        setTrialGenerationCount(0);
         localStorage.removeItem("brandthat_pending_plan");
       }
       window.history.replaceState({}, "", "/");
@@ -2087,6 +2093,7 @@ export default function App() {
       if (currentUser && isUserEmailVerified(currentUser)) {
         loadSavedWorkspaceData(currentUser);
       } else {
+        localStorage.setItem("brandthat_plan", "free");
         setUserPlan("free");
       }
     });
@@ -2185,7 +2192,7 @@ export default function App() {
       authStatus === "email_not_verified" ? "login" : "signup",
       authStatus === "email_not_verified"
         ? "Check your email to verify your account before continuing."
-        : "Create your free BrandThat account to start building your brand.",
+        : "Create your BrandThat account to try the full product.",
       "open_tool"
     );
   }, [authLoading, authStatus, page]);
@@ -2209,7 +2216,7 @@ export default function App() {
     setShowAuth(true);
   };
 
-  const requireVerifiedAccount = async (action = null, message = "Create your free BrandThat account to start building your brand.") => {
+  const requireVerifiedAccount = async (action = null, message = "Create your BrandThat account to try the full product.") => {
     if (authLoading) {
       notify("warning", "Checking your account", "Give BrandThat a moment to finish loading your session.");
       return null;
@@ -2327,6 +2334,8 @@ export default function App() {
       }
 
       localStorage.setItem("brandthat_plan", "free");
+      localStorage.setItem("brandthat_trial_generation_count", "0");
+      setTrialGenerationCount(0);
       setUserPlan("free");
 
       if (data?.session?.user) {
@@ -2473,25 +2482,26 @@ export default function App() {
     setLoading(false);
   };
 
-  const startCheckout = async (plan) => {
+  const startCheckout = async (plan = MEMBER_PLAN) => {
+    const checkoutPlan = MEMBER_PLAN;
     trackBrandthatEvent("checkout_clicked", { plan });
     const { data } = await supabase.auth.getUser();
     const currentUser = data?.user || user;
 
     if (!currentUser?.email) {
-      localStorage.setItem("brandthat_pending_plan", plan);
+      localStorage.setItem("brandthat_pending_plan", checkoutPlan);
       openAuth("login", "Log in or create a free Brandthat account first, then continue to checkout.");
       return;
     }
 
-    localStorage.setItem("brandthat_pending_plan", plan);
+    localStorage.setItem("brandthat_pending_plan", checkoutPlan);
     setLoading(true);
 
     try {
       const data = await fetchJsonWithTimeout("/.netlify/functions/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, email: currentUser.email })
+        body: JSON.stringify({ plan: checkoutPlan, email: currentUser.email })
       }, {
         timeoutMs: 15000,
         errorMessage: "Checkout could not start.",
@@ -2507,7 +2517,7 @@ export default function App() {
   };
 
   const createWorkspace = async () => {
-    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to save a Brand Workspace.");
+    const session = await requireMembershipOrTrial("workspace");
     if (!session) return;
 
     if (!workspaceDraft.name.trim()) {
@@ -2632,7 +2642,7 @@ export default function App() {
   };
 
   const saveCurrentOutput = async () => {
-    const session = await requireVerifiedAccount("save_output", "Create your free BrandThat account to save generations to your workspace.");
+    const session = await requireMembershipOrTrial("save_output");
     if (!session) return;
 
     if (!activeBrand) {
@@ -2735,7 +2745,7 @@ export default function App() {
   };
 
   const setLogoAsBrandProfile = async () => {
-    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to update your Brand Workspace.");
+    const session = await requireMembershipOrTrial("workspace");
     if (!session) return;
 
     if (!activeBrand) {
@@ -2775,7 +2785,7 @@ export default function App() {
   };
 
   const setSavedLogoAsBrandProfile = async (entry) => {
-    const session = await requireVerifiedAccount("workspace", "Create your free BrandThat account to update your Brand Workspace.");
+    const session = await requireMembershipOrTrial("workspace");
     if (!session) return;
 
     if (!activeBrand || !entry?.image) {
@@ -3076,8 +3086,35 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setStarterLogoCount(newCount);
   };
 
+  const incrementTrialGenerationUse = () => {
+    if (isMember || isLogoTestingUnlocked) return;
+
+    const newCount = trialGenerationCount + 1;
+    localStorage.setItem("brandthat_trial_generation_count", String(newCount));
+    setTrialGenerationCount(newCount);
+
+    if (newCount >= TRIAL_GENERATION_LIMIT) {
+      notify("info", "Trial complete", "Subscribe for $9.99/month to keep using every BrandThat generator, logo concept, and workspace tool.");
+    }
+  };
+
+  const requireMembershipOrTrial = async (action = "generate") => {
+    const session = await requireVerifiedAccount(action, "Create a free BrandThat account to try the full product.");
+    if (!session) return null;
+
+    if (isMember || isLogoTestingUnlocked) return session;
+
+    if (trialGenerationCount >= TRIAL_GENERATION_LIMIT) {
+      setPage("pricing");
+      notify("warning", "Subscribe to continue", "Your trial is complete. BrandThat is $9.99/month for all generators, logo concepts, Brand Workspaces, and exports.");
+      return null;
+    }
+
+    return session;
+  };
+
   const selectTool = async (toolKey) => {
-    const session = await requireVerifiedAccount("open_tool", "Create your free BrandThat account to start building your brand.");
+    const session = await requireVerifiedAccount("open_tool", "Create your BrandThat account to try the full product.");
     if (!session) return;
 
     const nextTool = toolMap[toolKey] || tools[0];
@@ -3101,7 +3138,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   const openSeoPage = async (seoKey) => {
     const seoPage = seoPages[seoKey];
     if (!seoPage) return;
-    const session = await requireVerifiedAccount("open_tool", "Create your free BrandThat account to start building your brand.");
+    const session = await requireVerifiedAccount("open_tool", "Create your BrandThat account to try the full product.");
     if (!session) return;
 
     const nextTool = toolMap[seoPage.toolKey] || tools[0];
@@ -3123,7 +3160,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   };
 
   const buildGuidedBrandPlan = async () => {
-    const session = await requireVerifiedAccount("generate", "Create your free BrandThat account to start building your brand.");
+    const session = await requireMembershipOrTrial("generate");
     if (!session) return;
 
     const idea = workspaceDraft.description.trim();
@@ -3401,17 +3438,11 @@ Output a thesis-first brand plan:
   };
 
   const startWorkspaceFromCurrentLogo = async () => {
-    const session = await requireVerifiedAccount("save_logo_project", "Create your free BrandThat account to save this brand project.");
+    const session = await requireMembershipOrTrial("save_logo_project");
     if (!session) return;
 
     const context = getCurrentLogoBrandContext();
     const generatedBrandPlan = activeToolKey === "brand" ? stripLogoProjectMetadata(result) : "";
-
-    if (!isLogoTestingUnlocked && isFree && brandWorkspaces.length >= 1) {
-      setPage("pricing");
-      notify("warning", "Save more brand projects with Starter", "Your free workspace is already being used. Upgrade when you want saved history, exports, and more brand projects.");
-      return;
-    }
 
     setWorkspaceDraft({
       ...getDefaultWorkspaceDraft(),
@@ -3438,7 +3469,7 @@ Output a thesis-first brand plan:
   };
 
   const buildGrowthRoadmapFromCurrentLogo = async () => {
-    const session = await requireVerifiedAccount("generate", "Create your free BrandThat account to build a growth roadmap.");
+    const session = await requireMembershipOrTrial("generate");
     if (!session) return;
 
     const context = getCurrentLogoBrandContext();
@@ -3746,7 +3777,7 @@ Requirements:
     let data;
     const authorizedHeaders = overrides.authHeaders || await getAuthorizedHeaders("generate");
     if (!authorizedHeaders) {
-      throw new Error("Create your free BrandThat account to start building your brand.");
+      throw new Error("Create your BrandThat account to try the full product.");
     }
 
     try {
@@ -3816,7 +3847,7 @@ Requirements:
       return;
     }
 
-    const authSession = await requireVerifiedAccount("generate", "Create your free BrandThat account to start building your brand.");
+    const authSession = await requireMembershipOrTrial("generate");
     if (!authSession) return;
     const authHeaders = {
       "Content-Type": "application/json",
@@ -3824,21 +3855,7 @@ Requirements:
     };
 
     const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const logoLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isPro;
-
-    if (!logoLimitsBypassed && activeTool.key === "logo" && isFree && dailyFreeCount >= 1) {
-      setPage("pricing");
-      notify("warning", "Free logo generation used", "Starter includes 10 logo generations/month. Pro unlocks unlimited logo generations.");
-      setResult("Your free logo generation has been used. Upgrade to Starter for 10 logo generations/month or Pro for unlimited logo generations.");
-      return;
-    }
-
-    if (!logoLimitsBypassed && activeTool.key === "logo" && isStarter && starterLogoCount >= 10) {
-      setPage("pricing");
-      notify("warning", "Starter logo limit reached", "Starter includes 10 logo generations/month. Upgrade to Pro for unlimited logo generations.");
-      setResult("You have used your 10 Starter logo generations this month. Upgrade to Pro for unlimited AI logo generation.");
-      return;
-    }
+    const trialLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isMember;
 
     setLoading(true);
     setLogoGenerationError("");
@@ -3961,8 +3978,7 @@ ${promptValue}`
         trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
       }
 
-      if (!logoLimitsBypassed && activeTool.key === "logo" && isFree) incrementDailyFreeUse();
-      if (!logoLimitsBypassed && activeTool.key === "logo" && isStarter) incrementStarterLogoUse();
+      if (!trialLimitsBypassed) incrementTrialGenerationUse();
     } catch (error) {
       console.error("Brandthat generation request failed:", error);
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
@@ -4278,8 +4294,8 @@ ${promptValue}`
           userPlan={userPlan}
           brandWorkspacesCount={brandWorkspaces.length}
           isLogoTestingUnlocked={isLogoTestingUnlocked}
+          trialRemaining={trialRemaining}
           dailyRemaining={dailyRemaining}
-          starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
@@ -4303,35 +4319,19 @@ ${promptValue}`
       {page === "pricing" && (
         <section className="pageSection">
           <div className="tinyTag">PRICING</div>
-          <h1 className="pageTitle">Create a free account. Upgrade for logos and workspaces.</h1>
-          <p className="pageLead">A verified BrandThat account is required to use the tools. Free accounts can start building with text tools. Paid plans are for AI logo generation, saved Brand Workspaces, history, and downloadable brand kits.</p>
+          <h1 className="pageTitle">One simple BrandThat membership.</h1>
+          <p className="pageLead">Create a verified account to try the product. When your trial is complete, continue for one flat $9.99/month plan that unlocks every generator, logo concept, Brand Workspace, saved asset, and export.</p>
 
-          <div className="pricingGrid threePlans"><PriceCard
-              name="FREE"
-              price="$0"
-              bestFor="Best for testing captions, hashtags, and simple brand ideas"
-              desc="Use BrandThat's text tools with a verified free account."
-              features={["Verified account required", "Caption generator", "Hashtag generator", "Hooks and bios", "Email and strategy tools", "Logo generation not included"]}
-              onClick={() => openAuth("signup", "Create your free BrandThat account to start building your brand.")}
-            />
+          <div className="pricingGrid singlePlan">
             <PriceCard
-              name="STARTER"
-              price="$10"
-              badge="Most practical"
-              bestFor="Best for creators and local businesses building one real brand"
-              desc="For creators who want saved brands and monthly logo generation."
-              features={["10 AI logo generations per month", "Saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Set generated logo as brand profile", "All text tools remain free"]}
-              onClick={() => startCheckout("starter")}
-            />
-            <PriceCard
-              name="PRO"
-              price="$20"
+              name="MEMBERSHIP"
+              price="$9.99"
               featured
-              badge="Best value"
-              bestFor="Best for agencies, repeat launches, and unlimited logo creation"
-              desc="For power users who want unlimited logos and the full workspace."
-              features={["Unlimited AI logo generations", "Unlimited saved Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Priority logo generation", "All text tools remain free"]}
-              onClick={() => startCheckout("pro")}
+              badge="Flat monthly plan"
+              bestFor="Best for creators, founders, local businesses, and agencies building real brands"
+              desc="Everything BrandThat makes is included in one monthly membership."
+              features={["All BrandThat generators", "AI logo concepts and refinements", "Brand Workspaces", "Saved history and favorites", "Downloadable brand kit exports", "Set generated logos as brand profile assets", "Launch roadmap, campaign, audit, caption, bio, email, hashtag, and strategy tools"]}
+              onClick={() => startCheckout(MEMBER_PLAN)}
             />
           </div>
         </section>
@@ -4392,6 +4392,7 @@ ${promptValue}`
             userPlan={userPlan}
             brandWorkspacesCount={brandWorkspaces.length}
             isLogoTestingUnlocked={isLogoTestingUnlocked}
+            trialRemaining={trialRemaining}
             dailyRemaining={dailyRemaining}
             copyToClipboard={copyToClipboard}
             shareOutput={shareOutput}
@@ -4443,7 +4444,7 @@ ${promptValue}`
             <h2>{authMode === "signup" ? "Create your account." : "Welcome back."}</h2>
             <p>
               {authMode === "signup"
-                ? "Create your free BrandThat account to start building your brand. Verify your email before using the tools."
+                ? "Create your BrandThat account to try the full product. Verify your email before using the tools."
                 : "Log in with the email and password you used when creating your Brandthat account."}
             </p>
 
@@ -5157,8 +5158,8 @@ function SEOPage({
   userPlan,
   brandWorkspacesCount,
   isLogoTestingUnlocked,
+  trialRemaining,
   dailyRemaining,
-  starterLogoRemaining,
   copyToClipboard,
   shareOutput,
   clearGenerator,
@@ -5218,8 +5219,8 @@ function SEOPage({
           userPlan={userPlan}
           brandWorkspacesCount={brandWorkspacesCount}
           isLogoTestingUnlocked={isLogoTestingUnlocked}
+          trialRemaining={trialRemaining}
           dailyRemaining={dailyRemaining}
-          starterLogoRemaining={starterLogoRemaining}
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
@@ -5863,8 +5864,8 @@ function GeneratorCard({
   userPlan,
   brandWorkspacesCount = 0,
   isLogoTestingUnlocked = false,
+  trialRemaining = 0,
   dailyRemaining,
-  starterLogoRemaining,
   copyToClipboard,
   shareOutput,
   clearGenerator,
@@ -6039,8 +6040,7 @@ Designer iteration rules:
         </div>
         {activeTool.key !== "logo" && (
           <div className="generatorMeta">
-            {(activeTool.key === "hashtags" || activeTool.key === "captions") && <span>Free tool</span>}
-            {activeTool.key !== "hashtags" && activeTool.key !== "captions" && <span>Workspace-ready</span>}
+            {userPlan === "free" && !isLogoTestingUnlocked ? <span>{trialRemaining} trial uses left</span> : <span>Member tools unlocked</span>}
           </div>
         )}
       </div>
@@ -6257,7 +6257,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
             brandName={parsedLogoPreview.brandName || creativeTone || logoCreativeBrief?.brandName}
             creativeBrief={logoCreativeBrief}
             isLoggedIn={Boolean(user?.id)}
-            canSaveProject={isLogoTestingUnlocked || userPlan !== "free" || brandWorkspacesCount < 1}
+            canSaveProject={isLogoTestingUnlocked || userPlan !== "free" || trialRemaining > 0}
             onStartWorkspace={onStartWorkspace}
             onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           />
@@ -6410,15 +6410,15 @@ function BrandJourneyPanel({
     ["Roadmap", "Next step: turn this identity into launch content"],
   ];
   const saveLabel = !isLoggedIn
-    ? "Create Free Account to Keep It"
+    ? "Create Account to Keep It"
     : canSaveProject
       ? "Save This Brand Project"
-      : "Upgrade to Save More Projects";
+      : "Subscribe to Keep Building";
   const ownershipCopy = !isLoggedIn
-    ? "This project is only on this screen right now. Create an account to keep the logo, strategy, kit, and roadmap together."
+    ? "This project is only on this screen right now. Create an account to try the workspace and keep the logo, strategy, kit, and roadmap together."
     : canSaveProject
       ? "Save this as a real workspace so you can come back, refine it, and keep building from the same direction."
-      : "Your free workspace is already in use. Upgrade when this brand is worth keeping and building on.";
+      : "Your trial is complete. Subscribe for $9.99/month to keep saving, refining, exporting, and building this brand.";
 
   return (
     <section className="brandJourneyPanel">
@@ -7047,7 +7047,7 @@ function PriceCard({ name, price, desc, features, featured, onClick, bestFor = "
       {bestFor && <div className={featured ? "priceBestFor white" : "priceBestFor"}>{bestFor}</div>}
       <p>{desc}</p>
       <div className="priceFeatures">{features.map((feature) => <div key={feature}>✓ {feature}</div>)}</div>
-      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>{name === "FREE" ? "Start Free" : "Subscribe"}</button>
+      <button className={featured ? "btn whiteBtn full" : "btn dark full"} onClick={onClick}>{name === "FREE" ? "Start Free" : "Subscribe for $9.99"}</button>
     </div>
   );
 }
@@ -7326,6 +7326,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .offersTop{display:flex;justify-content:space-between;gap:30px;align-items:end;margin-bottom:34px}
 .toolGrid,.featureGrid,.pricingGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
 .threePlans{grid-template-columns:repeat(3,1fr)}
+.singlePlan{grid-template-columns:minmax(280px,560px);max-width:620px}
 .toolCard,.featureCard,.priceCard{position:relative;overflow:hidden;background:white;padding:26px;border-radius:28px;border:1px solid rgba(0,0,0,.08);min-height:180px;transition:.25s ease;text-align:left;color:#111;font-family:inherit;cursor:pointer}
 .toolCard:hover,.featureCard:hover,.priceCard:hover,.activeTool{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
 .toolCard span{position:relative;z-index:2;display:inline-flex;margin-top:16px;font-size:12px;font-weight:900;letter-spacing:.8px;color:#8a6b37;text-transform:uppercase}

@@ -4,41 +4,37 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.handler = async (event) => {
   try {
-    const { plan, email } = JSON.parse(event.body || "{}");
+    const { plan = "member", email } = JSON.parse(event.body || "{}");
 
-    if (!plan || !email) {
+    if (!email) {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Plan and email are required.",
+          error: "Email is required.",
         }),
       };
     }
 
-    if (plan !== "starter" && plan !== "pro") {
+    if (plan !== "member") {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Choose Starter or Pro to continue.",
+          error: "Choose the BrandThat membership to continue.",
         }),
       };
     }
 
-    let priceId = "";
-
-    if (plan === "starter") {
-      priceId = process.env.STRIPE_STARTER_PRICE_ID;
-    }
-
-    if (plan === "pro") {
-      priceId = process.env.STRIPE_PRO_PRICE_ID;
-    }
+    const priceId =
+      process.env.STRIPE_MEMBER_PRICE_ID ||
+      process.env.STRIPE_PRO_PRICE_ID ||
+      process.env.STRIPE_STARTER_PRICE_ID ||
+      "";
 
     if (!priceId) {
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: `Missing Stripe price ID for ${plan}.`,
+          error: "Missing Stripe price ID for the BrandThat membership.",
         }),
       };
     }

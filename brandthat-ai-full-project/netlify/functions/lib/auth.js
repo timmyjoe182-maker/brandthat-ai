@@ -31,7 +31,7 @@ async function requireVerifiedUser(event) {
     return {
       error: {
         statusCode: 401,
-        message: "Create your free BrandThat account to start building your brand.",
+        message: "Create your BrandThat account to try the full product.",
       },
     };
   }
