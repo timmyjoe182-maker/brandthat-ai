@@ -69,7 +69,7 @@ exports.handler = async (event) => {
         `${process.env.URL || "https://brandthat.ai"}/?success=true`,
 
       cancel_url:
-        `${process.env.URL || "https://brandthat.ai"}/pricing?canceled=true`,
+        `${process.env.URL || "https://brandthat.ai"}/?membership=canceled`,
     });
 
     return {
