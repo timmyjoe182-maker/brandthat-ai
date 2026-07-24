@@ -19,12 +19,13 @@ exports.handler = async (event) => {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Choose the BrandThat membership to continue.",
+          error: "Choose the BrandThat Brand Plan to continue.",
         }),
       };
     }
 
     const priceId =
+      process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
       process.env.STRIPE_MEMBER_PRICE_ID ||
       process.env.STRIPE_PRO_PRICE_ID ||
       process.env.STRIPE_STARTER_PRICE_ID ||
@@ -34,13 +35,13 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: "Missing Stripe price ID for the BrandThat membership.",
+          error: "Missing Stripe price ID for the BrandThat Brand Plan.",
         }),
       };
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: "payment",
 
       payment_method_types: ["card"],
 
@@ -49,13 +50,6 @@ exports.handler = async (event) => {
       metadata: {
         plan,
         email,
-      },
-
-      subscription_data: {
-        metadata: {
-          plan,
-          email,
-        },
       },
 
       line_items: [
@@ -69,7 +63,7 @@ exports.handler = async (event) => {
         `${process.env.URL || "https://brandthat.ai"}/?success=true`,
 
       cancel_url:
-        `${process.env.URL || "https://brandthat.ai"}/?membership=canceled`,
+        `${process.env.URL || "https://brandthat.ai"}/?brand_plan=canceled`,
     });
 
     return {

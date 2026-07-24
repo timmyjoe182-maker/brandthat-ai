@@ -3,18 +3,19 @@ import { supabase } from "./supabaseClient.js";
 
 const PLAN_COPY = {
   trial: {
-    name: "Trial",
-    badge: "Try BrandThat",
-    description: "Create a verified account and try the brand builder, generators, logo concepts, and workspace before BrandThat asks you to subscribe.",
+    name: "Preview",
+    badge: "Create an account",
+    description: "Browse BrandThat freely. Creating a complete Brand Plan requires a verified account and one $9.99 purchase.",
   },
   member: {
-    name: "BrandThat Membership",
-    badge: "$9.99/mo",
-    description: "One flat monthly plan with every generator, AI logo concepts, Brand Workspaces, saved history, and brand kit exports unlocked.",
+    name: "Brand Plan",
+    badge: "$9.99 one-time",
+    description: "One payment creates one complete Brand Plan, workspace, launch roadmap, and logo concepts for one brand idea.",
   },
 };
 
 const MEMBER_PLAN = "member";
+const BRAND_PLAN_PRICE = "$9.99";
 const TRIAL_GENERATION_LIMIT = 3;
 
 function normalizePlan(plan = "free") {
@@ -174,7 +175,7 @@ const seoPages = {
     intro: "Generate a clean logo image, brand direction, palette, typography, and profile-ready visual system from one simple brand idea.",
     examples: ["Create a premium black-and-white logo for a modern AI branding platform named Brandthat.ai. Use a clean wordmark, strong favicon-ready icon, and luxury technology feel.", "Design a circular vintage mascot logo for a coffee brand. Include a wolf icon, cream and black palette, premium typography, and packaging-ready composition.", "Create an elegant ranch lifestyle logo with refined typography, subtle animal-inspired mark, warm neutral colors, and a high-end boutique brand feeling."],
     faqs: [
-      ["Does Brandthat.ai create actual logo images?", "Yes. The $9.99/month membership unlocks AI logo concepts, refinements, downloads, and saved workspaces after the trial."],
+      ["Does Brandthat.ai create actual logo images?", "Yes. A $9.99 Brand Plan includes logo concepts generated from the completed strategy, identity direction, moodboard, typography, colors, and voice."],
       ["What should I type?", "Enter your brand name, audience, style, colors, and what you want the logo to feel like."],
       ["Who is this for?", "Founders, creators, local businesses, agencies, and anyone building a modern brand."]
     ]
@@ -396,7 +397,7 @@ function getSeoSchema(page, meta) {
     description: meta.description,
     offers: [
       { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
-      { "@type": "Offer", name: "BrandThat Membership", price: "9.99", priceCurrency: "USD" }
+      { "@type": "Offer", name: "BrandThat Brand Plan", price: "9.99", priceCurrency: "USD" }
     ],
     featureList: [
       "AI logo generator",
@@ -562,10 +563,11 @@ function getThesisFallback(plan = {}, payload = {}) {
 
 function normalizeRoadmapItems(value, fallback = []) {
   const fallbackRoadmap = fallback.length ? fallback : [
-    { week: "Week 1", focus: "Define the thesis", actions: ["Write the one-sentence brand promise.", "Choose the proof points that make the promise believable."] },
-    { week: "Week 2", focus: "Shape the identity", actions: ["Turn the thesis into moodboard, typography, and color decisions.", "Reject any visual choice that feels generic."] },
-    { week: "Week 3", focus: "Publish proof", actions: ["Create launch content that explains why the brand exists.", "Test which message earns the strongest response."] },
-    { week: "Week 4", focus: "Build momentum", actions: ["Save the strongest assets to the workspace.", "Plan the next month around the clearest customer reaction."] },
+    { week: "First 24 Hours", focus: "Lock the thesis", actions: ["Write the one-sentence brand promise and the customer pain it resolves.", "Choose the proof points that make the promise believable."], outcome: "A clear strategic anchor before identity work begins.", status: "Not started" },
+    { week: "First Week", focus: "Shape the identity system", actions: ["Turn the thesis into moodboard, typography, and color decisions.", "Reject any visual choice that feels generic or disconnected."], outcome: "A brand direction that can guide every asset.", status: "Not started" },
+    { week: "First Month", focus: "Launch the first proof loop", actions: ["Create launch content that explains why the brand exists.", "Test which message earns the strongest response."], outcome: "Early signal on what the audience notices and believes.", status: "Not started" },
+    { week: "Days 31-60", focus: "Build repeatable demand", actions: ["Double down on the strongest content pillar.", "Turn audience questions into offers, posts, and email topics."], outcome: "A repeatable content and conversion rhythm.", status: "Not started" },
+    { week: "Days 61-90", focus: "Systemize the workspace", actions: ["Save the strongest assets to the workspace.", "Plan the next quarter around the clearest customer reaction."], outcome: "A durable brand headquarters for growth.", status: "Not started" },
   ];
 
   const items = Array.isArray(value) ? value : String(value || "")
@@ -574,7 +576,7 @@ function normalizeRoadmapItems(value, fallback = []) {
     .filter(Boolean)
     .map((line, index) => ({ week: `Week ${index + 1}`, focus: line, actions: [] }));
 
-  const normalized = items.slice(0, 4).map((item, index) => {
+  const normalized = items.slice(0, 5).map((item, index) => {
     const fallbackItem = fallbackRoadmap[index] || fallbackRoadmap[0];
     const week = cleanGeneratedText(item?.week) || fallbackItem.week || `Week ${index + 1}`;
     const focus = cleanGeneratedText(item?.focus) || fallbackItem.focus || "Build the brand plan";
@@ -586,10 +588,144 @@ function normalizeRoadmapItems(value, fallback = []) {
       week,
       focus,
       actions: actions.length ? actions.slice(0, 5) : fallbackItem.actions,
+      outcome: cleanGeneratedText(item?.outcome || item?.expectedOutcome) || fallbackItem.outcome || "Clearer brand direction and a practical next step.",
+      status: cleanGeneratedText(item?.status) || fallbackItem.status || "Not started",
     };
   });
 
   return normalized.length ? normalized : fallbackRoadmap;
+}
+
+function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "new business / brand", opportunity = "trust" } = {}) {
+  const category = industry.replace(/\s*\/.*$/, "");
+  const lower = `${brandName} ${idea} ${industry} ${opportunity}`.toLowerCase();
+  const audience = lower.includes("dog")
+    ? "style-conscious dog owners who treat outdoor time as part of their identity, not only a practical routine"
+    : lower.includes("wedding")
+      ? "modern couples who want the wedding to feel documented, shareable, and emotionally true without managing multiple creative vendors"
+      : lower.includes("ai") || lower.includes("software")
+        ? "busy founders and small teams who need sharper brand decisions without hiring a full strategy team first"
+        : `buyers choosing a ${category} brand who need a clearer reason to trust, remember, and act`;
+  const customerMotivation = `They want ${brandName} to reduce uncertainty: the brand should make the buying decision feel specific, emotionally justified, and easier to explain to someone else.`;
+  const positioning = `${brandName} should own ${opportunity} in ${category} by making the customer outcome more concrete than category competitors and backing every claim with visible proof.`;
+  const differentiation = `Competing ${category} brands often describe what they sell. ${brandName} should make a stronger decision by showing why this version exists, who it is for, and what the customer can do next.`;
+  const personality = opportunity === "luxury"
+    ? "restrained, exacting, quietly confident, and taste-led"
+    : opportunity === "joy"
+      ? "bright, generous, energetic, and emotionally immediate"
+      : opportunity === "speed"
+        ? "clear, decisive, efficient, and forward-moving"
+        : opportunity === "craftsmanship"
+          ? "tactile, careful, grounded, and detail-aware"
+          : "clear, steady, intelligent, and useful";
+  const voice = `Use plain, specific language that explains the customer problem first, then shows why ${brandName}'s ${opportunity} promise is believable. Avoid vague superiority claims.`;
+  const messaging = `Lead with the customer moment, name the tension, prove why ${brandName} is different, then ask for one next action.`;
+  const moodboard = opportunity === "craftsmanship"
+    ? `Natural materials, close-up textures, product-in-use scenes, quiet maker details, and real customer environments that make ${opportunity} visible.`
+    : opportunity === "luxury"
+      ? `Editorial spacing, high-contrast detail shots, restrained layouts, premium materials, and calm environments that make ${brandName} feel selective.`
+      : `Clean product context, customer-before-and-after moments, simple interface or service proof, and enough negative space to make the promise feel clear.`;
+  const typography = opportunity === "luxury" || opportunity === "craftsmanship"
+    ? `Use a high-contrast serif for the brand voice and a restrained grotesk for practical UI because the audience needs both taste and clarity.`
+    : `Use a confident grotesk for the primary wordmark and a highly readable neutral sans for body copy because the brand needs to feel modern, usable, and easy to act on.`;
+  const colors = opportunity === "craftsmanship"
+    ? `Use charcoal, warm white, and muted forest green because those colors connect ${brandName} to heritage, outdoor materials, and durable quality without looking decorative.`
+    : opportunity === "luxury"
+      ? `Use black, warm white, and one muted metallic-neutral accent because restraint makes the brand feel premium and avoids looking like a template.`
+      : `Use black, white, soft gray, and one disciplined accent only where action is required because the strategy depends on clarity and repeatable recognition.`;
+  const contentPillars = [
+    `Problem clarity: explain the exact customer tension ${brandName} solves.`,
+    `Proof: show materials, process, results, or decisions that make ${opportunity} believable.`,
+    `Point of view: publish the belief that makes this brand different from generic ${category} competitors.`,
+    `Offer education: make the first purchase or inquiry feel obvious and low-friction.`,
+  ];
+  const first20ContentIdeas = Array.from({ length: 20 }, (_, index) => {
+    const ideas = [
+      `Show the moment a customer realizes they need ${brandName}.`,
+      `Explain one misconception in the ${category} category and what ${brandName} does instead.`,
+      `Break down the brand thesis in one simple founder post.`,
+      `Show the moodboard direction and explain why each reference belongs.`,
+      `Compare a generic ${category} choice with the ${brandName} way.`,
+      `Turn the color system into a short post about the desired customer feeling.`,
+      `Explain the typography choice and what it signals about quality.`,
+      `Write a before-and-after story for the customer's decision process.`,
+      `Create a checklist buyers can use before choosing a ${category} brand.`,
+      `Share a behind-the-scenes decision that proves ${opportunity}.`,
+      `Post the strongest tagline and ask which version feels most memorable.`,
+      `Create a short FAQ answering the main hesitation before purchase.`,
+      `Show one practical use case for the brand in a real day.`,
+      `Explain what the brand refuses to do and why that helps customers.`,
+      `Publish a founder note about why this idea deserves to exist now.`,
+      `Create a simple offer explainer with one clear next step.`,
+      `Share three proof points that make ${brandName} credible.`,
+      `Make a platform-specific intro post for the highest-priority channel.`,
+      `Show the first logo concept and tie it back to the thesis.`,
+      `Create a 90-day progress update template for the workspace.`,
+    ];
+    return ideas[index];
+  });
+
+  return { audience, customerMotivation, positioning, differentiation, personality, voice, messaging, moodboard, typography, colors, contentPillars, first20ContentIdeas };
+}
+
+function selectPlatformStrategy({ brandName = "New Brand", idea = "", industry = "", opportunity = "", audience = "" } = {}) {
+  const text = `${brandName} ${idea} ${industry} ${opportunity} ${audience}`.toLowerCase();
+  const candidates = [
+    {
+      platform: "Instagram",
+      score: (text.match(/fashion|food|wedding|beauty|ranch|outdoor|clothing|visual|restaurant|photography|lifestyle|dog/g) || []).length + 2,
+      strategy: `Use Instagram as the visual trust layer for ${brandName}: Reels prove the customer moment, carousels explain the point of view, and pinned posts clarify the offer.`,
+      launchPlan: "Launch with three pinned posts: brand thesis, offer clarity, and proof or moodboard. Follow with 9 posts that turn the strategy into visuals.",
+      postingIdeas: ["Founder intro Reel", "Moodboard carousel", "Customer problem post", "Offer explainer", "Before/after brand belief"],
+    },
+    {
+      platform: "TikTok",
+      score: (text.match(/video|creator|wedding|fashion|fitness|food|local|dog|kids|trend|story/g) || []).length + 1,
+      strategy: `Use TikTok only if ${brandName} can show transformation, process, or founder POV quickly. The channel should create discovery, not polished brochure content.`,
+      launchPlan: "Batch 12 short videos before launch: four customer pains, four proof/process clips, and four founder POV clips.",
+      postingIdeas: ["POV hook about the customer problem", "One mistake buyers make", "Behind-the-scenes process", "Trend adapted to the niche", "Comment-reply proof video"],
+    },
+    {
+      platform: "Facebook",
+      score: (text.match(/local|community|family|real estate|restaurant|contractor|service|dog|group/g) || []).length,
+      strategy: `Use Facebook if trust, locality, or community referrals matter. ${brandName} should prioritize groups, reviews, and warm audience proof.`,
+      launchPlan: "Create the Page, pin the offer, join five relevant groups, and publish one useful community post before selling.",
+      postingIdeas: ["Local intro", "Group value post", "Customer story", "FAQ answer", "Referral prompt"],
+    },
+    {
+      platform: "Pinterest",
+      score: (text.match(/fashion|clothing|wedding|home|food|beauty|outdoor|dog|style|moodboard|visual/g) || []).length,
+      strategy: `Use Pinterest when people search and save inspiration before buying. ${brandName} should turn moodboard, product, and educational content into evergreen discovery.`,
+      launchPlan: "Create boards for use cases, outcomes, style direction, and buyer questions. Publish 20 pins from the first content ideas.",
+      postingIdeas: ["Moodboard pin", "Checklist pin", "Product/outcome pin", "Keyword-rich idea pin", "Before/after decision pin"],
+    },
+    {
+      platform: "YouTube",
+      score: (text.match(/education|software|ai|fitness|finance|how to|tutorial|complex|expert|founder/g) || []).length,
+      strategy: `Use YouTube when the buyer needs education before trusting the brand. ${brandName} should use long-form for authority and Shorts for repeated discovery.`,
+      launchPlan: "Publish one flagship explainer, then cut it into five Shorts that each answer a buying objection.",
+      postingIdeas: ["Complete buyer guide", "Founder walkthrough", "Short objection answer", "Case study", "Roadmap update"],
+    },
+    {
+      platform: "LinkedIn",
+      score: (text.match(/b2b|software|ai|agency|founder|finance|legal|professional|saas|consulting/g) || []).length,
+      strategy: `Use LinkedIn if the brand needs authority and founder trust. ${brandName} should publish decisions, lessons, frameworks, and proof of expertise.`,
+      launchPlan: "Post the brand thesis, then publish five authority posts around the buyer's problem, process, proof, and offer.",
+      postingIdeas: ["Founder thesis", "Market problem", "Process breakdown", "Customer lesson", "Offer announcement"],
+    },
+    {
+      platform: "Email",
+      score: 2,
+      strategy: `Use email as the owned conversion layer for ${brandName}. It should capture interest before launch and nurture people with proof, education, and a clear offer.`,
+      launchPlan: "Create one lead magnet tied to the buyer's decision, then write a five-email welcome sequence.",
+      postingIdeas: ["Lead magnet", "Welcome email", "Problem email", "Proof email", "Offer email"],
+    },
+  ];
+
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map(({ score, ...item }) => item);
 }
 
 function normalizeBrandPlan(plan = {}, payload = {}) {
@@ -598,7 +734,29 @@ function normalizeBrandPlan(plan = {}, payload = {}) {
   const industry = plan.logoContext?.industry || plan.workspaceContext?.industry || inferSimpleIndustry(`${brandName} ${payload.idea || payload.rawPrompt || ""}`);
   const coreOpportunity = cleanGeneratedText(plan.coreOpportunity) || fallback.coreOpportunity;
   const brandThesis = cleanGeneratedText(plan.brandThesis) || fallback.brandThesis;
-  const launchRoadmap30Days = normalizeRoadmapItems(plan.launchRoadmap30Days);
+  const launchRoadmap30Days = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
+  const defaults = getBrandPlanDefaults({ brandName, idea: payload.idea || payload.rawPrompt || plan.brandSummary || "", industry, opportunity: coreOpportunity });
+  const platformStrategy = Array.isArray(plan.platformStrategy) && plan.platformStrategy.length
+    ? plan.platformStrategy.map((item) => ({
+        platform: cleanGeneratedText(item.platform),
+        strategy: cleanGeneratedText(item.strategy || item.contentStrategy),
+        launchPlan: cleanGeneratedText(item.launchPlan || item.launch),
+        postingIdeas: Array.isArray(item.postingIdeas || item.ideas) ? (item.postingIdeas || item.ideas).map(cleanGeneratedText).filter(Boolean).slice(0, 6) : [],
+      })).filter((item) => item.platform && item.strategy && item.launchPlan)
+    : selectPlatformStrategy({ brandName, idea: payload.idea || payload.rawPrompt || "", industry, opportunity: coreOpportunity, audience: plan.targetAudience || payload.audience });
+  const contentPillars = Array.isArray(plan.contentPillars) && plan.contentPillars.length
+    ? plan.contentPillars.map(cleanGeneratedText).filter(Boolean).slice(0, 6)
+    : defaults.contentPillars;
+  const first20ContentIdeas = Array.isArray(plan.first20ContentIdeas) && plan.first20ContentIdeas.length >= 10
+    ? plan.first20ContentIdeas.map(cleanGeneratedText).filter(Boolean).slice(0, 20)
+    : defaults.first20ContentIdeas;
+  const growthOpportunities = Array.isArray(plan.growthOpportunities) && plan.growthOpportunities.length
+    ? plan.growthOpportunities.map(cleanGeneratedText).filter(Boolean).slice(0, 6)
+    : [
+        `Turn the strongest ${coreOpportunity} proof into a repeatable content series.`,
+        `Build a lead magnet around the buyer's hardest decision before choosing ${industry}.`,
+        `Use the workspace to test which tagline, offer, and platform earns the clearest response.`,
+      ];
 
   return {
     ...plan,
@@ -606,14 +764,22 @@ function normalizeBrandPlan(plan = {}, payload = {}) {
     coreOpportunity,
     brandThesis,
     brandSummary: cleanGeneratedText(plan.brandSummary) || `${brandName} is a ${industry} brand plan built around ${coreOpportunity}.`,
-    targetAudience: cleanGeneratedText(plan.targetAudience) || `Customers who need a specific reason to trust ${brandName} in the ${industry} category.`,
-    positioning: cleanGeneratedText(plan.positioning) || `${brandName} should be positioned around ${coreOpportunity}, not generic category claims.`,
+    targetAudience: ensureThesisDriven(plan.targetAudience, defaults.audience),
+    customerMotivation: ensureThesisDriven(plan.customerMotivation, defaults.customerMotivation),
+    positioning: ensureThesisDriven(plan.positioning, defaults.positioning),
+    competitiveDifferentiation: ensureThesisDriven(plan.competitiveDifferentiation || plan.competitorCategory, defaults.differentiation),
     coreOffer: cleanGeneratedText(plan.coreOffer) || `A focused offer that makes the ${coreOpportunity} thesis tangible for the first customer.`,
-    moodboardDirection: cleanGeneratedText(plan.moodboardDirection) || `Use references that make the ${coreOpportunity} thesis visible through real customer moments, materials, and applications.`,
-    typographySystem: cleanGeneratedText(plan.typographySystem) || `Use type that supports ${coreOpportunity}: readable, distinctive, and aligned with the customer's reason to believe.`,
-    colorSystem: cleanGeneratedText(plan.colorSystem) || `Use a restrained palette that makes the ${coreOpportunity} promise recognizable across web, social, and launch assets.`,
-    brandVoice: cleanGeneratedText(plan.brandVoice) || `Specific, grounded, and tied to the ${coreOpportunity} thesis.`,
-    taglineIdeas: Array.isArray(plan.taglineIdeas) && plan.taglineIdeas.length ? plan.taglineIdeas.map(cleanGeneratedText).filter(Boolean) : [`${brandName}, built around ${coreOpportunity}.`],
+    brandPersonality: ensureThesisDriven(plan.brandPersonality, defaults.personality),
+    messagingDirection: ensureThesisDriven(plan.messagingDirection || plan.coreMessage, defaults.messaging),
+    moodboardDirection: ensureThesisDriven(plan.moodboardDirection, defaults.moodboard),
+    typographySystem: ensureThesisDriven(plan.typographySystem, defaults.typography),
+    colorSystem: ensureThesisDriven(plan.colorSystem, defaults.colors),
+    brandVoice: ensureThesisDriven(plan.brandVoice, defaults.voice),
+    taglineIdeas: Array.isArray(plan.taglineIdeas) && plan.taglineIdeas.length ? plan.taglineIdeas.map(cleanGeneratedText).filter(Boolean).slice(0, 8) : makeTaglines({ brandName, industry, opportunity: coreOpportunity }),
+    platformStrategy,
+    contentPillars,
+    first20ContentIdeas,
+    growthOpportunities,
     launchRoadmap30Days,
     nextStepActionPlan: Array.isArray(plan.nextStepActionPlan) && plan.nextStepActionPlan.length
       ? plan.nextStepActionPlan.map(cleanGeneratedText).filter(Boolean)
@@ -650,30 +816,39 @@ function createClientBrandPlanFallback(payload = {}) {
   const coreOpportunity = inferStrategicOpportunity(`${brandName} ${idea} ${industry} ${payload.personality || ""}`);
   const targetAudience = payload.audience || `Buyers in the ${industry} category who will notice whether ${brandName} feels rooted in ${coreOpportunity} instead of a generic offer.`;
   const positioning = payload.positioning || `Position ${brandName} around ${coreOpportunity}: make the idea feel specific, believable, and more emotionally useful than template competitors.`;
+  const defaults = getBrandPlanDefaults({ brandName, idea, industry, opportunity: coreOpportunity });
   const visualDirection = payload.visualDirection || `Shape the identity around ${coreOpportunity} with restrained symbols, practical applications, and category cues that connect directly to ${industry}.`;
-  const typography = `Choose typography that supports ${coreOpportunity}: a distinctive wordmark direction paired with a neutral support style so ${brandName} feels ownable and still easy to use.`;
-  const colors = parsedLogo.colors || `Use a restrained palette tied to ${coreOpportunity}, with one memorable accent and enough contrast for web, social, and logo use.`;
+  const typography = defaults.typography;
+  const colors = parsedLogo.colors || defaults.colors;
+  const brandThesis = buildBrandThesis({ brandName, industry, idea, opportunity: coreOpportunity, visualDefaults: defaults, audience: targetAudience, positioning });
 
   const basePlan = {
     brandName,
     coreOpportunity,
-    brandThesis: `${brandName} should be built around ${coreOpportunity}: customers are not buying a generic ${industry} offer, they are looking for a brand that makes "${idea || brandName}" feel more believable, memorable, and worth choosing. Every section should prove that thesis through audience, positioning, visuals, type, color, and launch actions.`,
+    brandThesis,
     brandSummary: `${brandName} is a ${industry} concept built around ${coreOpportunity}, using the original idea as the source of strategic direction.`,
     targetAudience,
+    customerMotivation: defaults.customerMotivation,
     positioning,
-    brandPersonality: payload.personality || `Specific, ${coreOpportunity}-led, grounded, and useful.`,
+    competitiveDifferentiation: defaults.differentiation,
+    brandPersonality: payload.personality || defaults.personality,
     competitorCategory: `${industry} competitors that describe the category without giving customers a sharper ${coreOpportunity}-led reason to choose.`,
     pricePositioning: /luxury|premium|high-end/i.test(idea) ? `Premium pricing because the ${coreOpportunity} thesis depends on restraint, taste, and stronger proof.` : `Accessible but credible pricing because the ${coreOpportunity} promise still needs the brand to feel intentional.`,
     coreOffer: payload.offer || `A focused ${industry} offer that makes the ${coreOpportunity} thesis tangible in the first customer interaction.`,
     coreMessage: `${brandName} turns ${idea || industry} into a ${coreOpportunity}-led reason to care.`,
+    messagingDirection: defaults.messaging,
     visualIdentityDirection: visualDirection,
-    moodboardDirection: `Use moodboard references that show ${coreOpportunity} in real-world ${industry} moments, not generic brand photography.`,
+    moodboardDirection: defaults.moodboard,
     typographySystem: typography,
     colorSystem: colors,
-    brandVoice: `Use direct, specific language that keeps explaining why ${brandName}'s ${coreOpportunity} promise matters to this customer.`,
-    taglineIdeas: [`${brandName}, built around ${coreOpportunity}.`, `${coreOpportunity[0].toUpperCase()}${coreOpportunity.slice(1)} made visible.`, `A sharper way to choose ${industry.replace(/\s*\/.*$/, "")}.`],
+    brandVoice: defaults.voice,
+    taglineIdeas: makeTaglines({ brandName, industry, opportunity: coreOpportunity }),
+    platformStrategy: selectPlatformStrategy({ brandName, idea, industry, opportunity: coreOpportunity, audience: targetAudience }),
+    contentPillars: defaults.contentPillars,
+    first20ContentIdeas: defaults.first20ContentIdeas,
     launchRoadmap30Days: normalizeRoadmapItems([]),
-    nextStepActionPlan: [`Save this ${coreOpportunity}-led plan as a Brand Workspace.`, "Generate logo concepts from the thesis, typography, and color direction.", "Create captions, hashtags, and launch content from the same brand context."],
+    growthOpportunities: [`Turn the strongest ${coreOpportunity} proof into a repeatable content series.`, `Build a lead magnet around the buyer's hardest decision before choosing ${industry}.`, `Use the workspace to test which tagline, offer, and platform earns the clearest response.`],
+    nextStepActionPlan: [`Save this ${coreOpportunity}-led plan as a Brand Workspace.`, "Review the platform strategy and publish the first proof post.", "Generate logo concepts only after the thesis, type, color, and moodboard direction feel right."],
     workspaceContext: { coreOpportunity, brandThesis: "", industry, audience: targetAudience, differentiator: positioning, visualDirection, typography, colors },
     logoContext: { brandName, coreOpportunity, brandThesis: "", industry, style: payload.personality || coreOpportunity, symbolIdeas: `Use a restrained ${industry} cue that supports ${coreOpportunity}.`, colors, typography, avoid: "Wrong name, clipart, tiny logos, clutter, and unrelated iconography." },
   };
@@ -681,43 +856,68 @@ function createClientBrandPlanFallback(payload = {}) {
 
   return {
     plan,
-    text: `1. Core opportunity and brand thesis
-Core opportunity: ${plan.coreOpportunity}
-${plan.brandThesis}
-
-2. Brand name and summary
-${plan.brandName}
+    text: `Brand Summary
 ${plan.brandSummary}
 
-3. Positioning
-${plan.positioning}
+Brand Thesis
+${plan.brandThesis}
 
-4. Target customer
+Core Opportunity
+${plan.coreOpportunity}
+
+Target Audience
 ${plan.targetAudience}
 
-5. Core offer
-${plan.coreOffer}
+Customer Motivation
+${plan.customerMotivation}
 
-6. Brand personality
+Brand Positioning
+${plan.positioning}
+
+Competitive Differentiation
+${plan.competitiveDifferentiation}
+
+Brand Personality
 ${plan.brandPersonality}
 
-7. Visual identity direction
-${plan.visualIdentityDirection}
+Brand Voice
+${plan.brandVoice}
 
-8. Moodboard direction
+Messaging Direction
+${plan.messagingDirection}
+
+Moodboard Direction
 ${plan.moodboardDirection}
 
-9. Typography system
+Typography Direction
 ${plan.typographySystem}
 
-10. Color system
+Color System
 ${plan.colorSystem}
 
-11. Practical launch roadmap and workspace next steps
-${plan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus}\n${item.actions.map((action) => `- ${action}`).join("\n")}`).join("\n\n")}
+Tagline Ideas
+${plan.taglineIdeas.map((item) => `- ${item}`).join("\n")}
 
-Next steps:
-${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}`,
+Platform-by-Platform Strategy
+${plan.platformStrategy.map((item) => `${item.platform}: ${item.strategy}\nLaunch plan: ${item.launchPlan}\nIdeas: ${item.postingIdeas.join("; ")}`).join("\n\n")}
+
+Content Pillars
+${plan.contentPillars.map((item) => `- ${item}`).join("\n")}
+
+First 20 Content Ideas
+${plan.first20ContentIdeas.map((item, index) => `${index + 1}. ${item}`).join("\n")}
+
+90-Day Launch Roadmap
+${plan.launchRoadmap30Days.map((item) => `${item.week}: ${item.focus}\nWhat to do:\n${item.actions.map((action) => `- ${action}`).join("\n")}\nWhy it matters: ${item.outcome}\nExpected outcome: ${item.outcome}\nCompletion status: ${item.status}`).join("\n\n")}
+
+Growth Opportunities
+${plan.growthOpportunities.map((item) => `- ${item}`).join("\n")}
+
+Next Best Actions
+${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}
+
+Saved Brand Workspace
+${plan.brandName} is ready to save as a Brand Workspace before logo concepts are generated.`,
     source: "client-fallback",
   };
 }
@@ -2322,9 +2522,9 @@ export default function App() {
     }
   };
 
-  const showMembershipOffer = (message = "BrandThat is $9.99/month when your trial is complete.") => {
+  const showMembershipOffer = (message = "Build a complete Brand Plan for $9.99. One payment. No monthly subscription.") => {
     setPage("home");
-    notify("warning", "Subscribe to continue", message);
+    notify("warning", "Brand Plan required", message);
     window.history.pushState({}, "", "/");
     setTimeout(() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
   };
@@ -2908,66 +3108,68 @@ export default function App() {
     const hooks = saved.hooks?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved hooks yet.";
     const bios = saved.bios?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved bios yet.";
     const insightCards = getBrandInsightCards(activeBrand);
-    const socialPlan = getSocialPlatformRecommendations(activeBrand);
+    const platformPlan = Array.isArray(plan.platformStrategy) && plan.platformStrategy.length ? plan.platformStrategy : getSocialPlatformRecommendations(activeBrand);
+    const roadmap = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
+    const contentIdeas = Array.isArray(plan.first20ContentIdeas) && plan.first20ContentIdeas.length ? plan.first20ContentIdeas : [];
 
     return `BRANDTHAT.AI BRAND KIT
 
 Brand Name:
 ${activeBrand.name}
 
+Brand Summary:
+${plan.brandSummary}
+
 Core Opportunity:
-${plan.coreOpportunity || "Not added yet."}
+${plan.coreOpportunity}
 
 Brand Thesis:
-${plan.brandThesis || "Not added yet."}
+${plan.brandThesis}
 
-Logo Direction:
-${activeBrand.logoDirection || "Not added yet."}
+Target Audience:
+${plan.targetAudience}
 
-Brand Description:
-${activeBrand.description || "Not added yet."}
+Customer Motivation:
+${plan.customerMotivation}
 
-Audience:
-${activeBrand.audience || "Not added yet."}
+Brand Positioning:
+${plan.positioning}
 
-Audience Pain / Desire:
-${activeBrand.audiencePain || "Not added yet."}
+Competitive Differentiation:
+${plan.competitiveDifferentiation}
 
 Core Offer:
-${activeBrand.offer || "Not added yet."}
+${plan.coreOffer}
 
-Differentiator:
-${activeBrand.differentiator || "Not added yet."}
+Brand Personality:
+${plan.brandPersonality}
 
-Competitors / References:
-${activeBrand.competitors || "Not added yet."}
+Brand Voice:
+${plan.brandVoice}
 
-Brand Tone:
-${activeBrand.tone}
+Messaging Direction:
+${plan.messagingDirection}
 
-Visual Style:
-${activeBrand.style || "Not added yet."}
+Moodboard Direction:
+${plan.moodboardDirection}
 
-Primary Channels:
-${activeBrand.channels || "Not added yet."}
+Typography System:
+${plan.typographySystem}
 
-Growth Platform:
-${activeBrand.growthPlatform || "Not added yet."}
+Color System:
+${plan.colorSystem}
 
-Current Followers:
-${activeBrand.currentFollowers || "Not added yet."}
+Tagline Ideas:
+${(plan.taglineIdeas || []).map((item) => `- ${item}`).join("\n")}
 
-Target Followers:
-${activeBrand.targetFollowers || "Not added yet."}
+Content Pillars:
+${(plan.contentPillars || []).map((item) => `- ${item}`).join("\n")}
 
-Weekly Time Available:
-${activeBrand.weeklyTime || "Not added yet."}
+First 20 Content Ideas:
+${contentIdeas.map((item, index) => `${index + 1}. ${item}`).join("\n")}
 
-Launch Goal:
-${activeBrand.launchGoal || "Not added yet."}
-
-Structured Roadmap:
-${normalizeRoadmapItems(plan.launchRoadmap30Days).map((item) => `${item.week}: ${item.focus}\n${item.actions.map((action) => `- ${action}`).join("\n")}`).join("\n\n")}
+90-Day Launch Roadmap:
+${roadmap.map((item) => `${item.week}: ${item.focus}\nWhat to do:\n${item.actions.map((action) => `- ${action}`).join("\n")}\nExpected outcome: ${item.outcome}\nCompletion status: ${item.status}`).join("\n\n")}
 
 Brand Readiness Score:
 ${getBrandReadinessScore(activeBrand)}%
@@ -2975,8 +3177,11 @@ ${getBrandReadinessScore(activeBrand)}%
 BRAND INTELLIGENCE:
 ${insightCards.map((card) => `${card.label}: ${card.title}\n${card.copy}\nNext move: ${card.action}`).join("\n\n")}
 
-SOCIAL PLATFORM SETUP:
-${socialPlan.map((item) => `${item.platform}\nSetup: ${item.setup}\nContent: ${item.content}\nFirst move: ${item.firstMove}`).join("\n\n")}
+PLATFORM STRATEGY:
+${platformPlan.map((item) => `${item.platform}\nStrategy: ${item.strategy || item.setup}\nLaunch plan: ${item.launchPlan || item.content}\nIdeas: ${(item.postingIdeas || [item.firstMove]).filter(Boolean).join("; ")}`).join("\n\n")}
+
+Logo Direction:
+${activeBrand.logoDirection || plan.visualIdentityDirection}
 
 SAVED CAPTIONS:
 ${captions}
@@ -3166,22 +3371,18 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setTrialGenerationCount(newCount);
 
     if (newCount >= TRIAL_GENERATION_LIMIT) {
-      notify("info", "Trial complete", "Subscribe for $9.99/month to keep using every BrandThat generator, logo concept, and workspace tool.");
+      notify("info", "Brand Plan required", "Buy one complete Brand Plan for $9.99 to create the workspace, roadmap, and logo concepts.");
     }
   };
 
   const requireMembershipOrTrial = async (action = "generate") => {
-    const session = await requireVerifiedAccount(action, "Create your BrandThat account to try the full product.");
+    const session = await requireVerifiedAccount(action, "Create your BrandThat account and verify your email before generating a Brand Plan.");
     if (!session) return null;
 
     if (isMember || isLogoTestingUnlocked) return session;
 
-    if (trialGenerationCount >= TRIAL_GENERATION_LIMIT) {
-      showMembershipOffer("Your trial is complete. Subscribe for $9.99/month to keep using every generator, logo concept, Brand Workspace, and export.");
-      return null;
-    }
-
-    return session;
+    showMembershipOffer("A complete Brand Plan costs $9.99 for one brand idea. You keep the saved Brand Workspace forever.");
+    return null;
   };
 
   const selectTool = async (toolKey) => {
@@ -3234,55 +3435,54 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     const session = await requireMembershipOrTrial("generate");
     if (!session) return;
 
+    const brandName = workspaceDraft.name.trim();
     const idea = workspaceDraft.description.trim();
-    if (!idea) {
-      notify("error", "Start with the idea", "Add a quick description of the business or brand you want to build.");
+    if (!brandName || !idea) {
+      notify("error", "Add the brand name and idea", "BrandThat only needs two things to begin: the brand name and what you are building.");
       return;
     }
 
-    const guidedPrompt = `Turn this idea into a complete BrandThat brand plan.
+    const guidedPrompt = `You are BrandThat, a senior brand strategist. Create one complete Brand Plan from only the brand name and rough business idea.
 
 Brand name:
-${workspaceDraft.name || "Suggest a fitting brand name if the user has not chosen one."}
+${brandName}
 
-Idea summary:
+What the user is building:
 ${workspaceDraft.description}
 
-Target audience:
-${workspaceDraft.audience || "Infer the most likely ideal customer."}
+Rules:
+- Make decisions. Do not define categories.
+- Every recommendation must explain WHY it fits this specific brand.
+- Reject generic advice such as "use premium typography", "post consistently", or "build trust".
+- If a section could apply to hundreds of businesses, regenerate it internally before answering.
+- Do not output undefined, null, empty sections, placeholder labels, or repeated recommendations.
+- Choose only the platforms that genuinely fit this brand. Do not recommend every platform.
+- Logo concepts come last and must be based on the strategy, moodboard, typography, color system, audience, voice, and positioning.
 
-Positioning or differentiator:
-${workspaceDraft.differentiator || "Infer a clear, useful positioning angle."}
-
-Brand personality:
-${workspaceDraft.tone || "Modern"}
-
-Visual direction:
-${workspaceDraft.logoDirection || "Suggest visual identity direction after strategy."}
-
-Moodboard direction:
-${workspaceDraft.style || "Suggest a premium moodboard direction."}
-
-Typography direction:
-Suggest font style, hierarchy, spacing, and why it fits.
-
-Color direction:
-Suggest primary and secondary colors with rationale.
-
-Roadmap goal:
-${workspaceDraft.targetFollowers || workspaceDraft.launchGoal || "Create a practical 30-day launch roadmap."}
-
-Output a thesis-first brand plan:
-1. Core opportunity
+Return a complete Brand Plan with these sections:
+1. Brand Summary
 2. Brand Thesis
-3. Positioning
-4. Target customer
-5. Core offer
-6. Visual identity direction
-7. Moodboard direction
-8. Typography system
-9. Color system
-10. Practical launch roadmap and next actions`;
+3. Core Opportunity
+4. Target Audience
+5. Customer Motivation
+6. Brand Positioning
+7. Competitive Differentiation
+8. Brand Personality
+9. Brand Voice
+10. Messaging Direction
+11. Moodboard Direction
+12. Typography Direction
+13. Color System
+14. Tagline Ideas
+15. Platform-by-Platform Strategy
+16. Content Pillars
+17. First 20 Content Ideas
+18. Launch Roadmap with First 24 Hours, First Week, First Month, Days 31-60, Days 61-90. Each phase must include what to do, why it matters, expected outcome, and completion status.
+19. Growth Opportunities
+20. Next Best Actions
+21. Saved Brand Workspace summary
+
+Output should make the user feel: "I know exactly what my brand is and exactly what I should do next."`;
 
     setActiveToolKey("brand");
     setSelectedPlatform(workspaceDraft.style || "New Business");
@@ -4175,15 +4375,15 @@ ${promptValue}`
     const email = subscribeEmail.trim().toLowerCase();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setSubscribeMessage("Enter a valid email to start your BrandThat trial.");
+      setSubscribeMessage("Enter a valid email to create your BrandThat account.");
       return;
     }
 
     setAuthEmail(email);
     setAuthMode("signup");
-    setAuthMessage("Create a password to start your BrandThat trial. Verify your email, then you can use the tools.");
+    setAuthMessage("Create a password and verify your email before building a Brand Plan.");
     setShowAuth(true);
-    setSubscribeMessage("Almost there. Create your account to start the trial.");
+    setSubscribeMessage("Almost there. Create your account to continue.");
     setSubscribeEmail("");
   };
 
@@ -4225,21 +4425,21 @@ ${promptValue}`
         <>
           <main className="hero dreamHero">
             <div className="heroTop">
-              <div className="eyebrow">GUIDED BRAND BUILDER</div>
               <h1 className="heroTitle">
-                <span>Turn a rough idea into a brand system.</span>
+                <span>Build a brand people notice.</span>
               </h1>
-              <p className="lead">BrandThat turns messy notes into strategy, visual direction, logo concepts, launch content, and one workspace that keeps the whole brand organized.</p>
+              <p className="lead">Enter your brand name and idea. BrandThat creates the strategy, audience insights, launch roadmap, and brand workspace that helps you get noticed.</p>
 
               <div className="heroCtas">
-                <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Start Building</button>
-                <button className="btn light" onClick={() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" })}>See Membership</button>
-              </div>
-
-              <div className="journeyLine" aria-label="BrandThat journey">
-                {["Idea", "Strategy", "Identity", "Moodboard", "Type", "Colors", "Roadmap", "Logo"].map((step) => (
-                  <span key={step}>{step}</span>
-                ))}
+                <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand</button>
+                <button className="btn light" onClick={() => {
+                  setWorkspaceDraft({
+                    ...workspaceDraft,
+                    name: "TrailTail",
+                    description: "A premium outdoor clothing brand for dog owners.",
+                  });
+                  setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                }}>See Example Brand Plan</button>
               </div>
             </div>
 
@@ -4252,39 +4452,16 @@ ${promptValue}`
             />
           </main>
 
-          <section className="freeToolsSection">
-            <div>
-              <div className="tinyTag">ORGANIZED OUTPUTS</div>
-              <h2>A cleaner way to build every brand asset.</h2>
-              <p className="sectionLead">Start with strategy, then generate the assets from that same source of truth: logos, captions, hashtags, hooks, bios, emails, audits, campaigns, and roadmaps.</p>
-            </div>
-            <div className="freeToolCards">
-              <button onClick={() => selectTool("brand")}>
-                <strong>01 Strategy</strong>
-                <span>Positioning, audience, personality, offer, and message.</span>
-              </button>
-              <button onClick={() => selectTool("growth")}>
-                <strong>02 Roadmap</strong>
-                <span>Practical actions, content rhythm, milestones, and next steps.</span>
-              </button>
-              <button onClick={() => openSeoPage("seo-logo")}>
-                <strong>03 Identity</strong>
-                <span>Generate visuals after the brand direction is clear.</span>
-              </button>
-            </div>
-          </section>
-
-          <BrandOperatingSection selectTool={selectTool} openSeoPage={openSeoPage} />
+          <BrandPlanJourney />
           <MembershipBand startCheckout={startCheckout} openAuth={openAuth} user={user} />
-          <HomepageSEOContent openSeoPage={openSeoPage} />
         </>
       )}
 
       {page === "workspace" && (
         <section className="pageSection">
           <div className="tinyTag">SAVED BRAND WORKSPACES</div>
-          <h1 className="pageTitle">Build and save your brands.</h1>
-          <p className="pageLead">Create one or more brands, save generated captions/hooks/bios/logos, and export a simple brand kit. This is what turns Brandthat into your AI brand system.</p>
+          <h1 className="pageTitle">Your brand headquarters.</h1>
+          <p className="pageLead">Every purchased Brand Plan becomes a saved workspace with strategy, identity direction, platform guidance, roadmap, saved assets, and logo concepts generated from the completed strategy.</p>
 
           {activeBrand && (
             <BrandDashboard
@@ -4396,7 +4573,7 @@ ${promptValue}`
         <section className="pageSection" id="brandthat-generator">
           <div className="tinyTag">{activeTool.label}</div>
           <h1 className="pageTitle">{activeTool.title}</h1>
-          <p className="pageLead">{activeTool.desc} Select the type, describe what you need, and Brandthat will generate it around your active brand workspace.</p>
+          <p className="pageLead">{activeTool.desc} Logo concepts work best after BrandThat has created the thesis, positioning, audience, moodboard, typography, colors, and voice in your Brand Workspace.</p>
 
           {activeBrand && (
             <div className="activeBrandBar">
@@ -4465,13 +4642,13 @@ ${promptValue}`
 
       <footer className="footerSubscribe">
         <div>
-          <div className="tinyTag">START TRIAL</div>
+          <div className="tinyTag">CREATE ACCOUNT</div>
           <h2>Create your BrandThat account.</h2>
-          <p>Enter your email, create a password, verify your inbox, and start testing the brand workspace.</p>
+          <p>Enter your email, create a password, verify your inbox, and build a complete Brand Plan when you are ready.</p>
         </div>
         <div className="footerForm">
           <input placeholder="Email address" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
-          <button className="btn dark" onClick={subscribe}>Start Trial</button>
+          <button className="btn dark" onClick={subscribe}>Create Account</button>
           {subscribeMessage && <span>{subscribeMessage}</span>}
         </div>
       </footer>
@@ -4566,106 +4743,39 @@ function getSystemCardText(item) {
 }
 
 function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading }) {
-  const steps = [
-    ["01", "Idea", "What are you building?"],
-    ["02", "Strategy", "Who is it for and why should they care?"],
-    ["03", "Identity", "What should it feel like visually?"],
-    ["04", "Roadmap", "What should happen next?"],
-  ];
-
   return (
     <section className="brandBuilderCard" id="brandthat-builder">
       <div className="builderTop">
         <div>
-          <div className="tinyTag">START HERE</div>
-          <h2>Shape the idea first.</h2>
-          <p>BrandThat turns your notes into a guided brand plan before logo concepts begin.</p>
+          <h2>Start with two details.</h2>
+          <p>BrandThat infers the audience, positioning, identity direction, platform strategy, roadmap, and workspace from the idea.</p>
         </div>
         <span>{autoSaveStatus}</span>
       </div>
 
-      <div className="builderSteps">
-        {steps.map(([number, label, copy]) => (
-          <div key={label}>
-            <span>{number}</span>
-            <strong>{label}</strong>
-            <p>{copy}</p>
-          </div>
-        ))}
-      </div>
+      <label className="builderField full">
+        <span>Brand Name</span>
+        <input
+          placeholder="TrailTail"
+          value={workspaceDraft.name}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
+        />
+      </label>
 
       <label className="builderField full">
-        <span>Rough idea</span>
+        <span>What are you building?</span>
         <textarea
-          placeholder="Example: I want to start a dreamy wedding content studio for modern couples who want photo, video, and social clips from one team."
+          placeholder="A premium outdoor clothing brand for dog owners."
           value={workspaceDraft.description}
           onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })}
         />
       </label>
 
-      <div className="builderGrid">
-        <label className="builderField">
-          <span>Brand name</span>
-          <input
-            placeholder="Optional. BrandThat can suggest one."
-            value={workspaceDraft.name}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
-          />
-        </label>
-        <label className="builderField">
-          <span>Personality</span>
-          <select
-            value={workspaceDraft.tone}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, tone: e.target.value })}
-          >
-            {tones.map((tone) => <option key={tone}>{tone}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <div className="builderGrid">
-        <label className="builderField">
-          <span>Target audience</span>
-          <input
-            placeholder="Example: engaged couples, local homeowners, startup founders"
-            value={workspaceDraft.audience}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
-          />
-        </label>
-        <label className="builderField">
-          <span>Positioning</span>
-          <input
-            placeholder="Example: premium, fast, personal, local, luxury"
-            value={workspaceDraft.differentiator || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, differentiator: e.target.value })}
-          />
-        </label>
-      </div>
-
-      <div className="builderGrid">
-        <label className="builderField">
-          <span>Visual direction</span>
-          <input
-            placeholder="Example: soft editorial, modern luxury, bold startup"
-            value={workspaceDraft.logoDirection}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, logoDirection: e.target.value })}
-          />
-        </label>
-        <label className="builderField">
-          <span>Roadmap goal</span>
-          <input
-            placeholder="Example: launch in 30 days, reach first 100 clients"
-            value={workspaceDraft.targetFollowers || workspaceDraft.launchGoal}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, targetFollowers: e.target.value, launchGoal: e.target.value })}
-          />
-        </label>
-      </div>
-
       <div className="builderActions">
         <button className="btn dark" onClick={buildGuidedBrandPlan}>
-          {loading ? "Building your brand plan..." : "Build My Brand Plan"}
+          {loading ? "Building your brand..." : "Build My Brand"}
         </button>
-        <p>Strategy, moodboard, typography, color system, roadmap, then logo concepts.</p>
+        <p>Account and email verification required before BrandThat creates the complete Brand Plan.</p>
       </div>
     </section>
   );
@@ -4793,15 +4903,19 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
   const plan = getWorkspacePlan(brand);
   brandthatDevLog("rendered workspace data", { brand, plan });
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
-  const roadmapItems = getBrandRoadmapPreview(brand);
+  const roadmapItems = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
   const nextActions = getBrandNextActions(brand);
   const insightCards = getBrandInsightCards(brand);
-  const socialPlan = getSocialPlatformRecommendations(brand);
+  const platformPlan = Array.isArray(plan.platformStrategy) && plan.platformStrategy.length ? plan.platformStrategy : getSocialPlatformRecommendations(brand);
+  const contentIdeas = Array.isArray(plan.first20ContentIdeas) && plan.first20ContentIdeas.length ? plan.first20ContentIdeas : getBrandPlanDefaults({ brandName: brand.name, idea: brand.description, industry: plan.workspaceContext?.industry, opportunity: plan.coreOpportunity }).first20ContentIdeas;
   const identityCards = [
     ["Core Opportunity", plan.coreOpportunity || "Generate a core strategic opportunity."],
     ["Brand Thesis", plan.brandThesis || "Generate a brand thesis."],
     ["Positioning", plan.positioning || brand.differentiator || "Clarify what makes this brand different."],
     ["Audience", plan.targetAudience || brand.audience || "Define the customer this brand is built for."],
+    ["Customer Motivation", plan.customerMotivation || "Clarify what makes the customer act now."],
+    ["Competitive Difference", plan.competitiveDifferentiation || "Clarify how the brand will avoid generic category claims."],
+    ["Messaging Direction", plan.messagingDirection || "Define the message structure before content is created."],
     ["Moodboard Direction", plan.moodboardDirection || brand.style || "Create an editorial moodboard direction."],
     ["Typography Direction", plan.typographySystem || "Define the wordmark and supporting type system."],
     ["Color Direction", plan.colorSystem || "Choose a primary palette and accent system."],
@@ -4844,11 +4958,19 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
           </div>
         </div>
 
-        <div className="dashboardPanel">
-          <span>Launch Roadmap</span>
-          <ol className="dashboardRoadmap">
-            {roadmapItems.map((item) => <li key={item}>{item}</li>)}
-          </ol>
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>90-Day Launch Roadmap</span>
+          <div className="roadmapPhaseList">
+            {roadmapItems.map((item) => (
+              <div className="roadmapPhaseCard" key={item.week}>
+                <strong>{item.week}</strong>
+                <h3>{item.focus}</h3>
+                <ul>{item.actions.map((action) => <li key={action}>{action}</li>)}</ul>
+                <p><b>Expected outcome:</b> {item.outcome}</p>
+                <small>{item.status}</small>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="dashboardPanel">
@@ -4873,6 +4995,34 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
         </div>
 
         <div className="dashboardPanel wideDashboardPanel">
+          <span>Platform Strategy</span>
+          <div className="socialSetupGrid">
+            {platformPlan.map((item) => (
+              <div className="socialSetupCard" key={item.platform}>
+                <strong>{item.platform}</strong>
+                <p>{item.strategy || item.setup}</p>
+                <p>{item.launchPlan || item.content}</p>
+                <button onClick={() => copyToClipboard(`${item.platform}\n\nStrategy: ${item.strategy || item.setup}\n\nLaunch plan: ${item.launchPlan || item.content}\n\nIdeas: ${(item.postingIdeas || [item.firstMove]).filter(Boolean).join("; ")}`)}>
+                  {(item.postingIdeas || [item.firstMove]).filter(Boolean).slice(0, 3).join(" / ")}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>First 20 Content Ideas</span>
+          <div className="contentIdeaGrid">
+            {contentIdeas.slice(0, 20).map((item, index) => (
+              <button key={`${item}-${index}`} onClick={() => copyToClipboard(item)}>
+                <small>{String(index + 1).padStart(2, "0")}</small>
+                <span>{item}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
           <span>Saved Logo Concepts</span>
           {savedLogos.length ? (
             <div className="dashboardLogoStrip">
@@ -4885,26 +5035,10 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
             </div>
           ) : (
             <div className="dashboardEmptyLogo">
-              <p>No logo concepts saved yet. Generate visual concepts after the brand direction feels right.</p>
+              <p>No logo concepts saved yet. Generate visual concepts after the brand thesis, identity direction, moodboard, typography, and colors are set.</p>
               <button className="btn light" onClick={() => setPage("logo")}>Create First Logo Concept</button>
             </div>
           )}
-        </div>
-
-        <div className="dashboardPanel wideDashboardPanel">
-          <span>Social Setup Plan</span>
-          <div className="socialSetupGrid">
-            {socialPlan.map((item) => (
-              <div className="socialSetupCard" key={item.platform}>
-                <strong>{item.platform}</strong>
-                <p>{item.setup}</p>
-                <p>{item.content}</p>
-                <button onClick={() => copyToClipboard(`${item.platform}\n\nSetup: ${item.setup}\n\nContent: ${item.content}\n\nFirst move: ${item.firstMove}`)}>
-                  {item.firstMove}
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </section>
@@ -5204,6 +5338,33 @@ function HomepageSEOContent({ openSeoPage }) {
   );
 }
 
+function BrandPlanJourney() {
+  const steps = [
+    "Idea",
+    "Brand Strategy",
+    "Brand Identity Direction",
+    "Moodboard",
+    "Typography System",
+    "Color System",
+    "Platform Strategy",
+    "90-Day Launch Roadmap",
+    "Brand Workspace",
+    "Logo Concepts",
+  ];
+
+  return (
+    <section className="brandPlanJourney">
+      <div>
+        <h2>From rough idea to launch-ready brand.</h2>
+        <p>BrandThat makes the strategic decisions first, then turns them into a workspace and logo concepts that follow the plan.</p>
+      </div>
+      <ol>
+        {steps.map((step) => <li key={step}>{step}</li>)}
+      </ol>
+    </section>
+  );
+}
+
 function BrandOperatingSection({ selectTool, openSeoPage }) {
   const rows = [
     ["Brand Plan", "Define the thesis, audience, offer, voice, visual direction, and roadmap before generating assets.", () => selectTool("brand")],
@@ -5235,26 +5396,26 @@ function MembershipBand({ startCheckout, openAuth, user }) {
   return (
     <section className="membershipBand" id="brandthat-membership">
       <div>
-        <div className="tinyTag">ONE MEMBERSHIP</div>
-        <h2>$9.99 a month.</h2>
-        <p>Try BrandThat with a verified account. When the trial ends, one flat monthly plan unlocks every generator, the guided logo creator, Brand Workspace insights, platform recommendations, saved assets, refinements, and exports.</p>
+        <div className="tinyTag">ONE BRAND PLAN</div>
+        <h2>Build Your Brand - $9.99</h2>
+        <p>One payment creates one complete Brand Plan for one brand idea. No monthly subscription. You own the saved Brand Workspace forever.</p>
         <div className="membershipValueGrid">
-          {["Guided brand strategy", "Logo concepts and refinements", "Workspace intelligence", "Social setup plans"].map((item) => (
+          {["One payment", "One complete Brand Plan", "Saved Brand Workspace", "Logo concepts after strategy"].map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
       </div>
       <div className="membershipPanel">
-        <span>Everything Included</span>
+        <span>Included in each Brand Plan</span>
         <ul>
-          <li>AI logo concepts, variations, refinements, and downloadable files</li>
-          <li>Brand Workspaces with positioning, audience, offer, and content guidance</li>
-          <li>Social media setup recommendations for Instagram, TikTok, Facebook, LinkedIn, YouTube Shorts, Pinterest, and X</li>
-          <li>Captions, hooks, bios, emails, hashtags, campaigns, audits, and growth roadmaps</li>
-          <li>Downloadable brand kit exports</li>
+          <li>Brand strategy, audience insights, positioning, and personality</li>
+          <li>Moodboard, typography system, color system, voice, and taglines</li>
+          <li>Platform-by-platform marketing strategy and content direction</li>
+          <li>90-day launch roadmap with next best actions</li>
+          <li>Saved workspace and logo concepts generated from the completed strategy</li>
         </ul>
         <button className="btn dark full" onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to try the full product.")}>
-          {user?.email ? "Subscribe for $9.99" : "Create Account"}
+          {user?.email ? "Build Your Brand - $9.99" : "Create Account"}
         </button>
       </div>
     </section>
@@ -6191,7 +6352,7 @@ Designer iteration rules:
         </div>
         {activeTool.key !== "logo" && (
           <div className="generatorMeta">
-            {userPlan === "free" && !isLogoTestingUnlocked ? <span>{trialRemaining} trial uses left</span> : <span>Member tools unlocked</span>}
+            {userPlan === "free" && !isLogoTestingUnlocked ? <span>Brand Plan required</span> : <span>Brand Plan unlocked</span>}
           </div>
         )}
       </div>
@@ -6595,12 +6756,12 @@ function BrandJourneyPanel({
     ? "Create Account to Keep It"
     : canSaveProject
       ? "Save This Brand Project"
-      : "Subscribe to Keep Building";
+      : "Buy Brand Plan to Keep Building";
   const ownershipCopy = !isLoggedIn
     ? "This project is only on this screen right now. Create an account to try the workspace and keep the logo, strategy, kit, and roadmap together."
     : canSaveProject
       ? "Save this as a real workspace so you can come back, refine it, and keep building from the same direction."
-      : "Your trial is complete. Subscribe for $9.99/month to keep saving, refining, exporting, and building this brand.";
+      : "Buy one Brand Plan for $9.99 to keep saving, refining, exporting, and building this brand.";
 
   return (
     <section className="brandJourneyPanel">
@@ -7311,6 +7472,12 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .freeToolCards button:hover{transform:translateY(-3px);border-color:#111;box-shadow:0 18px 42px rgba(0,0,0,.08)}
 .freeToolCards strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
 .freeToolCards span{display:block;color:#666;line-height:1.55;font-size:14px}
+.brandPlanJourney{max-width:1280px;margin:0 auto;padding:8px 6vw 46px;display:grid;grid-template-columns:.7fr 1.3fr;gap:28px;align-items:start}
+.brandPlanJourney h2{font-size:42px;max-width:520px}
+.brandPlanJourney p{color:#666;line-height:1.7;font-size:17px;max-width:560px}
+.brandPlanJourney ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;counter-reset:journey}
+.brandPlanJourney li{counter-increment:journey;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;min-height:92px;font-weight:900;letter-spacing:-.02em;display:flex;flex-direction:column;justify-content:space-between}
+.brandPlanJourney li:before{content:counter(journey, decimal-leading-zero);font-size:11px;letter-spacing:1.4px;color:#777;margin-bottom:16px}
 .operatingSection{max-width:1280px;margin:0 auto;padding:44px 6vw;display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;align-items:start}
 .operatingIntro{position:sticky;top:24px}
 .operatingIntro p{color:#666;line-height:1.75;font-size:17px;max-width:560px}
@@ -7378,6 +7545,13 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .dashboardIdentityGrid p,.dashboardPanel p{color:rgba(255,255,255,.7);line-height:1.6;margin:0;font-size:14px}
 .dashboardRoadmap{margin:0;padding-left:20px;color:rgba(255,255,255,.76)}
 .dashboardRoadmap li{line-height:1.6;margin-bottom:10px}
+.roadmapPhaseList{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.roadmapPhaseCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.roadmapPhaseCard strong{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:white;opacity:.72}
+.roadmapPhaseCard h3{font-size:18px;line-height:1.1;letter-spacing:-.03em;margin:0}
+.roadmapPhaseCard ul{margin:0;padding-left:18px;color:rgba(255,255,255,.72);line-height:1.5;font-size:13px}
+.roadmapPhaseCard p{font-size:13px!important}
+.roadmapPhaseCard small{margin-top:auto;display:inline-flex;width:max-content;background:white;color:#111;border-radius:999px;padding:7px 9px;font-size:11px;font-weight:900}
 .dashboardActionList{display:flex;flex-direction:column;gap:9px}
 .dashboardActionList button{background:white;color:#111;border:none;border-radius:14px;padding:12px 14px;font-weight:850;text-align:left;cursor:pointer;line-height:1.4}
 .brandInsightGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -7393,6 +7567,10 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .socialSetupGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .socialSetupCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:260px}
 .socialSetupCard strong{font-size:20px;letter-spacing:-.03em}
+.contentIdeaGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.contentIdeaGrid button{background:rgba(255,255,255,.06);color:white;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;text-align:left;cursor:pointer;display:flex;gap:10px;align-items:flex-start;min-height:112px;font-family:inherit}
+.contentIdeaGrid small{font-size:11px;font-weight:900;opacity:.65}
+.contentIdeaGrid span{font-size:13px;line-height:1.45;color:rgba(255,255,255,.78)}
 .savedAssets{margin-top:46px}
 .savedGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .savedBucket{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px}
@@ -8680,6 +8858,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
-@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.brandPlanJourney{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
+@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.brandPlanJourney{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;

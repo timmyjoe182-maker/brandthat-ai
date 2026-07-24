@@ -32,7 +32,7 @@ exports.handler = async (event) => {
 
       const email = session.customer_email;
       const customerId = session.customer;
-      const subscriptionId = session.subscription;
+      const paymentIntentId = session.payment_intent;
       const plan = "member";
 
       const { data: users } = await supabaseAdmin.auth.admin.listUsers();
@@ -45,7 +45,7 @@ exports.handler = async (event) => {
           email,
           plan,
           stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
+          stripe_subscription_id: paymentIntentId,
           updated_at: new Date().toISOString(),
         });
       }

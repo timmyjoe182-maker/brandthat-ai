@@ -239,7 +239,7 @@ function buildStrategicRoadmap({ brandName, industry, opportunity, thesis, visua
   const category = industry.replace(/\s*\/.*$/, "");
   return [
     {
-      week: "Week 1",
+      week: "First 24 Hours",
       focus: `Prove the ${opportunity} promise`,
       actions: [
         `Rewrite the offer as one sentence that shows how ${brandName} delivers ${opportunity} in the ${category} category.`,
@@ -247,9 +247,11 @@ function buildStrategicRoadmap({ brandName, industry, opportunity, thesis, visua
         `Create a homepage headline and social bio that name the customer moment instead of describing the category.`,
         `Collect two real reference examples that show the desired standard for ${visualDefaults.moodboard.toLowerCase()}`,
       ],
+      outcome: `The brand has one thesis, one offer promise, and proof points tied to ${opportunity}.`,
+      status: "Not started",
     },
     {
-      week: "Week 2",
+      week: "First Week",
       focus: "Translate strategy into identity",
       actions: [
         `Build the first identity direction around ${visualDefaults.symbols.toLowerCase()}`,
@@ -257,9 +259,11 @@ function buildStrategicRoadmap({ brandName, industry, opportunity, thesis, visua
         `Apply the color system to a profile image, simple landing section, and one mock social post.`,
         `Reject any visual choice that does not connect back to the thesis or the customer buying reason.`,
       ],
+      outcome: `A strategy-backed identity direction is ready before logo generation begins.`,
+      status: "Not started",
     },
     {
-      week: "Week 3",
+      week: "First Month",
       focus: "Publish proof, not filler",
       actions: [
         `Publish a short origin post explaining why ${brandName} exists in this market.`,
@@ -267,9 +271,11 @@ function buildStrategicRoadmap({ brandName, industry, opportunity, thesis, visua
         `Use one behind-the-scenes or process post to make the brand feel more specific than template competitors.`,
         `Ask five likely customers which message feels most believable and refine the positioning from their language.`,
       ],
+      outcome: `The first audience signals reveal which message and proof points create belief.`,
+      status: "Not started",
     },
     {
-      week: "Week 4",
+      week: "Days 31-60",
       focus: "Turn the brand into a repeatable system",
       actions: [
         `Create a small launch page using the thesis, color system, typography system, and strongest proof points.`,
@@ -277,6 +283,20 @@ function buildStrategicRoadmap({ brandName, industry, opportunity, thesis, visua
         `Track which phrase gets replies, saves, inquiries, or clicks, then make that phrase the next month's message anchor.`,
         `Save the strongest visuals, taglines, and roadmap lessons into the Brand Workspace so the next iteration stays consistent.`,
       ],
+      outcome: `The brand has a repeatable message, workspace, and conversion path.`,
+      status: "Not started",
+    },
+    {
+      week: "Days 61-90",
+      focus: "Scale what the audience already believes",
+      actions: [
+        `Double down on the platform and content pillar that produced the clearest saves, replies, clicks, or inquiries.`,
+        `Turn the highest-performing proof point into a lead magnet, landing page section, or founder story.`,
+        `Generate logo refinements only from the identity direction that tested strongest in the first month.`,
+        `Plan the next 90 days around the clearest customer behavior instead of adding unrelated channels.`,
+      ],
+      outcome: `The brand moves from launch mode into a focused growth system.`,
+      status: "Not started",
     },
   ];
 }
@@ -431,6 +451,59 @@ function buildFallbackBrandPlan(input = {}) {
     brandVoice: `${visualDefaults.voice} Tie every line back to the thesis: customers should understand the ${coreOpportunity} promise in the product description, launch posts, CTAs, and logo rationale.`,
     taglineIdeas,
     launchRoadmap30Days,
+    customerMotivation: `The customer needs ${brandName} to make the choice feel more certain: the brand should reduce doubt, clarify the value, and make the ${coreOpportunity} promise easy to believe before they buy.`,
+    competitiveDifferentiation: `${brandName} should avoid competing as another generic ${industry} option by tying every message and visual decision to ${coreOpportunity}. That makes the brand easier to remember and harder to replace.`,
+    messagingDirection: `Lead with the customer tension, prove why ${brandName}'s ${coreOpportunity} answer is different, then give one clear next action. This keeps the brand useful instead of decorative.`,
+    platformStrategy: [
+      {
+        platform: "Instagram",
+        strategy: `Use Instagram as the visual proof layer for ${brandName}: Reels show the customer moment, carousels explain the point of view, and pinned posts clarify the offer.`,
+        launchPlan: `Launch with three pinned posts: the brand thesis, the offer, and one proof/moodboard post that makes ${coreOpportunity} visible.`,
+        postingIdeas: ["Founder thesis Reel", "Moodboard carousel", "Customer problem post", "Offer explainer", "Proof post"],
+      },
+      {
+        platform: "Email",
+        strategy: `Use email as the owned conversion layer so ${brandName} can nurture interest after the first impression.`,
+        launchPlan: "Create one useful lead magnet and a five-email welcome sequence around the buyer's decision.",
+        postingIdeas: ["Lead magnet", "Welcome email", "Problem email", "Proof email", "Offer email"],
+      },
+    ],
+    contentPillars: [
+      `Problem clarity around the customer's specific buying tension.`,
+      `Proof that makes the ${coreOpportunity} promise believable.`,
+      `Point of view that separates ${brandName} from generic ${industry} competitors.`,
+      `Offer education that makes the first next step clear.`,
+    ],
+    first20ContentIdeas: Array.from({ length: 20 }, (_, index) => {
+      const ideas = [
+        `Explain why ${brandName} exists now.`,
+        `Show the customer problem before ${brandName}.`,
+        `Break down the brand thesis in one post.`,
+        `Show why the moodboard supports ${coreOpportunity}.`,
+        `Compare generic ${industry} choices with the ${brandName} way.`,
+        `Explain the color system and what it should make people feel.`,
+        `Explain the typography direction and why it fits the buyer.`,
+        `Show a before-and-after decision moment.`,
+        `Create a buyer checklist for choosing ${industry}.`,
+        `Share one proof point behind the offer.`,
+        `Test the strongest tagline.`,
+        `Answer the biggest objection before purchase.`,
+        `Show a practical use case.`,
+        `Explain what the brand refuses to do.`,
+        `Publish a founder note about the idea.`,
+        `Create a simple offer explainer.`,
+        `Share three trust signals.`,
+        `Write the first platform intro post.`,
+        `Show a logo concept and tie it back to the thesis.`,
+        `Create a 90-day progress update.`,
+      ];
+      return ideas[index];
+    }),
+    growthOpportunities: [
+      `Turn the strongest ${coreOpportunity} proof into a repeatable content series.`,
+      `Build a lead magnet around the buyer's hardest decision before choosing ${industry}.`,
+      `Use the workspace to test which message earns the clearest response.`,
+    ],
     nextStepActionPlan: [
       `Save this plan so ${brandName}'s ${coreOpportunity} thesis becomes the source of truth for every future asset.`,
       `Generate logo concepts using the moodboard, typography, colors, and symbol logic tied to the thesis.`,
@@ -474,12 +547,15 @@ function validateBrandPlan(plan = {}, input = {}) {
     "brandThesis",
     "brandSummary",
     "targetAudience",
+    "customerMotivation",
     "positioning",
+    "competitiveDifferentiation",
     "brandPersonality",
     "competitorCategory",
     "pricePositioning",
     "coreMessage",
     "coreOffer",
+    "messagingDirection",
     "visualIdentityDirection",
     "moodboardDirection",
     "typographySystem",
@@ -513,15 +589,22 @@ function validateBrandPlan(plan = {}, input = {}) {
   if (output.taglineIdeas.length < 3) output.taglineIdeas = fallback.taglineIdeas;
 
   output.launchRoadmap30Days = Array.isArray(output.launchRoadmap30Days) ? output.launchRoadmap30Days : fallback.launchRoadmap30Days;
-  output.launchRoadmap30Days = output.launchRoadmap30Days.slice(0, 4).map((item, index) => ({
+  output.launchRoadmap30Days = output.launchRoadmap30Days.slice(0, 5).map((item, index) => ({
     week: clean(item.week) || `Week ${index + 1}`,
     focus: ensureThesisDriven(item.focus, fallback.launchRoadmap30Days[index]?.focus || `Build around ${output.coreOpportunity}`),
     actions: toArray(item.actions, fallback.launchRoadmap30Days[index]?.actions || [])
       .map((action, actionIndex) => ensureThesisDriven(action, fallback.launchRoadmap30Days[index]?.actions?.[actionIndex] || fallback.launchRoadmap30Days[index]?.actions?.[0] || `Connect this step to ${output.coreOpportunity}.`))
       .slice(0, 5),
+    outcome: clean(item.outcome || item.expectedOutcome) || fallback.launchRoadmap30Days[index]?.outcome || `A clearer reason to believe ${output.coreOpportunity}.`,
+    status: clean(item.status) || fallback.launchRoadmap30Days[index]?.status || "Not started",
   }));
 
-  if (output.launchRoadmap30Days.length < 4) output.launchRoadmap30Days = fallback.launchRoadmap30Days;
+  if (output.launchRoadmap30Days.length < 5) output.launchRoadmap30Days = fallback.launchRoadmap30Days;
+  output.platformStrategy = Array.isArray(output.platformStrategy) && output.platformStrategy.length ? output.platformStrategy : fallback.platformStrategy;
+  output.contentPillars = toArray(output.contentPillars, fallback.contentPillars).slice(0, 6);
+  output.first20ContentIdeas = toArray(output.first20ContentIdeas, fallback.first20ContentIdeas).slice(0, 20);
+  if (output.first20ContentIdeas.length < 20) output.first20ContentIdeas = fallback.first20ContentIdeas;
+  output.growthOpportunities = toArray(output.growthOpportunities, fallback.growthOpportunities).slice(0, 6);
   output.nextStepActionPlan = toArray(output.nextStepActionPlan, fallback.nextStepActionPlan)
     .map((step, index) => ensureThesisDriven(step, fallback.nextStepActionPlan[index] || fallback.nextStepActionPlan[0]))
     .slice(0, 6);
@@ -542,50 +625,71 @@ function validateBrandPlan(plan = {}, input = {}) {
 
 function formatBrandPlanText(plan) {
   const roadmap = plan.launchRoadmap30Days
-    .map((item) => `${item.week}: ${item.focus}\n${item.actions.map((action) => `- ${action}`).join("\n")}`)
+    .map((item) => `${item.week}: ${item.focus}\nWhat to do:\n${item.actions.map((action) => `- ${action}`).join("\n")}\nWhy it matters: ${item.outcome}\nExpected outcome: ${item.outcome}\nCompletion status: ${item.status}`)
     .join("\n\n");
 
-  return `1. Core opportunity and brand thesis
-Core opportunity: ${plan.coreOpportunity}
-${plan.brandThesis}
-
-2. Brand name and summary
-${plan.brandName}
+  return `1. Brand Summary
 ${plan.brandSummary}
 
-3. Positioning
-${plan.positioning}
+2. Brand Thesis
+${plan.brandThesis}
 
-4. Target customer
+3. Core Opportunity
+${plan.coreOpportunity}
+
+4. Target Audience
 ${plan.targetAudience}
 
-5. Core offer
-${plan.coreOffer}
+5. Customer Motivation
+${plan.customerMotivation}
 
-6. Brand personality
+6. Brand Positioning
+${plan.positioning}
+
+7. Competitive Differentiation
+${plan.competitiveDifferentiation}
+
+8. Brand Personality
 ${plan.brandPersonality}
 
-7. Visual identity direction
-${plan.visualIdentityDirection}
+9. Brand Voice
+${plan.brandVoice}
 
-8. Moodboard direction
+10. Messaging Direction
+${plan.messagingDirection}
+
+11. Moodboard Direction
 ${plan.moodboardDirection}
 
-9. Typography system
+12. Typography Direction
 ${plan.typographySystem}
 
-10. Color system
+13. Color System
 ${plan.colorSystem}
 
-11. Brand voice and taglines
-${plan.brandVoice}
-Taglines: ${plan.taglineIdeas.join(" / ")}
+14. Tagline Ideas
+${plan.taglineIdeas.map((item) => `- ${item}`).join("\n")}
 
-12. Practical 30-day launch roadmap
+15. Platform-by-Platform Strategy
+${plan.platformStrategy.map((item) => `${item.platform}\nStrategy: ${item.strategy}\nLaunch plan: ${item.launchPlan}\nIdeas: ${(item.postingIdeas || []).join("; ")}`).join("\n\n")}
+
+16. Content Pillars
+${plan.contentPillars.map((item) => `- ${item}`).join("\n")}
+
+17. First 20 Content Ideas
+${plan.first20ContentIdeas.map((item, index) => `${index + 1}. ${item}`).join("\n")}
+
+18. Launch Roadmap
 ${roadmap}
 
-13. Next-step action plan
-${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}`;
+19. Growth Opportunities
+${plan.growthOpportunities.map((item) => `- ${item}`).join("\n")}
+
+20. Next Best Actions
+${plan.nextStepActionPlan.map((step) => `- ${step}`).join("\n")}
+
+21. Saved Brand Workspace
+${plan.brandName} is ready to save as the user's Brand Workspace. Logo concepts should now be generated from this completed strategy, not from a blank prompt.`;
 }
 
 function extractJsonObject(text = "") {
@@ -640,7 +744,7 @@ Create a practical, specific, workspace-ready brand plan from a rough idea.
 The plan must be useful enough to guide logo generation, content, roadmap, and a saved Brand Workspace.
 
 Required JSON keys:
-brandName, coreOpportunity, brandThesis, brandSummary, targetAudience, positioning, brandPersonality, competitorCategory, pricePositioning, coreMessage, coreOffer, visualIdentityDirection, moodboardDirection, typographySystem, colorSystem, brandVoice, taglineIdeas, launchRoadmap30Days, nextStepActionPlan, workspaceContext, logoContext.
+brandName, coreOpportunity, brandThesis, brandSummary, targetAudience, customerMotivation, positioning, competitiveDifferentiation, brandPersonality, competitorCategory, pricePositioning, coreMessage, coreOffer, messagingDirection, visualIdentityDirection, moodboardDirection, typographySystem, colorSystem, brandVoice, taglineIdeas, platformStrategy, contentPillars, first20ContentIdeas, launchRoadmap30Days, growthOpportunities, nextStepActionPlan, workspaceContext, logoContext.
 
 New architecture:
 1. First identify the coreOpportunity. Choose the primary business opportunity from ideas like luxury, convenience, trust, craftsmanship, speed, status, sustainability, innovation, nostalgia, affordability, joy, or a similarly specific opportunity.
@@ -661,7 +765,9 @@ Rules:
 - Make visual direction useful for logo generation.
 - Make roadmap actions concrete and realistic.
 - No asterisks, emoji, or decorative formatting.
-- launchRoadmap30Days must be four week objects with week, focus, actions.
+- platformStrategy must include only the platforms that fit the brand. Do not recommend every platform.
+- first20ContentIdeas must include exactly 20 specific ideas.
+- launchRoadmap30Days must be five phase objects for First 24 Hours, First Week, First Month, Days 31-60, Days 61-90 with week, focus, actions, outcome, status.
 - workspaceContext must include coreOpportunity, brandThesis, industry, offer, differentiator, audience, personality, visualDirection, moodboard, typography, colors, roadmapGoal.
 - logoContext must include brandName, coreOpportunity, brandThesis, industry, style, symbolIdeas, colors, typography, avoid.
 `;
