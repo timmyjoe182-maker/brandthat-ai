@@ -2165,7 +2165,7 @@ export default function App() {
 
     upsertMeta("meta[name='twitter:image']", {
       name: "twitter:image",
-      content: "https://brandthat.ai/og-image.png",
+      content: "https://brandthat.ai/twitter-image.png",
     });
 
     upsertJsonLd(getSeoSchema(page, meta));
