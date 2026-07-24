@@ -23,23 +23,8 @@ function normalizePlan(plan = "free") {
   return "free";
 }
 
-const BRANDTHAT_TESTER_EMAILS = String(import.meta.env.VITE_BRANDTHAT_TESTER_EMAILS || "timmyjoe21@gmail.com,timmyjoe182@gmail.com")
-  .split(",")
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
-
 function isBrandthatTester(user) {
-  const params = new URLSearchParams(window.location.search);
-  const testerParam = params.get("brandthat_test_mode");
-
-  if (testerParam === "true" || testerParam === "1") {
-    localStorage.setItem("brandthat_test_mode", "true");
-  }
-
-  const localTesterMode = localStorage.getItem("brandthat_test_mode") === "true";
-  const email = user?.email?.trim().toLowerCase();
-
-  return localTesterMode || (email && BRANDTHAT_TESTER_EMAILS.includes(email));
+  return false;
 }
 
 const tools = [
@@ -2038,7 +2023,7 @@ export default function App() {
   const [page, setPage] = useState(getInitialPageFromPath());
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [userPlan, setUserPlan] = useState(normalizePlan(localStorage.getItem("brandthat_plan") || "free"));
+  const [userPlan, setUserPlan] = useState("free");
   const [trialGenerationCount, setTrialGenerationCount] = useState(getStoredNumber("brandthat_trial_generation_count", 0));
   const [dailyFreeCount, setDailyFreeCount] = useState(getStoredNumber("brandthat_daily_count", 0));
 
@@ -2260,14 +2245,17 @@ export default function App() {
     try {
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("plan, daily_logo_uses, last_logo_use_date")
+        .select("plan, stripe_subscription_id, daily_logo_uses, last_logo_use_date")
         .eq("id", currentUser.id)
         .maybeSingle();
 
-      if (profile?.plan) {
+      if (profile?.plan && profile?.stripe_subscription_id) {
         const nextPlan = normalizePlan(profile.plan);
         localStorage.setItem("brandthat_plan", nextPlan);
         setUserPlan(nextPlan);
+      } else {
+        localStorage.setItem("brandthat_plan", "free");
+        setUserPlan("free");
       }
 
       const today = getTodayKey();
@@ -2332,14 +2320,10 @@ export default function App() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("success") === "true") {
-      const pendingPlan = localStorage.getItem("brandthat_pending_plan");
-      if (pendingPlan === MEMBER_PLAN) {
-        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
-        localStorage.removeItem("brandthat_trial_generation_count");
-        setUserPlan(MEMBER_PLAN);
-        setTrialGenerationCount(0);
-        localStorage.removeItem("brandthat_pending_plan");
-      }
+      localStorage.removeItem("brandthat_pending_plan");
+      localStorage.removeItem("brandthat_plan");
+      setUserPlan("free");
+      notify("info", "Payment processing", "BrandThat will unlock your Brand Plan after the payment is confirmed.");
       window.history.replaceState({}, "", "/");
     }
 
