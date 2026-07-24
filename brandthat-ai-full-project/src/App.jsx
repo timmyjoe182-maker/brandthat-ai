@@ -1088,8 +1088,8 @@ function parseNaturalLogoPrompt({ prompt = "", brandName = "", style = "", indus
 const BRAND_KIT_COLOR_LIBRARY = {
   black: "#111111",
   white: "#ffffff",
-  cream: "#f6f1e8",
-  gold: "#b08d45",
+  cream: "#f5f5f5",
+  gold: "#111111",
   blue: "#2457d6",
   navy: "#0d1b2a",
   green: "#1f5b46",
@@ -1101,9 +1101,9 @@ const BRAND_KIT_COLOR_LIBRARY = {
   silver: "#b8bec7",
   gray: "#6f737a",
   grey: "#6f737a",
-  brown: "#6b4a32",
+  brown: "#333333",
   tan: "#c8a77b",
-  beige: "#e6d9c7",
+  beige: "#e5e5e5",
   teal: "#167c80",
   chrome: "#aeb6c2",
   rainbow: "#6f5cff",
@@ -1124,21 +1124,21 @@ function getPaletteFromLogoContext(parsedLogo = {}, logoEditor = {}, creativeBri
     logoEditor.ink,
     logoEditor.accent,
     ...colorWords,
-    parsedLogo.style?.includes("luxury") ? "#b08d45" : "",
+    parsedLogo.style?.includes("luxury") ? "#111111" : "",
     parsedLogo.industry?.includes("skincare") ? "#f4dfd0" : "",
     parsedLogo.industry?.includes("AI") || parsedLogo.industry?.includes("tech") ? "#2457d6" : "",
-    parsedLogo.industry?.includes("ranch") ? "#6b4a32" : "",
+    parsedLogo.industry?.includes("ranch") ? "#333333" : "",
     "#111111",
-    "#f6f1e8",
+    "#f5f5f5",
   ].filter(Boolean);
 
   const unique = [...new Set(seed.map((color) => String(color).trim()).filter(Boolean))];
   const primary = unique.slice(0, 3);
-  const secondary = [...new Set([logoEditor.paper || "#f7f4ed", "#ffffff", "#777067", ...unique.slice(3)])].slice(0, 3);
+  const secondary = [...new Set([logoEditor.paper || "#f5f5f5", "#ffffff", "#777067", ...unique.slice(3)])].slice(0, 3);
 
   return {
-    primary: primary.length ? primary : ["#111111", "#b08d45", "#f6f1e8"],
-    secondary: secondary.length ? secondary : ["#ffffff", "#777067", "#f7f4ed"],
+    primary: primary.length ? primary : ["#111111", "#111111", "#f5f5f5"],
+    secondary: secondary.length ? secondary : ["#ffffff", "#777067", "#f5f5f5"],
   };
 }
 
@@ -1179,7 +1179,7 @@ function getTypographyPairing(parsedLogo = {}) {
   };
 }
 
-function createMiniBrandAssetSvg({ brandName = "Brand", initials = "BT", primary = "#111111", accent = "#b08d45", paper = "#f7f4ed", variant = "avatar" }) {
+function createMiniBrandAssetSvg({ brandName = "Brand", initials = "BT", primary = "#111111", accent = "#111111", paper = "#f5f5f5", variant = "avatar" }) {
   const safeBrand = escapeSvgText(brandName || "Brand");
   const safeInitials = escapeSvgText(initials || "BT");
   const isMono = variant === "mono";
@@ -1206,8 +1206,8 @@ function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreati
   const palette = getPaletteFromLogoContext(parsedLogo, logoEditor, logoCreativeBrief);
   const typography = getTypographyPairing(parsedLogo);
   const primary = palette.primary[0] || "#111111";
-  const accent = palette.primary[1] || "#b08d45";
-  const paper = palette.secondary[0] || "#f7f4ed";
+  const accent = palette.primary[1] || "#111111";
+  const paper = palette.secondary[0] || "#f5f5f5";
   const firstConcept = logoCreativeBrief?.concepts?.[0] || {};
 
   return {
@@ -1406,11 +1406,11 @@ function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry
   const descriptor = escapeSvgText([logoIndustry, logoStyle].filter(Boolean).join(" ").slice(0, 34) || "Brand identity");
   const requestedColors = String(logoColors || "").toLowerCase();
   const dark = requestedColors.includes("blue") ? "#0d1b2a" : requestedColors.includes("green") ? "#10281f" : "#111111";
-  const accent = requestedColors.includes("gold") ? "#b08d45" : requestedColors.includes("red") ? "#9f2d2d" : requestedColors.includes("blue") ? "#4c6fff" : "#8a6b37";
+  const accent = requestedColors.includes("gold") ? "#111111" : requestedColors.includes("red") ? "#9f2d2d" : requestedColors.includes("blue") ? "#4c6fff" : "#111111";
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400">
-  <rect width="1400" height="1400" fill="#f7f4ed"/>
+  <rect width="1400" height="1400" fill="#f5f5f5"/>
   <g transform="translate(700 462)">
     <path d="M0 -142 C82 -142 142 -82 142 0 C142 82 82 142 0 142 C-82 142 -142 82 -142 0 C-142 -82 -82 -142 0 -142 Z" fill="${dark}"/>
     <path d="M-72 0 C-36 -68 36 -68 72 0 C36 68 -36 68 -72 0 Z" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1421,7 +1421,7 @@ function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry
   <text x="700" y="888" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="750" fill="#777067" letter-spacing="7">${descriptor.toUpperCase()}</text>
 </svg>`.trim();
 
-  const transparentSvg = svg.replace('<rect width="1400" height="1400" fill="#f7f4ed"/>', '<rect width="1400" height="1400" fill="transparent"/>');
+  const transparentSvg = svg.replace('<rect width="1400" height="1400" fill="#f5f5f5"/>', '<rect width="1400" height="1400" fill="transparent"/>');
   const image = createDataUriFromSvg(svg);
 
   return {
@@ -1537,8 +1537,8 @@ function applyLogoEditor(svgData = "", editor = {}) {
   return encodeSvgDataUrl(
     svg
       .replace(/--logo-ink:[^;"]+/g, `--logo-ink:${editor.ink || "#111111"}`)
-      .replace(/--logo-paper:[^;"]+/g, `--logo-paper:${editor.paper || "#f7f4ed"}`)
-      .replace(/--logo-accent:[^;"]+/g, `--logo-accent:${editor.accent || "#9b7b3f"}`)
+      .replace(/--logo-paper:[^;"]+/g, `--logo-paper:${editor.paper || "#f5f5f5"}`)
+      .replace(/--logo-accent:[^;"]+/g, `--logo-accent:${editor.accent || "#111111"}`)
       .replace(/font-family="[^"]+"/g, `font-family="${editor.font || "Inter, Arial, Helvetica, sans-serif"}"`)
   );
 }
@@ -1691,6 +1691,94 @@ function getBrandNextActions(brand) {
   return base.slice(0, 4);
 }
 
+function getBrandInsightCards(brand) {
+  const plan = getWorkspacePlan(brand);
+  const audience = getBrandFieldPreview(plan.targetAudience || brand?.audience, "Define the buyer, their urgency, and what they are comparing you against.");
+  const offer = getBrandFieldPreview(plan.coreOffer || brand?.offer, "Turn the idea into a clear paid offer, starter service, or productized package.");
+  const differentiator = getBrandFieldPreview(plan.positioning || brand?.differentiator, "Name the sharper reason this brand wins beyond looking nice.");
+  const channels = brand?.channels || brand?.growthPlatform || "Instagram, TikTok, LinkedIn, YouTube Shorts, Pinterest, Facebook, and X";
+
+  return [
+    {
+      label: "Positioning",
+      title: "Lead with the outcome",
+      copy: differentiator,
+      action: "Rewrite the homepage headline so it says who it helps, what changes, and why this version is different.",
+    },
+    {
+      label: "Audience",
+      title: "Build for a specific buyer",
+      copy: audience,
+      action: "Create one customer profile with their problem, buying trigger, objections, and dream result.",
+    },
+    {
+      label: "Offer",
+      title: "Make the first yes easy",
+      copy: offer,
+      action: "Package the offer into a simple entry point, proof-backed core offer, and upgrade path.",
+    },
+    {
+      label: "Content",
+      title: "Turn strategy into a weekly rhythm",
+      copy: `Primary launch channels: ${channels}.`,
+      action: "Post proof, education, founder POV, offer clarity, and customer transformation every week.",
+    },
+  ];
+}
+
+function getSocialPlatformRecommendations(brand) {
+  const plan = getWorkspacePlan(brand);
+  const name = brand?.name || plan.brandName || "the brand";
+  const audience = getBrandFieldPreview(plan.targetAudience || brand?.audience, "your most specific buyer");
+  const voice = plan.brandVoice || brand?.tone || "clear, confident, and useful";
+  const positioning = getBrandFieldPreview(plan.positioning || brand?.differentiator || plan.brandThesis, "a clear point of view people can remember");
+
+  return [
+    {
+      platform: "Instagram",
+      setup: `Use the bio to state ${name}, the audience, and the result in one sentence. Pin proof, offer, and origin posts.`,
+      content: `Reels for discovery, carousels for education, Stories for trust, and Highlights for offer, proof, FAQ, and behind the brand.`,
+      firstMove: `Create a 9-post grid: 3 proof posts, 3 educational posts, 2 personality posts, and 1 direct offer post.`,
+    },
+    {
+      platform: "TikTok",
+      setup: `Make the profile instantly readable: who ${name} helps, what viewers learn, and one simple link or waitlist action.`,
+      content: `Use fast POV videos, before/after breakdowns, founder lessons, myth-busting, and comment-reply videos in a ${voice} voice.`,
+      firstMove: `Batch 10 short videos from common objections and buying questions from ${audience}.`,
+    },
+    {
+      platform: "Facebook",
+      setup: `Set up a polished Page with services, contact info, reviews, and a pinned intro that explains the offer clearly.`,
+      content: `Post trust-building updates, local/community proof, customer stories, and longer explanations that support conversion.`,
+      firstMove: `Create a pinned welcome post plus 3 proof posts and invite the warmest first audience.`,
+    },
+    {
+      platform: "LinkedIn",
+      setup: `Use the banner, headline, and About section to frame ${name} around ${positioning}.`,
+      content: `Publish founder POV, market observations, customer lessons, case studies, and practical frameworks.`,
+      firstMove: `Write 5 posts: problem, belief, proof, process, and offer. Keep each tied to one buyer pain.`,
+    },
+    {
+      platform: "YouTube Shorts",
+      setup: `Create a channel with a clean avatar, strong banner, and playlists for education, proof, and brand story.`,
+      content: `Turn every strong idea into a 30-60 second hook, teach, proof, and call-to-action format.`,
+      firstMove: `Record 7 Shorts answering the highest-intent questions a buyer asks before paying.`,
+    },
+    {
+      platform: "Pinterest",
+      setup: `Build boards around outcomes, styles, use cases, and problem categories. Keep pin visuals consistent with the brand system.`,
+      content: `Use searchable pins, checklists, idea boards, before/after visuals, and lead magnets that point to the site.`,
+      firstMove: `Create 5 boards and 20 pins from the brand's core topics and visual direction.`,
+    },
+    {
+      platform: "X",
+      setup: `Make the bio sharp, specific, and opinionated. Pin the clearest thread explaining the problem ${name} solves.`,
+      content: `Share concise lessons, founder notes, frameworks, launches, proof points, and useful replies to relevant conversations.`,
+      firstMove: `Write one thread from the brand thesis and 10 short posts from the strongest customer pains.`,
+    },
+  ];
+}
+
 function getInitialStoredWorkspaces() {
   const storedVersion = localStorage.getItem("brandthat_workspace_data_version");
   if (storedVersion !== WORKSPACE_DATA_VERSION) {
@@ -1783,8 +1871,8 @@ export default function App() {
   const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
-    paper: "#f7f4ed",
-    accent: "#9b7b3f",
+    paper: "#f5f5f5",
+    accent: "#111111",
     font: "Inter, Arial, Helvetica, sans-serif",
   });
   const [loading, setLoading] = useState(false);
@@ -2819,6 +2907,8 @@ export default function App() {
     const captions = saved.captions?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved captions yet.";
     const hooks = saved.hooks?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved hooks yet.";
     const bios = saved.bios?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved bios yet.";
+    const insightCards = getBrandInsightCards(activeBrand);
+    const socialPlan = getSocialPlatformRecommendations(activeBrand);
 
     return `BRANDTHAT.AI BRAND KIT
 
@@ -2881,6 +2971,12 @@ ${normalizeRoadmapItems(plan.launchRoadmap30Days).map((item) => `${item.week}: $
 
 Brand Readiness Score:
 ${getBrandReadinessScore(activeBrand)}%
+
+BRAND INTELLIGENCE:
+${insightCards.map((card) => `${card.label}: ${card.title}\n${card.copy}\nNext move: ${card.action}`).join("\n\n")}
+
+SOCIAL PLATFORM SETUP:
+${socialPlan.map((item) => `${item.platform}\nSetup: ${item.setup}\nContent: ${item.content}\nFirst move: ${item.firstMove}`).join("\n\n")}
 
 SAVED CAPTIONS:
 ${captions}
@@ -4100,7 +4196,6 @@ ${promptValue}`
 
         <div className="navLinks">
           <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Brand Builder</button>
-          <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
           <button onClick={() => openSeoPage("seo-logo")}>Logo Concepts</button>
           <button onClick={() => setPage("features")}>Tools</button>
         </div>
@@ -4700,6 +4795,8 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
   const roadmapItems = getBrandRoadmapPreview(brand);
   const nextActions = getBrandNextActions(brand);
+  const insightCards = getBrandInsightCards(brand);
+  const socialPlan = getSocialPlatformRecommendations(brand);
   const identityCards = [
     ["Core Opportunity", plan.coreOpportunity || "Generate a core strategic opportunity."],
     ["Brand Thesis", plan.brandThesis || "Generate a brand thesis."],
@@ -4762,6 +4859,20 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
         </div>
 
         <div className="dashboardPanel wideDashboardPanel">
+          <span>Brand Intelligence</span>
+          <div className="brandInsightGrid">
+            {insightCards.map((card) => (
+              <div className="brandInsightCard" key={card.label}>
+                <small>{card.label}</small>
+                <strong>{card.title}</strong>
+                <p>{card.copy}</p>
+                <button onClick={() => copyToClipboard(card.action)}>{card.action}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
           <span>Saved Logo Concepts</span>
           {savedLogos.length ? (
             <div className="dashboardLogoStrip">
@@ -4778,6 +4889,22 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
               <button className="btn light" onClick={() => setPage("logo")}>Create First Logo Concept</button>
             </div>
           )}
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Social Setup Plan</span>
+          <div className="socialSetupGrid">
+            {socialPlan.map((item) => (
+              <div className="socialSetupCard" key={item.platform}>
+                <strong>{item.platform}</strong>
+                <p>{item.setup}</p>
+                <p>{item.content}</p>
+                <button onClick={() => copyToClipboard(`${item.platform}\n\nSetup: ${item.setup}\n\nContent: ${item.content}\n\nFirst move: ${item.firstMove}`)}>
+                  {item.firstMove}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -5110,14 +5237,20 @@ function MembershipBand({ startCheckout, openAuth, user }) {
       <div>
         <div className="tinyTag">ONE MEMBERSHIP</div>
         <h2>$9.99 a month.</h2>
-        <p>Try BrandThat with a verified account. When the trial ends, one flat monthly plan unlocks every generator, logo concept, Brand Workspace, saved asset, refinement, and export.</p>
+        <p>Try BrandThat with a verified account. When the trial ends, one flat monthly plan unlocks every generator, the guided logo creator, Brand Workspace insights, platform recommendations, saved assets, refinements, and exports.</p>
+        <div className="membershipValueGrid">
+          {["Guided brand strategy", "Logo concepts and refinements", "Workspace intelligence", "Social setup plans"].map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
       </div>
       <div className="membershipPanel">
-        <span>Included</span>
+        <span>Everything Included</span>
         <ul>
-          <li>AI logo concepts and refinements</li>
-          <li>Brand Workspaces and saved history</li>
-          <li>Captions, hooks, bios, emails, hashtags, campaigns, audits, and roadmaps</li>
+          <li>AI logo concepts, variations, refinements, and downloadable files</li>
+          <li>Brand Workspaces with positioning, audience, offer, and content guidance</li>
+          <li>Social media setup recommendations for Instagram, TikTok, Facebook, LinkedIn, YouTube Shorts, Pinterest, and X</li>
+          <li>Captions, hooks, bios, emails, hashtags, campaigns, audits, and growth roadmaps</li>
           <li>Downloadable brand kit exports</li>
         </ul>
         <button className="btn dark full" onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to try the full product.")}>
@@ -5984,6 +6117,17 @@ function GeneratorCard({
 
     setPrompt(currentPrompt ? `${currentPrompt}, ${cleanSuggestion}` : `Create a ${cleanSuggestion} logo`);
   };
+  const logoBriefSections = [
+    ["Mark Type", ["Wordmark", "Monogram", "Icon + wordmark", "Badge", "Social avatar"]],
+    ["Brand Feel", ["Premium", "Minimal", "Bold", "Editorial", "Friendly", "Tech-forward"]],
+    ["Use Case", ["Website header", "Instagram profile", "Business cards", "Packaging", "App icon"]],
+    ["Quality Target", ["Readable at small size", "Distinct silhouette", "Print-ready", "No generic symbols"]],
+  ];
+  const logoQualityBars = [
+    ["Typography", "Readable wordmark with professional spacing and hierarchy."],
+    ["Symbol", "Simple mark that can survive as a favicon or social avatar."],
+    ["System", "Works in black, white, full color, square, and horizontal layouts."],
+  ];
 
   useEffect(() => {
     if (activeTool.key !== "logo") return undefined;
@@ -6054,6 +6198,37 @@ Designer iteration rules:
 
       {activeTool.key === "logo" ? (
         <>
+          <div className="logoCreatorGuide">
+            <div className="logoGuideIntro">
+              <div>
+                <div className="tinyTag">GUIDED LOGO CREATOR</div>
+                <h3>Build the brief before you generate.</h3>
+                <p>Choose the shape, personality, use case, and quality bar. BrandThat turns those choices into a cleaner logo direction, then lets you refine without losing the original idea.</p>
+              </div>
+              <span>$9.99/mo unlocks all concepts</span>
+            </div>
+            <div className="logoGuideGrid">
+              {logoBriefSections.map(([label, options]) => (
+                <div className="logoGuideColumn" key={label}>
+                  <strong>{label}</strong>
+                  <div>
+                    {options.map((option) => (
+                      <button key={option} onClick={() => addLogoSuggestion(option)}>{option}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="logoQualityGrid">
+              {logoQualityBars.map(([label, copy]) => (
+                <div key={label}>
+                  <strong>{label}</strong>
+                  <p>{copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <textarea
             className="mainPromptBox logoPromptFirstBox"
             placeholder={logoPromptPlaceholder}
@@ -6684,11 +6859,11 @@ function LogoEditorPanel({
           </label>
           <label>
             <span>Background</span>
-            <input type="color" value={logoEditor.paper || "#f7f4ed"} onChange={(e) => updateEditor("paper", e.target.value)} />
+            <input type="color" value={logoEditor.paper || "#f5f5f5"} onChange={(e) => updateEditor("paper", e.target.value)} />
           </label>
           <label>
             <span>Accent</span>
-            <input type="color" value={logoEditor.accent || "#9b7b3f"} onChange={(e) => updateEditor("accent", e.target.value)} />
+            <input type="color" value={logoEditor.accent || "#111111"} onChange={(e) => updateEditor("accent", e.target.value)} />
           </label>
           <label>
             <span>Font</span>
@@ -7045,7 +7220,7 @@ function getResultHeader(toolKey) {
 const css = `
 *{box-sizing:border-box}
 body{margin:0}
-.app{background:#f7f6f2;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:#111;overflow-x:hidden}
+.app{background:#fff;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:#111;overflow-x:hidden}
 .nav{max-width:1280px;margin:0 auto;padding:24px 6vw 8px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;position:relative;z-index:5}
 .brand{background:none;border:none;font-size:30px;font-weight:900;letter-spacing:-.06em;cursor:pointer;color:#111;text-align:left}
 .navLinks{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;background:rgba(255,255,255,.72);border:1px solid rgba(0,0,0,.07);border-radius:999px;padding:6px;width:max-content;justify-self:center}
@@ -7056,36 +7231,36 @@ body{margin:0}
 .accountMenu{display:flex;align-items:center;gap:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 8px 6px 14px;max-width:360px}
 .accountMenu span{font-size:12px;font-weight:800;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
 .accountMenu button{border:none;background:#111;color:white;border-radius:999px;padding:9px 11px;font-weight:800;cursor:pointer;font-size:12px}
-.accountMenu button:first-of-type{background:#f6f4ef;color:#111;border:1px solid rgba(0,0,0,.08)}
+.accountMenu button:first-of-type{background:#f5f5f5;color:#111;border:1px solid rgba(0,0,0,.08)}
 .hero{max-width:1280px;margin:0 auto;padding:38px 6vw 40px}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .dreamHero{display:grid;grid-template-columns:.82fr 1.18fr;gap:42px;align-items:start;padding-top:44px;padding-bottom:60px}
 .dreamHero .heroTop{position:sticky;top:24px}
 .journeyLine{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;max-width:640px}
-.journeyLine span{background:rgba(255,255,255,.74);border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#5e5548;box-shadow:0 10px 30px rgba(0,0,0,.035)}
+.journeyLine span{background:rgba(255,255,255,.74);border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#555;box-shadow:0 10px 30px rgba(0,0,0,.035)}
 .brandBuilderCard{position:relative;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:28px;box-shadow:0 24px 70px rgba(20,20,18,.07);overflow:hidden}
-.brandBuilderCard:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#111,#9b7b3f,#e4d3a4);pointer-events:none}
+.brandBuilderCard:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#111,#111111,#d9d9d9);pointer-events:none}
 .brandBuilderCard>*{position:relative;z-index:1}
 .builderTop{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px}
 .builderTop h2{font-size:42px}
 .builderTop p{color:#666;line-height:1.65;margin:12px 0 0;max-width:560px}
-.builderTop>span{display:inline-flex;white-space:nowrap;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;color:#8a6b37;background:rgba(255,255,255,.78);font-size:12px;font-weight:900}
+.builderTop>span{display:inline-flex;white-space:nowrap;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;color:#111111;background:rgba(255,255,255,.78);font-size:12px;font-weight:900}
 .builderSteps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
-.builderSteps div{background:#fbfaf7;border:1px solid rgba(0,0,0,.07);border-radius:12px;padding:15px;min-height:126px}
-.builderSteps span{display:inline-flex;color:#9b7b3f;font-size:10px;font-weight:900;letter-spacing:1.5px;margin-bottom:12px}
+.builderSteps div{background:#fafafa;border:1px solid rgba(0,0,0,.07);border-radius:12px;padding:15px;min-height:126px}
+.builderSteps span{display:inline-flex;color:#111111;font-size:10px;font-weight:900;letter-spacing:1.5px;margin-bottom:12px}
 .builderSteps strong{display:block;font-size:17px;letter-spacing:-.03em;margin-bottom:6px}
 .builderSteps p{color:#666;font-size:13px;line-height:1.45;margin:0}
 .builderGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .builderField{display:block;margin-top:14px}
 .builderField.full{margin-top:0}
-.builderField span{display:block;font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:#9b7b3f;margin:0 0 8px 8px}
+.builderField span{display:block;font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:#111111;margin:0 0 8px 8px}
 .builderField textarea{min-height:150px;margin-top:0;background:rgba(255,255,255,.82)}
 .builderField input,.builderField select{margin-top:0;background:rgba(255,255,255,.82)}
 .builderActions{display:grid;grid-template-columns:minmax(220px,.45fr) 1fr;gap:16px;align-items:center;margin-top:18px}
 .builderActions .btn{width:100%}
 .builderActions p{color:#666;line-height:1.55;margin:0;font-size:14px}
 .heroTop{max-width:760px;margin-bottom:50px}
-.eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#9b7b3f;text-transform:uppercase;margin-bottom:12px}
+.eyebrow,.tinyTag{font-size:11px;font-weight:800;letter-spacing:2px;color:#111111;text-transform:uppercase;margin-bottom:12px}
 h1{font-size:88px;line-height:.96;letter-spacing:-.045em;margin:0 0 24px;font-kerning:normal;text-rendering:optimizeLegibility}
 .heroTitle{font-size:68px;line-height:.98;letter-spacing:-.045em;max-width:720px}
 .heroTitle span{display:block}
@@ -7094,28 +7269,28 @@ h1{font-size:88px;line-height:.96;letter-spacing:-.045em;margin:0 0 24px;font-ke
 h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .toolCard h3,.featureCard h3{font-size:24px;font-weight:700;letter-spacing:-.03em;margin:0 0 12px}
 .lead{font-size:20px;line-height:1.6;color:#666;max-width:620px}
-.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#8a6b37;margin-top:8px}
+.freeStrip{display:inline-flex;background:white;border:1px solid rgba(0,0,0,.08);padding:12px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#111111;margin-top:8px}
 .heroCtas{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
 .heroProofPanel{margin-top:20px;display:grid;gap:12px;max-width:620px}
 .proofMiniGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .miniLogoOutput{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;min-height:142px;display:flex;flex-direction:column;justify-content:space-between}
 .miniLogoOutput strong{display:block;font-size:14px;letter-spacing:-.02em}
 .miniLogoOutput span{display:block;color:#666;font-size:12px;line-height:1.35;margin-top:4px}
-.miniLogoOutput small{display:block;color:#9b7b3f;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;margin-top:8px}
+.miniLogoOutput small{display:block;color:#111111;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;margin-top:8px}
 .miniMark{width:58px;height:58px;border-radius:16px;background:#111;color:white;display:grid;place-items:center;position:relative;overflow:hidden}
 .miniMark span,.miniMark i,.afterMark span,.afterMark i{display:block;position:absolute}
 .miniMark.luxury-wordmark span{width:34px;height:6px;background:white;border-radius:999px;top:20px;left:12px}
 .miniMark.luxury-wordmark i{width:24px;height:6px;background:rgba(255,255,255,.55);border-radius:999px;top:32px;left:12px}
-.miniMark.saas-abstract{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
+.miniMark.saas-abstract{background:#f5f5f5;border:1px solid rgba(0,0,0,.12)}
 .miniMark.saas-abstract span{width:32px;height:32px;border:2px solid #111;border-radius:50% 50% 50% 12px;transform:rotate(-18deg)}
 .miniMark.saas-abstract i{width:14px;height:14px;background:#111;border-radius:50%;right:12px;bottom:13px}
-.miniMark.agency-system{background:#8a6b37}
+.miniMark.agency-system{background:#111111}
 .miniMark.agency-system span{width:30px;height:30px;border:2px solid white;border-radius:8px;transform:rotate(45deg)}
 .miniMark.agency-system i{width:20px;height:3px;background:rgba(255,255,255,.7);border-radius:999px;bottom:16px}
 .miniMark.finance-monogram{background:#111}
 .miniMark.finance-monogram span{width:28px;height:38px;border:2px solid white;border-radius:999px 999px 6px 6px}
 .miniMark.finance-monogram i{width:22px;height:2px;background:rgba(255,255,255,.7);transform:rotate(-35deg)}
-.miniMark.architecture-grid{background:#f7f4ed;border:1px solid rgba(0,0,0,.12)}
+.miniMark.architecture-grid{background:#f5f5f5;border:1px solid rgba(0,0,0,.12)}
 .miniMark.architecture-grid span{width:36px;height:36px;border-left:2px solid #111;border-bottom:2px solid #111;left:12px;bottom:12px}
 .miniMark.architecture-grid i{width:34px;height:2px;background:#111;transform:rotate(-45deg)}
 .miniMark.beauty-serif{background:#111}
@@ -7147,17 +7322,19 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .operatingGrid p{margin:6px 0 0;color:#666;line-height:1.6}
 .membershipBand{max-width:1280px;margin:10px auto 36px;padding:36px 6vw;display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:center}
 .membershipBand>div:first-child{background:#111;color:white;border-radius:18px;padding:34px;min-height:300px;display:flex;flex-direction:column;justify-content:center}
-.membershipBand .tinyTag{color:#d9bd77}
+.membershipBand .tinyTag{color:#ffffff}
 .membershipBand h2{font-size:64px;letter-spacing:-.06em}
 .membershipBand p{color:rgba(255,255,255,.74);font-size:18px;line-height:1.75;max-width:720px}
+.membershipValueGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:24px;max-width:720px}
+.membershipValueGrid span{border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:10px 13px;color:white;font-size:13px;font-weight:900;background:rgba(255,255,255,.08)}
 .membershipPanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(20,20,18,.08)}
-.membershipPanel>span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;margin-bottom:14px}
+.membershipPanel>span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900;margin-bottom:14px}
 .membershipPanel ul{margin:0;padding-left:20px;color:#333;line-height:1.65}
 .membershipPanel li{margin-bottom:10px}
 .beforeAfterSection,.creativeDirectorExplainer{max-width:1280px;margin:0 auto;padding:42px 6vw;display:grid;grid-template-columns:.75fr 1.25fr;gap:24px;align-items:start}
 .beforeAfterGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .beforeCard,.afterCard,.directorStep{background:white;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:22px}
-.beforeCard span,.afterCard span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;margin-bottom:14px}
+.beforeCard span,.afterCard span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900;margin-bottom:14px}
 .beforeCard p{font-size:24px;line-height:1.35;letter-spacing:-.03em;margin:0;color:#111}
 .afterPreviewGrid{display:grid;grid-template-columns:86px 1fr;gap:18px;align-items:center}
 .afterMark{width:86px;height:86px;border-radius:24px;background:#111;color:white;display:grid;place-items:center;position:relative;overflow:hidden}
@@ -7182,9 +7359,9 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .miniDanger{border:none;background:#111;color:white;border-radius:999px;padding:8px 10px;cursor:pointer;font-weight:800}
 .emptyState{background:#fafafa;border:1px dashed rgba(0,0,0,.18);border-radius:18px;padding:18px;color:#666;margin-top:16px}
 .brandDashboard{background:#111;color:white;border-radius:28px;padding:30px;margin:28px 0 30px;box-shadow:0 28px 80px rgba(0,0,0,.12)}
-.brandDashboard .tinyTag{color:#d9bd77}
+.brandDashboard .tinyTag{color:#ffffff}
 .brandDashboardHero{display:grid;grid-template-columns:180px 1fr;gap:28px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.12)}
-.brandDashboardMark{width:180px;aspect-ratio:1;border-radius:26px;background:#f7f4ed;color:#111;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+.brandDashboardMark{width:180px;aspect-ratio:1;border-radius:26px;background:#f5f5f5;color:#111;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
 .brandDashboardMark img{width:100%;height:100%;object-fit:contain;padding:18px}
 .brandDashboardMark span{font-size:52px;font-weight:950;letter-spacing:-.08em}
 .brandDashboardHero h2{font-size:58px;letter-spacing:-.06em;margin:0 0 12px}
@@ -7193,8 +7370,8 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .brandDashboard .btn.light{background:white;color:#111}
 .dashboardGrid{display:grid;grid-template-columns:1.3fr .7fr;gap:14px;margin-top:18px}
 .dashboardPanel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px}
-.wideDashboardPanel{grid-column:auto}
-.dashboardPanel>span{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d9bd77;font-weight:900;margin-bottom:14px}
+.wideDashboardPanel{grid-column:1 / -1}
+.dashboardPanel>span{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffffff;font-weight:900;margin-bottom:14px}
 .dashboardIdentityGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .dashboardIdentityGrid div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
 .dashboardIdentityGrid strong{display:block;font-size:14px;margin-bottom:7px}
@@ -7203,11 +7380,19 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .dashboardRoadmap li{line-height:1.6;margin-bottom:10px}
 .dashboardActionList{display:flex;flex-direction:column;gap:9px}
 .dashboardActionList button{background:white;color:#111;border:none;border-radius:14px;padding:12px 14px;font-weight:850;text-align:left;cursor:pointer;line-height:1.4}
+.brandInsightGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.brandInsightCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.brandInsightCard small{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:white;font-weight:900;opacity:.68}
+.brandInsightCard strong{font-size:18px;line-height:1.1}
+.brandInsightCard button,.socialSetupCard button{margin-top:auto;background:white;color:#111;border:none;border-radius:14px;padding:11px 12px;font-size:13px;font-weight:900;text-align:left;line-height:1.35;cursor:pointer}
 .dashboardLogoStrip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .dashboardLogoStrip button{background:white;color:#111;border:none;border-radius:16px;padding:12px;text-align:left;cursor:pointer}
-.dashboardLogoStrip img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#f7f4ed;border:1px solid rgba(0,0,0,.08);margin-bottom:10px}
+.dashboardLogoStrip img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:12px;background:#f5f5f5;border:1px solid rgba(0,0,0,.08);margin-bottom:10px}
 .dashboardLogoStrip strong{font-size:14px}
 .dashboardEmptyLogo{display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
+.socialSetupGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.socialSetupCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:260px}
+.socialSetupCard strong{font-size:20px;letter-spacing:-.03em}
 .savedAssets{margin-top:46px}
 .savedGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .savedBucket{background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px}
@@ -7224,7 +7409,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .comparisonCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px;min-height:420px;display:flex;flex-direction:column;gap:14px}
 .favoriteComparisonCard{background:white;border-color:#111;box-shadow:inset 0 0 0 1px #111}
 .comparisonLabel{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:28px}
-.comparisonLabel span,.emptyComparisonCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.comparisonLabel span,.emptyComparisonCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900}
 .comparisonLabel strong{background:#111;color:white;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900}
 .comparisonImage{width:100%;aspect-ratio:1;background:white;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .comparisonImage img{width:100%;height:100%;object-fit:contain;border-radius:10px}
@@ -7252,7 +7437,7 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .timelineHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:14px}
 .timelineHeader h3{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}
 .timelineHeader p{color:#666;line-height:1.6;margin:0;max-width:660px}
-.timelineHeader span{display:inline-flex;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900;color:#8a6b37;white-space:nowrap}
+.timelineHeader span{display:inline-flex;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900;color:#111111;white-space:nowrap}
 .timelineList{display:flex;flex-direction:column;gap:10px}
 .timelineItem{display:grid;grid-template-columns:42px 84px 1fr auto;gap:14px;align-items:center;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:12px}
 .activeTimelineItem{border-color:#111;background:white;box-shadow:inset 0 0 0 1px #111}
@@ -7275,33 +7460,33 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .offerBadge{background:white;border:1px solid rgba(0,0,0,.08);padding:14px 18px;border-radius:999px;font-size:13px;font-weight:700;height:fit-content}
 .generatorMeta{display:flex;align-items:flex-start;justify-content:flex-end;min-width:120px;color:#777;font-size:12px;font-weight:800;text-align:right;line-height:1.4;padding-top:6px}
 .generatorMeta span{max-width:150px}
-.planIndicator,.planNotice,.verifyNote{margin-top:16px;font-size:13px;font-weight:700;color:#8a6b37}
+.planIndicator,.planNotice,.verifyNote{margin-top:16px;font-size:13px;font-weight:700;color:#111111}
 .activeBrandBar{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:14px 18px;margin-bottom:22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .activeBrandLogo{width:38px;height:38px;object-fit:cover;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:#fafafa}
 .activeBrandBar button{background:#111;color:white;border:none;border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer}
 .brandReadinessPanel{background:#fafafa;color:#111;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;margin-top:18px}
 .brandReadinessTop{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
 .brandReadinessTop>div{display:flex;flex-direction:column;gap:4px}
-.brandReadinessPanel span{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.brandReadinessPanel span{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#111111;font-weight:900}
 .brandReadinessPanel strong{font-size:20px;letter-spacing:-.03em}
 .brandReadinessTop>strong{font-size:32px;letter-spacing:-.05em}
 .workspaceSnapshot{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
 .workspaceSnapshot div{background:white;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:12px;display:block;min-width:0}
-.workspaceSnapshot span{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8a6b37;font-weight:900}
+.workspaceSnapshot span{display:block;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#111111;font-weight:900}
 .workspaceSnapshot strong{display:block;font-size:15px;letter-spacing:0;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .brandReadinessPanel p{color:#666;margin:10px 0 0;line-height:1.6}
 textarea,input,select{width:100%;border-radius:24px;border:1px solid rgba(0,0,0,.08);padding:18px 20px;font-size:16px;background:#fafafa;font-family:inherit;margin-top:10px;color:#111}
 textarea{height:170px;resize:none;line-height:1.6}
-.workspaceFieldLabel span{display:block;font-size:11px;font-weight:900;letter-spacing:1.5px;color:#8a6b37;text-transform:uppercase;margin:0 0 0 8px}
+.workspaceFieldLabel span{display:block;font-size:11px;font-weight:900;letter-spacing:1.5px;color:#111111;text-transform:uppercase;margin:0 0 0 8px}
 .advancedWorkspaceFields{margin:14px 0;border:1px solid rgba(0,0,0,.08);border-radius:14px;background:#fafafa;padding:14px}
-.advancedWorkspaceFields summary{cursor:pointer;font-size:13px;font-weight:900;color:#8a6b37;text-transform:uppercase;letter-spacing:1px}
+.advancedWorkspaceFields summary{cursor:pointer;font-size:13px;font-weight:900;color:#111111;text-transform:uppercase;letter-spacing:1px}
 .advancedWorkspaceFields[open]{background:white}
 .generatorControls{display:grid;grid-template-columns:1fr 260px;gap:16px;margin-bottom:14px}
 .hashtagsGenerator .generatorControls{grid-template-columns:1fr}
 .generatorControls.singleControl{grid-template-columns:1fr}
-.generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
+.generatorControls label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#111111;text-transform:uppercase;margin-left:8px}
 .logoStudioFields{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
-.logoStudioFields label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#9b7b3f;text-transform:uppercase;margin-left:8px}
+.logoStudioFields label span{display:block;font-size:12px;font-weight:900;letter-spacing:1.4px;color:#111111;text-transform:uppercase;margin-left:8px}
 .logoStudioFields input,.logoStudioFields textarea{margin-top:10px}
 .logoStudioNotes{grid-column:1 / -1}
 .logoStudioNotes textarea{min-height:180px}
@@ -7324,7 +7509,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .resultMainActions{margin-top:18px}
 .resultBox{margin-top:26px;background:#fafafa;border-radius:24px;overflow:hidden;border:1px solid rgba(0,0,0,.06)}
 .resultTop{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid rgba(0,0,0,.06)}
-.resultTop span{font-size:12px;font-weight:800;letter-spacing:2px;color:#9b7b3f}
+.resultTop span{font-size:12px;font-weight:800;letter-spacing:2px;color:#111111}
 .resultActions{display:flex;gap:10px;flex-wrap:wrap}
 .resultActions button,.resultTop button{background:white;border:1px solid rgba(0,0,0,.08);padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer;color:#111}
 .resultContent{padding:24px;line-height:1.9;white-space:pre-wrap;font-size:15px}
@@ -7335,8 +7520,8 @@ textarea{height:170px;resize:none;line-height:1.6}
 .toolGrid,.featureGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
 .toolCard,.featureCard{position:relative;overflow:hidden;background:white;padding:26px;border-radius:18px;border:1px solid rgba(0,0,0,.08);min-height:180px;transition:.25s ease;text-align:left;color:#111;font-family:inherit;cursor:pointer}
 .toolCard:hover,.featureCard:hover,.activeTool{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18)}
-.toolCard span{position:relative;z-index:2;display:inline-flex;margin-top:16px;font-size:12px;font-weight:900;letter-spacing:.8px;color:#8a6b37;text-transform:uppercase}
-.toolGlow{position:absolute;top:-80px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,#f0dfb5,transparent 70%);opacity:.8}
+.toolCard span{position:relative;z-index:2;display:inline-flex;margin-top:16px;font-size:12px;font-weight:900;letter-spacing:.8px;color:#111111;text-transform:uppercase}
+.toolGlow{position:absolute;top:-80px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,#d9d9d9,transparent 70%);opacity:.8}
 .toolCard p,.featureCard p{color:#666;line-height:1.7;position:relative;z-index:2}
 .footerSubscribe{max-width:1280px;margin:0 auto;padding:60px 6vw 90px;border-top:1px solid rgba(0,0,0,.08);display:grid;grid-template-columns:1fr 420px;gap:40px;align-items:start}
 .footerForm{background:white;border-radius:28px;padding:28px;border:1px solid rgba(0,0,0,.08);display:flex;flex-direction:column;gap:18px}
@@ -7347,10 +7532,10 @@ textarea{height:170px;resize:none;line-height:1.6}
 .signupBox{max-width:460px;width:100%}
 
 .authBoxClean{max-width:500px}
-.authSwitch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f6f4ef;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px;margin-bottom:22px}
+.authSwitch{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f5f5f5;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px;margin-bottom:22px}
 .authSwitch button{border:none;background:transparent;border-radius:999px;padding:12px 14px;font-weight:900;cursor:pointer;color:#666}
 .authSwitch button.active{background:#111;color:white;box-shadow:0 8px 24px rgba(0,0,0,.12)}
-.authMessageBox{background:#f8f2e6;border:1px solid rgba(155,123,63,.24);border-radius:18px;padding:14px 16px;line-height:1.55}
+.authMessageBox{background:#fafafa;border:1px solid rgba(0,0,0,.12);border-radius:18px;padding:14px 16px;line-height:1.55}
 .signupBox p{color:#666;line-height:1.7}
 .seoHomeSection{max-width:1280px;margin:0 auto;padding:20px 6vw 100px}
 .seoHomeSection h2{max-width:940px;margin-bottom:22px}
@@ -7368,7 +7553,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 .brandEverywhereHero{display:grid;grid-template-columns:1fr 440px;gap:34px;align-items:center}
 .brandEverywhereHero h2{max-width:620px}
 .brandEverywhereHero p{max-width:610px;color:#666;line-height:1.8;margin:18px 0 24px}
-.brandMockupStack{position:relative;min-height:360px;background:linear-gradient(135deg,#f7f4ed,#fff);border:1px solid rgba(0,0,0,.08);border-radius:34px;padding:24px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+.brandMockupStack{position:relative;min-height:360px;background:linear-gradient(135deg,#f5f5f5,#fff);border:1px solid rgba(0,0,0,.08);border-radius:34px;padding:24px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
 .mockBrowser{background:white;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.08)}
 .mockBrowserTop{display:flex;gap:6px;margin-bottom:16px}
 .mockBrowserTop span{width:8px;height:8px;border-radius:50%;background:#ddd}
@@ -7376,36 +7561,36 @@ textarea{height:170px;resize:none;line-height:1.6}
 .mockBrowserNav strong{font-size:22px;letter-spacing:-.05em}
 .mockBrowserNav small{color:#777;font-weight:800}
 .mockHeroLine{height:28px;width:80%;background:#111;border-radius:999px;margin-bottom:12px}
-.mockHeroLine.short{width:54%;height:18px;background:#d7c8a8}
+.mockHeroLine.short{width:54%;height:18px;background:#d9d9d9}
 .mockButton{width:120px;height:38px;background:#111;border-radius:999px;margin-top:24px}
 .mockSocialCard{position:absolute;left:38px;bottom:36px;background:#111;color:white;border-radius:24px;padding:16px 18px;display:flex;gap:12px;align-items:center;box-shadow:0 20px 50px rgba(0,0,0,.18)}
 .mockAvatar{width:46px;height:46px;border-radius:50%;background:white;color:#111;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
 .mockSocialCard span{display:block;color:rgba(255,255,255,.68);font-size:13px;margin-top:3px}
 .mockKitCard{position:absolute;right:26px;bottom:26px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;width:150px;box-shadow:0 20px 50px rgba(0,0,0,.08)}
-.mockKitCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
+.mockKitCard span{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900}
 .mockSwatches{display:flex;gap:8px;margin-top:16px}
 .mockSwatches i{width:26px;height:26px;border-radius:50%;background:#111;display:block}
-.mockSwatches i:nth-child(2){background:#d7c8a8}.mockSwatches i:nth-child(3){background:#f6f4ef;border:1px solid rgba(0,0,0,.08)}
+.mockSwatches i:nth-child(2){background:#d9d9d9}.mockSwatches i:nth-child(3){background:#f5f5f5;border:1px solid rgba(0,0,0,.08)}
 .brandTouchpointGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
 .brandTouchpoint{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:24px;padding:22px}
-.brandTouchpoint span{font-size:11px;letter-spacing:2px;color:#9b7b3f;font-weight:900}
+.brandTouchpoint span{font-size:11px;letter-spacing:2px;color:#111111;font-weight:900}
 .brandTouchpoint h3{font-size:21px;margin:12px 0 8px;letter-spacing:-.04em}
 .brandTouchpoint p{font-size:15px;color:#666;line-height:1.65;margin:0}
 .creativeDirectionsBlock{padding:34px;background:#fff}
 .creativeDirectionsTop{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:end;margin-bottom:24px}
 .creativeDirectionsTop p{margin:0;color:#666;line-height:1.7}
 .creativeDirectionGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.creativeDirectionCard{background:#fbfaf7;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:22px;text-align:left;color:#111;cursor:pointer;display:flex;flex-direction:column;gap:12px;min-height:205px;transition:.2s ease;font-family:inherit}
+.creativeDirectionCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:22px;text-align:left;color:#111;cursor:pointer;display:flex;flex-direction:column;gap:12px;min-height:205px;transition:.2s ease;font-family:inherit}
 .creativeDirectionCard:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.08);border-color:rgba(0,0,0,.18);background:#fff}
 .cleanDirectionCard{position:relative;overflow:hidden}
 .cleanDirectionCard:before{content:"";position:absolute;left:22px;right:22px;top:0;height:3px;background:#111;border-radius:0 0 999px 999px;opacity:.9}
-.directionKicker{font-size:10px;line-height:1.4;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900;min-height:28px;display:block;padding-top:6px}
+.directionKicker{font-size:10px;line-height:1.4;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900;min-height:28px;display:block;padding-top:6px}
 .creativeDirectionCard h3{font-size:22px;letter-spacing:-.05em;margin:4px 0 0}
 .creativeDirectionCard p{font-size:14px;line-height:1.6;margin:0;color:#666}
 .directionApply{margin-top:auto;display:inline-flex;width:max-content;border:1px solid rgba(0,0,0,.1);background:white;border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#111}
 .useCaseGrid,.faqGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
 .useCaseCard{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:22px;padding:20px}
-.useCaseCard span{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:#9b7b3f;font-weight:900}
+.useCaseCard span{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:#111111;font-weight:900}
 .useCaseCard h3{font-size:20px;margin:10px 0 8px;letter-spacing:-.03em}
 .useCaseCard p{font-size:15px;margin:0;color:#666;line-height:1.65}
 .faqCompact .faqGrid{grid-template-columns:repeat(3,1fr)}
@@ -7454,6 +7639,20 @@ textarea{height:170px;resize:none;line-height:1.6}
 .smartPromptSuggestions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 2px}
 .smartPromptSuggestions button{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 11px;color:#555;font-size:12px;font-weight:850;cursor:pointer;transition:.18s ease}
 .smartPromptSuggestions button:hover{background:#111;color:white;border-color:#111;transform:translateY(-1px)}
+.logoCreatorGuide{background:#111;color:white;border-radius:24px;padding:24px;margin-bottom:18px}
+.logoGuideIntro{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:20px}
+.logoGuideIntro h3{font-size:32px;line-height:1;letter-spacing:-.04em;margin:0 0 10px}
+.logoGuideIntro p{color:rgba(255,255,255,.72);line-height:1.65;margin:0;max-width:720px}
+.logoGuideIntro>span{display:inline-flex;white-space:nowrap;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:white;background:rgba(255,255,255,.08)}
+.logoGuideGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.logoGuideColumn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px}
+.logoGuideColumn strong{display:block;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:12px;color:rgba(255,255,255,.7)}
+.logoGuideColumn div{display:flex;flex-wrap:wrap;gap:8px}
+.logoGuideColumn button{background:white;color:#111;border:none;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer}
+.logoQualityGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.logoQualityGrid div{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px;background:rgba(255,255,255,.04)}
+.logoQualityGrid strong{display:block;margin-bottom:6px}
+.logoQualityGrid p{color:rgba(255,255,255,.7);line-height:1.5;font-size:13px;margin:0}
 
 .toolResultsV2 textarea.mainPromptBox::placeholder,
 .toolResultsV2 input::placeholder{
@@ -7515,7 +7714,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .logoFrame{
-  background:linear-gradient(180deg,#fbfaf7,#f4f1e9);
+  background:linear-gradient(180deg,#fafafa,#f2f2f2);
   border:1px solid rgba(0,0,0,.08);
   border-radius:30px;
   min-height:620px;
@@ -7553,7 +7752,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .brandPreviewCard .tinyTag{
-  color:#d9bd77;
+  color:#ffffff;
 }
 
 .logoSourceBadge{
@@ -7596,7 +7795,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .creativeDirectorNotes .tinyTag{
-  color:#d9bd77;
+  color:#ffffff;
   margin-bottom:2px;
 }
 
@@ -7678,7 +7877,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 .kitColorColumn>span,.kitTypeColumn>span,.kitDirectionColumn>span{
   display:block;
-  color:#9b7b3f;
+  color:#111111;
   font-size:11px;
   font-weight:900;
   letter-spacing:1.6px;
@@ -7905,7 +8104,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 .brandUnderstoodPanel span{
   display:block;
-  color:#d9bd77;
+  color:#ffffff;
   font-size:11px;
   letter-spacing:1.5px;
   text-transform:uppercase;
@@ -8097,7 +8296,7 @@ textarea{height:170px;resize:none;line-height:1.6}
   font-size:11px;
   font-weight:900;
   letter-spacing:1.5px;
-  color:#9b7b3f;
+  color:#111111;
   text-transform:uppercase;
   margin-bottom:8px;
 }
@@ -8203,7 +8402,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .logoEditorPreview{
-  background:#f7f4ed;
+  background:#f5f5f5;
   border:1px solid rgba(0,0,0,.08);
   border-radius:18px;
   min-height:280px;
@@ -8231,7 +8430,7 @@ textarea{height:170px;resize:none;line-height:1.6}
   font-size:11px;
   font-weight:900;
   letter-spacing:1.4px;
-  color:#8a6b37;
+  color:#111111;
   text-transform:uppercase;
   margin-left:8px;
 }
@@ -8275,7 +8474,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 }
 
 .logoVariantCard span,.recentLogoCard span{
-  color:#8a6b37;
+  color:#111111;
   font-size:11px;
   font-weight:900;
   letter-spacing:1.4px;
@@ -8402,7 +8601,7 @@ textarea{height:170px;resize:none;line-height:1.6}
   font-size:11px;
   letter-spacing:1.6px;
   font-weight:900;
-  color:#9b7b3f;
+  color:#111111;
 }
 
 .resultCardTop button{
@@ -8439,16 +8638,14 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 .savedCloudNotice{background:#111;color:white;border-radius:22px;padding:16px 18px;margin-bottom:18px;line-height:1.6}
 .savedCloudNotice strong{display:block;margin-bottom:4px}
-.accountSaveBadge{display:inline-flex;align-items:center;gap:8px;background:#f0eadc;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#8a6b37;margin-top:10px}
+.accountSaveBadge{display:inline-flex;align-items:center;gap:8px;background:#f2f2f2;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#111111;margin-top:10px}
 
 .appNotice{max-width:1180px;margin:18px auto 0;padding:16px 48px 16px 18px;border-radius:20px;border:1px solid rgba(0,0,0,.08);background:white;box-shadow:0 18px 45px rgba(0,0,0,.08);position:relative;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .appNotice strong{font-size:15px}
 .appNotice span{color:#666;line-height:1.5}
 .appNotice button{position:absolute;right:14px;top:11px;border:none;background:transparent;font-size:22px;cursor:pointer;color:#111}
-.appNotice.error{border-color:rgba(180,0,0,.25);background:#fff7f7}
-.appNotice.warning{border-color:rgba(180,120,0,.25);background:#fffaf0}
-.appNotice.success{border-color:rgba(0,130,60,.22);background:#f4fff8}
-.autoSavePill{display:inline-flex;margin:-10px 0 16px;padding:9px 12px;border-radius:999px;background:#fafafa;border:1px solid rgba(0,0,0,.08);font-size:12px;font-weight:900;color:#8a6b37}
+.appNotice.error,.appNotice.warning,.appNotice.success{border-color:rgba(0,0,0,.16);background:#fafafa}
+.autoSavePill{display:inline-flex;margin:-10px 0 16px;padding:9px 12px;border-radius:999px;background:#fafafa;border:1px solid rgba(0,0,0,.08);font-size:12px;font-weight:900;color:#111111}
 .brandRowActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .brandRowActions button{border:none;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-weight:800;cursor:pointer;color:#111}
 .recentPanel,.favoritePanel{background:white;border:1px solid rgba(0,0,0,.08);border-radius:28px;padding:24px;margin:22px 0}
@@ -8469,12 +8666,12 @@ textarea{height:170px;resize:none;line-height:1.6}
 .premiumLoading{margin-top:20px;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;display:flex;gap:14px;align-items:center}
 .premiumLoading span{display:block;color:#666;margin-top:4px;font-size:14px}.loadingPulse{width:18px;height:18px;border-radius:50%;background:#111;animation:pulseBrandthat 1.2s infinite ease-in-out}
 @keyframes pulseBrandthat{0%{transform:scale(.8);opacity:.45}50%{transform:scale(1.25);opacity:1}100%{transform:scale(.8);opacity:.45}}
-.premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#9b7b3f}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
+.premiumResults{background:white}.resultCardGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:22px}.premiumResultCard{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:20px;min-height:170px}.featuredResultCard{background:#111;color:white}.featuredResultCard p{color:rgba(255,255,255,.74)!important}.resultCardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.resultCardTop span{font-size:11px;letter-spacing:1.6px;font-weight:900;color:#111111}.resultCardTop div{display:flex;gap:8px}.resultCardTop button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.premiumResultCard h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.premiumResultCard p{color:#555;line-height:1.7;white-space:pre-wrap}.fullOutputDetails{border-top:1px solid rgba(0,0,0,.08);padding:18px 22px}.fullOutputDetails summary{font-weight:900;cursor:pointer}
 
 
 .simpleHashtagResult .resultTop{align-items:center}
 .hashtagSingleBox{padding:30px;background:#111;color:white;border-radius:0 0 24px 24px}
-.hashtagSingleBox .tinyTag{color:#d9bd77;margin-bottom:14px}
+.hashtagSingleBox .tinyTag{color:#ffffff;margin-bottom:14px}
 .hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
 
 .captionListBox{padding:22px;display:flex;flex-direction:column;gap:12px}
@@ -8483,6 +8680,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
-@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
+@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
