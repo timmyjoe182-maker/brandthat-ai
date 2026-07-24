@@ -2105,7 +2105,7 @@ export default function App() {
 
     upsertMeta("meta[name='keywords']", {
       name: "keywords",
-      content: "AI logo generator, free caption generator, free hashtag generator, brand workspace, brand kit generator, Instagram caption generator, TikTok hook generator, growth roadmap generator, brand bio generator",
+      content: "AI brand builder, brand strategy generator, brand plan, brand workspace, launch roadmap, visual identity direction, platform strategy",
     });
 
     upsertMeta("meta[property='og:type']", {
@@ -2140,7 +2140,7 @@ export default function App() {
 
     upsertMeta("meta[property='og:image:height']", {
       property: "og:image:height",
-      content: "1200",
+      content: "630",
     });
 
     upsertMeta("meta[property='og:site_name']", {
@@ -4379,22 +4379,25 @@ ${promptValue}`
         <button className="brand" onClick={() => { setActiveToolKey("brand"); setPage("home"); window.history.pushState({}, "", "/"); }}>Brandthat</button>
 
         <div className="navLinks">
-          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Brand Builder</button>
-          <button onClick={() => openSeoPage("seo-logo")}>Logo Concepts</button>
-          <button onClick={() => setPage("features")}>Tools</button>
+          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Product</button>
+          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brand-case-study")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Example</button>
+          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}>Pricing</button>
         </div>
 
-        {authStatus === "logged_in" ? (
-          <div className="accountMenu">
-            <span>{user.email || "Account"}</span>
-            <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
-            <button onClick={logOut}>Log out</button>
-          </div>
-        ) : authStatus === "email_not_verified" ? (
-          <button className="accountBtn" onClick={() => openAuth("login", "Check your email to verify your account before continuing.")}>Verify email</button>
-        ) : (
-          <button className="accountBtn" onClick={() => openAuth("login")}>{authLoading ? "Loading..." : "Log in"}</button>
-        )}
+        <div className="navActions">
+          <button className="navPrimaryCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand</button>
+          {authStatus === "logged_in" ? (
+            <div className="accountMenu">
+              <span>{user.email || "Account"}</span>
+              <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
+              <button onClick={logOut}>Log out</button>
+            </div>
+          ) : authStatus === "email_not_verified" ? (
+            <button className="accountBtn" onClick={() => openAuth("login", "Check your email to verify your account before continuing.")}>Verify email</button>
+          ) : (
+            <button className="accountBtn" onClick={() => openAuth("login")}>{authLoading ? "Loading..." : "Sign In"}</button>
+          )}
+        </div>
       </nav>
 
       {appNotice && (
@@ -4407,41 +4410,42 @@ ${promptValue}`
 
       {page === "home" && (
         <>
-          <main className="hero dreamHero googleHero">
-            <div className="heroTop">
-              <div className="googleStyleMark" aria-hidden="true">
-                <span></span><span></span><span></span><span></span>
-              </div>
+          <main className="hero brandHero">
+            <div className="heroTop heroCopy">
               <h1 className="heroTitle">
-                <span>Build a brand people notice.</span>
+                <span>Turn an idea into a brand people notice.</span>
               </h1>
-              <p className="lead">Enter your brand name and idea. BrandThat creates the strategy, audience insights, launch roadmap, and brand workspace that helps you get noticed.</p>
+              <p className="lead">Describe what you want to build. BrandThat creates the strategy, visual direction, platform plan, and step-by-step roadmap to launch it.</p>
 
               <div className="heroCtas">
-                <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand</button>
+                <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99</button>
                 <button className="btn light" onClick={() => {
                   setWorkspaceDraft({
                     ...workspaceDraft,
-                    name: "TrailTail",
-                    description: "A premium outdoor clothing brand for dog owners.",
+                    name: "Afterlight",
+                    description: "A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.",
                   });
-                  setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                  setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                 }}>See Example Brand Plan</button>
               </div>
+              <p className="heroPriceLine">One payment. One complete Brand Plan. No subscription.</p>
             </div>
-
-            <BrandBuilderFlow
-              workspaceDraft={workspaceDraft}
-              setWorkspaceDraft={setWorkspaceDraft}
-              autoSaveStatus={autoSaveStatus}
-              buildGuidedBrandPlan={buildGuidedBrandPlan}
-              loading={loading && activeToolKey === "brand"}
-            />
+            <HeroAgentPreview />
           </main>
 
-          <BrandPlanJourney />
-          <HomepageProductScreens />
+          <ProductInActionDemo />
+          <BrandStrategyCaseStudy />
+          <GrowthRoadmapCaseStudy />
+          <WorkspaceCaseStudy />
+          <WhatUserReceives />
           <MembershipBand startCheckout={startCheckout} openAuth={openAuth} user={user} />
+          <FinalBrandBuilderSection
+            workspaceDraft={workspaceDraft}
+            setWorkspaceDraft={setWorkspaceDraft}
+            autoSaveStatus={autoSaveStatus}
+            buildGuidedBrandPlan={buildGuidedBrandPlan}
+            loading={loading && activeToolKey === "brand"}
+          />
         </>
       )}
 
@@ -5326,116 +5330,292 @@ function HomepageSEOContent({ openSeoPage }) {
   );
 }
 
-function BrandPlanJourney() {
+function HeroAgentPreview() {
   const steps = [
-    "Idea",
-    "Brand Strategy",
-    "Brand Identity Direction",
-    "Moodboard",
-    "Typography System",
-    "Color System",
-    "Platform Strategy",
-    "90-Day Launch Roadmap",
-    "Brand Workspace",
-    "Logo Concepts",
+    "Interpreting the idea",
+    "Defining the audience",
+    "Finding the brand opportunity",
+    "Building identity direction",
+    "Selecting growth platforms",
+    "Creating the launch roadmap",
   ];
 
   return (
-    <section className="brandPlanJourney">
-      <div>
-        <h2>From rough idea to launch-ready brand.</h2>
-        <p>BrandThat makes the strategic decisions first, then turns them into a workspace and logo concepts that follow the plan.</p>
+    <aside className="heroAgentPreview" aria-label="BrandThat agent preview">
+      <div className="agentPromptBox">
+        <span>Brand prompt</span>
+        <p>I want to build a modern canned coffee brand for creative people who want better energy without the corporate feel.</p>
       </div>
-      <ol>
-        {steps.map((step) => <li key={step}>{step}</li>)}
-      </ol>
+      <div className="agentStepList">
+        {steps.map((step, index) => (
+          <div key={step} style={{ "--agent-step": index }}>
+            <small>{String(index + 1).padStart(2, "0")}</small>
+            <span>{step}</span>
+          </div>
+        ))}
+      </div>
+      <div className="agentOutputPreview">
+        <strong>BrandThat is shaping the plan</strong>
+        <p>Audience angle, positioning, identity notes, relevant platforms, and a 90-day launch sequence are assembled before logo concepts begin.</p>
+      </div>
+    </aside>
+  );
+}
+
+function ProductInActionDemo() {
+  const stages = [
+    {
+      label: "Idea",
+      title: "Afterlight",
+      copy: "A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.",
+    },
+    {
+      label: "Brand Thesis",
+      title: "A sophisticated evening ritual without alcohol.",
+      copy: "Afterlight gives socially minded creatives an elevated evening ritual that feels cultured, calm, and desirable in its own right.",
+    },
+    {
+      label: "Identity",
+      title: "Noir warmth, aperitif cues, modern restraint.",
+      copy: "The visual system should borrow from late-night hospitality, gallery invites, and premium beverage packaging instead of wellness cliches.",
+    },
+    {
+      label: "Platform Plan",
+      title: "Instagram, TikTok, Pinterest, and Email.",
+      copy: "The launch needs editorial product proof, ritual demos, entertaining search surfaces, and a waitlist channel that can convert.",
+    },
+    {
+      label: "Workspace",
+      title: "One living brand headquarters.",
+      copy: "Strategy, identity, platform recommendations, content ideas, roadmap progress, next actions, and logo concepts stay connected.",
+    },
+  ];
+
+  const roadmap = ["Clarify the non-alcoholic evening occasion", "Build the first ritual photo brief", "Recruit 6 bartender and studio partners", "Launch waitlist with recipe series", "Measure saves, signups, and sampling requests"];
+
+  return (
+    <section className="productDemoSection" id="product-demo" aria-label="BrandThat product in action">
+      <div className="demoIntro">
+        <h2>Watch one rough idea become a complete brand system.</h2>
+        <p>BrandThat starts with two inputs, makes the strategic calls, and turns the brand into a workspace you can build from.</p>
+      </div>
+
+      <div className="demoFrame">
+        <div className="demoBrowserBar">
+          <span aria-hidden="true"></span>
+          <strong>brandthat.ai / afterlight</strong>
+          <small>$9.99 Brand Plan</small>
+        </div>
+
+        <div className="demoFlow">
+          {stages.map((stage, index) => (
+            <article className="demoStage" style={{ "--stage-index": index }} key={stage.label}>
+              <span>{stage.label}</span>
+              <h3>{stage.title}</h3>
+              <p>{stage.copy}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="demoWorkspaceReveal">
+          <div className="demoWorkspaceMark">A</div>
+          <div>
+            <span>Saved Brand Workspace</span>
+            <h3>Afterlight headquarters</h3>
+            <p>A complete plan for an alcohol-free social drink: thesis, audience, positioning, identity system, platform plan, content direction, roadmap, and next actions.</p>
+          </div>
+        </div>
+
+        <div className="demoRoadmap">
+          {roadmap.map((item, index) => (
+            <div key={item} style={{ "--roadmap-index": index }}>
+              <small>{String(index + 1).padStart(2, "0")}</small>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
 
-function HomepageProductScreens() {
-  const roadmap = ["First 24 Hours", "First Week", "First Month", "Days 31-60", "Days 61-90"];
-  const platforms = ["Instagram", "Email", "Pinterest", "TikTok"];
+function BrandStrategyCaseStudy() {
+  const reasoning = [
+    ["Audience", "Design-conscious adults 24-40 who like nightlife, hospitality, wellness, and culturally relevant brands but want better alcohol-free options."],
+    ["Opportunity", "Own the gap between premium aperitifs and wellness beverages: not a substitute for alcohol, a desirable social drink by design."],
+    ["Positioning", "Lead with evening ritual, taste, and cultural confidence so the product feels chosen, not compromised."],
+  ];
 
   return (
-    <section className="productScreensSection" aria-label="BrandThat product previews">
-      <div className="screensIntro">
-        <h2>See what BrandThat builds from one idea.</h2>
-        <p>These product previews show the complete Brand Plan, workspace, roadmap, platform strategy, and logo concepts generated after the strategy is finished.</p>
+    <section className="caseStudySection strategyCase" id="brand-case-study">
+      <div className="caseCopy">
+        <span>Case study 1</span>
+        <h2>From rough idea to strategic brand system.</h2>
+        <p>BrandThat turns the prompt into a thesis, market angle, audience insight, and identity direction before anything visual gets generated.</p>
       </div>
-
-      <div className="productScreenGrid">
-        <div className="productScreen largeScreen">
-          <div className="screenChrome"><span></span><span></span><span></span></div>
-          <div className="screenHeader">
-            <strong>TrailTail Brand Plan</strong>
-            <small>$9.99 plan unlocked</small>
-          </div>
-          <div className="planPreviewGrid">
-            <div>
-              <span>Brand Thesis</span>
-              <p>Premium outdoor gear for dog owners who want practical equipment to feel intentional, durable, and identity-driven.</p>
-            </div>
-            <div>
-              <span>Positioning</span>
-              <p>Own the overlap between outdoor heritage and modern dog-parent lifestyle, not generic pet apparel.</p>
-            </div>
-            <div>
-              <span>Color System</span>
-              <p>Charcoal, warm white, and muted forest green because the audience values craft, terrain, and restraint.</p>
-            </div>
-            <div>
-              <span>Typography</span>
-              <p>High-contrast serif paired with a restrained grotesk to balance premium quality with field utility.</p>
-            </div>
-          </div>
+      <div className="strategyCanvas">
+        <div className="roughIdeaPanel">
+          <small>Original idea</small>
+          <p>A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.</p>
         </div>
-
-        <div className="productScreen workspaceScreen">
-          <div className="screenChrome"><span></span><span></span><span></span></div>
-          <strong>Brand Workspace</strong>
-          <div className="workspacePreviewHero">
-            <div>TT</div>
-            <p>Strategy, identity direction, saved content, and logo concepts stay together forever.</p>
-          </div>
-          <div className="workspacePreviewList">
-            {["Audience", "Moodboard", "Voice", "Content ideas"].map((item) => <span key={item}>{item}</span>)}
-          </div>
+        <div className="strategyThesisPanel">
+          <small>Brand thesis</small>
+          <h3>Afterlight makes alcohol-free nights feel designed, social, and culturally sharp.</h3>
         </div>
-
-        <div className="productScreen roadmapScreen">
-          <div className="screenChrome"><span></span><span></span><span></span></div>
-          <strong>90-Day Roadmap</strong>
-          <div className="roadmapPreviewStack">
-            {roadmap.map((item, index) => (
-              <div key={item}>
-                <small>{String(index + 1).padStart(2, "0")}</small>
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
+        <div className="reasoningStack">
+          {reasoning.map(([label, copy]) => (
+            <article key={label}>
+              <strong>{label}</strong>
+              <p>{copy}</p>
+            </article>
+          ))}
         </div>
-
-        <div className="productScreen platformScreen">
-          <div className="screenChrome"><span></span><span></span><span></span></div>
-          <strong>Platform Strategy</strong>
-          <div className="platformPreviewGrid">
-            {platforms.map((item) => <span key={item}>{item}</span>)}
+        <div className="identityBoard">
+          <div className="moodTile tall">late dinner light</div>
+          <div className="moodTile dark">gallery opening</div>
+          <div className="moodTile accent">bitter citrus</div>
+          <div className="typeTile">
+            <strong>High-contrast serif</strong>
+            <span>with restrained grotesk</span>
           </div>
-          <p>BrandThat chooses the channels that fit the brand instead of recommending every platform.</p>
-        </div>
-
-        <div className="productScreen logoSupportScreen">
-          <div className="screenChrome"><span></span><span></span><span></span></div>
-          <strong>Logo Concepts</strong>
-          <div className="logoPreviewMarks">
-            <span>TT</span>
-            <span></span>
-            <span></span>
+          <div className="paletteTile">
+            <i></i><i></i><i></i><i></i>
           </div>
-          <p>Logo concepts come after the thesis, audience, moodboard, typography, and color system are complete.</p>
         </div>
       </div>
+    </section>
+  );
+}
+
+function GrowthRoadmapCaseStudy() {
+  const platforms = [
+    ["Instagram", "Editorial product photography, evening rituals, bartender partnerships, and launch storytelling."],
+    ["TikTok", "Alcohol-free cocktail recipes, nightlife alternatives, and founder-led cultural commentary."],
+    ["Pinterest", "Entertaining guides, table styling, cocktail recipes, and evening moodboards."],
+    ["Email", "Launch waitlist, recipe series, stockist announcements, and a ritual-focused welcome sequence."],
+  ];
+
+  const phases = [
+    ["First 24 hours", "Define the first occasion: Friday evening without the hangover. Outcome: one launch narrative and one audience promise."],
+    ["First seven days", "Build a 12-shot content brief and recruit local bartenders or hosts. Outcome: credible visual proof before launch."],
+    ["First 30 days", "Run a recipe-and-ritual series across Instagram, TikTok, and email. Outcome: waitlist growth and early flavor feedback."],
+    ["Days 31-60", "Host small tasting moments with studios, galleries, and dinner-party creators. Outcome: social proof and partner content."],
+    ["Days 61-90", "Turn strongest recipes and partner posts into paid tests and stockist outreach. Outcome: repeatable acquisition angle."],
+  ];
+
+  return (
+    <section className="caseStudySection roadmapCase">
+      <div className="caseCopy">
+        <span>Case study 2</span>
+        <h2>From strategy to launch roadmap.</h2>
+        <p>BrandThat chooses the channels that actually fit the brand, then turns the strategy into work the founder can complete.</p>
+      </div>
+      <div className="roadmapCanvas">
+        <div className="platformMatrix">
+          {platforms.map(([name, copy]) => (
+            <article key={name}>
+              <strong>{name}</strong>
+              <p>{copy}</p>
+            </article>
+          ))}
+        </div>
+        <div className="launchTimeline">
+          {phases.map(([phase, action], index) => (
+            <article key={phase} style={{ "--timeline-step": index }}>
+              <small>{phase}</small>
+              <p>{action}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceCaseStudy() {
+  const sections = ["Strategy", "Identity system", "Platform plan", "Content ideas", "Roadmap", "Next actions"];
+
+  return (
+    <section className="caseStudySection workspaceCase">
+      <div className="caseCopy">
+        <span>Case study 3</span>
+        <h2>From plan to living workspace.</h2>
+        <p>The finished Brand Plan becomes a headquarters the user can return to, follow, and build from.</p>
+      </div>
+      <div className="workspaceCanvas">
+        <div className="workspaceHeaderMock">
+          <div className="workspaceBrandMark">A</div>
+          <div>
+            <small>Brand Workspace</small>
+            <h3>Afterlight</h3>
+            <p>Evening ritual, no alcohol required.</p>
+          </div>
+          <span>64% roadmap complete</span>
+        </div>
+        <div className="workspaceModuleGrid">
+          {sections.map((section) => <span key={section}>{section}</span>)}
+        </div>
+        <div className="workspaceProgressMock">
+          <article>
+            <strong>Completed</strong>
+            <p>Brand thesis, audience angle, visual direction, and first platform plan.</p>
+          </article>
+          <article>
+            <strong>Upcoming</strong>
+            <p>Create founder story post, recipe series landing page, and tasting partner outreach list.</p>
+          </article>
+          <article>
+            <strong>Next action</strong>
+            <p>Write the waitlist promise around the Friday evening ritual and connect it to the first recipe drop.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WhatUserReceives() {
+  const rows = [
+    ["Personalized brand strategy", "Brand thesis, positioning, differentiation, and the reason each strategic decision fits the idea."],
+    ["Target audience insights", "Motivations, buying triggers, objections, and the emotional job the brand should own."],
+    ["Platform-by-platform growth plan", "Only the channels that fit the brand, with launch moves and content angles for each one."],
+    ["Content direction", "Pillars, hooks, first content ideas, messaging direction, and brand voice guidance."],
+    ["90-day roadmap", "Prioritized actions for the first 24 hours, first week, first month, days 31-60, and days 61-90."],
+    ["Saved Brand Workspace", "A permanent home for the plan, visuals, roadmap, assets, and logo concepts generated from the strategy."],
+  ];
+
+  return (
+    <section className="receivesSection">
+      <div>
+        <h2>What you receive.</h2>
+        <p>One complete Brand Plan for one brand idea. No subscription, no tool maze, no generic worksheet language.</p>
+      </div>
+      <div className="receivesList">
+        {rows.map(([title, copy]) => (
+          <article key={title}>
+            <strong>{title}</strong>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FinalBrandBuilderSection({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading }) {
+  return (
+    <section className="finalBuilderSection">
+      <div className="finalBuilderIntro">
+        <h2>Bring your idea. Leave with a plan.</h2>
+        <p>Create an account, purchase one Brand Plan for $9.99, then unlock the complete strategy, roadmap, workspace, and logo concepts for that brand.</p>
+      </div>
+      <BrandBuilderFlow
+        workspaceDraft={workspaceDraft}
+        setWorkspaceDraft={setWorkspaceDraft}
+        autoSaveStatus={autoSaveStatus}
+        buildGuidedBrandPlan={buildGuidedBrandPlan}
+        loading={loading}
+      />
     </section>
   );
 }
@@ -7464,6 +7644,9 @@ body{margin:0}
 .navLinks button{padding:9px 12px;border-radius:999px}
 .navLinks button:hover{background:#111;color:white}
 .accountBtn{background:#111;color:white;padding:12px 18px;border-radius:999px}
+.navActions{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.navPrimaryCta{border:none;background:#ff5a3d;color:#111;border-radius:999px;padding:12px 16px;font-weight:950;cursor:pointer;font-size:13px}
+.navPrimaryCta:hover{filter:brightness(.96);transform:translateY(-1px)}
 .accountMenu{display:flex;align-items:center;gap:8px;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 8px 6px 14px;max-width:360px}
 .accountMenu span{font-size:12px;font-weight:800;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
 .accountMenu button{border:none;background:#111;color:white;border-radius:999px;padding:9px 11px;font-weight:800;cursor:pointer;font-size:12px}
@@ -7472,20 +7655,27 @@ body{margin:0}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .dreamHero{display:grid;grid-template-columns:.82fr 1.18fr;gap:42px;align-items:start;padding-top:44px;padding-bottom:60px}
 .dreamHero .heroTop{position:sticky;top:24px}
-.googleHero{padding-top:70px;align-items:center}
-.googleHero .heroTop{text-align:center;justify-self:center;max-width:620px}
-.googleHero .lead{margin-left:auto;margin-right:auto}
-.googleHero .heroCtas{justify-content:center}
-.googleStyleMark{display:flex;justify-content:center;gap:10px;margin-bottom:24px}
-.googleStyleMark span{width:14px;height:14px;border-radius:50%;display:block}
-.googleStyleMark span:nth-child(1){background:#4285f4}
-.googleStyleMark span:nth-child(2){background:#ea4335}
-.googleStyleMark span:nth-child(3){background:#fbbc04}
-.googleStyleMark span:nth-child(4){background:#34a853}
+.brandHero{padding-top:72px;padding-bottom:56px;display:grid;grid-template-columns:minmax(0,.86fr) minmax(440px,1.14fr);gap:44px;align-items:center}
+.brandHero .heroTop{max-width:700px;margin:0}
+.brandHero .lead{color:#4d4946}
+.brandHero .heroCtas{justify-content:flex-start}
+.heroCopy{text-align:left}
+.heroPriceLine{margin:14px 0 0;color:#6a625d;font-size:14px;font-weight:850}
+.heroAgentPreview{background:#111;color:white;border-radius:30px;padding:18px;box-shadow:0 34px 90px rgba(17,17,17,.16);display:grid;gap:12px;overflow:hidden}
+.agentPromptBox{background:#fff;color:#111;border-radius:22px;padding:22px}
+.agentPromptBox span{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:950;color:#ff5a3d}
+.agentPromptBox p{font-size:24px;line-height:1.2;letter-spacing:-.04em;margin:12px 0 0;font-weight:850}
+.agentStepList{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.agentStepList div{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);border-radius:16px;padding:14px;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;animation:demoRise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--agent-step) * .08s)}
+.agentStepList small{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#ff5a3d;color:#111;font-weight:950;font-size:11px}
+.agentStepList span{font-size:13px;font-weight:850;color:rgba(255,255,255,.84)}
+.agentOutputPreview{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:18px}
+.agentOutputPreview strong{font-size:22px;letter-spacing:-.04em}
+.agentOutputPreview p{color:rgba(255,255,255,.68);line-height:1.6;margin:8px 0 0;font-size:14px}
 .journeyLine{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;max-width:640px}
 .journeyLine span{background:rgba(255,255,255,.74);border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#555;box-shadow:0 10px 30px rgba(0,0,0,.035)}
 .brandBuilderCard{position:relative;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:28px;box-shadow:0 24px 70px rgba(20,20,18,.07);overflow:hidden}
-.brandBuilderCard:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#111,#111111,#d9d9d9);pointer-events:none}
+.brandBuilderCard:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#111,#ff5a3d,#111);pointer-events:none}
 .brandBuilderCard>*{position:relative;z-index:1}
 .builderTop{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px}
 .builderTop h2{font-size:42px}
@@ -7557,46 +7747,94 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .freeToolCards button:hover{transform:translateY(-3px);border-color:#111;box-shadow:0 18px 42px rgba(0,0,0,.08)}
 .freeToolCards strong{display:block;font-size:18px;letter-spacing:-.03em;margin-bottom:8px}
 .freeToolCards span{display:block;color:#666;line-height:1.55;font-size:14px}
-.brandPlanJourney{max-width:1280px;margin:0 auto;padding:8px 6vw 46px;display:grid;grid-template-columns:.7fr 1.3fr;gap:28px;align-items:start}
-.brandPlanJourney h2{font-size:42px;max-width:520px}
-.brandPlanJourney p{color:#666;line-height:1.7;font-size:17px;max-width:560px}
-.brandPlanJourney ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;counter-reset:journey}
-.brandPlanJourney li{counter-increment:journey;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;min-height:92px;font-weight:900;letter-spacing:-.02em;display:flex;flex-direction:column;justify-content:space-between}
-.brandPlanJourney li:before{content:counter(journey, decimal-leading-zero);font-size:11px;letter-spacing:1.4px;color:#777;margin-bottom:16px}
-.productScreensSection{max-width:1280px;margin:0 auto;padding:30px 6vw 60px}
-.screensIntro{text-align:center;max-width:760px;margin:0 auto 28px}
-.screensIntro h2{font-size:44px}
-.screensIntro p{color:#666;line-height:1.7;font-size:17px}
-.productScreenGrid{display:grid;grid-template-columns:1.35fr .8fr .8fr;gap:16px;align-items:stretch}
-.productScreen{background:white;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;box-shadow:0 22px 70px rgba(0,0,0,.06);min-height:260px;display:flex;flex-direction:column;gap:16px}
-.largeScreen{grid-row:span 2;min-height:536px}
-.screenChrome{display:flex;gap:7px}
-.screenChrome span{width:10px;height:10px;border-radius:50%;background:#ddd}
-.screenChrome span:nth-child(1){background:#ea4335}.screenChrome span:nth-child(2){background:#fbbc04}.screenChrome span:nth-child(3){background:#34a853}
-.screenHeader{display:flex;justify-content:space-between;gap:14px;align-items:center;border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:14px}
-.screenHeader strong,.productScreen>strong{font-size:20px;letter-spacing:-.03em}
-.screenHeader small{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-size:12px;font-weight:900;color:#555}
-.planPreviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1}
-.planPreviewGrid div{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
-.planPreviewGrid span{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:900;color:#555}
-.planPreviewGrid p,.productScreen p{color:#555;line-height:1.6;margin:0;font-size:14px}
-.workspacePreviewHero{background:#111;color:white;border-radius:18px;padding:18px;display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center}
-.workspacePreviewHero div{width:72px;height:72px;border-radius:18px;background:white;color:#111;display:grid;place-items:center;font-weight:950;font-size:24px}
-.workspacePreviewHero p{color:rgba(255,255,255,.72)}
-.workspacePreviewList,.platformPreviewGrid{display:flex;flex-wrap:wrap;gap:8px}
-.workspacePreviewList span,.platformPreviewGrid span{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 11px;font-size:12px;font-weight:900}
-.roadmapPreviewStack{display:flex;flex-direction:column;gap:9px}
-.roadmapPreviewStack div{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:10px}
-.roadmapPreviewStack small{width:28px;height:28px;border-radius:50%;background:#111;color:white;display:grid;place-items:center;font-size:11px;font-weight:900}
-.roadmapPreviewStack span{font-weight:900;color:#222}
-.platformScreen{border-top:4px solid #4285f4}
-.logoSupportScreen{border-top:4px solid #34a853}
-.logoPreviewMarks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.logoPreviewMarks span{aspect-ratio:1;border-radius:18px;background:#111;color:white;display:grid;place-items:center;font-size:24px;font-weight:950}
-.logoPreviewMarks span:nth-child(2){background:#f5f5f5;border:1px solid rgba(0,0,0,.08);position:relative}
-.logoPreviewMarks span:nth-child(2):before{content:"";width:44%;height:44%;border:2px solid #111;border-radius:50% 50% 16px 50%;transform:rotate(-24deg)}
-.logoPreviewMarks span:nth-child(3){background:#fafafa;border:1px solid rgba(0,0,0,.08);position:relative}
-.logoPreviewMarks span:nth-child(3):before{content:"";width:52%;height:6px;background:#111;border-radius:999px;box-shadow:0 14px 0 rgba(0,0,0,.35)}
+.productDemoSection{max-width:1280px;margin:0 auto;padding:10px 6vw 62px}
+.demoIntro{text-align:center;max-width:760px;margin:0 auto 28px}
+.demoIntro h2{font-size:44px}
+.demoIntro p{color:#5f5a56;line-height:1.7;font-size:17px;margin:14px auto 0;max-width:690px}
+.demoFrame{background:#111;color:white;border-radius:28px;padding:18px;box-shadow:0 32px 90px rgba(17,17,17,.18);overflow:hidden}
+.demoBrowserBar{height:52px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(255,255,255,.06);display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:0 16px;margin-bottom:14px}
+.demoBrowserBar span{width:14px;height:14px;border-radius:50%;background:#ff5a3d;box-shadow:18px 0 0 rgba(255,255,255,.28),36px 0 0 rgba(255,255,255,.12)}
+.demoBrowserBar strong{font-size:13px;color:rgba(255,255,255,.82);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.demoBrowserBar small{font-size:12px;font-weight:900;color:#111;background:#fff;border-radius:999px;padding:8px 10px}
+.demoFlow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.demoStage{min-height:230px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;animation:demoRise .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--stage-index) * .12s)}
+.demoStage span,.demoWorkspaceReveal span{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:950;color:#ffb29f}
+.demoStage h3{font-size:24px;line-height:1.05;letter-spacing:-.045em;margin:18px 0 10px}
+.demoStage p{font-size:14px;line-height:1.55;color:rgba(255,255,255,.72);margin:0}
+.demoWorkspaceReveal{margin-top:12px;background:#fff;color:#111;border-radius:22px;padding:20px;display:grid;grid-template-columns:96px 1fr;gap:18px;align-items:center;animation:demoSettle .8s .58s cubic-bezier(.2,.7,.2,1) both}
+.demoWorkspaceMark{width:96px;height:96px;border-radius:24px;background:#ff5a3d;color:#111;display:grid;place-items:center;font-size:48px;font-weight:950;letter-spacing:-.08em}
+.demoWorkspaceReveal h3{font-size:34px;line-height:1;letter-spacing:-.05em;margin:8px 0}
+.demoWorkspaceReveal p{color:#5b5550;line-height:1.6;margin:0;max-width:760px}
+.demoRoadmap{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.demoRoadmap div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px;min-height:90px;animation:roadmapFill .62s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(.82s + var(--roadmap-index) * .08s)}
+.demoRoadmap small{display:block;color:#ffb29f;font-weight:950;margin-bottom:10px}
+.demoRoadmap span{display:block;color:rgba(255,255,255,.82);font-size:13px;line-height:1.45;font-weight:800}
+.caseStudySection{max-width:1280px;margin:0 auto;padding:34px 6vw 70px;display:grid;grid-template-columns:minmax(320px,.7fr) minmax(0,1.3fr);gap:34px;align-items:start}
+.caseCopy{position:sticky;top:24px}
+.caseCopy>span{display:block;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;font-weight:950;color:#ff5a3d;margin-bottom:14px}
+.caseCopy p{color:#5f5a56;line-height:1.75;font-size:17px;max-width:450px}
+.strategyCanvas,.roadmapCanvas,.workspaceCanvas{border-radius:30px;background:#f7f4f1;border:1px solid rgba(0,0,0,.08);padding:18px;box-shadow:0 28px 82px rgba(17,17,17,.06)}
+.roughIdeaPanel,.strategyThesisPanel,.reasoningStack article,.platformMatrix article,.launchTimeline article,.workspaceProgressMock article{background:white;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:18px}
+.roughIdeaPanel small,.strategyThesisPanel small,.workspaceHeaderMock small,.launchTimeline small{display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:950;color:#ff5a3d;margin-bottom:10px}
+.roughIdeaPanel p{font-size:22px;line-height:1.25;letter-spacing:-.04em;margin:0;font-weight:850;color:#111}
+.strategyThesisPanel{margin-top:12px;background:#111;color:white}
+.strategyThesisPanel h3{font-size:34px;line-height:1;letter-spacing:-.05em;margin:0}
+.reasoningStack{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.reasoningStack strong,.platformMatrix strong,.workspaceProgressMock strong{display:block;font-size:16px;letter-spacing:-.03em;margin-bottom:8px}
+.reasoningStack p,.platformMatrix p,.workspaceProgressMock p{color:#5f5a56;line-height:1.55;margin:0;font-size:13px}
+.identityBoard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.moodTile,.typeTile,.paletteTile{min-height:150px;border-radius:18px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;position:relative;font-weight:950;letter-spacing:-.03em}
+.moodTile{background:#221916;color:#fff}
+.moodTile.tall{background:linear-gradient(160deg,#2a201c,#8f4b36);min-height:210px;grid-row:span 2}
+.moodTile.dark{background:#111;color:#f5eee7}
+.moodTile.accent{background:#ff5a3d;color:#111}
+.typeTile{background:white;border:1px solid rgba(0,0,0,.08);justify-content:center}
+.typeTile strong{font-family:Georgia,serif;font-size:28px;line-height:1}
+.typeTile span{color:#5f5a56;margin-top:8px;font-weight:800}
+.paletteTile{background:white;border:1px solid rgba(0,0,0,.08);display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-content:end}
+.paletteTile i{height:92px;border-radius:12px;background:#111}
+.paletteTile i:nth-child(2){background:#f4eee5}.paletteTile i:nth-child(3){background:#8f4b36}.paletteTile i:nth-child(4){background:#ff5a3d}
+.platformMatrix{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.launchTimeline{display:grid;gap:10px;margin-top:12px}
+.launchTimeline article{display:grid;grid-template-columns:130px 1fr;gap:18px;align-items:start;animation:roadmapFill .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--timeline-step) * .08s)}
+.launchTimeline p{margin:0;color:#3e3936;line-height:1.55;font-size:14px}
+.workspaceCanvas{background:#111;color:white}
+.workspaceHeaderMock{background:white;color:#111;border-radius:24px;padding:20px;display:grid;grid-template-columns:92px 1fr auto;gap:18px;align-items:center}
+.workspaceBrandMark{width:92px;height:92px;border-radius:24px;background:#ff5a3d;display:grid;place-items:center;font-size:48px;font-weight:950;letter-spacing:-.08em}
+.workspaceHeaderMock h3{font-size:42px;line-height:1;letter-spacing:-.06em;margin:0 0 4px}
+.workspaceHeaderMock p{margin:0;color:#5f5a56}
+.workspaceHeaderMock>span{background:#111;color:white;border-radius:999px;padding:10px 12px;font-size:12px;font-weight:950}
+.workspaceModuleGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.workspaceModuleGrid span{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);border-radius:16px;padding:18px;font-size:15px;font-weight:900;color:rgba(255,255,255,.86)}
+.workspaceProgressMock{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.workspaceProgressMock article{background:rgba(255,255,255,.95)}
+.receivesSection{max-width:1280px;margin:0 auto;padding:28px 6vw 58px;display:grid;grid-template-columns:.72fr 1.28fr;gap:34px;align-items:start}
+.receivesSection>div:first-child{position:sticky;top:24px}
+.receivesSection p{color:#5f5a56;line-height:1.72;font-size:17px;max-width:520px}
+.receivesList{border-top:1px solid rgba(0,0,0,.1)}
+.receivesList article{display:grid;grid-template-columns:260px 1fr;gap:22px;padding:20px 0;border-bottom:1px solid rgba(0,0,0,.1)}
+.receivesList strong{font-size:19px;letter-spacing:-.035em}
+.receivesList p{margin:0;font-size:15px}
+.exampleRoadmapSection{max-width:1280px;margin:0 auto;padding:26px 6vw 64px}
+.roadmapIntro{display:flex;justify-content:space-between;gap:28px;align-items:end;margin-bottom:20px}
+.roadmapIntro h2{max-width:620px}
+.roadmapIntro p{color:#5f5a56;line-height:1.7;font-size:17px;max-width:430px;margin:0}
+.exampleRoadmapGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.exampleRoadmapGrid article{background:#f7f4f1;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:22px;min-height:280px;display:flex;flex-direction:column;justify-content:space-between}
+.exampleRoadmapGrid span{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:950;color:#ff5a3d}
+.exampleRoadmapGrid h3{font-size:24px;line-height:1.15;letter-spacing:-.04em;margin:18px 0;color:#111}
+.exampleRoadmapGrid p{color:#5f5a56;line-height:1.58;margin:0;font-size:14px}
+.priorityStrip,.nextActions{margin-top:12px;background:#111;color:white;border-radius:18px;padding:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.priorityStrip strong,.nextActions strong{margin-right:8px}
+.priorityStrip span,.nextActions span{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);border-radius:999px;padding:9px 11px;font-size:13px;font-weight:850;color:rgba(255,255,255,.86)}
+.finalBuilderSection{max-width:1280px;margin:0 auto;padding:18px 6vw 70px;display:grid;grid-template-columns:.6fr 1.4fr;gap:30px;align-items:start}
+.finalBuilderIntro{position:sticky;top:24px}
+.finalBuilderIntro h2{font-size:56px}
+.finalBuilderIntro p{color:#5f5a56;line-height:1.75;font-size:17px;max-width:440px}
+@keyframes demoRise{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes demoSettle{0%{opacity:0;transform:translateY(16px) scale(.985)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes roadmapFill{0%{opacity:.35;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.demoStage,.demoWorkspaceReveal,.demoRoadmap div,.agentStepList div,.launchTimeline article{animation:none}.btn,.freeToolCards button,.operatingGrid button,.navPrimaryCta{transition:none}}
 .operatingSection{max-width:1280px;margin:0 auto;padding:44px 6vw;display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;align-items:start}
 .operatingIntro{position:sticky;top:24px}
 .operatingIntro p{color:#666;line-height:1.75;font-size:17px;max-width:560px}
@@ -8977,6 +9215,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.brandPlanJourney{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid,.productScreenGrid{grid-template-columns:repeat(2,1fr)}.largeScreen{grid-row:auto;grid-column:1 / -1}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
-@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.brandPlanJourney,.productScreensSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.googleHero{padding-top:44px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid,.productScreenGrid,.planPreviewGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.dreamHero,.brandHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.caseStudySection,.receivesSection,.finalBuilderSection{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro,.caseCopy,.receivesSection>div:first-child,.finalBuilderIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}.brandHero .heroTop{max-width:760px}.brandHero .heroCtas{justify-content:flex-start}}
+@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.navActions{grid-column:2;grid-row:1}.navPrimaryCta{display:none}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.productDemoSection,.caseStudySection,.receivesSection,.finalBuilderSection{padding-left:20px;padding-right:20px}.hero{padding-top:36px}.brandHero{gap:24px}.heroTop{margin-bottom:10px}.heroCopy{text-align:left}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro,.roadmapIntro{flex-direction:column;align-items:flex-start}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.identityBoard,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock,.receivesList article,.agentStepList{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}.agentPromptBox p{font-size:19px}.demoWorkspaceReveal,.workspaceHeaderMock,.launchTimeline article{grid-template-columns:1fr}.demoStage{min-height:auto}.moodTile.tall{min-height:160px;grid-row:auto}}
 `;
