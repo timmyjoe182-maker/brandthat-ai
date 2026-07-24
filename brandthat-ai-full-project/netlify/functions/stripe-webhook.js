@@ -30,6 +30,13 @@ exports.handler = async (event) => {
     if (stripeEvent.type === "checkout.session.completed") {
       const session = stripeEvent.data.object;
 
+      if (session.payment_status !== "paid") {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ received: true, ignored: "payment_not_paid" }),
+        };
+      }
+
       const email = session.customer_email;
       const customerId = session.customer;
       const paymentIntentId = session.payment_intent;

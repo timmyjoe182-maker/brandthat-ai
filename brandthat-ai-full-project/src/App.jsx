@@ -4407,8 +4407,11 @@ ${promptValue}`
 
       {page === "home" && (
         <>
-          <main className="hero dreamHero">
+          <main className="hero dreamHero googleHero">
             <div className="heroTop">
+              <div className="googleStyleMark" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
               <h1 className="heroTitle">
                 <span>Build a brand people notice.</span>
               </h1>
@@ -4437,6 +4440,7 @@ ${promptValue}`
           </main>
 
           <BrandPlanJourney />
+          <HomepageProductScreens />
           <MembershipBand startCheckout={startCheckout} openAuth={openAuth} user={user} />
         </>
       )}
@@ -5345,6 +5349,93 @@ function BrandPlanJourney() {
       <ol>
         {steps.map((step) => <li key={step}>{step}</li>)}
       </ol>
+    </section>
+  );
+}
+
+function HomepageProductScreens() {
+  const roadmap = ["First 24 Hours", "First Week", "First Month", "Days 31-60", "Days 61-90"];
+  const platforms = ["Instagram", "Email", "Pinterest", "TikTok"];
+
+  return (
+    <section className="productScreensSection" aria-label="BrandThat product previews">
+      <div className="screensIntro">
+        <h2>See what BrandThat builds from one idea.</h2>
+        <p>These product previews show the complete Brand Plan, workspace, roadmap, platform strategy, and logo concepts generated after the strategy is finished.</p>
+      </div>
+
+      <div className="productScreenGrid">
+        <div className="productScreen largeScreen">
+          <div className="screenChrome"><span></span><span></span><span></span></div>
+          <div className="screenHeader">
+            <strong>TrailTail Brand Plan</strong>
+            <small>$9.99 plan unlocked</small>
+          </div>
+          <div className="planPreviewGrid">
+            <div>
+              <span>Brand Thesis</span>
+              <p>Premium outdoor gear for dog owners who want practical equipment to feel intentional, durable, and identity-driven.</p>
+            </div>
+            <div>
+              <span>Positioning</span>
+              <p>Own the overlap between outdoor heritage and modern dog-parent lifestyle, not generic pet apparel.</p>
+            </div>
+            <div>
+              <span>Color System</span>
+              <p>Charcoal, warm white, and muted forest green because the audience values craft, terrain, and restraint.</p>
+            </div>
+            <div>
+              <span>Typography</span>
+              <p>High-contrast serif paired with a restrained grotesk to balance premium quality with field utility.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="productScreen workspaceScreen">
+          <div className="screenChrome"><span></span><span></span><span></span></div>
+          <strong>Brand Workspace</strong>
+          <div className="workspacePreviewHero">
+            <div>TT</div>
+            <p>Strategy, identity direction, saved content, and logo concepts stay together forever.</p>
+          </div>
+          <div className="workspacePreviewList">
+            {["Audience", "Moodboard", "Voice", "Content ideas"].map((item) => <span key={item}>{item}</span>)}
+          </div>
+        </div>
+
+        <div className="productScreen roadmapScreen">
+          <div className="screenChrome"><span></span><span></span><span></span></div>
+          <strong>90-Day Roadmap</strong>
+          <div className="roadmapPreviewStack">
+            {roadmap.map((item, index) => (
+              <div key={item}>
+                <small>{String(index + 1).padStart(2, "0")}</small>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="productScreen platformScreen">
+          <div className="screenChrome"><span></span><span></span><span></span></div>
+          <strong>Platform Strategy</strong>
+          <div className="platformPreviewGrid">
+            {platforms.map((item) => <span key={item}>{item}</span>)}
+          </div>
+          <p>BrandThat chooses the channels that fit the brand instead of recommending every platform.</p>
+        </div>
+
+        <div className="productScreen logoSupportScreen">
+          <div className="screenChrome"><span></span><span></span><span></span></div>
+          <strong>Logo Concepts</strong>
+          <div className="logoPreviewMarks">
+            <span>TT</span>
+            <span></span>
+            <span></span>
+          </div>
+          <p>Logo concepts come after the thesis, audience, moodboard, typography, and color system are complete.</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -7381,6 +7472,16 @@ body{margin:0}
 .logoHero{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:start}
 .dreamHero{display:grid;grid-template-columns:.82fr 1.18fr;gap:42px;align-items:start;padding-top:44px;padding-bottom:60px}
 .dreamHero .heroTop{position:sticky;top:24px}
+.googleHero{padding-top:70px;align-items:center}
+.googleHero .heroTop{text-align:center;justify-self:center;max-width:620px}
+.googleHero .lead{margin-left:auto;margin-right:auto}
+.googleHero .heroCtas{justify-content:center}
+.googleStyleMark{display:flex;justify-content:center;gap:10px;margin-bottom:24px}
+.googleStyleMark span{width:14px;height:14px;border-radius:50%;display:block}
+.googleStyleMark span:nth-child(1){background:#4285f4}
+.googleStyleMark span:nth-child(2){background:#ea4335}
+.googleStyleMark span:nth-child(3){background:#fbbc04}
+.googleStyleMark span:nth-child(4){background:#34a853}
 .journeyLine{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px;max-width:640px}
 .journeyLine span{background:rgba(255,255,255,.74);border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-size:12px;font-weight:900;color:#555;box-shadow:0 10px 30px rgba(0,0,0,.035)}
 .brandBuilderCard{position:relative;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:28px;box-shadow:0 24px 70px rgba(20,20,18,.07);overflow:hidden}
@@ -7462,6 +7563,40 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .brandPlanJourney ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;counter-reset:journey}
 .brandPlanJourney li{counter-increment:journey;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px;min-height:92px;font-weight:900;letter-spacing:-.02em;display:flex;flex-direction:column;justify-content:space-between}
 .brandPlanJourney li:before{content:counter(journey, decimal-leading-zero);font-size:11px;letter-spacing:1.4px;color:#777;margin-bottom:16px}
+.productScreensSection{max-width:1280px;margin:0 auto;padding:30px 6vw 60px}
+.screensIntro{text-align:center;max-width:760px;margin:0 auto 28px}
+.screensIntro h2{font-size:44px}
+.screensIntro p{color:#666;line-height:1.7;font-size:17px}
+.productScreenGrid{display:grid;grid-template-columns:1.35fr .8fr .8fr;gap:16px;align-items:stretch}
+.productScreen{background:white;border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;box-shadow:0 22px 70px rgba(0,0,0,.06);min-height:260px;display:flex;flex-direction:column;gap:16px}
+.largeScreen{grid-row:span 2;min-height:536px}
+.screenChrome{display:flex;gap:7px}
+.screenChrome span{width:10px;height:10px;border-radius:50%;background:#ddd}
+.screenChrome span:nth-child(1){background:#ea4335}.screenChrome span:nth-child(2){background:#fbbc04}.screenChrome span:nth-child(3){background:#34a853}
+.screenHeader{display:flex;justify-content:space-between;gap:14px;align-items:center;border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:14px}
+.screenHeader strong,.productScreen>strong{font-size:20px;letter-spacing:-.03em}
+.screenHeader small{border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;font-size:12px;font-weight:900;color:#555}
+.planPreviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1}
+.planPreviewGrid div{background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.planPreviewGrid span{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:900;color:#555}
+.planPreviewGrid p,.productScreen p{color:#555;line-height:1.6;margin:0;font-size:14px}
+.workspacePreviewHero{background:#111;color:white;border-radius:18px;padding:18px;display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center}
+.workspacePreviewHero div{width:72px;height:72px;border-radius:18px;background:white;color:#111;display:grid;place-items:center;font-weight:950;font-size:24px}
+.workspacePreviewHero p{color:rgba(255,255,255,.72)}
+.workspacePreviewList,.platformPreviewGrid{display:flex;flex-wrap:wrap;gap:8px}
+.workspacePreviewList span,.platformPreviewGrid span{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 11px;font-size:12px;font-weight:900}
+.roadmapPreviewStack{display:flex;flex-direction:column;gap:9px}
+.roadmapPreviewStack div{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:10px}
+.roadmapPreviewStack small{width:28px;height:28px;border-radius:50%;background:#111;color:white;display:grid;place-items:center;font-size:11px;font-weight:900}
+.roadmapPreviewStack span{font-weight:900;color:#222}
+.platformScreen{border-top:4px solid #4285f4}
+.logoSupportScreen{border-top:4px solid #34a853}
+.logoPreviewMarks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.logoPreviewMarks span{aspect-ratio:1;border-radius:18px;background:#111;color:white;display:grid;place-items:center;font-size:24px;font-weight:950}
+.logoPreviewMarks span:nth-child(2){background:#f5f5f5;border:1px solid rgba(0,0,0,.08);position:relative}
+.logoPreviewMarks span:nth-child(2):before{content:"";width:44%;height:44%;border:2px solid #111;border-radius:50% 50% 16px 50%;transform:rotate(-24deg)}
+.logoPreviewMarks span:nth-child(3){background:#fafafa;border:1px solid rgba(0,0,0,.08);position:relative}
+.logoPreviewMarks span:nth-child(3):before{content:"";width:52%;height:6px;background:#111;border-radius:999px;box-shadow:0 14px 0 rgba(0,0,0,.35)}
 .operatingSection{max-width:1280px;margin:0 auto;padding:44px 6vw;display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;align-items:start}
 .operatingIntro{position:sticky;top:24px}
 .operatingIntro p{color:#666;line-height:1.75;font-size:17px;max-width:560px}
@@ -8842,6 +8977,6 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
 
-@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.brandPlanJourney{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
-@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.brandPlanJourney{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.logoHero,.dreamHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.brandPlanJourney{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid,.productScreenGrid{grid-template-columns:repeat(2,1fr)}.largeScreen{grid-row:auto;grid-column:1 / -1}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}}
+@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.brandPlanJourney,.productScreensSection{padding-left:20px;padding-right:20px}.hero{padding-top:28px}.googleHero{padding-top:44px}.heroTop{margin-bottom:10px}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro{flex-direction:column}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.brandPlanJourney ol,.roadmapPhaseList,.contentIdeaGrid,.productScreenGrid,.planPreviewGrid{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}}
 `;
