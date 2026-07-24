@@ -364,8 +364,8 @@ function getCurrentSeoMeta(page) {
   }
 
   return {
-    title: "Brandthat.ai | Build the Brand Behind Your Idea",
-    description: "Turn a rough idea into a brand strategy, visual identity direction, moodboard, typography system, color system, roadmap, logo concepts, and workspace.",
+    title: "BrandThat.ai | Where Brands Are Born",
+    description: "Bring BrandThat a rough idea. Leave with a complete brand strategy, identity direction, launch roadmap, and living brand workspace.",
     canonical: "https://brandthat.ai/",
   };
 }
@@ -4409,44 +4409,16 @@ ${promptValue}`
       )}
 
       {page === "home" && (
-        <>
-          <main className="hero brandHero">
-            <div className="heroTop heroCopy">
-              <h1 className="heroTitle">
-                <span>Turn an idea into a brand people notice.</span>
-              </h1>
-              <p className="lead">Describe what you want to build. BrandThat creates the strategy, visual direction, platform plan, and step-by-step roadmap to launch it.</p>
-
-              <div className="heroCtas">
-                <button className="btn dark" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99</button>
-                <button className="btn light" onClick={() => {
-                  setWorkspaceDraft({
-                    ...workspaceDraft,
-                    name: "Afterlight",
-                    description: "A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.",
-                  });
-                  setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                }}>See Example Brand Plan</button>
-              </div>
-              <p className="heroPriceLine">One payment. One complete Brand Plan. No subscription.</p>
-            </div>
-            <HeroAgentPreview />
-          </main>
-
-          <ProductInActionDemo />
-          <BrandStrategyCaseStudy />
-          <GrowthRoadmapCaseStudy />
-          <WorkspaceCaseStudy />
-          <WhatUserReceives />
-          <MembershipBand startCheckout={startCheckout} openAuth={openAuth} user={user} />
-          <FinalBrandBuilderSection
-            workspaceDraft={workspaceDraft}
-            setWorkspaceDraft={setWorkspaceDraft}
-            autoSaveStatus={autoSaveStatus}
-            buildGuidedBrandPlan={buildGuidedBrandPlan}
-            loading={loading && activeToolKey === "brand"}
-          />
-        </>
+        <BrandBirthHomepage
+          workspaceDraft={workspaceDraft}
+          setWorkspaceDraft={setWorkspaceDraft}
+          autoSaveStatus={autoSaveStatus}
+          buildGuidedBrandPlan={buildGuidedBrandPlan}
+          loading={loading && activeToolKey === "brand"}
+          startCheckout={startCheckout}
+          openAuth={openAuth}
+          user={user}
+        />
       )}
 
       {page === "workspace" && (
@@ -5330,292 +5302,227 @@ function HomepageSEOContent({ openSeoPage }) {
   );
 }
 
-function HeroAgentPreview() {
-  const steps = [
-    "Interpreting the idea",
-    "Defining the audience",
-    "Finding the brand opportunity",
-    "Building identity direction",
-    "Selecting growth platforms",
-    "Creating the launch roadmap",
-  ];
+function BrandBirthHomepage({
+  workspaceDraft,
+  setWorkspaceDraft,
+  autoSaveStatus,
+  buildGuidedBrandPlan,
+  loading,
+  startCheckout,
+  openAuth,
+  user,
+}) {
+  const seedCoffeeBrand = () => {
+    setWorkspaceDraft({
+      ...workspaceDraft,
+      name: "Morrow",
+      description: "A cinematic canned coffee company for creative people who want focused energy without the corporate feel.",
+    });
+    setTimeout(() => document.getElementById("brand-birth")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  };
 
   return (
-    <aside className="heroAgentPreview" aria-label="BrandThat agent preview">
-      <div className="agentPromptBox">
-        <span>Brand prompt</span>
-        <p>I want to build a modern canned coffee brand for creative people who want better energy without the corporate feel.</p>
-      </div>
-      <div className="agentStepList">
+    <div className="birthPage">
+      <section className="birthHero" id="product-demo">
+        <div className="birthHeroCopy">
+          <h1>Your idea is not small.</h1>
+          <p>BrandThat turns rough business ideas into the strategy, identity direction, launch roadmap, and workspace to build something real.</p>
+          <div className="birthHeroActions">
+            <button className="birthCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99</button>
+            <span>One payment. One complete Brand Plan. No subscription.</span>
+          </div>
+        </div>
+        <BirthHeroVisual onExample={seedCoffeeBrand} />
+      </section>
+
+      <section className="originMoment" id="brand-birth">
+        <div className="originLine">
+          <p>I want to build a canned coffee company for creative people who want better energy without the corporate feel.</p>
+        </div>
+        <div className="originAnnotations">
+          {[
+            ["Why it exists", "Creative work needs energy that feels human, not industrial."],
+            ["Who it serves", "Designers, filmmakers, founders, stylists, editors, and night-builders."],
+            ["What it can own", "The space between specialty coffee, studio culture, and modern focus."],
+          ].map(([title, copy]) => (
+            <article key={title}>
+              <strong>{title}</strong>
+              <span>{copy}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="brandAwakening">
+        <div className="awakeningCopy">
+          <h2>BrandThat sees the company inside the idea.</h2>
+          <p>It gives the thought a thesis, audience, positioning, voice, visual world, launch path, and a next move. The output is not content. It is momentum.</p>
+        </div>
+        <div className="awakeningBoard">
+          <div className="thesisSpread">
+            <span>Brand thesis</span>
+            <h3>Morrow gives ambitious creatives a beautiful way to stay sharp without feeling like they are buying productivity culture.</h3>
+          </div>
+          <div className="voiceSpread">
+            <span>Voice</span>
+            <p>Quiet confidence. Night-studio focus. Less hustle, more signal.</p>
+          </div>
+          <div className="identitySpread">
+            <span>Identity direction</span>
+            <div className="typeSpec">Editorial serif<br /><small>restrained grotesk</small></div>
+            <div className="colorRun"><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </section>
+
+      <BrandWorldShowcase />
+      <LaunchSequence />
+      <LivingWorkspaceMoment />
+      <BirthOffer startCheckout={startCheckout} openAuth={openAuth} user={user} />
+
+      <section className="birthBuilder">
+        <div>
+          <h2>Bring the idea. Leave with the brand.</h2>
+          <p>Start with two details. BrandThat handles the strategic thinking, then saves the plan as your Brand Workspace.</p>
+        </div>
+        <BrandBuilderFlow
+          workspaceDraft={workspaceDraft}
+          setWorkspaceDraft={setWorkspaceDraft}
+          autoSaveStatus={autoSaveStatus}
+          buildGuidedBrandPlan={buildGuidedBrandPlan}
+          loading={loading}
+        />
+      </section>
+    </div>
+  );
+}
+
+function BirthHeroVisual({ onExample }) {
+  const steps = ["Understanding", "Strategy", "Identity", "Roadmap", "Workspace"];
+  return (
+    <div className="birthHeroVisual" aria-label="Idea becoming a brand">
+      <button className="founderNote" onClick={onExample}>
+        <span>Founder note</span>
+        <p>A canned coffee company for creative people who want better energy without the corporate feel.</p>
+      </button>
+      <div className="thinkingColumn">
         {steps.map((step, index) => (
-          <div key={step} style={{ "--agent-step": index }}>
-            <small>{String(index + 1).padStart(2, "0")}</small>
-            <span>{step}</span>
-          </div>
+          <span key={step} style={{ "--birth-step": index }}>{step}</span>
         ))}
       </div>
-      <div className="agentOutputPreview">
-        <strong>BrandThat is shaping the plan</strong>
-        <p>Audience angle, positioning, identity notes, relevant platforms, and a 90-day launch sequence are assembled before logo concepts begin.</p>
+      <div className="brandSignal">
+        <small>BrandThat begins</small>
+        <strong>MORROW</strong>
+        <em>coffee for the work after the work</em>
       </div>
-    </aside>
+    </div>
   );
 }
 
-function ProductInActionDemo() {
-  const stages = [
-    {
-      label: "Idea",
-      title: "Afterlight",
-      copy: "A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.",
-    },
-    {
-      label: "Brand Thesis",
-      title: "A sophisticated evening ritual without alcohol.",
-      copy: "Afterlight gives socially minded creatives an elevated evening ritual that feels cultured, calm, and desirable in its own right.",
-    },
-    {
-      label: "Identity",
-      title: "Noir warmth, aperitif cues, modern restraint.",
-      copy: "The visual system should borrow from late-night hospitality, gallery invites, and premium beverage packaging instead of wellness cliches.",
-    },
-    {
-      label: "Platform Plan",
-      title: "Instagram, TikTok, Pinterest, and Email.",
-      copy: "The launch needs editorial product proof, ritual demos, entertaining search surfaces, and a waitlist channel that can convert.",
-    },
-    {
-      label: "Workspace",
-      title: "One living brand headquarters.",
-      copy: "Strategy, identity, platform recommendations, content ideas, roadmap progress, next actions, and logo concepts stay connected.",
-    },
+function BrandWorldShowcase() {
+  return (
+    <section className="worldShowcase">
+      <div className="worldCopy">
+        <h2>Then the brand becomes visible.</h2>
+        <p>Packaging. Launch imagery. Social presence. Email. Retail. The dream becomes specific enough to build.</p>
+      </div>
+      <div className="brandWorldGrid" aria-label="Morrow brand world">
+        <div className="canScene">
+          <div className="canMock"><span>MORROW</span><small>cold brew</small></div>
+          <div className="canShadow"></div>
+        </div>
+        <div className="socialLaunch">
+          <div className="socialPhoto"></div>
+          <strong>Launch post</strong>
+          <p>For the ones still making things after midnight.</p>
+        </div>
+        <div className="shelfMoment">
+          <span></span><span></span><span></span><span></span>
+          <strong>Store shelf direction</strong>
+        </div>
+        <div className="emailMoment">
+          <small>Subject</small>
+          <p>The first coffee for the second shift.</p>
+          <button>Join the first drop</button>
+        </div>
+        <div className="shippingMoment">
+          <span>MORROW</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LaunchSequence() {
+  const steps = [
+    ["First 24 hours", "Lock the promise: coffee for creative work after the official day ends."],
+    ["First week", "Build the first campaign around studios, edits, shoots, late decks, and founder nights."],
+    ["First 30 days", "Launch the first drop with a creator waitlist, sampling kit, and three hero rituals."],
+    ["Days 31-60", "Turn the best responses into retail outreach, collabs, and paid creative tests."],
+    ["Days 61-90", "Scale the clearest acquisition angle and convert early buyers into the brand's first community."],
   ];
 
-  const roadmap = ["Clarify the non-alcoholic evening occasion", "Build the first ritual photo brief", "Recruit 6 bartender and studio partners", "Launch waitlist with recipe series", "Measure saves, signups, and sampling requests"];
-
   return (
-    <section className="productDemoSection" id="product-demo" aria-label="BrandThat product in action">
-      <div className="demoIntro">
-        <h2>Watch one rough idea become a complete brand system.</h2>
-        <p>BrandThat starts with two inputs, makes the strategic calls, and turns the brand into a workspace you can build from.</p>
+    <section className="launchSequence">
+      <h2>A plan that moves.</h2>
+      <div className="launchRail">
+        {steps.map(([phase, action], index) => (
+          <article key={phase} style={{ "--launch-step": index }}>
+            <span>{phase}</span>
+            <p>{action}</p>
+          </article>
+        ))}
       </div>
+    </section>
+  );
+}
 
-      <div className="demoFrame">
-        <div className="demoBrowserBar">
-          <span aria-hidden="true"></span>
-          <strong>brandthat.ai / afterlight</strong>
-          <small>$9.99 Brand Plan</small>
+function LivingWorkspaceMoment() {
+  return (
+    <section className="livingWorkspace">
+      <div className="workspaceManifesto">
+        <h2>The idea now has a headquarters.</h2>
+        <p>The workspace is where the founder returns to the thesis, follows the roadmap, saves creative direction, and keeps building the company.</p>
+      </div>
+      <div className="brandHeadquarters">
+        <div className="hqHeader">
+          <strong>MORROW</strong>
+          <span>Brand Workspace</span>
         </div>
-
-        <div className="demoFlow">
-          {stages.map((stage, index) => (
-            <article className="demoStage" style={{ "--stage-index": index }} key={stage.label}>
-              <span>{stage.label}</span>
-              <h3>{stage.title}</h3>
-              <p>{stage.copy}</p>
-            </article>
-          ))}
-        </div>
-
-        <div className="demoWorkspaceReveal">
-          <div className="demoWorkspaceMark">A</div>
+        <div className="hqColumns">
           <div>
-            <span>Saved Brand Workspace</span>
-            <h3>Afterlight headquarters</h3>
-            <p>A complete plan for an alcohol-free social drink: thesis, audience, positioning, identity system, platform plan, content direction, roadmap, and next actions.</p>
+            <small>Strategy</small>
+            <p>Modern canned coffee for creative people who reject sterile productivity culture.</p>
           </div>
-        </div>
-
-        <div className="demoRoadmap">
-          {roadmap.map((item, index) => (
-            <div key={item} style={{ "--roadmap-index": index }}>
-              <small>{String(index + 1).padStart(2, "0")}</small>
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BrandStrategyCaseStudy() {
-  const reasoning = [
-    ["Audience", "Design-conscious adults 24-40 who like nightlife, hospitality, wellness, and culturally relevant brands but want better alcohol-free options."],
-    ["Opportunity", "Own the gap between premium aperitifs and wellness beverages: not a substitute for alcohol, a desirable social drink by design."],
-    ["Positioning", "Lead with evening ritual, taste, and cultural confidence so the product feels chosen, not compromised."],
-  ];
-
-  return (
-    <section className="caseStudySection strategyCase" id="brand-case-study">
-      <div className="caseCopy">
-        <span>Case study 1</span>
-        <h2>From rough idea to strategic brand system.</h2>
-        <p>BrandThat turns the prompt into a thesis, market angle, audience insight, and identity direction before anything visual gets generated.</p>
-      </div>
-      <div className="strategyCanvas">
-        <div className="roughIdeaPanel">
-          <small>Original idea</small>
-          <p>A modern non-alcoholic evening drink for creative people who want a relaxing social ritual without alcohol.</p>
-        </div>
-        <div className="strategyThesisPanel">
-          <small>Brand thesis</small>
-          <h3>Afterlight makes alcohol-free nights feel designed, social, and culturally sharp.</h3>
-        </div>
-        <div className="reasoningStack">
-          {reasoning.map(([label, copy]) => (
-            <article key={label}>
-              <strong>{label}</strong>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
-        <div className="identityBoard">
-          <div className="moodTile tall">late dinner light</div>
-          <div className="moodTile dark">gallery opening</div>
-          <div className="moodTile accent">bitter citrus</div>
-          <div className="typeTile">
-            <strong>High-contrast serif</strong>
-            <span>with restrained grotesk</span>
-          </div>
-          <div className="paletteTile">
-            <i></i><i></i><i></i><i></i>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function GrowthRoadmapCaseStudy() {
-  const platforms = [
-    ["Instagram", "Editorial product photography, evening rituals, bartender partnerships, and launch storytelling."],
-    ["TikTok", "Alcohol-free cocktail recipes, nightlife alternatives, and founder-led cultural commentary."],
-    ["Pinterest", "Entertaining guides, table styling, cocktail recipes, and evening moodboards."],
-    ["Email", "Launch waitlist, recipe series, stockist announcements, and a ritual-focused welcome sequence."],
-  ];
-
-  const phases = [
-    ["First 24 hours", "Define the first occasion: Friday evening without the hangover. Outcome: one launch narrative and one audience promise."],
-    ["First seven days", "Build a 12-shot content brief and recruit local bartenders or hosts. Outcome: credible visual proof before launch."],
-    ["First 30 days", "Run a recipe-and-ritual series across Instagram, TikTok, and email. Outcome: waitlist growth and early flavor feedback."],
-    ["Days 31-60", "Host small tasting moments with studios, galleries, and dinner-party creators. Outcome: social proof and partner content."],
-    ["Days 61-90", "Turn strongest recipes and partner posts into paid tests and stockist outreach. Outcome: repeatable acquisition angle."],
-  ];
-
-  return (
-    <section className="caseStudySection roadmapCase">
-      <div className="caseCopy">
-        <span>Case study 2</span>
-        <h2>From strategy to launch roadmap.</h2>
-        <p>BrandThat chooses the channels that actually fit the brand, then turns the strategy into work the founder can complete.</p>
-      </div>
-      <div className="roadmapCanvas">
-        <div className="platformMatrix">
-          {platforms.map(([name, copy]) => (
-            <article key={name}>
-              <strong>{name}</strong>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
-        <div className="launchTimeline">
-          {phases.map(([phase, action], index) => (
-            <article key={phase} style={{ "--timeline-step": index }}>
-              <small>{phase}</small>
-              <p>{action}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function WorkspaceCaseStudy() {
-  const sections = ["Strategy", "Identity system", "Platform plan", "Content ideas", "Roadmap", "Next actions"];
-
-  return (
-    <section className="caseStudySection workspaceCase">
-      <div className="caseCopy">
-        <span>Case study 3</span>
-        <h2>From plan to living workspace.</h2>
-        <p>The finished Brand Plan becomes a headquarters the user can return to, follow, and build from.</p>
-      </div>
-      <div className="workspaceCanvas">
-        <div className="workspaceHeaderMock">
-          <div className="workspaceBrandMark">A</div>
           <div>
-            <small>Brand Workspace</small>
-            <h3>Afterlight</h3>
-            <p>Evening ritual, no alcohol required.</p>
+            <small>Next action</small>
+            <p>Write the first drop page around the line: coffee for the work after the work.</p>
           </div>
-          <span>64% roadmap complete</span>
-        </div>
-        <div className="workspaceModuleGrid">
-          {sections.map((section) => <span key={section}>{section}</span>)}
-        </div>
-        <div className="workspaceProgressMock">
-          <article>
-            <strong>Completed</strong>
-            <p>Brand thesis, audience angle, visual direction, and first platform plan.</p>
-          </article>
-          <article>
-            <strong>Upcoming</strong>
-            <p>Create founder story post, recipe series landing page, and tasting partner outreach list.</p>
-          </article>
-          <article>
-            <strong>Next action</strong>
-            <p>Write the waitlist promise around the Friday evening ritual and connect it to the first recipe drop.</p>
-          </article>
+          <div>
+            <small>Progress</small>
+            <p>Thesis complete. Identity direction complete. Launch roadmap in motion.</p>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function WhatUserReceives() {
-  const rows = [
-    ["Personalized brand strategy", "Brand thesis, positioning, differentiation, and the reason each strategic decision fits the idea."],
-    ["Target audience insights", "Motivations, buying triggers, objections, and the emotional job the brand should own."],
-    ["Platform-by-platform growth plan", "Only the channels that fit the brand, with launch moves and content angles for each one."],
-    ["Content direction", "Pillars, hooks, first content ideas, messaging direction, and brand voice guidance."],
-    ["90-day roadmap", "Prioritized actions for the first 24 hours, first week, first month, days 31-60, and days 61-90."],
-    ["Saved Brand Workspace", "A permanent home for the plan, visuals, roadmap, assets, and logo concepts generated from the strategy."],
-  ];
-
+function BirthOffer({ startCheckout, openAuth, user }) {
   return (
-    <section className="receivesSection">
+    <section className="birthOffer" id="brandthat-membership">
       <div>
-        <h2>What you receive.</h2>
-        <p>One complete Brand Plan for one brand idea. No subscription, no tool maze, no generic worksheet language.</p>
+        <h2>One idea becomes one complete Brand Plan.</h2>
+        <p>Brand thesis, positioning, audience, voice, visual direction, platform strategy, content direction, 90-day roadmap, saved workspace, and logo concepts.</p>
       </div>
-      <div className="receivesList">
-        {rows.map(([title, copy]) => (
-          <article key={title}>
-            <strong>{title}</strong>
-            <p>{copy}</p>
-          </article>
-        ))}
+      <div className="priceStatement">
+        <span>Brand Plan</span>
+        <strong>$9.99</strong>
+        <p>One time. One complete brand. No monthly subscription.</p>
+        <button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to build your first Brand Plan.")}>
+          {user?.email ? "Build My Brand - $9.99" : "Create Account"}
+        </button>
       </div>
-    </section>
-  );
-}
-
-function FinalBrandBuilderSection({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading }) {
-  return (
-    <section className="finalBuilderSection">
-      <div className="finalBuilderIntro">
-        <h2>Bring your idea. Leave with a plan.</h2>
-        <p>Create an account, purchase one Brand Plan for $9.99, then unlock the complete strategy, roadmap, workspace, and logo concepts for that brand.</p>
-      </div>
-      <BrandBuilderFlow
-        workspaceDraft={workspaceDraft}
-        setWorkspaceDraft={setWorkspaceDraft}
-        autoSaveStatus={autoSaveStatus}
-        buildGuidedBrandPlan={buildGuidedBrandPlan}
-        loading={loading}
-      />
     </section>
   );
 }
@@ -9214,6 +9121,81 @@ textarea{height:170px;resize:none;line-height:1.6}
 .captionNumber{width:34px;height:34px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
+
+.birthPage{background:#f8f5ef;color:#111;overflow:hidden}
+.birthPage h1,.birthPage h2,.birthPage h3{letter-spacing:-.065em}
+.birthHero{min-height:calc(100vh - 84px);display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,1.08fr);gap:5vw;align-items:center;max-width:1480px;margin:0 auto;padding:72px 6vw 86px}
+.birthHeroCopy h1{font-size:clamp(76px,10.4vw,166px);line-height:.82;margin:0 0 26px;max-width:860px}
+.birthHeroCopy p{font-size:clamp(20px,2vw,31px);line-height:1.18;color:#3c3732;max-width:740px;margin:0}
+.birthHeroActions{display:flex;align-items:center;gap:18px;margin-top:32px;flex-wrap:wrap}
+.birthCta,.priceStatement button{border:none;background:#111;color:white;border-radius:999px;padding:17px 24px;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 18px 42px rgba(17,17,17,.16)}
+.birthCta:hover,.priceStatement button:hover{transform:translateY(-2px);background:#ff5a3d;color:#111}
+.birthHeroActions span{color:#6b625b;font-size:14px;font-weight:850}
+.birthHeroVisual{min-height:660px;position:relative;border-radius:44px;background:#111;color:white;padding:28px;box-shadow:0 50px 130px rgba(17,17,17,.2);display:grid;grid-template-rows:auto 1fr auto;gap:20px;overflow:hidden}
+.birthHeroVisual:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 74% 22%,rgba(255,90,61,.28),transparent 26%),linear-gradient(145deg,rgba(255,255,255,.08),transparent 42%);pointer-events:none}
+.founderNote{position:relative;z-index:1;border:none;background:#f8f5ef;color:#111;border-radius:28px;padding:24px;text-align:left;cursor:pointer;font-family:inherit}
+.founderNote span,.birthOffer span,.priceStatement span{display:block;font-size:11px;letter-spacing:1.7px;text-transform:uppercase;font-weight:950;color:#ff5a3d;margin-bottom:12px}
+.founderNote p{font-size:28px;line-height:1.12;letter-spacing:-.045em;font-weight:850;margin:0}
+.thinkingColumn{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;gap:12px;width:min(420px,78%);margin-left:auto}
+.thinkingColumn span{border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.08);padding:13px 16px;color:rgba(255,255,255,.84);font-size:14px;font-weight:900;animation:birthStep .65s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--birth-step) * .11s)}
+.brandSignal{position:relative;z-index:1;background:#ff5a3d;color:#111;border-radius:32px;padding:28px;min-height:210px;display:flex;flex-direction:column;justify-content:flex-end}
+.brandSignal small{font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:1.7px}
+.brandSignal strong{font-size:clamp(56px,7vw,104px);line-height:.82;letter-spacing:-.08em;margin-top:18px}
+.brandSignal em{font-style:normal;font-size:18px;font-weight:850;margin-top:12px}
+.originMoment{max-width:1480px;margin:0 auto;padding:88px 6vw 78px;display:grid;grid-template-columns:1.1fr .9fr;gap:5vw;align-items:end}
+.originLine p{font-family:Georgia,serif;font-size:clamp(42px,6.3vw,102px);line-height:.98;letter-spacing:-.055em;margin:0;color:#111}
+.originAnnotations{display:grid;gap:16px}
+.originAnnotations article{border-top:1px solid rgba(17,17,17,.18);padding-top:18px}
+.originAnnotations strong{display:block;font-size:24px;letter-spacing:-.045em;margin-bottom:8px}
+.originAnnotations span{display:block;color:#5d554d;line-height:1.55;font-size:17px}
+.brandAwakening{max-width:1480px;margin:0 auto;padding:84px 6vw;display:grid;grid-template-columns:.78fr 1.22fr;gap:5vw;align-items:center}
+.awakeningCopy h2,.worldCopy h2,.launchSequence h2,.workspaceManifesto h2,.birthOffer h2,.birthBuilder h2{font-size:clamp(48px,6vw,98px);line-height:.88;margin:0}
+.awakeningCopy p,.worldCopy p,.workspaceManifesto p,.birthOffer p,.birthBuilder p{font-size:20px;line-height:1.45;color:#514a43;max-width:640px}
+.awakeningBoard{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+.thesisSpread,.voiceSpread,.identitySpread{background:#fff;border-radius:34px;padding:28px;min-height:260px;box-shadow:0 26px 70px rgba(17,17,17,.06)}
+.thesisSpread{grid-column:1 / -1;background:#111;color:white;min-height:340px;display:flex;flex-direction:column;justify-content:space-between}
+.thesisSpread span,.voiceSpread span,.identitySpread span{font-size:11px;letter-spacing:1.7px;text-transform:uppercase;font-weight:950;color:#ff5a3d}
+.thesisSpread h3{font-size:clamp(34px,4.8vw,74px);line-height:.95;margin:42px 0 0;color:white}
+.voiceSpread p{font-size:27px;line-height:1.1;letter-spacing:-.045em;margin:54px 0 0;font-weight:850}
+.identitySpread{display:grid;gap:20px}
+.typeSpec{font-family:Georgia,serif;font-size:38px;line-height:.95;margin-top:28px}
+.typeSpec small{font-family:Inter,system-ui,sans-serif;font-size:16px;letter-spacing:0;color:#5b524a}
+.colorRun{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:auto}
+.colorRun i{height:72px;border-radius:16px;background:#111}.colorRun i:nth-child(2){background:#f8f5ef}.colorRun i:nth-child(3){background:#8b4c34}.colorRun i:nth-child(4){background:#ff5a3d}
+.worldShowcase{max-width:1480px;margin:0 auto;padding:96px 6vw;display:grid;gap:36px}
+.worldCopy{max-width:860px}
+.brandWorldGrid{display:grid;grid-template-columns:1.35fr .75fr .9fr;grid-auto-rows:minmax(230px,auto);gap:18px}
+.brandWorldGrid>div{border-radius:38px;overflow:hidden;position:relative;box-shadow:0 32px 90px rgba(17,17,17,.08)}
+.canScene{grid-row:span 2;background:linear-gradient(155deg,#18120f,#7b422f);display:grid;place-items:center;min-height:720px}
+.canMock{width:220px;height:500px;border-radius:92px;background:#f8f5ef;color:#111;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:56px 28px;box-shadow:44px 60px 70px rgba(0,0,0,.28);transform:rotate(-6deg)}
+.canMock span{writing-mode:vertical-rl;font-size:60px;line-height:1;font-weight:950;letter-spacing:-.08em}.canMock small{text-transform:uppercase;letter-spacing:1.8px;font-weight:950}
+.canShadow{position:absolute;width:300px;height:46px;border-radius:50%;background:rgba(0,0,0,.34);bottom:82px;filter:blur(14px)}
+.socialLaunch{background:#fff;padding:24px;display:flex;flex-direction:column;justify-content:flex-end}
+.socialPhoto{position:absolute;inset:0 0 42%;background:linear-gradient(140deg,#111 0 34%,#ff5a3d 34% 50%,#f8f5ef 50%);opacity:.95}
+.socialLaunch strong,.shelfMoment strong{position:relative;font-size:28px;letter-spacing:-.055em}.socialLaunch p{position:relative;color:#5b524a;font-weight:800;line-height:1.35}
+.shelfMoment{background:#111;color:white;padding:26px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end}
+.shelfMoment span{height:190px;border-radius:22px;background:#f8f5ef}.shelfMoment span:nth-child(2){background:#ff5a3d}.shelfMoment span:nth-child(3){background:#8b4c34}.shelfMoment span:nth-child(4){background:#f8f5ef}
+.shelfMoment strong{grid-column:1 / -1;color:white}
+.emailMoment{background:#f8f5ef;padding:30px;display:flex;flex-direction:column;justify-content:space-between}
+.emailMoment small{font-size:12px;text-transform:uppercase;letter-spacing:1.8px;font-weight:950;color:#ff5a3d}.emailMoment p{font-size:34px;line-height:.98;letter-spacing:-.055em;font-weight:900;margin:0}.emailMoment button{align-self:flex-start;border:none;border-radius:999px;background:#111;color:white;padding:13px 16px;font-weight:950}
+.shippingMoment{background:#ff5a3d;display:grid;place-items:center;color:#111}.shippingMoment span{font-size:58px;letter-spacing:-.08em;font-weight:950;border:3px solid #111;padding:48px 36px;transform:rotate(-5deg)}
+.launchSequence{max-width:1480px;margin:0 auto;padding:96px 6vw}
+.launchRail{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:0;margin-top:42px;overflow-x:auto;padding-bottom:16px}
+.launchRail article{min-height:360px;border-left:1px solid rgba(17,17,17,.2);padding:24px;display:flex;flex-direction:column;justify-content:space-between;animation:roadmapFill .58s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--launch-step) * .09s)}
+.launchRail span{font-size:13px;text-transform:uppercase;letter-spacing:1.7px;font-weight:950;color:#ff5a3d}.launchRail p{font-size:24px;line-height:1.08;letter-spacing:-.045em;font-weight:850;margin:0;color:#111}
+.livingWorkspace{max-width:1480px;margin:0 auto;padding:92px 6vw;display:grid;grid-template-columns:.82fr 1.18fr;gap:5vw;align-items:center}
+.brandHeadquarters{background:#111;color:white;border-radius:42px;padding:36px;min-height:520px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 45px 120px rgba(17,17,17,.16)}
+.hqHeader{display:flex;justify-content:space-between;gap:24px;align-items:flex-start}.hqHeader strong{font-size:clamp(54px,7vw,112px);letter-spacing:-.08em;line-height:.8}.hqHeader span{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:10px 13px;font-weight:950;color:rgba(255,255,255,.78)}
+.hqColumns{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.hqColumns div{border-top:1px solid rgba(255,255,255,.16);padding-top:18px}.hqColumns small{display:block;color:#ffb29f;text-transform:uppercase;letter-spacing:1.5px;font-weight:950;margin-bottom:10px}.hqColumns p{color:rgba(255,255,255,.74);line-height:1.45;margin:0}
+.birthOffer{max-width:1480px;margin:0 auto;padding:90px 6vw;display:grid;grid-template-columns:1fr 420px;gap:5vw;align-items:center}
+.priceStatement{background:#111;color:white;border-radius:36px;padding:34px}.priceStatement strong{display:block;font-size:96px;letter-spacing:-.08em;line-height:.9}.priceStatement p{color:rgba(255,255,255,.72);font-size:18px}.priceStatement button{background:#ff5a3d;color:#111;box-shadow:none;width:100%}
+.birthBuilder{max-width:1480px;margin:0 auto;padding:90px 6vw 120px;display:grid;grid-template-columns:.78fr 1.22fr;gap:5vw;align-items:start}
+.birthBuilder .brandBuilderCard{border-radius:34px;border:none;box-shadow:0 36px 100px rgba(17,17,17,.08)}
+.birthBuilder .brandBuilderCard:before{background:#ff5a3d;height:6px}
+@keyframes birthStep{0%{opacity:0;transform:translateX(22px)}100%{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.thinkingColumn span,.launchRail article{animation:none}.birthCta,.priceStatement button{transition:none}}
+@media(max-width:1100px){.birthHero,.originMoment,.brandAwakening,.livingWorkspace,.birthOffer,.birthBuilder{grid-template-columns:1fr}.birthHero{min-height:auto}.birthHeroVisual{min-height:560px}.awakeningBoard,.brandWorldGrid{grid-template-columns:1fr 1fr}.canScene{grid-column:1 / -1;min-height:560px}.hqColumns{grid-template-columns:1fr}.priceStatement{max-width:520px}}
+@media(max-width:820px){.birthHero,.originMoment,.brandAwakening,.worldShowcase,.launchSequence,.livingWorkspace,.birthOffer,.birthBuilder{padding-left:20px;padding-right:20px}.birthHero{padding-top:48px;gap:32px}.birthHeroCopy h1{font-size:68px}.birthHeroCopy p{font-size:20px}.birthHeroVisual{min-height:520px;border-radius:28px;padding:16px}.founderNote{border-radius:22px;padding:18px}.founderNote p{font-size:21px}.thinkingColumn{width:100%}.brandSignal{border-radius:24px;padding:22px}.originLine p{font-size:46px}.originMoment,.brandAwakening,.worldShowcase,.launchSequence,.livingWorkspace,.birthOffer,.birthBuilder{padding-top:58px;padding-bottom:58px}.awakeningCopy h2,.worldCopy h2,.launchSequence h2,.workspaceManifesto h2,.birthOffer h2,.birthBuilder h2{font-size:46px}.awakeningBoard,.brandWorldGrid{grid-template-columns:1fr}.thesisSpread,.voiceSpread,.identitySpread{border-radius:24px;padding:22px;min-height:auto}.thesisSpread h3{font-size:35px}.canScene{min-height:520px}.canMock{width:170px;height:390px}.brandWorldGrid>div{border-radius:26px}.launchRail{grid-template-columns:repeat(5,260px)}.launchRail article{min-height:280px}.brandHeadquarters{border-radius:28px;padding:24px;min-height:auto;gap:54px}.hqHeader{flex-direction:column}.birthOffer{gap:24px}.priceStatement{border-radius:28px;padding:26px}.priceStatement strong{font-size:78px}.birthBuilder .brandBuilderCard{border-radius:24px}}
 
 @media(max-width:1100px){.logoHero,.dreamHero,.brandHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.caseStudySection,.receivesSection,.finalBuilderSection{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro,.caseCopy,.receivesSection>div:first-child,.finalBuilderIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}.brandHero .heroTop{max-width:760px}.brandHero .heroCtas{justify-content:flex-start}}
 @media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.navActions{grid-column:2;grid-row:1}.navPrimaryCta{display:none}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.productDemoSection,.caseStudySection,.receivesSection,.finalBuilderSection{padding-left:20px;padding-right:20px}.hero{padding-top:36px}.brandHero{gap:24px}.heroTop{margin-bottom:10px}.heroCopy{text-align:left}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro,.roadmapIntro{flex-direction:column;align-items:flex-start}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.identityBoard,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock,.receivesList article,.agentStepList{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}.agentPromptBox p{font-size:19px}.demoWorkspaceReveal,.workspaceHeaderMock,.launchTimeline article{grid-template-columns:1fr}.demoStage{min-height:auto}.moodTile.tall{min-height:160px;grid-row:auto}}
