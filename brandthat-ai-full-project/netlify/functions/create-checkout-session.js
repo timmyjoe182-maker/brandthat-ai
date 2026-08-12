@@ -40,6 +40,17 @@ exports.handler = async (event) => {
       };
     }
 
+    const price = await stripe.prices.retrieve(priceId);
+
+    if (price.currency !== "usd" || price.unit_amount !== 999 || price.type !== "one_time") {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Stripe Brand Plan price must be a one-time $9.99 USD price.",
+        }),
+      };
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
 
