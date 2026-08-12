@@ -744,7 +744,7 @@ Create a practical, specific, workspace-ready brand plan from a rough idea.
 The plan must be useful enough to guide logo generation, content, roadmap, and a saved Brand Workspace.
 
 Required JSON keys:
-brandName, coreOpportunity, brandThesis, brandSummary, targetAudience, customerMotivation, positioning, competitiveDifferentiation, brandPersonality, competitorCategory, pricePositioning, coreMessage, coreOffer, messagingDirection, visualIdentityDirection, moodboardDirection, typographySystem, colorSystem, brandVoice, taglineIdeas, platformStrategy, contentPillars, first20ContentIdeas, launchRoadmap30Days, growthOpportunities, nextStepActionPlan, workspaceContext, logoContext.
+brandName, coreOpportunity, brandThesis, brandSummary, targetAudience, customerMotivation, positioning, competitiveDifferentiation, brandPersonality, competitorCategory, pricePositioning, coreMessage, coreOffer, messagingDirection, visualIdentityDirection, moodboardDirection, typographySystem, colorSystem, brandVoice, taglineIdeas, platformStrategy, contentPillars, first20ContentIdeas, launchRoadmap30Days, growthOpportunities, nextStepActionPlan, brandDNA, whyThisWorks, customerPsychology, competitorPositioning, realityCheck, positioningScorecard, expandedRoadmap, launchChecklist, revenuePlan, creativeDirectorNotes, workspaceContext, logoContext.
 
 New architecture:
 1. First identify the coreOpportunity. Choose the primary business opportunity from ideas like luxury, convenience, trust, craftsmanship, speed, status, sustainability, innovation, nostalgia, affordability, joy, or a similarly specific opportunity.
@@ -770,6 +770,14 @@ Rules:
 - launchRoadmap30Days must be five phase objects for First 24 Hours, First Week, First Month, Days 31-60, Days 61-90 with week, focus, actions, outcome, status.
 - workspaceContext must include coreOpportunity, brandThesis, industry, offer, differentiator, audience, personality, visualDirection, moodboard, typography, colors, roadmapGoal.
 - logoContext must include brandName, coreOpportunity, brandThesis, industry, style, symbolIdeas, colors, typography, avoid.
+- brandDNA must include audience, positioning, personality, archetype, tone, visualDirection, colors, typographyDirection, keyDifferentiators, customerEmotions, businessGoals.
+- whyThisWorks must include positioning, audience, colors, typography, messaging, launch.
+- customerPsychology must include desires, fears, objections, buyingTriggers, emotionalMotivations, identityTheyWant, choiceReason.
+- competitorPositioning should compare only the competitors or references the user provides. Do not invent factual details. If reliable facts are unavailable, say "Needs verification" and evaluate likely positioning signals only.
+- positioningScorecard must include overall, scores for Clarity, Differentiation, Memorability, Credibility, Emotional Appeal, Visual Consistency, Market Fit, and two improvements.
+- expandedRoadmap must include First 30 days, Days 31-60, Days 61-90 with tasks, priority, recommendedTools, estimatedCosts, kpis, completionCriteria, status.
+- launchChecklist must include domain, social handles, business email, landing page, payment setup, social profiles, analytics, basic legal setup, launch content, first customer acquisition plan, and feedback collection.
+- creativeDirectorNotes must include critique, strongestElement, weakestElement, improvement.
 `;
 
     const client = getClient();
@@ -787,6 +795,13 @@ Rules:
             positioning: input.positioning || "",
             personality: input.personality || "",
             visualDirection: input.visualDirection || "",
+            pricePositioning: input.pricePositioning || "",
+            desiredFeeling: input.desiredFeeling || "",
+            locationMarket: input.locationMarket || "",
+            competitors: input.competitors || "",
+            businessGoal: input.businessGoal || "",
+            monthlyRevenueGoal: input.monthlyRevenueGoal || "",
+            averagePrice: input.averagePrice || "",
             roadmapGoal: input.roadmapGoal || "",
             fallbackContext: fallback,
           }),

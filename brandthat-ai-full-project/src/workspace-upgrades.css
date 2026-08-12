@@ -1,0 +1,374 @@
+.builderContextFields {
+  margin-top: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 22px;
+  background: #fff;
+  padding: 16px;
+}
+
+.builderContextFields summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #171717;
+}
+
+.builderContextGrid,
+.whyThisWorksGrid,
+.psychologyGrid,
+.launchChecklistGrid,
+.competitorGrid,
+.namingGrid,
+.improvementAuditGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.brandSummaryDashboard {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+
+.brandSummaryDashboard > div,
+.dnaGrid div,
+.whyThisWorksGrid div,
+.psychologyGrid > div,
+.competitorCard,
+.namingCard,
+.improvementAuditCard {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.brandSummaryDashboard span,
+.summaryMetric small {
+  display: block;
+  color: #737373;
+  font-size: 12px;
+  letter-spacing: .12em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.brandSummaryDashboard h3 {
+  font-size: 34px;
+  letter-spacing: -.04em;
+  line-height: 1;
+  margin: 0 0 10px;
+}
+
+.brandSummaryDashboard p,
+.summaryMetric strong {
+  color: #303030;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.summaryScore {
+  align-items: center;
+  background: #111 !important;
+  color: white !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.summaryScore strong {
+  font-size: 38px;
+  line-height: 1;
+}
+
+.summaryScore span {
+  color: #ddd;
+  margin: 0;
+}
+
+.dnaGrid div,
+.whyThisWorksGrid div,
+.psychologyGrid > div {
+  background: #faf9f6;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.competitorCard p {
+  color: #444;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+}
+
+.namingCard {
+  display: grid;
+  gap: 9px;
+}
+
+.namingCard > strong {
+  font-size: 24px;
+  letter-spacing: -.03em;
+}
+
+.namingCard > b {
+  background: #111;
+  border-radius: 999px;
+  color: #fff;
+  justify-self: start;
+  padding: 6px 10px;
+}
+
+.namingCard p {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.namingCard em {
+  font-style: normal;
+  font-weight: 800;
+}
+
+.namingCard small {
+  color: #737373;
+}
+
+.improvementAuditCard small {
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+.improvementAuditCard strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 8px;
+}
+
+.improvementAuditCard p {
+  color: #444;
+  line-height: 1.6;
+}
+
+.improvementAuditCard button {
+  background: #111;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.regenerationControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.regenerationControls button {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.directorNotes textarea {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  margin-top: 12px;
+  min-height: 96px;
+  padding: 14px;
+  resize: vertical;
+  width: 100%;
+}
+
+.directorNotes p,
+.realityCheckList p {
+  color: #444;
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+
+.scorecardPanel {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 220px 1fr;
+}
+
+.scoreHero {
+  background: #111;
+  border-radius: 20px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+}
+
+.scoreHero strong {
+  font-size: 58px;
+  line-height: .9;
+}
+
+.scoreHero span {
+  color: #ddd;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.scoreRows {
+  display: grid;
+  gap: 10px;
+}
+
+.scoreRow {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 160px 1fr 42px;
+}
+
+.scoreRow span {
+  color: #444;
+  font-size: 13px;
+}
+
+.scoreRow div {
+  background: #ece7de;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.scoreRow i {
+  background: #111;
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.scoreRow strong {
+  font-size: 13px;
+}
+
+.scoreImprovements {
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.scoreImprovements p {
+  background: #faf9f6;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  margin: 0;
+  padding: 14px;
+}
+
+.psychologyGrid ul,
+.revenuePlanner ul {
+  color: #444;
+  line-height: 1.6;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.launchChecklistItem {
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.launchChecklistItem input {
+  margin-top: 3px;
+}
+
+.launchChecklistItem strong,
+.launchChecklistItem small {
+  display: block;
+}
+
+.launchChecklistItem small {
+  color: #737373;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.launchChecklistItem.complete {
+  opacity: .7;
+}
+
+.launchChecklistItem.complete strong {
+  text-decoration: line-through;
+}
+
+.revenuePlanner {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 220px) 1fr;
+}
+
+.revenuePlanner label {
+  display: grid;
+  gap: 8px;
+}
+
+.revenuePlanner input {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  width: 100%;
+}
+
+.revenuePlanner strong {
+  display: block;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .builderContextGrid,
+  .brandSummaryDashboard,
+  .whyThisWorksGrid,
+  .psychologyGrid,
+  .launchChecklistGrid,
+  .competitorGrid,
+  .namingGrid,
+  .improvementAuditGrid,
+  .scoreImprovements,
+  .revenuePlanner {
+    grid-template-columns: 1fr;
+  }
+
+  .scorecardPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreRow {
+    grid-template-columns: 120px 1fr 36px;
+  }
+
+  .brandSummaryDashboard h3 {
+    font-size: 28px;
+  }
+
+  .regenerationControls button {
+    flex: 1 1 auto;
+  }
+}

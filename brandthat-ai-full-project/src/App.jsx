@@ -16,7 +16,7 @@ const PLAN_COPY = {
 
 const MEMBER_PLAN = "member";
 const BRAND_PLAN_PRICE = "$9.99";
-const TRIAL_GENERATION_LIMIT = 3;
+const TRIAL_GENERATION_LIMIT = 0;
 
 function normalizePlan(plan = "free") {
   if (plan === "member" || plan === "starter" || plan === "pro") return MEMBER_PLAN;
@@ -742,8 +742,7 @@ function normalizeBrandPlan(plan = {}, payload = {}) {
         `Build a lead magnet around the buyer's hardest decision before choosing ${industry}.`,
         `Use the workspace to test which tagline, offer, and platform earns the clearest response.`,
       ];
-
-  return {
+  const normalizedSeed = {
     ...plan,
     brandName,
     coreOpportunity,
@@ -760,12 +759,40 @@ function normalizeBrandPlan(plan = {}, payload = {}) {
     typographySystem: ensureThesisDriven(plan.typographySystem, defaults.typography),
     colorSystem: ensureThesisDriven(plan.colorSystem, defaults.colors),
     brandVoice: ensureThesisDriven(plan.brandVoice, defaults.voice),
+  };
+
+  return {
+    ...plan,
+    brandName,
+    coreOpportunity,
+    brandThesis,
+    brandSummary: normalizedSeed.brandSummary,
+    targetAudience: normalizedSeed.targetAudience,
+    customerMotivation: normalizedSeed.customerMotivation,
+    positioning: normalizedSeed.positioning,
+    competitiveDifferentiation: normalizedSeed.competitiveDifferentiation,
+    coreOffer: normalizedSeed.coreOffer,
+    brandPersonality: normalizedSeed.brandPersonality,
+    messagingDirection: normalizedSeed.messagingDirection,
+    moodboardDirection: normalizedSeed.moodboardDirection,
+    typographySystem: normalizedSeed.typographySystem,
+    colorSystem: normalizedSeed.colorSystem,
+    brandVoice: normalizedSeed.brandVoice,
     taglineIdeas: Array.isArray(plan.taglineIdeas) && plan.taglineIdeas.length ? plan.taglineIdeas.map(cleanGeneratedText).filter(Boolean).slice(0, 8) : makeTaglines({ brandName, industry, opportunity: coreOpportunity }),
     platformStrategy,
     contentPillars,
     first20ContentIdeas,
     growthOpportunities,
     launchRoadmap30Days,
+    brandDNA: getBrandDNA(normalizedSeed, payload),
+    whyThisWorks: getWhyThisWorks(normalizedSeed, payload),
+    customerPsychology: getCustomerPsychology(normalizedSeed, payload),
+    realityCheck: getRealityCheck(normalizedSeed, payload),
+    positioningScorecard: getPositioningScorecard(normalizedSeed, payload),
+    expandedRoadmap: getExpandedRoadmap({ ...normalizedSeed, launchRoadmap30Days }, payload),
+    launchChecklist: getLaunchChecklist(plan, payload),
+    revenuePlan: getRevenuePlan(plan, payload),
+    creativeDirectorNotes: getCreativeDirectorNotes(normalizedSeed, payload),
     nextStepActionPlan: Array.isArray(plan.nextStepActionPlan) && plan.nextStepActionPlan.length
       ? plan.nextStepActionPlan.map(cleanGeneratedText).filter(Boolean)
       : [`Save this ${coreOpportunity}-led plan to the workspace.`, "Generate identity assets from the thesis.", "Use the roadmap to test the strongest proof points."],
@@ -1753,6 +1780,297 @@ async function downloadTransparentPng(svgData = "", name = "brandthat-logo") {
   await downloadGeneratedImage(url, `${name}-transparent`);
 }
 
+function splitUserList(value = "", limit = 5) {
+  return String(value || "")
+    .split(/,|\n/)
+    .map(cleanGeneratedText)
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function inferBrandArchetype(plan = {}, brand = {}) {
+  const text = `${plan.brandThesis || ""} ${plan.positioning || ""} ${plan.brandPersonality || ""} ${brand.tone || ""}`.toLowerCase();
+  if (/luxury|premium|craft|heritage|quality|elevated/.test(text)) return "The Tastemaker";
+  if (/rebel|challenger|bold|different|disrupt/.test(text)) return "The Challenger";
+  if (/care|wellness|calm|support|comfort|nurtur/.test(text)) return "The Caretaker";
+  if (/teach|guide|expert|authority|educat/.test(text)) return "The Guide";
+  if (/community|local|belong|culture|social/.test(text)) return "The Connector";
+  return "The Builder";
+}
+
+function getBrandDNA(plan = {}, brand = {}) {
+  const dna = plan.brandDNA || brand.brandDNA || {};
+  const brandName = cleanGeneratedText(plan.brandName || brand.name) || "this brand";
+  const positioning = cleanGeneratedText(dna.positioning || plan.positioning || brand.differentiator);
+  const visualDirection = cleanGeneratedText(dna.visualDirection || plan.moodboardDirection || plan.visualIdentityDirection || brand.style || brand.logoDirection);
+
+  return {
+    audience: cleanGeneratedText(dna.audience || plan.targetAudience || brand.audience) || `The specific buyer most likely to feel ${brandName} solves an immediate emotional or practical problem.`,
+    positioning: positioning || `${brandName} should be positioned around a clear, ownable reason to choose it over generic alternatives.`,
+    personality: cleanGeneratedText(dna.personality || plan.brandPersonality || brand.tone) || "Focused, useful, confident, and modern.",
+    archetype: cleanGeneratedText(dna.archetype) || inferBrandArchetype(plan, brand),
+    tone: cleanGeneratedText(dna.tone || plan.brandVoice || brand.tone) || "Clear, specific, warm, and decisive.",
+    visualDirection: visualDirection || "A restrained identity system that turns the core idea into recognizable visual cues.",
+    colors: cleanGeneratedText(dna.colors || plan.colorSystem) || "One dark anchor, one warm neutral, and one memorable accent color tied to the category emotion.",
+    typographyDirection: cleanGeneratedText(dna.typographyDirection || plan.typographySystem) || "A confident headline face paired with a readable supporting sans for digital and launch materials.",
+    keyDifferentiators: Array.isArray(dna.keyDifferentiators) && dna.keyDifferentiators.length
+      ? dna.keyDifferentiators.map(cleanGeneratedText).filter(Boolean).slice(0, 5)
+      : splitUserList(plan.competitiveDifferentiation || brand.differentiator || plan.coreOpportunity, 3),
+    customerEmotions: Array.isArray(dna.customerEmotions) && dna.customerEmotions.length
+      ? dna.customerEmotions.map(cleanGeneratedText).filter(Boolean).slice(0, 5)
+      : ["clarity", "confidence", "trust"],
+    businessGoals: Array.isArray(dna.businessGoals) && dna.businessGoals.length
+      ? dna.businessGoals.map(cleanGeneratedText).filter(Boolean).slice(0, 5)
+      : splitUserList(brand.businessGoal || brand.launchGoal || plan.workspaceContext?.roadmapGoal || "Launch with a sharper offer and visible proof.", 3),
+  };
+}
+
+function getWhyThisWorks(plan = {}, brand = {}) {
+  const dna = getBrandDNA(plan, brand);
+  const brandName = cleanGeneratedText(plan.brandName || brand.name) || "the brand";
+
+  return {
+    positioning: cleanGeneratedText(plan.whyThisWorks?.positioning) || `This gives ${brandName} a decision customers can remember instead of a broad category claim.`,
+    audience: cleanGeneratedText(plan.whyThisWorks?.audience) || `The audience is narrow enough to shape messaging, offers, and launch channels around a real buying trigger.`,
+    colors: cleanGeneratedText(plan.whyThisWorks?.colors) || `The palette supports the emotional job of ${dna.customerEmotions.slice(0, 2).join(" and ")} while staying simple enough to apply across social, web, and packaging.`,
+    typography: cleanGeneratedText(plan.whyThisWorks?.typography) || `The type direction balances memorability with readability, so the brand can feel distinct without becoming hard to use.`,
+    messaging: cleanGeneratedText(plan.whyThisWorks?.messaging) || `The message connects the buyer's desire to the brand's differentiator, which makes content and conversion copy easier to repeat.`,
+    launch: cleanGeneratedText(plan.whyThisWorks?.launch) || `The launch sequence prioritizes proof, repeatable content, and one clear next action before spreading across too many channels.`,
+  };
+}
+
+function getCustomerPsychology(plan = {}, payload = {}) {
+  const brandName = cleanGeneratedText(plan.brandName || payload.brandName) || "the brand";
+  const audience = cleanGeneratedText(plan.targetAudience || payload.audience) || "the target customer";
+  return {
+    desires: Array.isArray(plan.customerPsychology?.desires) ? plan.customerPsychology.desires.map(cleanGeneratedText).filter(Boolean).slice(0, 5) : [`Feel that ${brandName} was made for their taste, timing, and standards.`, "Make a smarter choice without over-researching.", "Buy into an identity they are proud to show."],
+    fears: Array.isArray(plan.customerPsychology?.fears) ? plan.customerPsychology.fears.map(cleanGeneratedText).filter(Boolean).slice(0, 5) : ["Wasting money on another forgettable option.", "Choosing something that looks good but does not fit their real life.", "Being sold a polished promise with no follow-through."],
+    objections: Array.isArray(plan.customerPsychology?.objections) ? plan.customerPsychology.objections.map(cleanGeneratedText).filter(Boolean).slice(0, 5) : [`Why should I choose ${brandName} instead of the familiar alternative?`, "Is this actually worth the price?", "Will this feel relevant after the first impression?"],
+    buyingTriggers: Array.isArray(plan.customerPsychology?.buyingTriggers) ? plan.customerPsychology.buyingTriggers.map(cleanGeneratedText).filter(Boolean).slice(0, 5) : ["A clear before-and-after promise.", "Visible proof from the founder, product, or customer experience.", "A timely launch offer or reason to act now."],
+    emotionalMotivations: Array.isArray(plan.customerPsychology?.emotionalMotivations) ? plan.customerPsychology.emotionalMotivations.map(cleanGeneratedText).filter(Boolean).slice(0, 5) : ["confidence", "belonging", "momentum"],
+    identityTheyWant: cleanGeneratedText(plan.customerPsychology?.identityTheyWant) || `${audience} wants to feel more discerning, capable, and ahead of the obvious choice.`,
+    choiceReason: cleanGeneratedText(plan.customerPsychology?.choiceReason) || `They choose ${brandName} when the brand makes the strongest promise feel specific, believable, and easy to act on.`,
+  };
+}
+
+function getRealityCheck(plan = {}, payload = {}) {
+  const brandName = cleanGeneratedText(plan.brandName || payload.brandName) || "this brand";
+  const opportunity = cleanGeneratedText(plan.coreOpportunity) || "the core opportunity";
+  return {
+    biggestRisk: cleanGeneratedText(plan.realityCheck?.biggestRisk) || `${brandName} could sound polished but interchangeable if the launch does not prove ${opportunity}.`,
+    weakestAssumption: cleanGeneratedText(plan.realityCheck?.weakestAssumption) || "The first audience segment will understand the offer quickly enough to take action.",
+    biggestOpportunity: cleanGeneratedText(plan.realityCheck?.biggestOpportunity) || `Own one sharp point of view around ${opportunity} before competitors notice the angle.`,
+    whatCouldKillThisIdea: cleanGeneratedText(plan.realityCheck?.whatCouldKillThisIdea) || "Trying to launch on every platform before the offer, proof, and voice are repeatable.",
+    whatWouldMakeThisStandOut: cleanGeneratedText(plan.realityCheck?.whatWouldMakeThisStandOut) || "A distinctive proof system: founder story, product ritual, customer transformation, or visual world that competitors cannot copy quickly.",
+    whatIWouldDoFirst: cleanGeneratedText(plan.realityCheck?.whatIWouldDoFirst) || "Create one landing page, one lead capture offer, and seven pieces of content that test the clearest positioning angle.",
+  };
+}
+
+function getCompetitorPositioning(plan = {}, brand = {}) {
+  const supplied = splitUserList(brand.competitors || plan.competitorCategory || "", 5);
+  if (Array.isArray(plan.competitorPositioning) && plan.competitorPositioning.length) return plan.competitorPositioning;
+  if (!supplied.length) {
+    return [{
+      name: "Category alternatives",
+      positioning: "Needs verification",
+      tone: "Unknown until reviewed",
+      visualStyle: "Unknown until reviewed",
+      pricingPerception: "Unknown until reviewed",
+      strengths: "Existing familiarity or category default behavior.",
+      weaknesses: "Likely vulnerable if BrandThat's plan creates a sharper reason to choose.",
+      opportunity: cleanGeneratedText(plan.competitiveDifferentiation) || "Define the specific promise competitors are not making clearly.",
+    }];
+  }
+  return supplied.map((name) => ({
+    name,
+    positioning: "Needs verification",
+    tone: "Needs verification",
+    visualStyle: "Needs verification",
+    pricingPerception: "Needs verification",
+    strengths: `${name} is a reference point the user already respects, so compare against its perceived standard without inventing private facts.`,
+    weaknesses: "Needs direct review before making factual claims.",
+    opportunity: `Differentiate by making ${brand.name || plan.brandName || "the brand"} more specific to ${cleanGeneratedText(plan.targetAudience || brand.audience || "the chosen audience")}.`,
+  }));
+}
+
+function getPositioningScorecard(plan = {}, brand = {}) {
+  const text = `${plan.brandThesis || ""} ${plan.positioning || ""} ${plan.targetAudience || ""} ${plan.competitiveDifferentiation || ""}`;
+  const lengthScore = Math.min(18, Math.floor(text.length / 35));
+  const hasAudience = cleanGeneratedText(plan.targetAudience || brand.audience) ? 12 : 0;
+  const hasDifferentiator = cleanGeneratedText(plan.competitiveDifferentiation || brand.differentiator) ? 12 : 0;
+  const base = 58 + lengthScore + hasAudience + hasDifferentiator;
+  const clamp = (value) => Math.max(45, Math.min(96, value));
+  const scores = plan.positioningScorecard?.scores || {};
+  const normalized = {
+    Clarity: clamp(scores.Clarity || base),
+    Differentiation: clamp(scores.Differentiation || base - 4),
+    Memorability: clamp(scores.Memorability || base - 6),
+    Credibility: clamp(scores.Credibility || base - 2),
+    "Emotional Appeal": clamp(scores["Emotional Appeal"] || base - 1),
+    "Visual Consistency": clamp(scores["Visual Consistency"] || base - 5),
+    "Market Fit": clamp(scores["Market Fit"] || base - 3),
+  };
+  const overall = Math.round(Object.values(normalized).reduce((sum, score) => sum + score, 0) / Object.values(normalized).length);
+  return {
+    overall: plan.positioningScorecard?.overall || overall,
+    scores: normalized,
+    improvements: Array.isArray(plan.positioningScorecard?.improvements) && plan.positioningScorecard.improvements.length
+      ? plan.positioningScorecard.improvements.map(cleanGeneratedText).filter(Boolean).slice(0, 2)
+      : ["Make the differentiator more concrete by naming the exact tradeoff customers are frustrated by.", "Add one proof mechanism that makes the positioning believable on the homepage and social profiles."],
+  };
+}
+
+function scoreBrandName(name = "") {
+  const cleanName = cleanGeneratedText(name);
+  const length = cleanName.replace(/\s/g, "").length;
+  const wordCount = cleanName.split(/\s+/).filter(Boolean).length;
+  const hasHardToSay = /[^a-z0-9&'.\-\s]/i.test(cleanName) || /(.)\1\1/.test(cleanName.toLowerCase());
+  const memorability = Math.max(55, Math.min(96, 92 - Math.abs(length - 9) * 3 - Math.max(0, wordCount - 2) * 8));
+  const pronunciation = hasHardToSay ? 62 : Math.max(64, Math.min(96, 94 - Math.max(0, wordCount - 2) * 6));
+  const distinctiveness = Math.max(50, Math.min(94, 68 + Math.min(18, length) + (/[&'.-]/.test(cleanName) ? 4 : 0)));
+  const premiumFeel = Math.max(52, Math.min(94, 76 + (/studio|house|supply|method|atelier|club|co\b/i.test(cleanName) ? 6 : 0) - (wordCount > 3 ? 10 : 0)));
+  const scalability = Math.max(55, Math.min(96, 88 - (/logo|coffee|skincare|dog|pizza|ai/i.test(cleanName) ? 4 : 0) - Math.max(0, wordCount - 3) * 6));
+  const domainFriendliness = Math.max(48, Math.min(95, 92 - Math.max(0, length - 14) * 3 - (/[&'.\s]/.test(cleanName) ? 8 : 0)));
+  const scores = {
+    Memorability: memorability,
+    Pronunciation: pronunciation,
+    Distinctiveness: distinctiveness,
+    "Premium Feel": premiumFeel,
+    Scalability: scalability,
+    "Domain Friendliness": domainFriendliness,
+  };
+  const overall = Math.round(Object.values(scores).reduce((sum, score) => sum + score, 0) / Object.values(scores).length);
+  return {
+    name: cleanName,
+    scores,
+    overall,
+    note: "Trademark and domain availability require separate verification before launch.",
+  };
+}
+
+function getNamingEvaluations(plan = {}, brand = {}) {
+  const names = [
+    brand.name,
+    plan.brandName,
+    ...(Array.isArray(plan.nameIdeas) ? plan.nameIdeas : []),
+  ].map(cleanGeneratedText).filter(Boolean);
+  return [...new Set(names)].slice(0, 6).map(scoreBrandName);
+}
+
+function getExpandedRoadmap(plan = {}, payload = {}) {
+  if (Array.isArray(plan.expandedRoadmap) && plan.expandedRoadmap.length) return plan.expandedRoadmap;
+  const roadmap = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
+  const phases = ["First 30 days", "Days 31-60", "Days 61-90"];
+  return phases.map((phase, index) => {
+    const source = roadmap[index + 1] || roadmap[index] || {};
+    return {
+      phase,
+      priority: index === 0 ? "Validate the sharpest brand angle" : index === 1 ? "Build repeatable demand" : "Convert attention into customers",
+      tasks: Array.isArray(source.actions) && source.actions.length ? source.actions.slice(0, 4) : ["Publish focused proof content", "Collect audience feedback", "Refine the offer page", "Review weekly metrics"],
+      recommendedTools: index === 0 ? ["Domain registrar", "Carrd/Webflow/Framer", "Google Analytics", "Canva or Figma"] : ["Email platform", "Scheduler", "Analytics dashboard", "Customer feedback form"],
+      estimatedCosts: index === 0 ? "$20-$150 depending on domain, landing page, and email tools." : "$0-$300 depending on paid tools, samples, creative, or small tests.",
+      kpis: index === 0 ? ["Landing page visits", "Email signups", "Content saves", "Profile clicks"] : index === 1 ? ["Lead conversion rate", "Content reach", "Reply rate", "Qualified inquiries"] : ["First purchases", "Repeat visits", "Referral signals", "Revenue per channel"],
+      completionCriteria: cleanGeneratedText(source.outcome) || "The phase has a visible output, measured response, and a clear decision for the next phase.",
+      status: source.status || "Not started",
+    };
+  });
+}
+
+function getLaunchChecklist(plan = {}, brand = {}) {
+  const existing = Array.isArray(brand.launchChecklist) && brand.launchChecklist.length ? brand.launchChecklist : plan.launchChecklist;
+  if (Array.isArray(existing) && existing.length) return existing;
+  return [
+    "Secure domain",
+    "Claim social handles",
+    "Create business email",
+    "Publish landing page",
+    "Set up payment or inquiry path",
+    "Create primary social profiles",
+    "Install basic analytics",
+    "Review basic legal setup",
+    "Prepare launch content",
+    "Define first customer acquisition plan",
+    "Set feedback collection loop",
+  ].map((label) => ({ label, complete: false, why: `${label} turns the brand plan into a launchable business asset.` }));
+}
+
+function getRevenuePlan(plan = {}, brand = {}) {
+  const monthlyGoal = Number(String(brand.monthlyRevenueGoal || plan.revenuePlan?.monthlyGoal || "").replace(/[^0-9.]/g, ""));
+  const averagePrice = Number(String(brand.averagePrice || plan.revenuePlan?.averagePrice || "").replace(/[^0-9.]/g, ""));
+  const salesNeeded = monthlyGoal && averagePrice ? Math.ceil(monthlyGoal / averagePrice) : null;
+  return {
+    monthlyGoal: monthlyGoal || "",
+    averagePrice: averagePrice || "",
+    salesNeeded,
+    assumptions: salesNeeded
+      ? [`At $${averagePrice.toLocaleString()} average order value, the brand needs about ${salesNeeded.toLocaleString()} sales per month to reach $${monthlyGoal.toLocaleString()}.`, "Actual results depend on conversion rate, repeat purchase, margins, traffic quality, and offer strength."]
+      : ["Enter a monthly revenue goal and average product or service price to estimate the number of customers needed."],
+    acquisitionPlan: salesNeeded
+      ? [`Create enough launch demand for ${Math.ceil(salesNeeded * 3).toLocaleString()} qualified prospects per month.`, "Use the highest-fit platform plan to create weekly proof, education, and direct offer content.", "Review traffic, signup, inquiry, and conversion metrics every Friday."]
+      : ["Set the revenue goal, price, and first acquisition channel before forecasting content volume."],
+  };
+}
+
+function getCreativeDirectorNotes(plan = {}, brand = {}) {
+  return {
+    critique: cleanGeneratedText(plan.creativeDirectorNotes?.critique) || "The direction is strongest when it makes one memorable strategic choice and applies it consistently across voice, visuals, and launch behavior.",
+    strongestElement: cleanGeneratedText(plan.creativeDirectorNotes?.strongestElement) || cleanGeneratedText(plan.coreOpportunity || brand.differentiator) || "The clearest opportunity is the brand's ability to turn a rough idea into a focused market position.",
+    weakestElement: cleanGeneratedText(plan.creativeDirectorNotes?.weakestElement) || "The weakest element is usually proof: the brand still needs one tangible reason for the audience to believe the promise quickly.",
+    improvement: cleanGeneratedText(plan.creativeDirectorNotes?.improvement) || "Create one signature proof asset: a founder story, offer demo, customer result, or visual ritual that makes the positioning obvious in ten seconds.",
+    userNotes: cleanGeneratedText(brand.creativeDirectorNotes?.userNotes || plan.creativeDirectorNotes?.userNotes) || "",
+  };
+}
+
+function getBrandImprovementAudit(plan = {}, brand = {}) {
+  const name = brand?.name || plan.brandName || "this brand";
+  return [
+    {
+      title: "Sharpen the differentiator",
+      reason: "Most early brands lose momentum when the audience cannot repeat why this version exists.",
+      apply: { differentiator: plan.positioning || brand.differentiator || `${name} should own one specific customer problem and one memorable reason to believe.` },
+    },
+    {
+      title: "Create one proof asset",
+      reason: "A brand feels real faster when the promise has evidence: demo, founder story, customer result, sample, or public build log.",
+      apply: { launchGoal: "Create one signature proof asset and publish it across the primary launch channel this week." },
+    },
+    {
+      title: "Reduce platform spread",
+      reason: "The first 30 days should test the highest-fit channels before adding more places to maintain.",
+      apply: { channels: (plan.platformStrategy || []).slice(0, 2).map((item) => item.platform).join(", ") || brand.channels || "Primary social channel and email" },
+    },
+    {
+      title: "Make the visual system ownable",
+      reason: "A strong brand needs a repeatable visual rule, not just a nice palette.",
+      apply: { style: plan.moodboardDirection || brand.style || "Define a repeatable moodboard, type, color, and image rule." },
+    },
+    {
+      title: "Turn roadmap into weekly behavior",
+      reason: "The plan only creates value when it becomes a visible operating rhythm.",
+      apply: { businessGoal: brand.businessGoal || "Complete the first proof asset, landing page, and seven launch posts in the next 14 days." },
+    },
+  ];
+}
+
+function makeOutputMoreSpecific(text = "", brand = {}) {
+  const brandName = brand?.name || "the brand";
+  return cleanGeneratedText(text)
+    .replace(/use social media to build awareness/gi, `publish three proof-led posts per week for ${brandName}, one education post, one founder or behind-the-scenes post, and one direct offer post with profile-click or waitlist signups as the KPI`)
+    .replace(/post consistently/gi, "publish on a fixed weekly cadence with named content pillars, a measurable CTA, and a Friday metrics review")
+    .replace(/build trust/gi, "show trust through customer proof, founder rationale, process transparency, specific outcomes, and clear objections answered")
+    .replace(/use premium typography/gi, "use a high-contrast editorial headline typeface paired with a restrained grotesk because the brand needs polish without sacrificing readability")
+    .replace(/use professional colors/gi, "choose one dark anchor, one quiet neutral, and one distinctive accent tied to the buyer's desired emotion");
+}
+
 function getDefaultWorkspaceDraft() {
   return {
     name: "",
@@ -1772,6 +2090,12 @@ function getDefaultWorkspaceDraft() {
     tone: "Modern",
     style: "",
     launchGoal: "",
+    pricePositioning: "",
+    desiredFeeling: "",
+    locationMarket: "",
+    businessGoal: "",
+    monthlyRevenueGoal: "",
+    averagePrice: "",
   };
 }
 
@@ -2372,6 +2696,18 @@ export default function App() {
     localStorage.setItem("brandthat_workspace_data_version", WORKSPACE_DATA_VERSION);
     localStorage.setItem("brandthat_brand_workspaces", JSON.stringify(brandWorkspaces));
   }, [brandWorkspaces]);
+
+  const updateActiveBrand = (patch = {}) => {
+    if (!activeBrand?.id) return;
+    setBrandWorkspaces((prev) =>
+      prev.map((brand) =>
+        brand.id === activeBrand.id
+          ? { ...brand, ...patch, updatedAt: new Date().toISOString() }
+          : brand
+      )
+    );
+    setAutoSaveStatus("Saved");
+  };
 
   useEffect(() => {
     localStorage.setItem("brandthat_favorite_ids", JSON.stringify(favoriteIds));
@@ -3188,16 +3524,109 @@ ${saved.growth?.slice(0, 2).map((x) => x.content).join("\n\n") || "No saved grow
 Generated with Brandthat.ai`;
   };
 
+  const buildWorkspaceBookHtml = () => {
+    if (!activeBrand) return "<h1>Create a Brand Workspace first.</h1>";
+
+    const plan = getWorkspacePlan(activeBrand);
+    const dna = getBrandDNA(plan, activeBrand);
+    const psychology = getCustomerPsychology(plan, activeBrand);
+    const roadmap = getExpandedRoadmap(plan, activeBrand);
+    const scorecard = getPositioningScorecard(plan, activeBrand);
+    const checklist = getLaunchChecklist(plan, activeBrand);
+    const why = getWhyThisWorks(plan, activeBrand);
+    const list = (items = []) => `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    const rows = (items = {}) => Object.entries(items).map(([label, value]) => `<section><h3>${escapeHtml(label.replace(/([A-Z])/g, " $1").trim())}</h3><p>${escapeHtml(value)}</p></section>`).join("");
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(activeBrand.name)} Brand Book</title>
+  <style>
+    body{font-family:Inter,Arial,sans-serif;margin:0;background:#f7f5f0;color:#111;line-height:1.55}
+    main{max-width:980px;margin:0 auto;padding:56px 28px}
+    h1{font-size:56px;letter-spacing:-.05em;line-height:.95;margin:0 0 14px}
+    h2{font-size:28px;letter-spacing:-.03em;margin:42px 0 14px}
+    h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.12em}
+    p{margin:0 0 14px;color:#444}
+    .hero,.grid section,.phase,.score,.check{background:white;border:1px solid #e7e1d8;border-radius:22px;padding:24px;margin-bottom:16px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .phase strong,.score strong{font-size:32px}
+    ul{margin:0;padding-left:20px;color:#333}
+    @media print{body{background:white}main{padding:0}.hero,.grid section,.phase,.score,.check{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <h1>${escapeHtml(activeBrand.name)}</h1>
+    <p>${escapeHtml(plan.brandSummary)}</p>
+    <p><b>Positioning:</b> ${escapeHtml(plan.positioning)}</p>
+  </div>
+
+  <h2>Brand Overview</h2>
+  <div class="grid">
+    <section><h3>Brand Thesis</h3><p>${escapeHtml(plan.brandThesis)}</p></section>
+    <section><h3>Audience</h3><p>${escapeHtml(dna.audience)}</p></section>
+    <section><h3>Personality</h3><p>${escapeHtml(dna.personality)}</p></section>
+    <section><h3>Voice</h3><p>${escapeHtml(dna.tone)}</p></section>
+  </div>
+
+  <h2>Identity Direction</h2>
+  <div class="grid">
+    <section><h3>Visual Direction</h3><p>${escapeHtml(dna.visualDirection)}</p></section>
+    <section><h3>Colors</h3><p>${escapeHtml(dna.colors)}</p></section>
+    <section><h3>Typography</h3><p>${escapeHtml(dna.typographyDirection)}</p></section>
+    <section><h3>Logo Guidance</h3><p>${escapeHtml(activeBrand.logoDirection || plan.visualIdentityDirection || plan.moodboardDirection)}</p></section>
+  </div>
+
+  <h2>Why This Works</h2>
+  <div class="grid">${rows(why)}</div>
+
+  <h2>Customer Psychology</h2>
+  <div class="grid">
+    <section><h3>Desires</h3>${list(psychology.desires)}</section>
+    <section><h3>Fears</h3>${list(psychology.fears)}</section>
+    <section><h3>Objections</h3>${list(psychology.objections)}</section>
+    <section><h3>Buying Triggers</h3>${list(psychology.buyingTriggers)}</section>
+  </div>
+
+  <h2>Positioning Scorecard</h2>
+  <div class="grid">${Object.entries(scorecard.scores || {}).map(([label, score]) => `<section class="score"><h3>${escapeHtml(label)}</h3><strong>${score}</strong></section>`).join("")}</div>
+
+  <h2>90-Day Roadmap</h2>
+  ${roadmap.map((phase) => `<section class="phase"><h3>${escapeHtml(phase.phase)}</h3><p><b>${escapeHtml(phase.priority)}</b></p>${list(phase.tasks)}<p><b>KPIs:</b> ${escapeHtml(phase.kpis.join(", "))}</p><p><b>Completion:</b> ${escapeHtml(phase.completionCriteria)}</p></section>`).join("")}
+
+  <h2>Business Launch Checklist</h2>
+  <div class="grid">${checklist.map((item) => `<section class="check"><h3>${escapeHtml(item.complete ? "Complete" : "Open")}</h3><p><b>${escapeHtml(item.label)}</b></p><p>${escapeHtml(item.why)}</p></section>`).join("")}</div>
+</main>
+</body>
+</html>`;
+  };
+
   const downloadBrandKit = () => {
-    const kit = buildWorkspaceKit();
-    const blob = new Blob([kit], { type: "text/plain" });
+    const kit = buildWorkspaceBookHtml();
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(kit);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+      notify("success", "Brand Book ready", "Choose Save as PDF in the print dialog to export the complete Brand Book.");
+      return;
+    }
+
+    const blob = new Blob([kit], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const element = document.createElement("a");
     element.href = url;
-    element.download = `${activeBrand?.name || "brandthat"}-brand-kit.txt`;
+    element.download = `${activeBrand?.name || "brandthat"}-brand-book.html`;
     element.click();
     URL.revokeObjectURL(url);
-    notify("success", "Brand kit downloaded", "Your workspace export is ready.");
+    notify("success", "Brand Book downloaded", "Open it in your browser and choose Print to save it as a PDF.");
   };
 
   const duplicateBrand = async (brandId) => {
@@ -3222,11 +3651,21 @@ Generated with Brandthat.ai`;
       tone: source.tone || "Modern",
       style: source.style || "",
       launchGoal: source.launchGoal || "",
+      pricePositioning: source.pricePositioning || "",
+      desiredFeeling: source.desiredFeeling || "",
+      locationMarket: source.locationMarket || "",
+      businessGoal: source.businessGoal || "",
+      monthlyRevenueGoal: source.monthlyRevenueGoal || "",
+      averagePrice: source.averagePrice || "",
     };
 
     const newBrand = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       ...duplicateDraft,
+      structuredPlan: source.structuredPlan || null,
+      brandDNA: source.brandDNA || source.structuredPlan?.brandDNA || null,
+      launchChecklist: source.launchChecklist || source.structuredPlan?.launchChecklist || [],
+      creativeDirectorNotes: source.creativeDirectorNotes || source.structuredPlan?.creativeDirectorNotes || null,
       saved: emptySavedBuckets(),
       createdAt: new Date().toISOString(),
     };
@@ -3285,6 +3724,29 @@ ${entry.content || "Use the saved logo direction and improve it."}`);
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth" }), 80);
   };
 
+  const regenerateWorkspaceSection = (label, value, modifier = "Regenerate") => {
+    if (!activeBrand) return;
+    const sectionText = typeof value === "string" ? value : JSON.stringify(value || {}, null, 2);
+    setActiveToolKey("strategy");
+    setSelectedPlatform(label);
+    setCreativeTone(activeBrand.name || "");
+    setPrompt(`${modifier} only the ${label} section for this Brand Workspace.
+
+Use the Brand DNA and current workspace context. Do not rebuild the whole project. Keep user-edited decisions intact. Make the output specific, decisive, practical, and include a concise "Why this works" explanation.
+
+Current Brand Workspace:
+${buildBrandPrompt(activeBrand)}
+
+Current ${label} section:
+${sectionText}`);
+    setResult("");
+    setLogoImage("");
+    setLogoImageSource("");
+    setLogoCreativeBrief(null);
+    setPage("studio");
+    setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  };
+
   const getRecentGenerations = (limit = 8) => {
     return brandWorkspaces
       .flatMap((brand) =>
@@ -3298,11 +3760,16 @@ ${entry.content || "Use the saved logo direction and improve it."}`);
 
   function buildBrandPrompt(brand) {
     const plan = getWorkspacePlan(brand);
+    const dna = getBrandDNA(plan, brand);
     return `Brand name: ${brand.name}
 Core opportunity: ${plan.coreOpportunity || "Not provided"}
 Brand thesis: ${plan.brandThesis || "Not provided"}
 Brand description: ${brand.description}
 Audience: ${brand.audience}
+Brand DNA audience: ${dna.audience}
+Brand DNA positioning: ${dna.positioning}
+Brand archetype: ${dna.archetype}
+Customer emotions: ${dna.customerEmotions.join(", ")}
 Audience pain/desire: ${brand.audiencePain || "Not provided"}
 Core offer: ${brand.offer || "Not provided"}
 Differentiator: ${brand.differentiator || "Not provided"}
@@ -3310,6 +3777,7 @@ Competitors/references: ${brand.competitors || "Not provided"}
 Brand tone: ${brand.tone}
 Logo direction: ${brand.logoDirection}
 Visual style: ${brand.style}
+Visual DNA: ${dna.visualDirection}
 Moodboard direction: ${plan.moodboardDirection || "Not provided"}
 Typography direction: ${plan.typographySystem || "Not provided"}
 Color direction: ${plan.colorSystem || "Not provided"}
@@ -3318,6 +3786,9 @@ Growth platform: ${brand.growthPlatform || "Not provided"}
 Current followers: ${brand.currentFollowers || "Not provided"}
 Target followers: ${brand.targetFollowers || "Not provided"}
 Weekly time available: ${brand.weeklyTime || "Not provided"}
+Price positioning: ${brand.pricePositioning || "Not provided"}
+Location or market: ${brand.locationMarket || "Not provided"}
+Business goal: ${brand.businessGoal || "Not provided"}
 Launch goal: ${brand.launchGoal}
 Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   }
@@ -3348,7 +3819,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
   };
 
   const incrementTrialGenerationUse = () => {
-    if (isMember || isLogoTestingUnlocked) return;
+    if (isMember) return;
 
     const newCount = trialGenerationCount + 1;
     localStorage.setItem("brandthat_trial_generation_count", String(newCount));
@@ -3363,14 +3834,14 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     const session = await requireVerifiedAccount(action, "Create your BrandThat account and verify your email before generating a Brand Plan.");
     if (!session) return null;
 
-    if (isMember || isLogoTestingUnlocked) return session;
+    if (isMember) return session;
 
     showMembershipOffer("A complete Brand Plan costs $9.99 for one brand idea. You keep the saved Brand Workspace forever.");
     return null;
   };
 
   const selectTool = async (toolKey) => {
-    const session = await requireVerifiedAccount("open_tool", "Create your BrandThat account to try the full product.");
+    const session = await requireMembershipOrTrial("open_tool");
     if (!session) return;
 
     const nextTool = toolMap[toolKey] || tools[0];
@@ -3434,6 +3905,14 @@ ${brandName}
 What the user is building:
 ${workspaceDraft.description}
 
+Optional context from the user:
+Target customer: ${workspaceDraft.audience || "Infer the most useful first customer segment."}
+Price positioning: ${workspaceDraft.pricePositioning || "Infer whether the brand should feel accessible, premium, luxury, or value-led."}
+Desired feeling: ${workspaceDraft.desiredFeeling || "Infer the emotional response the brand should create."}
+Location or market: ${workspaceDraft.locationMarket || "Infer the market context from the idea."}
+Competitors or admired references: ${workspaceDraft.competitors || "Use category logic without inventing factual competitor details."}
+Business goal: ${workspaceDraft.businessGoal || workspaceDraft.launchGoal || "Launch with a clear brand plan and first customers."}
+
 Rules:
 - Make decisions. Do not define categories.
 - Every recommendation must explain WHY it fits this specific brand.
@@ -3442,6 +3921,9 @@ Rules:
 - Do not output undefined, null, empty sections, placeholder labels, or repeated recommendations.
 - Choose only the platforms that genuinely fit this brand. Do not recommend every platform.
 - Logo concepts come last and must be based on the strategy, moodboard, typography, color system, audience, voice, and positioning.
+- Build a persistent Brand DNA object containing audience, positioning, personality, archetype, tone, visual direction, colors, typography direction, key differentiators, customer emotions, and business goals.
+- Add concise "Why this works" reasoning for positioning, audience, colors, typography, messaging, and launch strategy.
+- Add customer psychology, competitor positioning, reality check, positioning scorecard, Creative Director Notes, business launch checklist, revenue planning assumptions, and a concrete 30/60/90 execution roadmap.
 
 Return a complete Brand Plan with these sections:
 1. Brand Summary
@@ -3465,6 +3947,15 @@ Return a complete Brand Plan with these sections:
 19. Growth Opportunities
 20. Next Best Actions
 21. Saved Brand Workspace summary
+22. Brand DNA
+23. Why This Works
+24. Customer Psychology
+25. Competitor Positioning
+26. Reality Check
+27. Positioning Scorecard
+28. Creative Director Notes
+29. Business Launch Checklist
+30. Revenue Planning
 
 Output should make the user feel: "I know exactly what my brand is and exactly what I should do next."`;
 
@@ -3495,6 +3986,13 @@ Output should make the user feel: "I know exactly what my brand is and exactly w
     moodboard: workspaceDraft.style,
     roadmapGoal: workspaceDraft.targetFollowers || workspaceDraft.launchGoal,
     offer: workspaceDraft.offer,
+    pricePositioning: workspaceDraft.pricePositioning,
+    desiredFeeling: workspaceDraft.desiredFeeling,
+    locationMarket: workspaceDraft.locationMarket,
+    competitors: workspaceDraft.competitors,
+    businessGoal: workspaceDraft.businessGoal || workspaceDraft.launchGoal,
+    monthlyRevenueGoal: workspaceDraft.monthlyRevenueGoal,
+    averagePrice: workspaceDraft.averagePrice,
     rawPrompt: promptValue,
   });
 
@@ -3506,13 +4004,13 @@ Output should make the user feel: "I know exactly what my brand is and exactly w
     setWorkspaceDraft((current) => ({
       ...current,
       name: current.name || normalizedPlan.brandName || logoContext.brandName || "",
-      description: normalizedPlan.brandSummary || current.description,
-      audience: normalizedPlan.targetAudience || workspaceContext.audience || current.audience,
-      offer: normalizedPlan.coreOffer || workspaceContext.offer || current.offer || "",
-      differentiator: normalizedPlan.positioning || workspaceContext.differentiator || current.differentiator || "",
-      competitors: normalizedPlan.competitorCategory || current.competitors || "",
-      tone: tones.includes(normalizedPlan.brandPersonality) ? normalizedPlan.brandPersonality : current.tone || "Modern",
-      style: normalizedPlan.moodboardDirection || workspaceContext.moodboard || logoContext.style || current.style || "",
+      description: current.description || normalizedPlan.brandSummary || "",
+      audience: current.audience || normalizedPlan.targetAudience || workspaceContext.audience || "",
+      offer: current.offer || normalizedPlan.coreOffer || workspaceContext.offer || "",
+      differentiator: current.differentiator || normalizedPlan.positioning || workspaceContext.differentiator || "",
+      competitors: current.competitors || normalizedPlan.competitorCategory || "",
+      tone: current.tone && current.tone !== "Modern" ? current.tone : tones.includes(normalizedPlan.brandPersonality) ? normalizedPlan.brandPersonality : current.tone || "Modern",
+      style: current.style || normalizedPlan.moodboardDirection || workspaceContext.moodboard || logoContext.style || "",
       logoDirection: [
         normalizedPlan.coreOpportunity ? `Core opportunity: ${normalizedPlan.coreOpportunity}` : "",
         normalizedPlan.brandThesis ? `Brand thesis: ${normalizedPlan.brandThesis}` : "",
@@ -3522,7 +4020,8 @@ Output should make the user feel: "I know exactly what my brand is and exactly w
         logoContext.typography ? `Typography: ${logoContext.typography}` : normalizedPlan.typographySystem ? `Typography: ${normalizedPlan.typographySystem}` : "",
         logoContext.colors ? `Colors: ${logoContext.colors}` : normalizedPlan.colorSystem ? `Colors: ${normalizedPlan.colorSystem}` : "",
       ].filter(Boolean).join("\n"),
-      launchGoal: workspaceContext.roadmapGoal || current.launchGoal || "Turn the brand plan into logo concepts, launch content, and a saved workspace.",
+      launchGoal: current.launchGoal || workspaceContext.roadmapGoal || "Turn the brand plan into logo concepts, launch content, and a saved workspace.",
+      businessGoal: current.businessGoal || normalizedPlan.brandDNA?.businessGoals?.[0] || "",
     }));
   };
 
@@ -3558,6 +4057,15 @@ Output should make the user feel: "I know exactly what my brand is and exactly w
       currentFollowers: workspaceDraft.currentFollowers || "",
       targetFollowers: workspaceDraft.targetFollowers || "",
       weeklyTime: workspaceDraft.weeklyTime || "",
+      pricePositioning: workspaceDraft.pricePositioning || existing?.pricePositioning || "",
+      desiredFeeling: workspaceDraft.desiredFeeling || existing?.desiredFeeling || "",
+      locationMarket: workspaceDraft.locationMarket || existing?.locationMarket || "",
+      businessGoal: workspaceDraft.businessGoal || existing?.businessGoal || "",
+      monthlyRevenueGoal: workspaceDraft.monthlyRevenueGoal || existing?.monthlyRevenueGoal || "",
+      averagePrice: workspaceDraft.averagePrice || existing?.averagePrice || "",
+      brandDNA: normalizedPlan.brandDNA,
+      launchChecklist: existing?.launchChecklist || normalizedPlan.launchChecklist,
+      creativeDirectorNotes: existing?.creativeDirectorNotes || normalizedPlan.creativeDirectorNotes,
       logoImage: existing?.logoImage || workspaceDraft.logoImage || "",
       tone: tones.includes(normalizedPlan.brandPersonality) ? normalizedPlan.brandPersonality : workspaceDraft.tone || existing?.tone || "Modern",
       style: normalizedPlan.moodboardDirection || workspaceContext.moodboard || logoContext.style || workspaceDraft.style || existing?.style || "",
@@ -3758,6 +4266,8 @@ Include weekly priorities, post types, posting frequency, what to post, simple C
   };
 
   const getSystemPrompt = () => {
+    const activePlan = activeBrand ? getWorkspacePlan(activeBrand) : null;
+    const activeDNA = activeBrand ? getBrandDNA(activePlan, activeBrand) : null;
     const workspaceContext = activeBrand
       ? `
 Current Brand Workspace:
@@ -3778,6 +4288,18 @@ Target followers: ${activeBrand.targetFollowers || "Not provided"}
 Weekly time available: ${activeBrand.weeklyTime || "Not provided"}
 Launch goal: ${activeBrand.launchGoal}
 Brand readiness score: ${getBrandReadinessScore(activeBrand)}%
+Brand DNA:
+Audience: ${activeDNA.audience}
+Positioning: ${activeDNA.positioning}
+Personality: ${activeDNA.personality}
+Archetype: ${activeDNA.archetype}
+Tone: ${activeDNA.tone}
+Visual direction: ${activeDNA.visualDirection}
+Colors: ${activeDNA.colors}
+Typography: ${activeDNA.typographyDirection}
+Differentiators: ${activeDNA.keyDifferentiators.join("; ")}
+Customer emotions: ${activeDNA.customerEmotions.join(", ")}
+Business goals: ${activeDNA.businessGoals.join("; ")}
 `
       : "";
 
@@ -3884,6 +4406,10 @@ Rules:
 - Exactly 10 sections or results.
 - Every result must directly relate to what the user typed.
 - Make each result copy-ready, practical, and strategically useful.
+- Use the Brand DNA as the source of truth when a workspace exists.
+- Make recommendations like a senior creative director: decisive, specific, and tailored to this business.
+- Add a concise "Why this works" line under major recommendations when the tool is strategic, brand, audit, campaign, or growth.
+- Replace vague advice with concrete channels, cadence, content types, proof points, KPIs, costs, or completion criteria.
 - Avoid generic filler and cheesy phrasing.
 - Keep the output fast, clean, and easy to scan.
 - If generating emails, make the email content specific, accurate, and complete enough to use.
@@ -3912,11 +4438,13 @@ ${workspaceContext}
 Rules:
 - Match the selected generator exactly.
 - Make the output specific to the user's request and brand workspace.
+- Use Brand DNA when present. Do not contradict user-edited audience, tone, colors, typography, positioning, or business goals.
 - Use clear headings and spacing.
 - Give multiple useful options when appropriate.
 - Format output in clean sections.
 - Make the output easy to copy and use immediately.
 - Avoid fluff.
+- Avoid generic recommendations such as "post consistently", "build trust", "use premium typography", or "use social media" unless followed by specific actions, examples, cadence, and measurable outcomes.
 - Avoid saying "as an AI."
 - Do not use Markdown bold markers like **text**.
 - Do not use decorative symbols, asterisks, emoji, or spammy formatting.
@@ -4109,8 +4637,7 @@ Requirements:
       Authorization: `Bearer ${authSession.access_token}`,
     };
 
-    const isLocalDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const trialLimitsBypassed = isLocalDevHost || isLogoTestingUnlocked || isMember;
+    const trialLimitsBypassed = isMember;
 
     setLoading(true);
     setLogoGenerationError("");
@@ -4225,7 +4752,7 @@ ${promptValue}`
           timeoutMessage: "Generation took too long. Please try again with a shorter request."
         });
 
-        const cleanText = cleanGeneratedText(data.text || "");
+        const cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
         if (!cleanText) {
           throw new Error("BrandThat did not receive a usable response. Please try again.");
         }
@@ -4434,6 +4961,8 @@ ${promptValue}`
               downloadBrandKit={downloadBrandKit}
               remixOutput={remixOutput}
               copyToClipboard={copyToClipboard}
+              updateActiveBrand={updateActiveBrand}
+              regenerateWorkspaceSection={regenerateWorkspaceSection}
             />
           )}
 
@@ -4735,6 +5264,60 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
         />
       </label>
 
+      <details className="builderContextFields">
+        <summary>Sharpen the plan with optional context</summary>
+        <div className="builderContextGrid">
+          <label className="builderField">
+            <span>Target customer</span>
+            <input
+              placeholder="Design-conscious dog owners in cities"
+              value={workspaceDraft.audience || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
+            />
+          </label>
+          <label className="builderField">
+            <span>Price position</span>
+            <input
+              placeholder="Premium, accessible, luxury, value-led"
+              value={workspaceDraft.pricePositioning || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, pricePositioning: e.target.value })}
+            />
+          </label>
+          <label className="builderField">
+            <span>Desired feeling</span>
+            <input
+              placeholder="Warm, capable, rare, calm, rebellious"
+              value={workspaceDraft.desiredFeeling || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, desiredFeeling: e.target.value })}
+            />
+          </label>
+          <label className="builderField">
+            <span>Location or market</span>
+            <input
+              placeholder="Los Angeles, online-first, local service"
+              value={workspaceDraft.locationMarket || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, locationMarket: e.target.value })}
+            />
+          </label>
+          <label className="builderField full">
+            <span>Competitors you admire</span>
+            <input
+              placeholder="Aime Leon Dore, Patagonia, Goop, Liquid Death"
+              value={workspaceDraft.competitors || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })}
+            />
+          </label>
+          <label className="builderField full">
+            <span>Business goal</span>
+            <input
+              placeholder="Launch a waitlist, sell first 50 units, book first 10 clients"
+              value={workspaceDraft.businessGoal || ""}
+              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, businessGoal: e.target.value, launchGoal: e.target.value || workspaceDraft.launchGoal })}
+            />
+          </label>
+        </div>
+      </details>
+
       <div className="builderActions">
         <button className="btn dark" onClick={buildGuidedBrandPlan}>
           {loading ? "Building your brand..." : "Build My Brand"}
@@ -4856,6 +5439,45 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
             onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, channels: e.target.value })}
           />
         </div>
+
+        <div className="workspaceGrid">
+          <input
+            placeholder="Price positioning. Example: Premium but approachable."
+            value={workspaceDraft.pricePositioning || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, pricePositioning: e.target.value })}
+          />
+          <input
+            placeholder="Desired feeling. Example: Calm confidence and quiet status."
+            value={workspaceDraft.desiredFeeling || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, desiredFeeling: e.target.value })}
+          />
+        </div>
+
+        <div className="workspaceGrid">
+          <input
+            placeholder="Location or market. Example: LA, online-first, national DTC."
+            value={workspaceDraft.locationMarket || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, locationMarket: e.target.value })}
+          />
+          <input
+            placeholder="Business goal. Example: Sell first 100 boxes in 90 days."
+            value={workspaceDraft.businessGoal || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, businessGoal: e.target.value })}
+          />
+        </div>
+
+        <div className="workspaceGrid">
+          <input
+            placeholder="Monthly revenue goal. Example: 10000"
+            value={workspaceDraft.monthlyRevenueGoal || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, monthlyRevenueGoal: e.target.value })}
+          />
+          <input
+            placeholder="Average price. Example: 49"
+            value={workspaceDraft.averagePrice || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, averagePrice: e.target.value })}
+          />
+        </div>
       </details>
 
       <button className="btn dark full" onClick={createWorkspace}>Create Brand Workspace</button>
@@ -4863,15 +5485,87 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
   );
 }
 
-function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard }) {
+function RegenerationControls({ label, value, copyToClipboard, regenerateWorkspaceSection }) {
+  const current = typeof value === "string" ? value : JSON.stringify(value || {}, null, 2);
+  const actions = ["Regenerate", "Make More Premium", "Make More Bold", "Make More Minimal", "Make More Playful", "Edit Manually"];
+  return (
+    <div className="regenerationControls">
+      {actions.map((action) => (
+        <button
+          key={action}
+          onClick={() => action === "Edit Manually"
+            ? copyToClipboard(`Edit this ${label} section manually.\n\nCurrent section:\n${current}`)
+            : regenerateWorkspaceSection?.(label, value, action)}
+        >
+          {action}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BrandSummaryDashboard({ brand, plan }) {
+  const dna = getBrandDNA(plan, brand);
+  const readiness = getBrandReadinessScore(brand);
+  return (
+    <div className="brandSummaryDashboard">
+      <div>
+        <span>Brand Summary</span>
+        <h3>{brand.name}</h3>
+        <p>{getBrandFieldPreview(plan.positioning || dna.positioning)}</p>
+      </div>
+      <div className="summaryMetric"><small>Audience</small><strong>{getBrandFieldPreview(dna.audience)}</strong></div>
+      <div className="summaryMetric"><small>Primary emotion</small><strong>{dna.customerEmotions[0] || "confidence"}</strong></div>
+      <div className="summaryMetric"><small>Personality</small><strong>{dna.personality}</strong></div>
+      <div className="summaryMetric"><small>Differentiator</small><strong>{getBrandFieldPreview(dna.keyDifferentiators[0] || plan.competitiveDifferentiation)}</strong></div>
+      <div className="summaryMetric"><small>Colors</small><strong>{dna.colors}</strong></div>
+      <div className="summaryMetric"><small>Typography</small><strong>{dna.typographyDirection}</strong></div>
+      <div className="summaryScore"><strong>{readiness}%</strong><span>complete</span></div>
+    </div>
+  );
+}
+
+function ScorecardPanel({ scorecard }) {
+  return (
+    <div className="scorecardPanel">
+      <div className="scoreHero"><strong>{scorecard.overall}</strong><span>overall positioning score</span></div>
+      <div className="scoreRows">
+        {Object.entries(scorecard.scores || {}).map(([label, score]) => (
+          <div className="scoreRow" key={label}>
+            <span>{label}</span>
+            <div><i style={{ width: `${score}%` }} /></div>
+            <strong>{score}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="scoreImprovements">
+        {(scorecard.improvements || []).map((item) => <p key={item}>{item}</p>)}
+      </div>
+    </div>
+  );
+}
+
+function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard, updateActiveBrand, regenerateWorkspaceSection }) {
   const plan = getWorkspacePlan(brand);
   brandthatDevLog("rendered workspace data", { brand, plan });
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
   const roadmapItems = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
+  const expandedRoadmap = getExpandedRoadmap(plan, brand);
   const nextActions = getBrandNextActions(brand);
   const insightCards = getBrandInsightCards(brand);
   const platformPlan = Array.isArray(plan.platformStrategy) && plan.platformStrategy.length ? plan.platformStrategy : getSocialPlatformRecommendations(brand);
   const contentIdeas = Array.isArray(plan.first20ContentIdeas) && plan.first20ContentIdeas.length ? plan.first20ContentIdeas : getBrandPlanDefaults({ brandName: brand.name, idea: brand.description, industry: plan.workspaceContext?.industry, opportunity: plan.coreOpportunity }).first20ContentIdeas;
+  const dna = getBrandDNA(plan, brand);
+  const whyThisWorks = getWhyThisWorks(plan, brand);
+  const customerPsychology = getCustomerPsychology(plan, brand);
+  const realityCheck = getRealityCheck(plan, brand);
+  const competitorPositioning = getCompetitorPositioning(plan, brand);
+  const scorecard = getPositioningScorecard(plan, brand);
+  const namingEvaluations = getNamingEvaluations(plan, brand);
+  const checklist = getLaunchChecklist(plan, brand);
+  const revenuePlan = getRevenuePlan(plan, brand);
+  const directorNotes = getCreativeDirectorNotes(plan, brand);
+  const improvementAudit = getBrandImprovementAudit(plan, brand);
   const identityCards = [
     ["Core Opportunity", plan.coreOpportunity || "Generate a core strategic opportunity."],
     ["Brand Thesis", plan.brandThesis || "Generate a brand thesis."],
@@ -4904,12 +5598,27 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
           <p>{getBrandFieldPreview(plan.brandSummary || brand.description, "This workspace is ready for a clear brand summary, visual direction, roadmap, and logo concepts.")}</p>
           <div className="dashboardActions">
             <button className="btn dark" onClick={() => setPage("logo")}>Generate Logo Concepts</button>
-            <button className="btn light" onClick={downloadBrandKit}>Download Brand Kit</button>
+            <button className="btn light" onClick={downloadBrandKit}>Export Brand Book PDF</button>
           </div>
         </div>
       </div>
 
+      <BrandSummaryDashboard brand={brand} plan={plan} />
+
       <div className="dashboardGrid">
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Brand DNA</span>
+          <div className="dashboardIdentityGrid dnaGrid">
+            <div><strong>Audience</strong><p>{dna.audience}</p></div>
+            <div><strong>Positioning</strong><p>{dna.positioning}</p></div>
+            <div><strong>Archetype</strong><p>{dna.archetype}</p></div>
+            <div><strong>Tone</strong><p>{dna.tone}</p></div>
+            <div><strong>Visual Direction</strong><p>{dna.visualDirection}</p></div>
+            <div><strong>Business Goals</strong><p>{dna.businessGoals.join(" / ")}</p></div>
+          </div>
+          <RegenerationControls label="Brand DNA" value={dna} copyToClipboard={copyToClipboard} regenerateWorkspaceSection={regenerateWorkspaceSection} />
+        </div>
+
         <div className="dashboardPanel wideDashboardPanel">
           <span>Brand System</span>
           <div className="dashboardIdentityGrid">
@@ -4920,27 +5629,129 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
               </div>
             ))}
           </div>
+          <div className="whyThisWorksGrid">
+            {Object.entries(whyThisWorks).slice(0, 6).map(([label, value]) => (
+              <div key={label}>
+                <strong>Why {label} works</strong>
+                <p>{value}</p>
+              </div>
+            ))}
+          </div>
+          <RegenerationControls label="Brand System" value={identityCards.map(([label, value]) => `${label}: ${value}`).join("\n")} copyToClipboard={copyToClipboard} regenerateWorkspaceSection={regenerateWorkspaceSection} />
         </div>
 
         <div className="dashboardPanel wideDashboardPanel">
           <span>90-Day Launch Roadmap</span>
           <div className="roadmapPhaseList">
-            {roadmapItems.map((item) => (
-              <div className="roadmapPhaseCard" key={item.week}>
-                <strong>{item.week}</strong>
-                <h3>{item.focus}</h3>
-                <ul>{item.actions.map((action) => <li key={action}>{action}</li>)}</ul>
-                <p><b>Expected outcome:</b> {item.outcome}</p>
+            {expandedRoadmap.map((item) => (
+              <div className="roadmapPhaseCard" key={item.phase}>
+                <strong>{item.phase}</strong>
+                <h3>{item.priority}</h3>
+                <ul>{item.tasks.map((action) => <li key={action}>{action}</li>)}</ul>
+                <p><b>Tools:</b> {item.recommendedTools.join(", ")}</p>
+                <p><b>Estimated costs:</b> {item.estimatedCosts}</p>
+                <p><b>KPIs:</b> {item.kpis.join(", ")}</p>
+                <p><b>Completion:</b> {item.completionCriteria}</p>
                 <small>{item.status}</small>
+              </div>
+            ))}
+          </div>
+          <RegenerationControls label="90-Day Roadmap" value={expandedRoadmap} copyToClipboard={copyToClipboard} regenerateWorkspaceSection={regenerateWorkspaceSection} />
+        </div>
+
+        <div className="dashboardPanel">
+          <span>Next Best Action</span>
+          <div className="dashboardActionList">
+            {nextActions.map((item) => <button key={item} onClick={() => copyToClipboard(item)}>{item}</button>)}
+          </div>
+        </div>
+
+        <div className="dashboardPanel">
+          <span>Creative Director Notes</span>
+          <div className="directorNotes">
+            <p><b>Critique:</b> {directorNotes.critique}</p>
+            <p><b>Strongest:</b> {directorNotes.strongestElement}</p>
+            <p><b>Weakest:</b> {directorNotes.weakestElement}</p>
+            <p><b>Improve next:</b> {directorNotes.improvement}</p>
+            <textarea
+              placeholder="Add your own creative direction notes..."
+              value={directorNotes.userNotes || ""}
+              onChange={(event) => updateActiveBrand?.({ creativeDirectorNotes: { ...directorNotes, userNotes: event.target.value } })}
+            />
+          </div>
+        </div>
+
+        <div className="dashboardPanel">
+          <span>Reality Check</span>
+          <div className="realityCheckList">
+            {Object.entries(realityCheck).map(([label, value]) => (
+              <p key={label}><b>{label.replace(/([A-Z])/g, " $1").trim()}:</b> {value}</p>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Improve My Brand</span>
+          <div className="improvementAuditGrid">
+            {improvementAudit.map((item, index) => (
+              <div className="improvementAuditCard" key={item.title}>
+                <small>Priority {index + 1}</small>
+                <strong>{item.title}</strong>
+                <p>{item.reason}</p>
+                <button onClick={() => updateActiveBrand?.(item.apply)}>Apply recommendation</button>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="dashboardPanel">
-          <span>Next Actions</span>
-          <div className="dashboardActionList">
-            {nextActions.map((item) => <button key={item} onClick={() => copyToClipboard(item)}>{item}</button>)}
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Customer Psychology</span>
+          <div className="psychologyGrid">
+            <div><strong>Desires</strong><ul>{customerPsychology.desires.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            <div><strong>Fears</strong><ul>{customerPsychology.fears.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            <div><strong>Objections</strong><ul>{customerPsychology.objections.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            <div><strong>Buying Triggers</strong><ul>{customerPsychology.buyingTriggers.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            <div><strong>Identity</strong><p>{customerPsychology.identityTheyWant}</p></div>
+            <div><strong>Why They Choose It</strong><p>{customerPsychology.choiceReason}</p></div>
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Competitor Positioning</span>
+          <div className="competitorGrid">
+            {competitorPositioning.map((item) => (
+              <div className="competitorCard" key={item.name}>
+                <strong>{item.name}</strong>
+                <p><b>Positioning:</b> {item.positioning}</p>
+                <p><b>Tone:</b> {item.tone}</p>
+                <p><b>Visual style:</b> {item.visualStyle}</p>
+                <p><b>Pricing perception:</b> {item.pricingPerception}</p>
+                <p><b>Strength:</b> {item.strengths}</p>
+                <p><b>Weakness:</b> {item.weaknesses}</p>
+                <p><b>Opportunity:</b> {item.opportunity}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Positioning Scorecard</span>
+          <ScorecardPanel scorecard={scorecard} />
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Naming Evaluation</span>
+          <div className="namingGrid">
+            {namingEvaluations.map((item) => (
+              <div className="namingCard" key={item.name}>
+                <strong>{item.name}</strong>
+                <b>{item.overall}/100</b>
+                {Object.entries(item.scores).map(([label, score]) => (
+                  <p key={label}><span>{label}</span><em>{score}</em></p>
+                ))}
+                <small>{item.note}</small>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -4971,6 +5782,44 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Business Launch Checklist</span>
+          <div className="launchChecklistGrid">
+            {checklist.map((item, index) => (
+              <label key={`${item.label}-${index}`} className={item.complete ? "launchChecklistItem complete" : "launchChecklistItem"}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(item.complete)}
+                  onChange={(event) => {
+                    const nextChecklist = checklist.map((current, currentIndex) => currentIndex === index ? { ...current, complete: event.target.checked } : current);
+                    updateActiveBrand?.({ launchChecklist: nextChecklist });
+                  }}
+                />
+                <span><strong>{item.label}</strong><small>{item.why}</small></span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="dashboardPanel wideDashboardPanel">
+          <span>Revenue Planning</span>
+          <div className="revenuePlanner">
+            <label>
+              <small>Monthly revenue goal</small>
+              <input value={brand.monthlyRevenueGoal || ""} placeholder="10000" onChange={(event) => updateActiveBrand?.({ monthlyRevenueGoal: event.target.value })} />
+            </label>
+            <label>
+              <small>Average product or service price</small>
+              <input value={brand.averagePrice || ""} placeholder="49" onChange={(event) => updateActiveBrand?.({ averagePrice: event.target.value })} />
+            </label>
+            <div>
+              <strong>{revenuePlan.salesNeeded ? `${revenuePlan.salesNeeded.toLocaleString()} sales/month` : "Add numbers to calculate sales needed"}</strong>
+              {revenuePlan.assumptions.map((item) => <p key={item}>{item}</p>)}
+              <ul>{revenuePlan.acquisitionPlan.map((item) => <li key={item}>{item}</li>)}</ul>
+            </div>
           </div>
         </div>
 
@@ -5059,7 +5908,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBra
 
       <div className="workspaceActions">
         <button className="btn light" onClick={() => setPage("features")}>Open Tools</button>
-        <button className="btn dark" onClick={downloadBrandKit}>Download Brand Kit</button>
+        <button className="btn dark" onClick={downloadBrandKit}>Export Brand Book PDF</button>
       </div>
     </div>
   );
@@ -6514,7 +7363,7 @@ Designer iteration rules:
         </div>
         {activeTool.key !== "logo" && (
           <div className="generatorMeta">
-            {userPlan === "free" && !isLogoTestingUnlocked ? <span>Brand Plan required</span> : <span>Brand Plan unlocked</span>}
+            {userPlan === "free" ? <span>Brand Plan required</span> : <span>Brand Plan unlocked</span>}
           </div>
         )}
       </div>
@@ -6685,6 +7534,16 @@ Designer iteration rules:
                 <span>Finalizing image</span>
               </div>
             )}
+            {activeTool.key === "brand" && (
+              <div className="logoLoadingSteps brandLoadingSteps">
+                <span>Understanding your idea</span>
+                <span>Defining your audience</span>
+                <span>Building positioning</span>
+                <span>Creating visual direction</span>
+                <span>Building your roadmap</span>
+                <span>Finalizing brand system</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -6762,7 +7621,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
             brandName={parsedLogoPreview.brandName || creativeTone || logoCreativeBrief?.brandName}
             creativeBrief={logoCreativeBrief}
             isLoggedIn={Boolean(user?.id)}
-            canSaveProject={isLogoTestingUnlocked || userPlan !== "free" || trialRemaining > 0}
+            canSaveProject={userPlan !== "free"}
             onStartWorkspace={onStartWorkspace}
             onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           />
