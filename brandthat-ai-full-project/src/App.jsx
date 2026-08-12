@@ -6388,18 +6388,13 @@ function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
         {examples.map((example) => (
           <article className="exampleBrandCard" key={example.name}>
             <div className={`mockupStage ${example.visual}`}>
-              <div className="mockupGlow"></div>
-              <div className="mockupBag">
-                <span>{example.name.split(" ")[0]}</span>
-              </div>
-              <div className="mockupShirt">
-                <span>{example.name.slice(0, 2).toUpperCase()}</span>
-              </div>
-              <div className="mockupPhone">
-                <i></i><i></i><i></i>
-                <strong>{example.name}</strong>
-              </div>
-              <div className="mockupTag">{example.artifact}</div>
+              <ProductIntelligenceRender
+                brandName={example.name}
+                idea={example.idea}
+                variant={example.visual}
+                colors={example.colors}
+                labels={["DNA", "Audience", "Merch", "Launch"]}
+              />
             </div>
             <div className="exampleBrandCopy">
               <span>Made-up example</span>
@@ -6426,6 +6421,62 @@ function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
         <button className="birthCta" onClick={startMembership}>Start Building - $9.99/mo</button>
       </section>
     </main>
+  );
+}
+
+function ProductIntelligenceRender({
+  brandName = "Morrow",
+  idea = "A cinematic canned coffee company for creative people who want focused energy without the corporate feel.",
+  variant = "system",
+  colors = ["#8cffd2", "#8fa7ff", "#faffae", "#f8fbff"],
+  labels = ["Brand DNA", "Audience", "Positioning", "Typography", "Colors", "Roadmap", "Logos", "Workspace"],
+}) {
+  const nodes = labels.slice(0, 8);
+  const shortName = brandName.split(" ")[0] || brandName;
+
+  return (
+    <div className={`intelligenceRender ${variant}`} aria-label={`${brandName} connected brand system visualization`}>
+      <div className="renderLight one"></div>
+      <div className="renderLight two"></div>
+      <div className="renderParticles">
+        {Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ "--particle": index }} />)}
+      </div>
+      <svg className="renderConnections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M12 28 C 28 10, 42 18, 50 50 S 78 86, 92 64" />
+        <path d="M18 78 C 34 56, 44 56, 50 50 S 68 30, 88 22" />
+        <path d="M50 14 C 54 31, 55 42, 50 50 S 32 68, 16 48" />
+      </svg>
+      <div className="renderCore">
+        <small>BrandThat is building</small>
+        <strong>{shortName}</strong>
+        <span>{idea}</span>
+      </div>
+      <div className="renderNodeField">
+        {nodes.map((node, index) => (
+          <div className="renderNode" key={node} style={{ "--node": index }}>
+            <b>{String(index + 1).padStart(2, "0")}</b>
+            <span>{node}</span>
+          </div>
+        ))}
+      </div>
+      <div className="renderGlassPanel panelA">
+        <span>Positioning</span>
+        <strong>{variant === "workspace" ? "Living system" : "Distinct market angle"}</strong>
+        <p>{variant === "roadmap" ? "Launch actions are sequenced by priority, outcome, and momentum." : "Strategy, visuals, and launch plan stay connected as one brand brain."}</p>
+      </div>
+      <div className="renderGlassPanel panelB">
+        <span>Identity signal</span>
+        <div className="renderSwatches">
+          {colors.map((color) => <i key={color} style={{ background: color }} />)}
+        </div>
+        <p>Type, color, voice, platform plan, and logo concepts inherit the same Brand DNA.</p>
+      </div>
+      <div className="renderMiniUi">
+        <div><span></span><span></span><span></span></div>
+        <strong>Workspace sync</strong>
+        <p>Next action, launch stage, and visual system updated.</p>
+      </div>
+    </div>
   );
 }
 
@@ -6525,23 +6576,18 @@ function BrandBirthHomepage({
 }
 
 function BirthHeroVisual({ onExample }) {
-  const steps = ["Understanding", "Strategy", "Identity", "Roadmap", "Workspace"];
   return (
     <div className="birthHeroVisual" aria-label="Idea becoming a brand">
       <button className="founderNote" onClick={onExample}>
         <span>Founder note</span>
         <p>A canned coffee company for creative people who want better energy without the corporate feel.</p>
       </button>
-      <div className="thinkingColumn">
-        {steps.map((step, index) => (
-          <span key={step} style={{ "--birth-step": index }}>{step}</span>
-        ))}
-      </div>
-      <div className="brandSignal">
-        <small>BrandThat begins</small>
-        <strong>MORROW</strong>
-        <em>coffee for the work after the work</em>
-      </div>
+      <ProductIntelligenceRender
+        brandName="Morrow"
+        variant="hero"
+        labels={["Idea", "DNA", "Audience", "Positioning", "Type", "Color", "Roadmap", "Workspace"]}
+        colors={["#0b0e16", "#8cffd2", "#8fa7ff", "#faffae"]}
+      />
     </div>
   );
 }
@@ -6553,27 +6599,17 @@ function BrandWorldShowcase() {
         <h2>Then the brand becomes visible.</h2>
         <p>Packaging. Launch imagery. Social presence. Email. Retail. The dream becomes specific enough to build.</p>
       </div>
-      <div className="brandWorldGrid" aria-label="Morrow brand world">
-        <div className="canScene">
-          <div className="canMock"><span>MORROW</span><small>cold brew</small></div>
-          <div className="canShadow"></div>
-        </div>
-        <div className="socialLaunch">
-          <div className="socialPhoto"></div>
-          <strong>Launch post</strong>
-          <p>For the ones still making things after midnight.</p>
-        </div>
-        <div className="shelfMoment">
-          <span></span><span></span><span></span><span></span>
-          <strong>Store shelf direction</strong>
-        </div>
-        <div className="emailMoment">
-          <small>Subject</small>
-          <p>The first coffee for the second shift.</p>
-          <button>Join the first drop</button>
-        </div>
-        <div className="shippingMoment">
-          <span>MORROW</span>
+      <div className="brandWorldRender" aria-label="Morrow intelligent brand world">
+        <ProductIntelligenceRender
+          brandName="Morrow"
+          variant="world"
+          labels={["DNA", "Audience", "Position", "Voice", "Packaging", "Social", "Email", "Shelf"]}
+          colors={["#05070b", "#8cffd2", "#8fa7ff", "#faffae"]}
+        />
+        <div className="cinematicArtifacts">
+          <div className="artifactCard artifactCan"><span>MORROW</span><small>cold brew</small></div>
+          <div className="artifactCard artifactFeed"><b></b><strong>Launch post</strong><p>For the ones making things after midnight.</p></div>
+          <div className="artifactCard artifactEmail"><small>Subject</small><p>The first coffee for the second shift.</p></div>
         </div>
       </div>
     </section>
@@ -6592,6 +6628,13 @@ function LaunchSequence() {
   return (
     <section className="launchSequence">
       <h2>A plan that moves.</h2>
+      <ProductIntelligenceRender
+        brandName="Morrow Roadmap"
+        variant="roadmap"
+        idea="A 90-day launch system that connects priorities, channels, KPIs, and next actions."
+        labels={["24h", "Week 1", "30 Days", "60 Days", "90 Days", "KPIs", "Costs", "Complete"]}
+        colors={["#8cffd2", "#8fa7ff", "#faffae", "#f8fbff"]}
+      />
       <div className="launchRail">
         {steps.map(([phase, action], index) => (
           <article key={phase} style={{ "--launch-step": index }}>
@@ -6612,24 +6655,13 @@ function LivingWorkspaceMoment() {
         <p>The workspace is where the founder returns to the thesis, follows the roadmap, saves creative direction, and keeps building the company.</p>
       </div>
       <div className="brandHeadquarters">
-        <div className="hqHeader">
-          <strong>MORROW</strong>
-          <span>Brand Workspace</span>
-        </div>
-        <div className="hqColumns">
-          <div>
-            <small>Strategy</small>
-            <p>Modern canned coffee for creative people who reject sterile productivity culture.</p>
-          </div>
-          <div>
-            <small>Next action</small>
-            <p>Write the first drop page around the line: coffee for the work after the work.</p>
-          </div>
-          <div>
-            <small>Progress</small>
-            <p>Thesis complete. Identity direction complete. Launch roadmap in motion.</p>
-          </div>
-        </div>
+        <ProductIntelligenceRender
+          brandName="Morrow"
+          variant="workspace"
+          idea="A living workspace where strategy, identity, content, roadmap, and logo concepts keep improving together."
+          labels={["Strategy", "DNA", "Identity", "Content", "Roadmap", "Next", "Progress", "Logos"]}
+          colors={["#05070b", "#8cffd2", "#f8fbff", "#8fa7ff"]}
+        />
       </div>
     </section>
   );
@@ -10391,6 +10423,26 @@ const futureThemeCss = `
 .mockupTag{position:absolute;left:9%;top:12%;max-width:42%;border:1px solid var(--bt-line);border-radius:22px;background:rgba(5,7,11,.72);padding:18px;color:var(--bt-text);font-weight:900;line-height:1.25;backdrop-filter:blur(18px)}
 .exampleBrandCopy{padding:42px;display:flex;flex-direction:column;justify-content:center;background:rgba(255,255,255,.045)}.exampleBrandCopy>span{color:var(--bt-accent);font-size:11px;text-transform:uppercase;letter-spacing:1.8px;font-weight:950}.exampleBrandCopy h2{font-size:clamp(42px,5vw,80px);line-height:.86;letter-spacing:-.075em;margin:16px 0 18px;color:var(--bt-text)}.exampleBrandCopy p{color:var(--bt-muted);font-size:18px;line-height:1.45}.examplePosition{border-top:1px solid var(--bt-line);border-bottom:1px solid var(--bt-line);padding:18px 0;margin:12px 0 18px}.examplePosition strong{font-size:13px;text-transform:uppercase;letter-spacing:1.6px;color:var(--bt-accent)}.exampleSwatches{display:flex;gap:9px;margin-bottom:18px}.exampleSwatches i{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.18)}.exampleBrandCopy ul{display:grid;gap:9px;margin:0;padding:0;list-style:none}.exampleBrandCopy li{color:var(--bt-text);font-weight:850}
 .examplesFinal{margin-top:52px;border:1px solid var(--bt-line);border-radius:44px;background:linear-gradient(135deg,rgba(140,255,210,.12),rgba(143,167,255,.1));padding:54px;display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center}.examplesFinal h2{font-size:clamp(42px,5vw,78px);line-height:.9;letter-spacing:-.075em;margin:0}.examplesFinal p{color:var(--bt-muted);font-size:19px;line-height:1.45;max-width:720px}
+.intelligenceRender{position:relative;min-height:620px;border-radius:42px;overflow:hidden;isolation:isolate;background:radial-gradient(circle at 28% 22%,rgba(140,255,210,.22),transparent 29%),radial-gradient(circle at 78% 72%,rgba(143,167,255,.28),transparent 31%),linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.16);box-shadow:0 70px 180px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.18);perspective:1100px;transform-style:preserve-3d}
+.birthHeroVisual .intelligenceRender{min-height:500px;border-radius:34px}
+.mockupStage .intelligenceRender,.brandHeadquarters .intelligenceRender{height:100%;min-height:620px;border:none;border-radius:0;background:transparent;box-shadow:none}
+.brandWorldRender{position:relative;min-height:780px;border-radius:52px;overflow:hidden;border:1px solid var(--bt-line);background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.025));box-shadow:0 70px 190px rgba(0,0,0,.38);padding:24px}
+.brandWorldRender .intelligenceRender{min-height:720px}
+.launchSequence>.intelligenceRender{min-height:560px;margin-top:36px;margin-bottom:22px}
+.renderLight{position:absolute;border-radius:999px;filter:blur(42px);opacity:.68;mix-blend-mode:screen;pointer-events:none}.renderLight.one{width:280px;height:280px;background:rgba(140,255,210,.42);left:7%;top:9%;animation:lightDrift 7s ease-in-out infinite}.renderLight.two{width:340px;height:340px;background:rgba(143,167,255,.34);right:4%;bottom:5%;animation:lightDrift 8s ease-in-out infinite reverse}
+.renderParticles{position:absolute;inset:0;pointer-events:none}.renderParticles i{position:absolute;width:4px;height:4px;border-radius:50%;background:rgba(248,251,255,.78);left:calc(9% + (var(--particle) * 5.1%));top:calc(18% + ((var(--particle) % 7) * 9%));box-shadow:0 0 18px rgba(140,255,210,.8);animation:particleFloat 6s ease-in-out infinite;animation-delay:calc(var(--particle) * -.28s)}
+.renderConnections{position:absolute;inset:8%;width:84%;height:84%;z-index:1;filter:drop-shadow(0 0 18px rgba(140,255,210,.42));opacity:.88}.renderConnections path{fill:none;stroke:rgba(140,255,210,.72);stroke-width:.36;stroke-dasharray:4 6;animation:connectionFlow 8s linear infinite}
+.renderCore{position:absolute;z-index:4;left:50%;top:50%;width:min(390px,56%);min-height:250px;transform:translate(-50%,-50%) rotateX(8deg) rotateY(-12deg);display:flex;flex-direction:column;justify-content:flex-end;padding:30px;border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.065));border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(28px);box-shadow:0 38px 110px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.22);animation:panelFloat 6s ease-in-out infinite}
+.renderCore small,.renderGlassPanel span{color:var(--bt-accent);text-transform:uppercase;letter-spacing:1.7px;font-size:10px;font-weight:950}.renderCore strong{font-size:clamp(38px,4.8vw,66px);line-height:.86;letter-spacing:-.075em;color:var(--bt-text);margin:16px 0;overflow-wrap:anywhere}.renderCore span{color:var(--bt-muted);font-size:14px;line-height:1.35;font-weight:800}
+.renderNodeField{position:absolute;inset:0;z-index:3}.renderNode{position:absolute;width:132px;min-height:74px;border-radius:22px;background:rgba(255,255,255,.105);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(18px);box-shadow:0 24px 80px rgba(0,0,0,.24);padding:14px;display:flex;flex-direction:column;justify-content:space-between;animation:nodeAppear .72s cubic-bezier(.2,.8,.2,1) both, nodeOrbit 7s ease-in-out infinite;animation-delay:calc(var(--node) * .09s)}
+.renderNode b{color:var(--bt-accent);font-size:10px}.renderNode span{font-size:13px;font-weight:950;color:var(--bt-text);letter-spacing:-.02em}.renderNode:nth-child(1){left:8%;top:18%}.renderNode:nth-child(2){left:36%;top:8%}.renderNode:nth-child(3){right:9%;top:18%}.renderNode:nth-child(4){right:7%;top:48%}.renderNode:nth-child(5){right:27%;bottom:9%}.renderNode:nth-child(6){left:37%;bottom:10%}.renderNode:nth-child(7){left:8%;bottom:22%}.renderNode:nth-child(8){left:18%;top:50%}
+.renderGlassPanel{position:absolute;z-index:5;border-radius:26px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(24px);box-shadow:0 28px 90px rgba(0,0,0,.28);padding:18px;max-width:260px;animation:panelFloat 7.4s ease-in-out infinite}.renderGlassPanel strong{display:block;color:var(--bt-text);font-size:22px;line-height:1;letter-spacing:-.05em;margin:12px 0}.renderGlassPanel p,.renderMiniUi p{color:var(--bt-muted);font-size:12px;line-height:1.38;margin:0}.panelA{left:7%;bottom:8%;transform:rotateY(10deg) rotateX(4deg)}.panelB{right:7%;top:9%;transform:rotateY(-12deg) rotateX(4deg);animation-delay:-1.8s}
+.renderSwatches{display:flex;gap:7px;margin:12px 0}.renderSwatches i{width:34px;height:34px;border-radius:12px;border:1px solid rgba(255,255,255,.24);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.renderMiniUi{position:absolute;z-index:6;right:8%;bottom:8%;width:220px;border-radius:24px;background:rgba(5,7,11,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(22px);padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.34);animation:panelFloat 6.8s ease-in-out infinite reverse}.renderMiniUi div{display:grid;gap:7px;margin-bottom:14px}.renderMiniUi div span{height:9px;border-radius:999px;background:linear-gradient(90deg,var(--bt-accent),transparent)}.renderMiniUi div span:nth-child(2){width:74%;background:linear-gradient(90deg,var(--bt-accent-2),transparent)}.renderMiniUi div span:nth-child(3){width:52%;background:linear-gradient(90deg,#faffae,transparent)}.renderMiniUi strong{display:block;color:var(--bt-text);margin-bottom:7px}
+.cinematicArtifacts{position:absolute;inset:0;z-index:8;pointer-events:none}.artifactCard{position:absolute;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);backdrop-filter:blur(20px);box-shadow:0 34px 100px rgba(0,0,0,.32);color:var(--bt-text)}.artifactCan{left:9%;top:13%;width:150px;height:340px;border-radius:62px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:38px 18px;transform:rotate(-8deg);animation:panelFloat 6s ease-in-out infinite}.artifactCan span{writing-mode:vertical-rl;font-size:42px;font-weight:950;letter-spacing:-.08em}.artifactCan small{text-transform:uppercase;letter-spacing:1.5px;font-weight:950;color:var(--bt-accent)}.artifactFeed{right:8%;top:18%;width:220px;border-radius:28px;padding:16px;animation:panelFloat 7s ease-in-out infinite reverse}.artifactFeed b{display:block;height:132px;border-radius:20px;background:linear-gradient(135deg,var(--bt-accent),var(--bt-accent-2));margin-bottom:14px}.artifactFeed strong{font-size:22px;letter-spacing:-.05em}.artifactFeed p,.artifactEmail p{font-size:13px;color:var(--bt-muted);line-height:1.35}.artifactEmail{left:11%;bottom:10%;width:250px;border-radius:28px;padding:20px;animation:panelFloat 8s ease-in-out infinite}.artifactEmail small{color:var(--bt-accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:950}.artifactEmail p{font-size:26px;color:var(--bt-text);letter-spacing:-.05em;line-height:1;margin-top:16px}
+@keyframes connectionFlow{to{stroke-dashoffset:-80}}@keyframes panelFloat{50%{transform:translateY(-12px) rotateX(6deg) rotateY(-8deg)}}@keyframes nodeAppear{0%{opacity:0;transform:scale(.82) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}}@keyframes nodeOrbit{50%{translate:0 -8px}}@keyframes particleFloat{50%{transform:translate3d(12px,-18px,0);opacity:.42}}@keyframes lightDrift{50%{transform:translate3d(24px,-18px,0) scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.renderConnections path,.renderParticles i,.renderCore,.renderNode,.renderGlassPanel,.renderMiniUi,.artifactCard,.renderLight{animation:none !important}}
 @media(max-width:980px){.examplesHero,.exampleBrandCard,.examplesFinal{grid-template-columns:1fr}.examplesOrbit{max-width:520px}.exampleFlow{grid-template-columns:1fr 1fr}.exampleBrandCard,.mockupStage{min-height:auto}.mockupStage{aspect-ratio:1.1}.examplesFinal .birthCta{width:max-content}}
-@media(max-width:640px){.examplesPage{padding:42px 20px 80px}.examplesHero h1{font-size:58px}.examplesHero p{font-size:19px}.examplesOrbit{display:none}.exampleFlow{grid-template-columns:1fr;border-radius:22px}.exampleBrandCard{border-radius:28px}.mockupStage{aspect-ratio:.86}.mockupBag{width:42%;height:44%;left:7%}.mockupShirt{width:43%;right:7%;top:14%}.mockupPhone{width:36%;height:34%;right:8%}.mockupTag{left:7%;top:7%;max-width:70%;font-size:13px}.exampleBrandCopy{padding:28px}.examplesFinal{border-radius:28px;padding:30px}.examplesFinal .birthCta{width:100%}}
+@media(max-width:980px){.intelligenceRender,.birthHeroVisual .intelligenceRender,.brandWorldRender .intelligenceRender,.mockupStage .intelligenceRender{min-height:560px}.renderNode{width:112px}.renderCore{width:min(320px,64%)}.panelB{display:none}.brandWorldRender{min-height:auto}.cinematicArtifacts{display:none}}
+@media(max-width:640px){.examplesPage{padding:42px 20px 80px}.examplesHero h1{font-size:58px}.examplesHero p{font-size:19px}.examplesOrbit{display:none}.exampleFlow{grid-template-columns:1fr;border-radius:22px}.exampleBrandCard{border-radius:28px}.mockupStage{aspect-ratio:auto}.mockupStage .intelligenceRender{min-height:540px}.exampleBrandCopy{padding:28px}.examplesFinal{border-radius:28px;padding:30px}.examplesFinal .birthCta{width:100%}.intelligenceRender{border-radius:28px;min-height:540px}.renderCore{width:72%;min-height:190px;padding:22px}.renderCore strong{font-size:44px}.renderNode{width:96px;min-height:58px;border-radius:18px;padding:10px}.renderNode span{font-size:11px}.renderNode:nth-child(n+6){display:none}.renderGlassPanel{max-width:210px}.panelA{left:6%;bottom:6%}.renderMiniUi{right:6%;bottom:24%;width:170px}.launchSequence>.intelligenceRender{min-height:520px}.brandHeadquarters .intelligenceRender{min-height:540px}}
 `;
