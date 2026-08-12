@@ -5,17 +5,17 @@ const PLAN_COPY = {
   trial: {
     name: "Preview",
     badge: "Create an account",
-    description: "Browse BrandThat freely. Creating a complete Brand Plan requires a verified account and one $9.99 purchase.",
+    description: "Browse BrandThat freely. Building with the full workspace and generators requires a verified account and an active $9.99/month membership.",
   },
   member: {
-    name: "Brand Plan",
-    badge: "$9.99 one-time",
-    description: "One payment creates one complete Brand Plan, workspace, launch roadmap, and logo concepts for one brand idea.",
+    name: "BrandThat Membership",
+    badge: "$9.99/month",
+    description: "Monthly access unlocks Brand Plans, workspaces, generators, launch roadmaps, and logo concepts while your membership is active.",
   },
 };
 
 const MEMBER_PLAN = "member";
-const BRAND_PLAN_PRICE = "$9.99";
+const BRAND_PLAN_PRICE = "$9.99/mo";
 const TRIAL_GENERATION_LIMIT = 0;
 
 function normalizePlan(plan = "free") {
@@ -160,7 +160,7 @@ const seoPages = {
     intro: "Generate a clean logo image, brand direction, palette, typography, and profile-ready visual system from one simple brand idea.",
     examples: ["Create a premium black-and-white logo for a modern AI branding platform named Brandthat.ai. Use a clean wordmark, strong favicon-ready icon, and luxury technology feel.", "Design a circular vintage mascot logo for a coffee brand. Include a wolf icon, cream and black palette, premium typography, and packaging-ready composition.", "Create an elegant ranch lifestyle logo with refined typography, subtle animal-inspired mark, warm neutral colors, and a high-end boutique brand feeling."],
     faqs: [
-      ["Does Brandthat.ai create actual logo images?", "Yes. A $9.99 Brand Plan includes logo concepts generated from the completed strategy, identity direction, moodboard, typography, colors, and voice."],
+      ["Does Brandthat.ai create actual logo images?", "Yes. The $9.99/month membership includes logo concepts generated from the completed strategy, identity direction, moodboard, typography, colors, and voice."],
       ["What should I type?", "Enter your brand name, audience, style, colors, and what you want the logo to feel like."],
       ["Who is this for?", "Founders, creators, local businesses, agencies, and anyone building a modern brand."]
     ]
@@ -317,6 +317,7 @@ function safeParse(key, fallback) {
 
 function getInitialPageFromPath() {
   const path = window.location.pathname;
+  if (path === "/examples") return "examples";
   const match = Object.entries(seoPages).find(([, page]) => page.path === path);
   return match ? match[0] : "home";
 }
@@ -382,7 +383,7 @@ function getSeoSchema(page, meta) {
     description: meta.description,
     offers: [
       { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
-      { "@type": "Offer", name: "BrandThat Brand Plan", price: "9.99", priceCurrency: "USD" }
+      { "@type": "Offer", name: "BrandThat Membership", price: "9.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", price: "9.99", priceCurrency: "USD", billingIncrement: "P1M" } }
     ],
     featureList: [
       "AI logo generator",
@@ -2899,7 +2900,7 @@ export default function App() {
     }
   };
 
-  const showMembershipOffer = (message = "Build a complete Brand Plan for $9.99. One payment. No monthly subscription.") => {
+  const showMembershipOffer = (message = "Unlock BrandThat for $9.99/month. Full workspace, generators, roadmap, and logo concepts included.") => {
     setPage("home");
     notify("warning", "Brand Plan required", message);
     window.history.pushState({}, "", "/");
@@ -3884,7 +3885,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setTrialGenerationCount(newCount);
 
     if (newCount >= TRIAL_GENERATION_LIMIT) {
-      notify("info", "Brand Plan required", "Buy one complete Brand Plan for $9.99 to create the workspace, roadmap, and logo concepts.");
+      notify("info", "Membership required", "Start BrandThat for $9.99/month to unlock the workspace, roadmap, generators, and logo concepts.");
     }
   };
 
@@ -3894,7 +3895,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
 
     if (isMember) return session;
 
-    showMembershipOffer("A complete Brand Plan costs $9.99 for one brand idea. You keep the saved Brand Workspace forever.");
+    showMembershipOffer("BrandThat costs $9.99/month and unlocks the full workspace, roadmap, generators, and logo concepts.");
     return null;
   };
 
@@ -4979,18 +4980,19 @@ ${promptValue}`;
   return (
     <div className="app">
       <style>{css}</style>
+      <style>{futureThemeCss}</style>
 
       <nav className="nav">
         <button className="brand" onClick={() => { setActiveToolKey("brand"); setPage("home"); window.history.pushState({}, "", "/"); }}>Brandthat</button>
 
         <div className="navLinks">
-          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Product</button>
-          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brand-case-study")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Example</button>
-          <button onClick={() => { setPage("home"); setTimeout(() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}>Pricing</button>
+          <button onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Product</button>
+          <button onClick={() => { setActiveToolKey("brand"); setPage("examples"); window.history.pushState({}, "", "/examples"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Examples</button>
+          <button onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}>Pricing</button>
         </div>
 
         <div className="navActions">
-          <button className="navPrimaryCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand</button>
+          <button className="navPrimaryCta" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Build My Brand</button>
           {authStatus === "logged_in" ? (
             <div className="accountMenu">
               <span>{user.email || "Account"}</span>
@@ -5023,6 +5025,15 @@ ${promptValue}`;
           startCheckout={startCheckout}
           openAuth={openAuth}
           user={user}
+        />
+      )}
+
+      {page === "examples" && (
+        <BrandExamplesPage
+          startCheckout={startCheckout}
+          openAuth={openAuth}
+          user={user}
+          setPage={setPage}
         />
       )}
 
@@ -6299,6 +6310,125 @@ function HomepageSEOContent({ openSeoPage }) {
   );
 }
 
+function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
+  const examples = [
+    {
+      name: "Northline Goods",
+      idea: "Weatherproof everyday bags for creators who move between studio, gym, and late-night shoots.",
+      artifact: "Transit tote, utility pouch, launch tee, product card",
+      position: "Premium carry goods for people whose day does not fit one category.",
+      visual: "tote",
+      colors: ["#101114", "#f4f0e8", "#9ee8d8", "#b8ff5d"],
+      notes: ["Instagram launch grid", "Creator commuter story", "First-drop waitlist kit"],
+    },
+    {
+      name: "Sunset Circuit",
+      idea: "A futuristic streetwear line for runners, DJs, and designers who train after dark.",
+      artifact: "Reflective shirt, race poster, cap, social launch",
+      position: "Night-run performance culture with a fashion-first edge.",
+      visual: "shirt",
+      colors: ["#07080c", "#f6f7ef", "#ff4d8d", "#74f4ff"],
+      notes: ["TikTok route series", "Drop calendar", "Club-run partnerships"],
+    },
+    {
+      name: "Luma Pantry",
+      idea: "A modern home goods and grocery brand making small kitchens feel intentional and warm.",
+      artifact: "Market bag, jar label, recipe card, email launch",
+      position: "Design-led pantry staples for apartments that feel collected, not cluttered.",
+      visual: "pantry",
+      colors: ["#17120f", "#faf2e3", "#d9a85f", "#8fe0b5"],
+      notes: ["Pinterest boards", "Recipe email sequence", "Shelf-ready packaging"],
+    },
+    {
+      name: "Patch Social",
+      idea: "Merch and community kits for neighborhood coffee shops that want cult-local energy.",
+      artifact: "Heavyweight tee, sticker sheet, receipt insert, campaign phone",
+      position: "Local merch systems that turn regular customers into visible community.",
+      visual: "merch",
+      colors: ["#0e0e10", "#f8f6ed", "#ff7d4d", "#d7ff73"],
+      notes: ["Community drop plan", "Founder story captions", "In-store QR funnel"],
+    },
+  ];
+
+  const startMembership = () => user?.email
+    ? startCheckout(MEMBER_PLAN)
+    : openAuth("signup", "Create your BrandThat account to unlock the $9.99/month brand-building workspace.");
+
+  return (
+    <main className="examplesPage">
+      <section className="examplesHero">
+        <div>
+          <span className="examplesKicker">Brand worlds, not blank templates</span>
+          <h1>See how simple it is to BrandThat.</h1>
+          <p>Bring a rough idea. BrandThat turns it into a strategy, identity direction, launch plan, and a visual world ready to build around.</p>
+          <div className="examplesActions">
+            <button className="birthCta" onClick={startMembership}>Build My Brand - $9.99/mo</button>
+            <button className="btn ghost" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); }}>Back to Product</button>
+          </div>
+        </div>
+        <div className="examplesOrbit" aria-label="BrandThat monthly membership">
+          <strong>$9.99/mo</strong>
+          <span>Workspace</span>
+          <span>Strategy</span>
+          <span>Merch Direction</span>
+          <span>Roadmap</span>
+        </div>
+      </section>
+
+      <section className="exampleFlow">
+        {["Idea", "Brand system", "Merch direction", "Launch plan", "Workspace"].map((step, index) => (
+          <article key={step}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{step}</strong>
+          </article>
+        ))}
+      </section>
+
+      <section className="exampleBrandGrid" aria-label="Made-up BrandThat examples">
+        {examples.map((example) => (
+          <article className="exampleBrandCard" key={example.name}>
+            <div className={`mockupStage ${example.visual}`}>
+              <div className="mockupGlow"></div>
+              <div className="mockupBag">
+                <span>{example.name.split(" ")[0]}</span>
+              </div>
+              <div className="mockupShirt">
+                <span>{example.name.slice(0, 2).toUpperCase()}</span>
+              </div>
+              <div className="mockupPhone">
+                <i></i><i></i><i></i>
+                <strong>{example.name}</strong>
+              </div>
+              <div className="mockupTag">{example.artifact}</div>
+            </div>
+            <div className="exampleBrandCopy">
+              <span>Made-up example</span>
+              <h2>{example.name}</h2>
+              <p>{example.idea}</p>
+              <div className="examplePosition">
+                <strong>BrandThat direction</strong>
+                <p>{example.position}</p>
+              </div>
+              <div className="exampleSwatches">
+                {example.colors.map((color) => <i key={color} style={{ background: color }} />)}
+              </div>
+              <ul>
+                {example.notes.map((note) => <li key={note}>{note}</li>)}
+              </ul>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="examplesFinal">
+        <h2>From name and idea to a brand you can actually launch.</h2>
+        <p>The membership unlocks the full BrandThat workspace, strategy generation, platform recommendations, launch roadmap, and logo concepts.</p>
+        <button className="birthCta" onClick={startMembership}>Start Building - $9.99/mo</button>
+      </section>
+    </main>
+  );
+}
+
 function BrandBirthHomepage({
   workspaceDraft,
   setWorkspaceDraft,
@@ -6325,8 +6455,8 @@ function BrandBirthHomepage({
           <h1>Your idea is not small.</h1>
           <p>BrandThat turns rough business ideas into the strategy, identity direction, launch roadmap, and workspace to build something real.</p>
           <div className="birthHeroActions">
-            <button className="birthCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99</button>
-            <span>One payment. One complete Brand Plan. No subscription.</span>
+            <button className="birthCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99/mo</button>
+            <span>Monthly membership. Full BrandThat access. Cancel anytime.</span>
           </div>
         </div>
         <BirthHeroVisual onExample={seedCoffeeBrand} />
@@ -6509,15 +6639,15 @@ function BirthOffer({ startCheckout, openAuth, user }) {
   return (
     <section className="birthOffer" id="brandthat-membership">
       <div>
-        <h2>One idea becomes one complete Brand Plan.</h2>
-        <p>Brand thesis, positioning, audience, voice, visual direction, platform strategy, content direction, 90-day roadmap, saved workspace, and logo concepts.</p>
+        <h2>Every month, build with the full BrandThat system.</h2>
+        <p>Brand thesis, positioning, audience, voice, visual direction, platform strategy, content direction, 90-day roadmap, saved workspace, and logo concepts are unlocked while your membership is active.</p>
       </div>
       <div className="priceStatement">
-        <span>Brand Plan</span>
-        <strong>$9.99</strong>
-        <p>One time. One complete brand. No monthly subscription.</p>
+        <span>BrandThat Membership</span>
+        <strong>$9.99/mo</strong>
+        <p>Monthly access to the complete brand-building workspace and generators.</p>
         <button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to build your first Brand Plan.")}>
-          {user?.email ? "Build My Brand - $9.99" : "Create Account"}
+          {user?.email ? "Start Membership - $9.99/mo" : "Create Account"}
         </button>
       </div>
     </section>
@@ -6555,17 +6685,17 @@ function MembershipBand({ startCheckout, openAuth, user }) {
   return (
     <section className="membershipBand" id="brandthat-membership">
       <div>
-        <div className="tinyTag">ONE BRAND PLAN</div>
-        <h2>Build Your Brand - $9.99</h2>
-        <p>One payment creates one complete Brand Plan for one brand idea. No monthly subscription. You own the saved Brand Workspace forever.</p>
+        <div className="tinyTag">BRANDTHAT MEMBERSHIP</div>
+        <h2>Build your brand for $9.99/month.</h2>
+        <p>Monthly membership unlocks the full BrandThat workspace, brand strategy, generators, launch roadmap, and logo concepts while your subscription is active.</p>
         <div className="membershipValueGrid">
-          {["One payment", "One complete Brand Plan", "Saved Brand Workspace", "Logo concepts after strategy"].map((item) => (
+          {["Monthly membership", "Full workspace access", "Generators unlocked", "Logo concepts after strategy"].map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
       </div>
       <div className="membershipPanel">
-        <span>Included in each Brand Plan</span>
+        <span>Included in your membership</span>
         <ul>
           <li>Brand strategy, audience insights, positioning, and personality</li>
           <li>Moodboard, typography system, color system, voice, and taglines</li>
@@ -6574,7 +6704,7 @@ function MembershipBand({ startCheckout, openAuth, user }) {
           <li>Saved workspace and logo concepts generated from the completed strategy</li>
         </ul>
         <button className="btn dark full" onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to try the full product.")}>
-          {user?.email ? "Build Your Brand - $9.99" : "Create Account"}
+          {user?.email ? "Start Membership - $9.99/mo" : "Create Account"}
         </button>
       </div>
     </section>
@@ -7930,7 +8060,7 @@ function BrandJourneyPanel({
     ? "This project is only on this screen right now. Create an account to try the workspace and keep the logo, strategy, kit, and roadmap together."
     : canSaveProject
       ? "Save this as a real workspace so you can come back, refine it, and keep building from the same direction."
-      : "Buy one Brand Plan for $9.99 to keep saving, refining, exporting, and building this brand.";
+      : "Start the $9.99/month membership to keep saving, refining, exporting, and building this brand.";
 
   return (
     <section className="brandJourneyPanel">
@@ -10206,4 +10336,61 @@ textarea{height:170px;resize:none;line-height:1.6}
 
 @media(max-width:1100px){.logoHero,.dreamHero,.brandHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.caseStudySection,.receivesSection,.finalBuilderSection{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro,.caseCopy,.receivesSection>div:first-child,.finalBuilderIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}.brandHero .heroTop{max-width:760px}.brandHero .heroCtas{justify-content:flex-start}}
 @media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.navActions{grid-column:2;grid-row:1}.navPrimaryCta{display:none}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.productDemoSection,.caseStudySection,.receivesSection,.finalBuilderSection{padding-left:20px;padding-right:20px}.hero{padding-top:36px}.brandHero{gap:24px}.heroTop{margin-bottom:10px}.heroCopy{text-align:left}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro,.roadmapIntro{flex-direction:column;align-items:flex-start}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.identityBoard,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock,.receivesList article,.agentStepList{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}.agentPromptBox p{font-size:19px}.demoWorkspaceReveal,.workspaceHeaderMock,.launchTimeline article{grid-template-columns:1fr}.demoStage{min-height:auto}.moodTile.tall{min-height:160px;grid-row:auto}}
+`;
+
+const futureThemeCss = `
+:root{--bt-bg:#05070b;--bt-panel:rgba(255,255,255,.075);--bt-line:rgba(255,255,255,.15);--bt-text:#f8fbff;--bt-muted:rgba(248,251,255,.66);--bt-accent:#8cffd2;--bt-accent-2:#8fa7ff;--bt-warm:#fff0c8}
+.app{background:radial-gradient(circle at 18% 0,rgba(140,255,210,.18),transparent 28%),radial-gradient(circle at 84% 8%,rgba(143,167,255,.24),transparent 30%),linear-gradient(180deg,#05070b 0%,#0b0e16 46%,#05070b 100%) !important;color:var(--bt-text) !important}
+.nav{position:sticky;top:0;max-width:1480px;padding-top:18px;padding-bottom:12px;z-index:30}
+.brand{color:var(--bt-text) !important;text-shadow:0 0 28px rgba(140,255,210,.22)}
+.navLinks,.accountMenu{background:rgba(5,7,11,.7) !important;border-color:var(--bt-line) !important;box-shadow:0 20px 60px rgba(0,0,0,.26);backdrop-filter:blur(22px)}
+.navLinks button,.accountBtn{color:var(--bt-text) !important}
+.navLinks button:hover,.accountMenu button,.accountBtn{background:var(--bt-text) !important;color:#05070b !important}
+.navPrimaryCta,.birthCta,.priceStatement button{background:linear-gradient(135deg,var(--bt-accent),#faffae) !important;color:#05070b !important;box-shadow:0 18px 60px rgba(140,255,210,.18) !important}
+.navPrimaryCta:hover,.birthCta:hover,.priceStatement button:hover{filter:saturate(1.1);transform:translateY(-2px)}
+.birthPage{background:transparent !important;color:var(--bt-text) !important}
+.birthHero{min-height:calc(100vh - 86px)}
+.birthHeroCopy h1,.originLine p,.awakeningCopy h2,.worldCopy h2,.launchSequence h2,.workspaceManifesto h2,.birthOffer h2,.birthBuilder h2{color:var(--bt-text) !important}
+.birthHeroCopy p,.birthHeroActions span,.awakeningCopy p,.worldCopy p,.workspaceManifesto p,.birthOffer p,.birthBuilder p,.originAnnotations span{color:var(--bt-muted) !important}
+.birthHeroVisual,.brandHeadquarters,.priceStatement,.thesisSpread{background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.035)) !important;border:1px solid var(--bt-line);box-shadow:0 60px 150px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.12) !important}
+.birthHeroVisual:before{background:radial-gradient(circle at 72% 18%,rgba(140,255,210,.27),transparent 26%),radial-gradient(circle at 15% 84%,rgba(143,167,255,.24),transparent 30%) !important}
+.founderNote,.thesisSpread,.voiceSpread,.identitySpread,.socialLaunch,.emailMoment{background:rgba(255,255,255,.08) !important;color:var(--bt-text) !important;border:1px solid var(--bt-line);backdrop-filter:blur(16px)}
+.founderNote span,.birthOffer span,.priceStatement span,.thesisSpread span,.voiceSpread span,.identitySpread span,.launchRail span{color:var(--bt-accent) !important}
+.brandSignal,.shippingMoment{background:linear-gradient(135deg,var(--bt-accent),#faffae) !important;color:#05070b !important}
+.originAnnotations article,.launchRail article{border-color:var(--bt-line) !important}
+.originAnnotations strong,.voiceSpread p,.launchRail p,.socialLaunch strong,.shelfMoment strong,.emailMoment p{color:var(--bt-text) !important}
+.brandWorldGrid>div{box-shadow:0 34px 120px rgba(0,0,0,.34) !important;border:1px solid var(--bt-line)}
+.canScene{background:radial-gradient(circle at 50% 18%,rgba(140,255,210,.28),transparent 25%),linear-gradient(155deg,#07080d,#182331) !important}
+.canMock,.shelfMoment span{background:#f8fbff !important;color:#05070b}
+.canMock small{color:#05070b}
+.shelfMoment{background:rgba(255,255,255,.08) !important}
+.shelfMoment span:nth-child(2){background:var(--bt-accent) !important}.shelfMoment span:nth-child(3){background:var(--bt-accent-2) !important}
+.socialPhoto{background:linear-gradient(140deg,#05070b 0 35%,var(--bt-accent) 35% 52%,var(--bt-accent-2) 52%) !important}
+.emailMoment button{background:var(--bt-text) !important;color:#05070b !important}
+.colorRun i:nth-child(1){background:#05070b !important}.colorRun i:nth-child(2){background:#f8fbff !important}.colorRun i:nth-child(3){background:var(--bt-accent-2) !important}.colorRun i:nth-child(4){background:var(--bt-accent) !important}
+.birthBuilder .brandBuilderCard,.pageSection,.brandDashboard,.generatorCard,.resultCard,.authCard{background:rgba(255,255,255,.08) !important;color:var(--bt-text) !important;border-color:var(--bt-line) !important;box-shadow:0 34px 120px rgba(0,0,0,.28) !important}
+.birthBuilder .brandBuilderCard:before{background:linear-gradient(90deg,var(--bt-accent),var(--bt-accent-2)) !important}
+.examplesPage{max-width:1480px;margin:0 auto;padding:70px 6vw 120px;color:var(--bt-text)}
+.examplesHero{min-height:68vh;display:grid;grid-template-columns:minmax(0,.92fr) minmax(360px,.62fr);gap:5vw;align-items:center}
+.examplesKicker{display:inline-flex;margin-bottom:20px;border:1px solid var(--bt-line);border-radius:999px;padding:10px 14px;color:var(--bt-accent);font-size:12px;font-weight:950;letter-spacing:1.8px;text-transform:uppercase;background:rgba(255,255,255,.06)}
+.examplesHero h1{font-size:clamp(68px,10vw,156px);line-height:.82;letter-spacing:-.08em;margin:0 0 28px;color:var(--bt-text)}
+.examplesHero p{font-size:clamp(20px,2.2vw,32px);line-height:1.17;color:var(--bt-muted);max-width:820px;margin:0}
+.examplesActions{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:34px}
+.examplesOrbit{aspect-ratio:1;border-radius:50%;border:1px solid var(--bt-line);background:radial-gradient(circle at 50% 50%,rgba(140,255,210,.2),rgba(255,255,255,.05) 42%,rgba(255,255,255,.025));position:relative;display:grid;place-items:center;box-shadow:0 60px 160px rgba(0,0,0,.34),inset 0 0 80px rgba(140,255,210,.08)}
+.examplesOrbit strong{font-size:clamp(54px,6vw,96px);letter-spacing:-.08em}.examplesOrbit span{position:absolute;border:1px solid var(--bt-line);border-radius:999px;background:rgba(5,7,11,.68);padding:10px 13px;font-size:12px;font-weight:950;color:var(--bt-muted)}.examplesOrbit span:nth-of-type(1){top:10%;left:14%}.examplesOrbit span:nth-of-type(2){top:19%;right:5%}.examplesOrbit span:nth-of-type(3){bottom:24%;left:2%}.examplesOrbit span:nth-of-type(4){bottom:10%;right:14%}
+.exampleFlow{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bt-line);border:1px solid var(--bt-line);border-radius:28px;overflow:hidden;margin:24px 0 44px}
+.exampleFlow article{background:rgba(255,255,255,.06);padding:22px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between}.exampleFlow span{color:var(--bt-accent);font-weight:950}.exampleFlow strong{font-size:20px;letter-spacing:-.04em}
+.exampleBrandGrid{display:grid;gap:28px}.exampleBrandCard{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.72fr);gap:0;min-height:620px;border:1px solid var(--bt-line);border-radius:44px;background:rgba(255,255,255,.055);overflow:hidden;box-shadow:0 50px 150px rgba(0,0,0,.32)}
+.mockupStage{position:relative;min-height:620px;overflow:hidden;background:radial-gradient(circle at 28% 24%,rgba(140,255,210,.2),transparent 28%),radial-gradient(circle at 76% 60%,rgba(143,167,255,.24),transparent 28%),#090c13}
+.mockupGlow{position:absolute;inset:auto 12% 8%;height:18%;background:rgba(140,255,210,.2);filter:blur(45px);border-radius:50%}
+.mockupBag{position:absolute;left:9%;bottom:12%;width:34%;height:48%;border-radius:30px 30px 42px 42px;background:#f8fbff;color:#05070b;display:grid;place-items:center;font-size:38px;font-weight:950;letter-spacing:-.07em;box-shadow:30px 50px 80px rgba(0,0,0,.34);transform:rotate(-4deg)}
+.mockupBag:before{content:"";position:absolute;width:38%;height:22%;border:8px solid #f8fbff;border-bottom:none;border-radius:50% 50% 0 0;top:-18%;left:31%}
+.mockupShirt{position:absolute;right:11%;top:14%;width:34%;height:38%;background:var(--bt-accent);clip-path:polygon(20% 0,38% 0,44% 12%,56% 12%,62% 0,80% 0,100% 18%,88% 34%,78% 26%,78% 100%,22% 100%,22% 26%,12% 34%,0 18%);display:grid;place-items:center;color:#05070b;font-size:46px;font-weight:950;box-shadow:30px 40px 70px rgba(0,0,0,.3)}
+.mockupPhone{position:absolute;right:11%;bottom:11%;width:25%;height:38%;border-radius:30px;background:#f8fbff;color:#05070b;padding:16px;display:grid;gap:10px;align-content:start;box-shadow:20px 34px 70px rgba(0,0,0,.32);transform:rotate(5deg)}
+.mockupPhone i{display:block;border-radius:16px;height:52px;background:linear-gradient(135deg,var(--bt-accent),var(--bt-accent-2))}.mockupPhone strong{font-size:13px;letter-spacing:-.03em}
+.mockupTag{position:absolute;left:9%;top:12%;max-width:42%;border:1px solid var(--bt-line);border-radius:22px;background:rgba(5,7,11,.72);padding:18px;color:var(--bt-text);font-weight:900;line-height:1.25;backdrop-filter:blur(18px)}
+.exampleBrandCopy{padding:42px;display:flex;flex-direction:column;justify-content:center;background:rgba(255,255,255,.045)}.exampleBrandCopy>span{color:var(--bt-accent);font-size:11px;text-transform:uppercase;letter-spacing:1.8px;font-weight:950}.exampleBrandCopy h2{font-size:clamp(42px,5vw,80px);line-height:.86;letter-spacing:-.075em;margin:16px 0 18px;color:var(--bt-text)}.exampleBrandCopy p{color:var(--bt-muted);font-size:18px;line-height:1.45}.examplePosition{border-top:1px solid var(--bt-line);border-bottom:1px solid var(--bt-line);padding:18px 0;margin:12px 0 18px}.examplePosition strong{font-size:13px;text-transform:uppercase;letter-spacing:1.6px;color:var(--bt-accent)}.exampleSwatches{display:flex;gap:9px;margin-bottom:18px}.exampleSwatches i{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.18)}.exampleBrandCopy ul{display:grid;gap:9px;margin:0;padding:0;list-style:none}.exampleBrandCopy li{color:var(--bt-text);font-weight:850}
+.examplesFinal{margin-top:52px;border:1px solid var(--bt-line);border-radius:44px;background:linear-gradient(135deg,rgba(140,255,210,.12),rgba(143,167,255,.1));padding:54px;display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center}.examplesFinal h2{font-size:clamp(42px,5vw,78px);line-height:.9;letter-spacing:-.075em;margin:0}.examplesFinal p{color:var(--bt-muted);font-size:19px;line-height:1.45;max-width:720px}
+@media(max-width:980px){.examplesHero,.exampleBrandCard,.examplesFinal{grid-template-columns:1fr}.examplesOrbit{max-width:520px}.exampleFlow{grid-template-columns:1fr 1fr}.exampleBrandCard,.mockupStage{min-height:auto}.mockupStage{aspect-ratio:1.1}.examplesFinal .birthCta{width:max-content}}
+@media(max-width:640px){.examplesPage{padding:42px 20px 80px}.examplesHero h1{font-size:58px}.examplesHero p{font-size:19px}.examplesOrbit{display:none}.exampleFlow{grid-template-columns:1fr;border-radius:22px}.exampleBrandCard{border-radius:28px}.mockupStage{aspect-ratio:.86}.mockupBag{width:42%;height:44%;left:7%}.mockupShirt{width:43%;right:7%;top:14%}.mockupPhone{width:36%;height:34%;right:8%}.mockupTag{left:7%;top:7%;max-width:70%;font-size:13px}.exampleBrandCopy{padding:28px}.examplesFinal{border-radius:28px;padding:30px}.examplesFinal .birthCta{width:100%}}
 `;

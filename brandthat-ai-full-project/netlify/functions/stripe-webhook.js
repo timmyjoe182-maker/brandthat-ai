@@ -37,10 +37,10 @@ exports.handler = async (event) => {
         };
       }
 
-      const email = session.customer_email;
+      const email = session.customer_email || session.metadata?.email;
       const userId = session.metadata?.user_id || "";
       const customerId = session.customer;
-      const paymentIntentId = session.payment_intent;
+      const subscriptionId = session.subscription;
       const plan = "member";
 
       let profileUserId = userId;
@@ -59,12 +59,25 @@ exports.handler = async (event) => {
           email,
           plan,
           stripe_customer_id: customerId,
-          stripe_subscription_id: paymentIntentId,
+          stripe_subscription_id: subscriptionId,
           updated_at: new Date().toISOString(),
         });
       } else {
         console.warn("Stripe checkout completed but no BrandThat user profile was found for email:", email);
       }
+    }
+
+    if (stripeEvent.type === "customer.subscription.updated") {
+      const subscription = stripeEvent.data.object;
+      const plan = ["active", "trialing"].includes(subscription.status) ? "member" : "free";
+
+      await supabaseAdmin
+        .from("user_profiles")
+        .update({
+          plan,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("stripe_subscription_id", subscription.id);
     }
 
     if (stripeEvent.type === "customer.subscription.deleted") {

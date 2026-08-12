@@ -4,7 +4,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.handler = async (event) => {
   try {
-    const { plan = "member", email, userId } = JSON.parse(event.body || "{}");
+    const { plan = "member", email, userId = "" } = JSON.parse(event.body || "{}");
 
     if (!email) {
       return {
@@ -19,7 +19,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Choose the BrandThat Brand Plan to continue.",
+          error: "Choose the BrandThat monthly membership to continue.",
         }),
       };
     }
@@ -35,24 +35,30 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: "Missing Stripe price ID for the BrandThat Brand Plan.",
+          error: "Missing Stripe price ID for the BrandThat monthly membership.",
         }),
       };
     }
 
     const price = await stripe.prices.retrieve(priceId);
 
-    if (price.currency !== "usd" || price.unit_amount !== 999 || price.type !== "one_time") {
+    const isMonthlyMembership =
+      price.currency === "usd" &&
+      price.unit_amount === 999 &&
+      price.type === "recurring" &&
+      price.recurring?.interval === "month";
+
+    if (!isMonthlyMembership) {
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: "Stripe Brand Plan price must be a one-time $9.99 USD price.",
+          error: "Stripe BrandThat membership price must be a recurring monthly $9.99 USD price.",
         }),
       };
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+      mode: "subscription",
 
       payment_method_types: ["card"],
 
@@ -61,7 +67,15 @@ exports.handler = async (event) => {
       metadata: {
         plan,
         email,
-        user_id: userId || "",
+        user_id: userId,
+      },
+
+      subscription_data: {
+        metadata: {
+          plan,
+          email,
+          user_id: userId,
+        },
       },
 
       line_items: [
