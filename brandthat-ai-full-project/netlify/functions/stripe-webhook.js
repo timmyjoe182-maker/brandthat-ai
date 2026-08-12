@@ -38,23 +38,32 @@ exports.handler = async (event) => {
       }
 
       const email = session.customer_email;
+      const userId = session.metadata?.user_id || "";
       const customerId = session.customer;
       const paymentIntentId = session.payment_intent;
       const plan = "member";
 
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+      let profileUserId = userId;
+      if (!profileUserId && email) {
+        const { data: existingProfile } = await supabaseAdmin
+          .from("user_profiles")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+        profileUserId = existingProfile?.id || "";
+      }
 
-      const matchingUser = users.users.find((user) => user.email === email);
-
-      if (matchingUser) {
+      if (profileUserId) {
         await supabaseAdmin.from("user_profiles").upsert({
-          id: matchingUser.id,
+          id: profileUserId,
           email,
           plan,
           stripe_customer_id: customerId,
           stripe_subscription_id: paymentIntentId,
           updated_at: new Date().toISOString(),
         });
+      } else {
+        console.warn("Stripe checkout completed but no BrandThat user profile was found for email:", email);
       }
     }
 

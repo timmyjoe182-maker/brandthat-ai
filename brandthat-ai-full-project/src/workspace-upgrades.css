@@ -12,6 +12,110 @@
   color: #171717;
 }
 
+.skeletonBlock {
+  min-height: 18px;
+  width: 100%;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #eee9df 0%, #faf8f2 45%, #eee9df 90%);
+  background-size: 220% 100%;
+  animation: brandthatSkeleton 1.15s ease-in-out infinite;
+}
+
+.skeletonBlock.short {
+  width: 34%;
+}
+
+.skeletonBlock.medium {
+  width: 64%;
+}
+
+.skeletonBlock.title {
+  height: 46px;
+  width: 72%;
+}
+
+.skeletonMark {
+  width: 128px;
+  height: 128px;
+  border-radius: 24px;
+  flex: 0 0 128px;
+}
+
+.skeletonHeroCopy {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.brandDashboardSkeleton .dashboardPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.toolGridSkeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.toolGridSkeleton .skeletonBlock {
+  min-height: 160px;
+  border-radius: 22px;
+}
+
+.brandRowSkeleton {
+  padding: 18px;
+}
+
+.termTooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: help;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.3);
+}
+
+.termTooltip > span {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 50;
+  width: min(240px, 70vw);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #111;
+  color: #fff;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity .16s ease, transform .16s ease;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.termTooltip:hover > span,
+.termTooltip:focus-within > span {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.termTooltip:focus {
+  outline: 2px solid #111;
+  outline-offset: 3px;
+  border-bottom-color: transparent;
+}
+
+@keyframes brandthatSkeleton {
+  0% { background-position: 0% 50%; }
+  100% { background-position: -220% 50%; }
+}
+
 .builderContextGrid,
 .whyThisWorksGrid,
 .psychologyGrid,
@@ -180,6 +284,15 @@
   font-size: 12px;
   font-weight: 700;
   padding: 8px 12px;
+}
+
+.workspaceSaveStatus {
+  align-self: center;
+  color: #737373;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .directorNotes textarea {
@@ -354,6 +467,16 @@
   .scoreImprovements,
   .revenuePlanner {
     grid-template-columns: 1fr;
+  }
+
+  .toolGridSkeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .skeletonMark {
+    width: 96px;
+    height: 96px;
+    flex-basis: 96px;
   }
 
   .scorecardPanel {

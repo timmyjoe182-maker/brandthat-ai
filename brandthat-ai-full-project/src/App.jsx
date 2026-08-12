@@ -463,7 +463,11 @@ async function fetchJsonWithTimeout(url, options = {}, config = {}) {
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-      const error = new Error(data.error || data.text || config.errorMessage || `Request failed with status ${response.status}.`);
+      if (response.status >= 500) console.warn("BrandThat request failed", { url, status: response.status, data });
+      const publicMessage = response.status >= 500
+        ? (config.errorMessage || "BrandThat could not complete that request. Please try again.")
+        : (data.error || data.text || config.errorMessage || `Request failed with status ${response.status}.`);
+      const error = new Error(publicMessage);
       error.status = response.status;
       throw error;
     }
@@ -2071,6 +2075,52 @@ function makeOutputMoreSpecific(text = "", brand = {}) {
     .replace(/use professional colors/gi, "choose one dark anchor, one quiet neutral, and one distinctive accent tied to the buyer's desired emotion");
 }
 
+function getOutputQualityIssues(text = "", brand = {}) {
+  const cleanText = cleanGeneratedText(text);
+  const lower = cleanText.toLowerCase();
+  const issues = [];
+  const weakPhrases = [
+    "post consistently",
+    "build trust",
+    "increase awareness",
+    "use social media",
+    "premium feel",
+    "professional colors",
+    "readable typography",
+    "stand out from competitors",
+    "engage your audience",
+  ];
+  const sentences = cleanText.split(/[.!?]\s+/).map((item) => item.trim()).filter(Boolean);
+  const repeatedSentences = sentences.length - new Set(sentences.map((item) => item.toLowerCase())).size;
+  const brandName = cleanGeneratedText(brand?.name || brand?.brandName || "");
+  const hasBrandContext = Boolean(brandName || brand?.audience || brand?.description);
+
+  if (cleanText.length < 180) issues.push("too short");
+  if (weakPhrases.some((phrase) => lower.includes(phrase))) issues.push("generic phrasing");
+  if (repeatedSentences > 1) issues.push("repetitive");
+  if (hasBrandContext && brandName && !lower.includes(brandName.toLowerCase()) && !lower.includes("brand dna")) issues.push("missing brand context");
+  if (/undefined|null|\[insert|placeholder|lorem ipsum/i.test(cleanText)) issues.push("placeholder text");
+
+  return [...new Set(issues)];
+}
+
+function buildQualityRetryPrompt({ basePrompt = "", firstOutput = "", issues = [], brand = {} } = {}) {
+  return `${basePrompt}
+
+Quality control rejected the first draft for: ${issues.join(", ")}.
+
+Rewrite the output once.
+Requirements:
+- Use the Brand DNA and actual business context.
+- Remove generic phrasing and repeated ideas.
+- Make every recommendation concrete with channel, cadence, example, KPI, cost, completion criteria, or next action where relevant.
+- Include concise "Why this works" reasoning for major recommendations.
+- Do not include undefined, null, placeholders, or filler.
+
+Rejected draft:
+${cleanGeneratedText(firstOutput)}`;
+}
+
 function getDefaultWorkspaceDraft() {
   return {
     name: "",
@@ -2385,6 +2435,7 @@ export default function App() {
     font: "Inter, Arial, Helvetica, sans-serif",
   });
   const [loading, setLoading] = useState(false);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [recentLogoResults, setRecentLogoResults] = useState(() => safeParse("brandthat_recent_logo_results", []));
 
   const [brandWorkspaces, setBrandWorkspaces] = useState(getInitialStoredWorkspaces);
@@ -2566,6 +2617,7 @@ export default function App() {
   const loadSavedWorkspaceData = async (currentUser) => {
     if (!currentUser?.id) return;
 
+    setWorkspaceLoading(true);
     try {
       const { data: profile } = await supabase
         .from("user_profiles")
@@ -2629,6 +2681,9 @@ export default function App() {
       }
     } catch (error) {
       console.warn("Could not load saved Brandthat workspaces:", error.message);
+      notify("warning", "Workspace sync paused", "Your local workspace is still available. Refresh or try again if saved cloud projects do not appear.");
+    } finally {
+      setWorkspaceLoading(false);
     }
   };
 
@@ -2656,7 +2711,7 @@ export default function App() {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user || null;
         setUser(currentUser);
-        if (currentUser && isUserEmailVerified(currentUser)) loadSavedWorkspaceData(currentUser);
+        if (currentUser && isUserEmailVerified(currentUser)) await loadSavedWorkspaceData(currentUser);
       } catch (error) {
         console.warn("Could not load Supabase session:", error.message);
         setUser(null);
@@ -2699,6 +2754,7 @@ export default function App() {
 
   const updateActiveBrand = (patch = {}) => {
     if (!activeBrand?.id) return;
+    setAutoSaveStatus("Saving...");
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
         brand.id === activeBrand.id
@@ -2706,7 +2762,8 @@ export default function App() {
           : brand
       )
     );
-    setAutoSaveStatus("Saved");
+    window.clearTimeout(window.brandthatWorkspaceSaveTimer);
+    window.brandthatWorkspaceSaveTimer = window.setTimeout(() => setAutoSaveStatus("Saved"), 350);
   };
 
   useEffect(() => {
@@ -3101,13 +3158,14 @@ export default function App() {
       const data = await fetchJsonWithTimeout("/.netlify/functions/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: checkoutPlan, email: currentUser.email })
+        body: JSON.stringify({ plan: checkoutPlan, email: currentUser.email, userId: currentUser.id })
       }, {
         timeoutMs: 15000,
         errorMessage: "Checkout could not start.",
         timeoutMessage: "Checkout took too long to start. Please try again."
       });
 
+      if (!data?.url) throw new Error("Stripe did not return a checkout link. Please try again.");
       window.location.href = data.url;
     } catch (error) {
       handleAppError("Checkout failed", error, "Please try again in a moment.");
@@ -4737,14 +4795,15 @@ Requirements:
         }
         trackBrandthatEvent("brand_plan_generated", { source: data.source || "unknown", plan: userPlan });
       } else {
-        const data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
+        const generationPrompt = `${getSystemPrompt()}
+
+User request:
+${promptValue}`;
+        let data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            prompt: `${getSystemPrompt()}
-
-User request:
-${promptValue}`
+            prompt: generationPrompt
           })
         }, {
           timeoutMs: 20000,
@@ -4752,7 +4811,26 @@ ${promptValue}`
           timeoutMessage: "Generation took too long. Please try again with a shorter request."
         });
 
-        const cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
+        let cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
+        const qualityIssues = getOutputQualityIssues(cleanText, activeBrand || workspaceDraft);
+        if (qualityIssues.length) {
+          const retryPrompt = buildQualityRetryPrompt({
+            basePrompt: generationPrompt,
+            firstOutput: cleanText,
+            issues: qualityIssues,
+            brand: activeBrand || workspaceDraft,
+          });
+          data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({ prompt: retryPrompt })
+          }, {
+            timeoutMs: 20000,
+            errorMessage: "Generation quality retry failed.",
+            timeoutMessage: "The quality retry took too long. Please try again with a shorter request."
+          });
+          cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
+        }
         if (!cleanText) {
           throw new Error("BrandThat did not receive a usable response. Please try again.");
         }
@@ -4954,7 +5032,9 @@ ${promptValue}`
           <h1 className="pageTitle">Your brand headquarters.</h1>
           <p className="pageLead">Every purchased Brand Plan becomes a saved workspace with strategy, identity direction, platform guidance, roadmap, saved assets, and logo concepts generated from the completed strategy.</p>
 
-          {activeBrand && (
+          {workspaceLoading && !activeBrand && <WorkspaceSkeleton />}
+
+          {!workspaceLoading && activeBrand && (
             <BrandDashboard
               brand={activeBrand}
               setPage={setPage}
@@ -4963,6 +5043,7 @@ ${promptValue}`
               copyToClipboard={copyToClipboard}
               updateActiveBrand={updateActiveBrand}
               regenerateWorkspaceSection={regenerateWorkspaceSection}
+              autoSaveStatus={autoSaveStatus}
             />
           )}
 
@@ -4977,6 +5058,7 @@ ${promptValue}`
             <WorkspaceLibrary
               brandWorkspaces={brandWorkspaces}
               activeBrand={activeBrand}
+              workspaceLoading={workspaceLoading}
               selectBrand={selectBrand}
               deleteBrand={deleteBrand}
               duplicateBrand={duplicateBrand}
@@ -5058,7 +5140,7 @@ ${promptValue}`
         <section className="pageSection">
           <div className="tinyTag">TOOLS</div>
           <h1 className="pageTitle">Choose exactly what you want Brandthat to create.</h1>
-          <ToolGrid activeToolKey={activeToolKey} selectTool={selectTool} />
+          {authLoading ? <ToolGridSkeleton /> : <ToolGrid activeToolKey={activeToolKey} selectTool={selectTool} />}
         </section>
       )}
 
@@ -5276,7 +5358,7 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
             />
           </label>
           <label className="builderField">
-            <span>Price position</span>
+            <span><TermTooltip term="positioning">Price position</TermTooltip></span>
             <input
               placeholder="Premium, accessible, luxury, value-led"
               value={workspaceDraft.pricePositioning || ""}
@@ -5325,6 +5407,63 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
         <p>Account and email verification required before BrandThat creates the complete Brand Plan.</p>
       </div>
     </section>
+  );
+}
+
+function SkeletonBlock({ className = "" }) {
+  return <div className={`skeletonBlock ${className}`} aria-hidden="true" />;
+}
+
+function TermTooltip({ term, children }) {
+  const definitions = {
+    positioning: "The specific place your brand should own in the customer's mind.",
+    archetype: "A simple personality pattern that keeps brand behavior consistent.",
+    "brand voice": "How the brand sounds in captions, emails, website copy, and sales messages.",
+    "value proposition": "The clear reason a customer should choose this offer now.",
+    "visual direction": "The rules for how the brand should look across logo, color, type, imagery, and layouts.",
+    "typography system": "The headline and body type choices that make the brand readable and recognizable.",
+  };
+  return (
+    <span className="termTooltip" tabIndex="0">
+      {children || term}
+      <span role="tooltip">{definitions[String(term || "").toLowerCase()] || "A branding term used to guide more consistent decisions."}</span>
+    </span>
+  );
+}
+
+function WorkspaceSkeleton() {
+  return (
+    <section className="brandDashboard brandDashboardSkeleton" aria-label="Loading saved Brand Workspace">
+      <div className="brandDashboardHero">
+        <SkeletonBlock className="skeletonMark" />
+        <div className="skeletonHeroCopy">
+          <SkeletonBlock className="short" />
+          <SkeletonBlock className="title" />
+          <SkeletonBlock />
+          <SkeletonBlock className="medium" />
+        </div>
+      </div>
+      <div className="brandSummaryDashboard">
+        {Array.from({ length: 8 }).map((_, index) => <SkeletonBlock key={index} />)}
+      </div>
+      <div className="dashboardGrid">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div className="dashboardPanel" key={index}>
+            <SkeletonBlock className="short" />
+            <SkeletonBlock />
+            <SkeletonBlock className="medium" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ToolGridSkeleton() {
+  return (
+    <div className="toolGridSkeleton" aria-label="Loading tools">
+      {Array.from({ length: 6 }).map((_, index) => <SkeletonBlock key={index} />)}
+    </div>
   );
 }
 
@@ -5545,7 +5684,7 @@ function ScorecardPanel({ scorecard }) {
   );
 }
 
-function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard, updateActiveBrand, regenerateWorkspaceSection }) {
+function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard, updateActiveBrand, regenerateWorkspaceSection, autoSaveStatus = "Saved" }) {
   const plan = getWorkspacePlan(brand);
   brandthatDevLog("rendered workspace data", { brand, plan });
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 3);
@@ -5599,6 +5738,7 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
           <div className="dashboardActions">
             <button className="btn dark" onClick={() => setPage("logo")}>Generate Logo Concepts</button>
             <button className="btn light" onClick={downloadBrandKit}>Export Brand Book PDF</button>
+            <span className="workspaceSaveStatus">{autoSaveStatus}</span>
           </div>
         </div>
       </div>
@@ -5610,10 +5750,10 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
           <span>Brand DNA</span>
           <div className="dashboardIdentityGrid dnaGrid">
             <div><strong>Audience</strong><p>{dna.audience}</p></div>
-            <div><strong>Positioning</strong><p>{dna.positioning}</p></div>
-            <div><strong>Archetype</strong><p>{dna.archetype}</p></div>
+            <div><strong><TermTooltip term="positioning">Positioning</TermTooltip></strong><p>{dna.positioning}</p></div>
+            <div><strong><TermTooltip term="archetype">Archetype</TermTooltip></strong><p>{dna.archetype}</p></div>
             <div><strong>Tone</strong><p>{dna.tone}</p></div>
-            <div><strong>Visual Direction</strong><p>{dna.visualDirection}</p></div>
+            <div><strong><TermTooltip term="visual direction">Visual Direction</TermTooltip></strong><p>{dna.visualDirection}</p></div>
             <div><strong>Business Goals</strong><p>{dna.businessGoals.join(" / ")}</p></div>
           </div>
           <RegenerationControls label="Brand DNA" value={dna} copyToClipboard={copyToClipboard} regenerateWorkspaceSection={regenerateWorkspaceSection} />
@@ -5624,7 +5764,7 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
           <div className="dashboardIdentityGrid">
             {identityCards.map(([label, value]) => (
               <div key={label}>
-                <strong>{label}</strong>
+                <strong>{label === "Positioning" ? <TermTooltip term="positioning">{label}</TermTooltip> : label === "Typography Direction" ? <TermTooltip term="typography system">{label}</TermTooltip> : label === "Voice" ? <TermTooltip term="brand voice">{label}</TermTooltip> : label}</strong>
                 <p>{getBrandFieldPreview(value)}</p>
               </div>
             ))}
@@ -5858,14 +5998,22 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
   );
 }
 
-function WorkspaceLibrary({ brandWorkspaces, activeBrand, selectBrand, deleteBrand, duplicateBrand, downloadBrandKit, setPage }) {
+function WorkspaceLibrary({ brandWorkspaces, activeBrand, workspaceLoading = false, selectBrand, deleteBrand, duplicateBrand, downloadBrandKit, setPage }) {
   return (
     <div className="workspaceCard">
       <div className="tinyTag">MY BRANDS</div>
       <h2>Saved Brand Workspaces</h2>
       <p>Each workspace keeps its own logos, captions, hooks, bios, favorites, and launch assets.</p>
 
-      {brandWorkspaces.length === 0 ? (
+      {workspaceLoading ? (
+        <div className="brandList">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div className="brandRow brandRowSkeleton" key={index}>
+              <SkeletonBlock className="medium" />
+            </div>
+          ))}
+        </div>
+      ) : brandWorkspaces.length === 0 ? (
         <div className="emptyState">No brands yet. Create your first workspace.</div>
       ) : (
         <div className="brandList">

@@ -4,7 +4,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.handler = async (event) => {
   try {
-    const { plan = "member", email } = JSON.parse(event.body || "{}");
+    const { plan = "member", email, userId } = JSON.parse(event.body || "{}");
 
     if (!email) {
       return {
@@ -61,6 +61,7 @@ exports.handler = async (event) => {
       metadata: {
         plan,
         email,
+        user_id: userId || "",
       },
 
       line_items: [
