@@ -279,7 +279,7 @@ const tones = [
 ];
 
 const premiumLogoPromptExamples = [
-  "Create a luxury black and cream skincare logo called Aurelle.",
+  "Create a premium black and warm-neutral carry goods logo called Northline Goods.",
   "Design a clean AI startup logo for NexusForge with modern typography.",
   "Make a premium real estate logo for Vale & Stone.",
   "Create a bold monogram logo for Iron Method fitness.",
@@ -6310,46 +6310,8 @@ function HomepageSEOContent({ openSeoPage }) {
   );
 }
 
-function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
-  const examples = [
-    {
-      name: "Northline Goods",
-      idea: "Weatherproof everyday bags for creators who move between studio, gym, and late-night shoots.",
-      artifact: "Transit tote, utility pouch, launch tee, product card",
-      position: "Premium carry goods for people whose day does not fit one category.",
-      visual: "tote",
-      colors: ["#101114", "#f4f0e8", "#9ee8d8", "#b8ff5d"],
-      notes: ["Instagram launch grid", "Creator commuter story", "First-drop waitlist kit"],
-    },
-    {
-      name: "Sunset Circuit",
-      idea: "A futuristic streetwear line for runners, DJs, and designers who train after dark.",
-      artifact: "Reflective shirt, race poster, cap, social launch",
-      position: "Night-run performance culture with a fashion-first edge.",
-      visual: "shirt",
-      colors: ["#07080c", "#f6f7ef", "#ff4d8d", "#74f4ff"],
-      notes: ["TikTok route series", "Drop calendar", "Club-run partnerships"],
-    },
-    {
-      name: "Luma Pantry",
-      idea: "A modern home goods and grocery brand making small kitchens feel intentional and warm.",
-      artifact: "Market bag, jar label, recipe card, email launch",
-      position: "Design-led pantry staples for apartments that feel collected, not cluttered.",
-      visual: "pantry",
-      colors: ["#17120f", "#faf2e3", "#d9a85f", "#8fe0b5"],
-      notes: ["Pinterest boards", "Recipe email sequence", "Shelf-ready packaging"],
-    },
-    {
-      name: "Patch Social",
-      idea: "Merch and community kits for neighborhood coffee shops that want cult-local energy.",
-      artifact: "Heavyweight tee, sticker sheet, receipt insert, campaign phone",
-      position: "Local merch systems that turn regular customers into visible community.",
-      visual: "merch",
-      colors: ["#0e0e10", "#f8f6ed", "#ff7d4d", "#d7ff73"],
-      notes: ["Community drop plan", "Founder story captions", "In-store QR funnel"],
-    },
-  ];
 
+function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
   const startMembership = () => user?.email
     ? startCheckout(MEMBER_PLAN)
     : openAuth("signup", "Create your BrandThat account to unlock the $9.99/month brand-building workspace.");
@@ -6357,62 +6319,52 @@ function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
   return (
     <main className="examplesPage">
       <section className="examplesHero">
-        <div>
-          <span className="examplesKicker">Brand worlds, not blank templates</span>
-          <h1>See how simple it is to BrandThat.</h1>
-          <p>Bring a rough idea. BrandThat turns it into a strategy, identity direction, launch plan, and a visual world ready to build around.</p>
-          <div className="examplesActions">
-            <button className="birthCta" onClick={startMembership}>Build My Brand - $9.99/mo</button>
-            <button className="btn ghost" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); }}>Back to Product</button>
+        <span className="examplesKicker">Example brand world</span>
+        <h1>See how simple it is to BrandThat.</h1>
+        <p>Northline Goods starts as a rough product idea. BrandThat turns it into a strategic brand system, real-world applications, a launch plan, and a workspace.</p>
+        <div className="examplesActions">
+          <button className="birthCta" onClick={startMembership}>Build My Brand - $9.99/mo</button>
+          <button className="birthSecondary" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Back to Product</button>
+        </div>
+      </section>
+
+      <section className="exampleBrandGrid" aria-label="Northline Goods BrandThat example">
+        <article className="exampleBrandCard editorial">
+          <figure className="exampleBrandMedia">
+            <picture>
+              <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" />
+              <img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, cap, apparel, packaging, bottle, and stationery photographed in a studio" loading="lazy" />
+            </picture>
+          </figure>
+          <div className="exampleBrandCopy">
+            <span>From idea to physical brand</span>
+            <h2>Northline Goods</h2>
+            <p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p>
+            <div className="exampleDetails">
+              <div><strong>Positioning</strong><span>Premium carry goods for people whose day does not fit one category.</span></div>
+              <div><strong>Identity</strong><span>Black technical fabric, warm neutrals, muted sage, tight industrial typography, minimal labels.</span></div>
+              <div><strong>Applications</strong><span>Tote, utility pouch, cap, heavyweight tee, shipping box, hang tag, business card, bottle.</span></div>
+            </div>
           </div>
-        </div>
-        <div className="examplesOrbit" aria-label="BrandThat monthly membership">
-          <strong>$9.99/mo</strong>
-          <span>Workspace</span>
-          <span>Strategy</span>
-          <span>Merch Direction</span>
-          <span>Roadmap</span>
-        </div>
-      </section>
-
-      <section className="exampleFlow">
-        {["Idea", "Brand system", "Merch direction", "Launch plan", "Workspace"].map((step, index) => (
-          <article key={step}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{step}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section className="exampleBrandGrid" aria-label="Made-up BrandThat examples">
-        {examples.map((example) => (
-          <article className="exampleBrandCard" key={example.name}>
-            <div className={`mockupStage ${example.visual}`}>
-              <ProductIntelligenceRender
-                brandName={example.name}
-                idea={example.idea}
-                variant={example.visual}
-                colors={example.colors}
-                labels={["DNA", "Audience", "Merch", "Launch"]}
-              />
+        </article>
+        <article className="exampleBrandCard editorial reverse">
+          <figure className="exampleBrandMedia">
+            <picture>
+              <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
+              <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods ecommerce website, Instagram profile, brand guidelines, captions, and roadmap" loading="lazy" />
+            </picture>
+          </figure>
+          <div className="exampleBrandCopy">
+            <span>From strategy to launch system</span>
+            <h2>The brand stays connected.</h2>
+            <p>Website direction, Instagram presence, handles, caption examples, color system, typography, and roadmap all come from the same Brand DNA.</p>
+            <div className="exampleDetails">
+              <div><strong>Handle system</strong><span>Instagram @northline.goods · TikTok @northlinegoods · X @northlinegoods</span></div>
+              <div><strong>Content</strong><span>Creator commute stories, packing systems, studio-to-street product use, founder product notes.</span></div>
+              <div><strong>Roadmap</strong><span>Brand identity, packaging, website, social channels, email campaign, launch drop.</span></div>
             </div>
-            <div className="exampleBrandCopy">
-              <span>Made-up example</span>
-              <h2>{example.name}</h2>
-              <p>{example.idea}</p>
-              <div className="examplePosition">
-                <strong>BrandThat direction</strong>
-                <p>{example.position}</p>
-              </div>
-              <div className="exampleSwatches">
-                {example.colors.map((color) => <i key={color} style={{ background: color }} />)}
-              </div>
-              <ul>
-                {example.notes.map((note) => <li key={note}>{note}</li>)}
-              </ul>
-            </div>
-          </article>
-        ))}
+          </div>
+        </article>
       </section>
 
       <section className="examplesFinal">
@@ -6424,59 +6376,112 @@ function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
   );
 }
 
-function ProductIntelligenceRender({
-  brandName = "Morrow",
-  idea = "A cinematic canned coffee company for creative people who want focused energy without the corporate feel.",
-  variant = "system",
-  colors = ["#8cffd2", "#8fa7ff", "#faffae", "#f8fbff"],
-  labels = ["Brand DNA", "Audience", "Positioning", "Typography", "Colors", "Roadmap", "Logos", "Workspace"],
-}) {
-  const nodes = labels.slice(0, 8);
-  const shortName = brandName.split(" ")[0] || brandName;
+function NorthlineInputPanel({ onExample }) {
+  return (
+    <div className="northlineInputPanel">
+      <div className="inputPanelHeader">
+        <span>Start with two details</span>
+        <strong>BrandThat</strong>
+      </div>
+      <div className="inputRows">
+        <div className="inputRow">
+          <span>Brand name</span>
+          <strong>Northline Goods</strong>
+        </div>
+        <div className="inputRow large">
+          <span>What does it represent?</span>
+          <p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p>
+        </div>
+      </div>
+      <div className="agentSteps" aria-label="BrandThat generation steps">
+        <span>Understanding the idea</span>
+        <span>Defining the audience</span>
+        <span>Building the identity</span>
+        <span>Creating the launch plan</span>
+      </div>
+      <button className="inputAction" onClick={onExample}>Use this example</button>
+    </div>
+  );
+}
+
+function NorthlineOutputPreview() {
+  const outputs = [
+    ["Logo", "NORTHLINE GOODS"],
+    ["Handle", "@northline.goods"],
+    ["Voice", "Useful. Durable. Quietly premium."],
+    ["Roadmap", "Launch the first carry system"],
+  ];
 
   return (
-    <div className={`intelligenceRender ${variant}`} aria-label={`${brandName} connected brand system visualization`}>
-      <div className="renderLight one"></div>
-      <div className="renderLight two"></div>
-      <div className="renderParticles">
-        {Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ "--particle": index }} />)}
-      </div>
-      <svg className="renderConnections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M12 28 C 28 10, 42 18, 50 50 S 78 86, 92 64" />
-        <path d="M18 78 C 34 56, 44 56, 50 50 S 68 30, 88 22" />
-        <path d="M50 14 C 54 31, 55 42, 50 50 S 32 68, 16 48" />
-      </svg>
-      <div className="renderCore">
-        <small>BrandThat is building</small>
-        <strong>{shortName}</strong>
-        <span>{idea}</span>
-      </div>
-      <div className="renderNodeField">
-        {nodes.map((node, index) => (
-          <div className="renderNode" key={node} style={{ "--node": index }}>
-            <b>{String(index + 1).padStart(2, "0")}</b>
-            <span>{node}</span>
+    <div className="northlineOutputPreview" aria-label="BrandThat output preview for Northline Goods">
+      <figure className="previewImageFrame">
+        <picture>
+          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
+          <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods website, Instagram, brand guidelines, caption examples, and launch roadmap" loading="eager" />
+        </picture>
+      </figure>
+      <div className="outputTray">
+        {outputs.map(([label, value]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
           </div>
         ))}
       </div>
-      <div className="renderGlassPanel panelA">
-        <span>Positioning</span>
-        <strong>{variant === "workspace" ? "Living system" : "Distinct market angle"}</strong>
-        <p>{variant === "roadmap" ? "Launch actions are sequenced by priority, outcome, and momentum." : "Strategy, visuals, and launch plan stay connected as one brand brain."}</p>
+    </div>
+  );
+}
+
+function NorthlineBrandSystem() {
+  return (
+    <div className="northlineSystem">
+      <div className="systemBlock large">
+        <span>Brand thesis</span>
+        <h3>Carry goods for creative days that refuse to stay in one lane.</h3>
+        <p>Northline should own the space between technical utility and design-conscious daily life: less outdoor cosplay, more real movement through the city.</p>
       </div>
-      <div className="renderGlassPanel panelB">
-        <span>Identity signal</span>
-        <div className="renderSwatches">
-          {colors.map((color) => <i key={color} style={{ background: color }} />)}
+      <div className="systemBlock">
+        <span>Audience</span>
+        <p>Creators, founders, photographers, designers, and operators who need one bag system that looks sharp everywhere.</p>
+      </div>
+      <div className="systemBlock">
+        <span>Voice</span>
+        <p>Plainspoken, durable, observant. Confident without hype.</p>
+      </div>
+      <div className="systemBlock">
+        <span>Visual direction</span>
+        <p>Matte black nylon, warm paper, muted sage, compact sans typography, topographic line details.</p>
+        <div className="systemPalette" aria-label="Northline Goods color palette">
+          {["#101114", "#f4f0e8", "#b7aa94", "#72765f"].map((color) => <i key={color} style={{ background: color }} />)}
         </div>
-        <p>Type, color, voice, platform plan, and logo concepts inherit the same Brand DNA.</p>
-      </div>
-      <div className="renderMiniUi">
-        <div><span></span><span></span><span></span></div>
-        <strong>Workspace sync</strong>
-        <p>Next action, launch stage, and visual system updated.</p>
       </div>
     </div>
+  );
+}
+
+function NorthlineToolsEverywhere() {
+  const tools = [
+    ["Caption Generator", "Built for what matters. Packed for everywhere else."],
+    ["Hashtag Generator", "#NorthlineGoods #CarryBetter #BuiltForWhatMatters"],
+    ["Instagram Bio", "Thoughtful carry for creative movement. Designed in the details."],
+    ["Social Handles", "Instagram @northline.goods · TikTok @northlinegoods · X @northlinegoods"],
+  ];
+
+  return (
+    <section className="northlineToolsSection">
+      <div className="toolsCopy">
+        <h2>Your brand, everywhere.</h2>
+        <p>BrandThat's tools should not feel disconnected. Captions, hashtags, bios, strategy, and logo concepts all use the same brand context.</p>
+      </div>
+      <div className="northlineToolsList">
+        {tools.map(([title, copy]) => (
+          <article className="toolExample" key={title}>
+            <span>{title}</span>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -6490,11 +6495,11 @@ function BrandBirthHomepage({
   openAuth,
   user,
 }) {
-  const seedCoffeeBrand = () => {
+  const seedExampleBrand = () => {
     setWorkspaceDraft({
       ...workspaceDraft,
-      name: "Morrow",
-      description: "A cinematic canned coffee company for creative people who want focused energy without the corporate feel.",
+      name: "Northline Goods",
+      description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.",
     });
     setTimeout(() => document.getElementById("brand-birth")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
@@ -6503,25 +6508,26 @@ function BrandBirthHomepage({
     <div className="birthPage">
       <section className="birthHero" id="product-demo">
         <div className="birthHeroCopy">
-          <h1>Your idea is not small.</h1>
-          <p>BrandThat turns rough business ideas into the strategy, identity direction, launch roadmap, and workspace to build something real.</p>
+          <h1>One idea. An entire brand.</h1>
+          <p>Type the name. Tell BrandThat what it means. Build the strategy, identity, content, website direction, launch plan, and workspace around it.</p>
           <div className="birthHeroActions">
             <button className="birthCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99/mo</button>
             <span>Monthly membership. Full BrandThat access. Cancel anytime.</span>
           </div>
+          <NorthlineInputPanel onExample={seedExampleBrand} />
         </div>
-        <BirthHeroVisual onExample={seedCoffeeBrand} />
+        <BirthHeroVisual />
       </section>
 
       <section className="originMoment" id="brand-birth">
         <div className="originLine">
-          <p>I want to build a canned coffee company for creative people who want better energy without the corporate feel.</p>
+          <p>Northline begins as a name and a practical idea: carry goods for creative days that move through multiple worlds.</p>
         </div>
         <div className="originAnnotations">
           {[
-            ["Why it exists", "Creative work needs energy that feels human, not industrial."],
-            ["Who it serves", "Designers, filmmakers, founders, stylists, editors, and night-builders."],
-            ["What it can own", "The space between specialty coffee, studio culture, and modern focus."],
+            ["Why it exists", "Most work bags are either too corporate, too outdoorsy, or too trend-led for the way modern creators actually move."],
+            ["Who it serves", "Design-conscious creators who need reliable tools that still look sharp in client meetings, airports, gyms, and studios."],
+            ["What it can own", "The space between technical carry, quiet style, and daily creative momentum."],
           ].map(([title, copy]) => (
             <article key={title}>
               <strong>{title}</strong>
@@ -6533,32 +6539,19 @@ function BrandBirthHomepage({
 
       <section className="brandAwakening">
         <div className="awakeningCopy">
-          <h2>BrandThat sees the company inside the idea.</h2>
-          <p>It gives the thought a thesis, audience, positioning, voice, visual world, launch path, and a next move. The output is not content. It is momentum.</p>
+          <h2>BrandThat turns the thought into a system.</h2>
+          <p>Strategy, audience, voice, identity, social direction, and launch actions are generated from the same core idea, so the brand feels coherent from the first draft.</p>
         </div>
-        <div className="awakeningBoard">
-          <div className="thesisSpread">
-            <span>Brand thesis</span>
-            <h3>Morrow gives ambitious creatives a beautiful way to stay sharp without feeling like they are buying productivity culture.</h3>
-          </div>
-          <div className="voiceSpread">
-            <span>Voice</span>
-            <p>Quiet confidence. Night-studio focus. Less hustle, more signal.</p>
-          </div>
-          <div className="identitySpread">
-            <span>Identity direction</span>
-            <div className="typeSpec">Editorial serif<br /><small>restrained grotesk</small></div>
-            <div className="colorRun"><i></i><i></i><i></i><i></i></div>
-          </div>
-        </div>
+        <NorthlineBrandSystem />
       </section>
 
       <BrandWorldShowcase />
       <LaunchSequence />
       <LivingWorkspaceMoment />
+      <NorthlineToolsEverywhere />
       <BirthOffer startCheckout={startCheckout} openAuth={openAuth} user={user} />
 
-      <section className="birthBuilder">
+      <section className="birthBuilder" id="brandthat-builder">
         <div>
           <h2>Bring the idea. Leave with the brand.</h2>
           <p>Start with two details. BrandThat handles the strategic thinking, then saves the plan as your Brand Workspace.</p>
@@ -6575,19 +6568,10 @@ function BrandBirthHomepage({
   );
 }
 
-function BirthHeroVisual({ onExample }) {
+function BirthHeroVisual() {
   return (
     <div className="birthHeroVisual" aria-label="Idea becoming a brand">
-      <button className="founderNote" onClick={onExample}>
-        <span>Founder note</span>
-        <p>A canned coffee company for creative people who want better energy without the corporate feel.</p>
-      </button>
-      <ProductIntelligenceRender
-        brandName="Morrow"
-        variant="hero"
-        labels={["Idea", "DNA", "Audience", "Positioning", "Type", "Color", "Roadmap", "Workspace"]}
-        colors={["#0b0e16", "#8cffd2", "#8fa7ff", "#faffae"]}
-      />
+      <NorthlineOutputPreview />
     </div>
   );
 }
@@ -6596,48 +6580,43 @@ function BrandWorldShowcase() {
   return (
     <section className="worldShowcase">
       <div className="worldCopy">
-        <h2>Then the brand becomes visible.</h2>
-        <p>Packaging. Launch imagery. Social presence. Email. Retail. The dream becomes specific enough to build.</p>
-      </div>
-      <div className="brandWorldRender" aria-label="Morrow intelligent brand world">
-        <ProductIntelligenceRender
-          brandName="Morrow"
-          variant="world"
-          labels={["DNA", "Audience", "Position", "Voice", "Packaging", "Social", "Email", "Shelf"]}
-          colors={["#05070b", "#8cffd2", "#8fa7ff", "#faffae"]}
-        />
-        <div className="cinematicArtifacts">
-          <div className="artifactCard artifactCan"><span>MORROW</span><small>cold brew</small></div>
-          <div className="artifactCard artifactFeed"><b></b><strong>Launch post</strong><p>For the ones making things after midnight.</p></div>
-          <div className="artifactCard artifactEmail"><small>Subject</small><p>The first coffee for the second shift.</p></div>
+        <h2>Then the brand becomes real.</h2>
+        <p>Packaging, apparel, product cards, social presence, and website direction come from the same strategic foundation.</p>
+        <div className="worldList">
+          <div><strong>Merchandise</strong><span>Heavyweight tee, embroidered cap, utility pouch, and launch tote.</span></div>
+          <div><strong>Packaging</strong><span>Shipping box, hang tag, product card, and customer insert.</span></div>
+          <div><strong>Digital</strong><span>Website, social profile, captions, handles, and first campaign direction.</span></div>
         </div>
       </div>
+      <figure className="brandWorldPhoto">
+        <picture>
+          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" />
+          <img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, apparel, cap, pouch, packaging, water bottle, and stationery photographed in warm light" loading="lazy" />
+        </picture>
+        <figcaption>Northline Goods brand world: carry goods, apparel, packaging, and stationery.</figcaption>
+      </figure>
     </section>
   );
 }
 
 function LaunchSequence() {
   const steps = [
-    ["First 24 hours", "Lock the promise: coffee for creative work after the official day ends."],
-    ["First week", "Build the first campaign around studios, edits, shoots, late decks, and founder nights."],
-    ["First 30 days", "Launch the first drop with a creator waitlist, sampling kit, and three hero rituals."],
-    ["Days 31-60", "Turn the best responses into retail outreach, collabs, and paid creative tests."],
-    ["Days 61-90", "Scale the clearest acquisition angle and convert early buyers into the brand's first community."],
+    ["First 24 hours", "Lock the promise: thoughtful carry for creative movement, built for the whole day."],
+    ["First week", "Build the first campaign around studio commutes, travel kits, gym-to-meeting days, and packing rituals."],
+    ["First 30 days", "Launch the waitlist with a founder note, first-drop product page, email sequence, and five creator seeding targets."],
+    ["Days 31-60", "Turn early feedback into product page refinements, paid creative tests, partner outreach, and first wholesale conversations."],
+    ["Days 61-90", "Scale the strongest acquisition angle and convert first buyers into repeat customers through accessories and content."],
   ];
 
   return (
     <section className="launchSequence">
-      <h2>A plan that moves.</h2>
-      <ProductIntelligenceRender
-        brandName="Morrow Roadmap"
-        variant="roadmap"
-        idea="A 90-day launch system that connects priorities, channels, KPIs, and next actions."
-        labels={["24h", "Week 1", "30 Days", "60 Days", "90 Days", "KPIs", "Costs", "Complete"]}
-        colors={["#8cffd2", "#8fa7ff", "#faffae", "#f8fbff"]}
-      />
+      <div className="sectionIntro">
+        <h2>A plan that moves.</h2>
+        <p>BrandThat turns a brand direction into concrete action, not a vague list of marketing ideas.</p>
+      </div>
       <div className="launchRail">
         {steps.map(([phase, action], index) => (
-          <article key={phase} style={{ "--launch-step": index }}>
+          <article className="roadmapLine" key={phase} style={{ "--launch-step": index }}>
             <span>{phase}</span>
             <p>{action}</p>
           </article>
@@ -6653,15 +6632,18 @@ function LivingWorkspaceMoment() {
       <div className="workspaceManifesto">
         <h2>The idea now has a headquarters.</h2>
         <p>The workspace is where the founder returns to the thesis, follows the roadmap, saves creative direction, and keeps building the company.</p>
+        <div className="workspaceShelf">
+          <div><span>Strategy</span><strong>Positioning, audience, differentiator</strong></div>
+          <div><span>Identity</span><strong>Colors, type, visual direction</strong></div>
+          <div><span>Content</span><strong>Captions, bios, hashtags, channels</strong></div>
+          <div><span>Roadmap</span><strong>Next actions and launch tasks</strong></div>
+        </div>
       </div>
       <div className="brandHeadquarters">
-        <ProductIntelligenceRender
-          brandName="Morrow"
-          variant="workspace"
-          idea="A living workspace where strategy, identity, content, roadmap, and logo concepts keep improving together."
-          labels={["Strategy", "DNA", "Identity", "Content", "Roadmap", "Next", "Progress", "Logos"]}
-          colors={["#05070b", "#8cffd2", "#f8fbff", "#8fa7ff"]}
-        />
+        <picture>
+          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
+          <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods website, Instagram profile, brand guidelines, caption examples, and launch roadmap" loading="lazy" />
+        </picture>
       </div>
     </section>
   );
@@ -8439,7 +8421,7 @@ function getTonePlaceholder(toolKey) {
 
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
-    return "Example: Make me a luxury black and gold logo for a skincare brand called Aurelle with an elegant A symbol.";
+    return "Example: Make me a premium black and warm-neutral logo for a carry goods brand called Northline Goods with a clean N mark.";
   }
   if (activeTool.key === "captions") {
     return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
@@ -10371,78 +10353,49 @@ textarea{height:170px;resize:none;line-height:1.6}
 `;
 
 const futureThemeCss = `
-:root{--bt-bg:#05070b;--bt-panel:rgba(255,255,255,.075);--bt-line:rgba(255,255,255,.15);--bt-text:#f8fbff;--bt-muted:rgba(248,251,255,.66);--bt-accent:#8cffd2;--bt-accent-2:#8fa7ff;--bt-warm:#fff0c8}
-.app{background:radial-gradient(circle at 18% 0,rgba(140,255,210,.18),transparent 28%),radial-gradient(circle at 84% 8%,rgba(143,167,255,.24),transparent 30%),linear-gradient(180deg,#05070b 0%,#0b0e16 46%,#05070b 100%) !important;color:var(--bt-text) !important}
-.nav{position:sticky;top:0;max-width:1480px;padding-top:18px;padding-bottom:12px;z-index:30}
-.brand{color:var(--bt-text) !important;text-shadow:0 0 28px rgba(140,255,210,.22)}
-.navLinks,.accountMenu{background:rgba(5,7,11,.7) !important;border-color:var(--bt-line) !important;box-shadow:0 20px 60px rgba(0,0,0,.26);backdrop-filter:blur(22px)}
-.navLinks button,.accountBtn{color:var(--bt-text) !important}
-.navLinks button:hover,.accountMenu button,.accountBtn{background:var(--bt-text) !important;color:#05070b !important}
-.navPrimaryCta,.birthCta,.priceStatement button{background:linear-gradient(135deg,var(--bt-accent),#faffae) !important;color:#05070b !important;box-shadow:0 18px 60px rgba(140,255,210,.18) !important}
-.navPrimaryCta:hover,.birthCta:hover,.priceStatement button:hover{filter:saturate(1.1);transform:translateY(-2px)}
-.birthPage{background:transparent !important;color:var(--bt-text) !important}
-.birthHero{min-height:calc(100vh - 86px)}
-.birthHeroCopy h1,.originLine p,.awakeningCopy h2,.worldCopy h2,.launchSequence h2,.workspaceManifesto h2,.birthOffer h2,.birthBuilder h2{color:var(--bt-text) !important}
-.birthHeroCopy p,.birthHeroActions span,.awakeningCopy p,.worldCopy p,.workspaceManifesto p,.birthOffer p,.birthBuilder p,.originAnnotations span{color:var(--bt-muted) !important}
-.birthHeroVisual,.brandHeadquarters,.priceStatement,.thesisSpread{background:linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.035)) !important;border:1px solid var(--bt-line);box-shadow:0 60px 150px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.12) !important}
-.birthHeroVisual:before{background:radial-gradient(circle at 72% 18%,rgba(140,255,210,.27),transparent 26%),radial-gradient(circle at 15% 84%,rgba(143,167,255,.24),transparent 30%) !important}
-.founderNote,.thesisSpread,.voiceSpread,.identitySpread,.socialLaunch,.emailMoment{background:rgba(255,255,255,.08) !important;color:var(--bt-text) !important;border:1px solid var(--bt-line);backdrop-filter:blur(16px)}
-.founderNote span,.birthOffer span,.priceStatement span,.thesisSpread span,.voiceSpread span,.identitySpread span,.launchRail span{color:var(--bt-accent) !important}
-.brandSignal,.shippingMoment{background:linear-gradient(135deg,var(--bt-accent),#faffae) !important;color:#05070b !important}
-.originAnnotations article,.launchRail article{border-color:var(--bt-line) !important}
-.originAnnotations strong,.voiceSpread p,.launchRail p,.socialLaunch strong,.shelfMoment strong,.emailMoment p{color:var(--bt-text) !important}
-.brandWorldGrid>div{box-shadow:0 34px 120px rgba(0,0,0,.34) !important;border:1px solid var(--bt-line)}
-.canScene{background:radial-gradient(circle at 50% 18%,rgba(140,255,210,.28),transparent 25%),linear-gradient(155deg,#07080d,#182331) !important}
-.canMock,.shelfMoment span{background:#f8fbff !important;color:#05070b}
-.canMock small{color:#05070b}
-.shelfMoment{background:rgba(255,255,255,.08) !important}
-.shelfMoment span:nth-child(2){background:var(--bt-accent) !important}.shelfMoment span:nth-child(3){background:var(--bt-accent-2) !important}
-.socialPhoto{background:linear-gradient(140deg,#05070b 0 35%,var(--bt-accent) 35% 52%,var(--bt-accent-2) 52%) !important}
-.emailMoment button{background:var(--bt-text) !important;color:#05070b !important}
-.colorRun i:nth-child(1){background:#05070b !important}.colorRun i:nth-child(2){background:#f8fbff !important}.colorRun i:nth-child(3){background:var(--bt-accent-2) !important}.colorRun i:nth-child(4){background:var(--bt-accent) !important}
-.birthBuilder .brandBuilderCard,.pageSection,.brandDashboard,.generatorCard,.resultCard,.authCard{background:rgba(255,255,255,.08) !important;color:var(--bt-text) !important;border-color:var(--bt-line) !important;box-shadow:0 34px 120px rgba(0,0,0,.28) !important}
-.birthBuilder .brandBuilderCard:before{background:linear-gradient(90deg,var(--bt-accent),var(--bt-accent-2)) !important}
-.examplesPage{max-width:1480px;margin:0 auto;padding:70px 6vw 120px;color:var(--bt-text)}
-.examplesHero{min-height:68vh;display:grid;grid-template-columns:minmax(0,.92fr) minmax(360px,.62fr);gap:5vw;align-items:center}
-.examplesKicker{display:inline-flex;margin-bottom:20px;border:1px solid var(--bt-line);border-radius:999px;padding:10px 14px;color:var(--bt-accent);font-size:12px;font-weight:950;letter-spacing:1.8px;text-transform:uppercase;background:rgba(255,255,255,.06)}
-.examplesHero h1{font-size:clamp(68px,10vw,156px);line-height:.82;letter-spacing:-.08em;margin:0 0 28px;color:var(--bt-text)}
-.examplesHero p{font-size:clamp(20px,2.2vw,32px);line-height:1.17;color:var(--bt-muted);max-width:820px;margin:0}
-.examplesActions{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:34px}
-.examplesOrbit{aspect-ratio:1;border-radius:50%;border:1px solid var(--bt-line);background:radial-gradient(circle at 50% 50%,rgba(140,255,210,.2),rgba(255,255,255,.05) 42%,rgba(255,255,255,.025));position:relative;display:grid;place-items:center;box-shadow:0 60px 160px rgba(0,0,0,.34),inset 0 0 80px rgba(140,255,210,.08)}
-.examplesOrbit strong{font-size:clamp(54px,6vw,96px);letter-spacing:-.08em}.examplesOrbit span{position:absolute;border:1px solid var(--bt-line);border-radius:999px;background:rgba(5,7,11,.68);padding:10px 13px;font-size:12px;font-weight:950;color:var(--bt-muted)}.examplesOrbit span:nth-of-type(1){top:10%;left:14%}.examplesOrbit span:nth-of-type(2){top:19%;right:5%}.examplesOrbit span:nth-of-type(3){bottom:24%;left:2%}.examplesOrbit span:nth-of-type(4){bottom:10%;right:14%}
-.exampleFlow{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bt-line);border:1px solid var(--bt-line);border-radius:28px;overflow:hidden;margin:24px 0 44px}
-.exampleFlow article{background:rgba(255,255,255,.06);padding:22px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between}.exampleFlow span{color:var(--bt-accent);font-weight:950}.exampleFlow strong{font-size:20px;letter-spacing:-.04em}
-.exampleBrandGrid{display:grid;gap:28px}.exampleBrandCard{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.72fr);gap:0;min-height:620px;border:1px solid var(--bt-line);border-radius:44px;background:rgba(255,255,255,.055);overflow:hidden;box-shadow:0 50px 150px rgba(0,0,0,.32)}
-.mockupStage{position:relative;min-height:620px;overflow:hidden;background:radial-gradient(circle at 28% 24%,rgba(140,255,210,.2),transparent 28%),radial-gradient(circle at 76% 60%,rgba(143,167,255,.24),transparent 28%),#090c13}
-.mockupGlow{position:absolute;inset:auto 12% 8%;height:18%;background:rgba(140,255,210,.2);filter:blur(45px);border-radius:50%}
-.mockupBag{position:absolute;left:9%;bottom:12%;width:34%;height:48%;border-radius:30px 30px 42px 42px;background:#f8fbff;color:#05070b;display:grid;place-items:center;font-size:38px;font-weight:950;letter-spacing:-.07em;box-shadow:30px 50px 80px rgba(0,0,0,.34);transform:rotate(-4deg)}
-.mockupBag:before{content:"";position:absolute;width:38%;height:22%;border:8px solid #f8fbff;border-bottom:none;border-radius:50% 50% 0 0;top:-18%;left:31%}
-.mockupShirt{position:absolute;right:11%;top:14%;width:34%;height:38%;background:var(--bt-accent);clip-path:polygon(20% 0,38% 0,44% 12%,56% 12%,62% 0,80% 0,100% 18%,88% 34%,78% 26%,78% 100%,22% 100%,22% 26%,12% 34%,0 18%);display:grid;place-items:center;color:#05070b;font-size:46px;font-weight:950;box-shadow:30px 40px 70px rgba(0,0,0,.3)}
-.mockupPhone{position:absolute;right:11%;bottom:11%;width:25%;height:38%;border-radius:30px;background:#f8fbff;color:#05070b;padding:16px;display:grid;gap:10px;align-content:start;box-shadow:20px 34px 70px rgba(0,0,0,.32);transform:rotate(5deg)}
-.mockupPhone i{display:block;border-radius:16px;height:52px;background:linear-gradient(135deg,var(--bt-accent),var(--bt-accent-2))}.mockupPhone strong{font-size:13px;letter-spacing:-.03em}
-.mockupTag{position:absolute;left:9%;top:12%;max-width:42%;border:1px solid var(--bt-line);border-radius:22px;background:rgba(5,7,11,.72);padding:18px;color:var(--bt-text);font-weight:900;line-height:1.25;backdrop-filter:blur(18px)}
-.exampleBrandCopy{padding:42px;display:flex;flex-direction:column;justify-content:center;background:rgba(255,255,255,.045)}.exampleBrandCopy>span{color:var(--bt-accent);font-size:11px;text-transform:uppercase;letter-spacing:1.8px;font-weight:950}.exampleBrandCopy h2{font-size:clamp(42px,5vw,80px);line-height:.86;letter-spacing:-.075em;margin:16px 0 18px;color:var(--bt-text)}.exampleBrandCopy p{color:var(--bt-muted);font-size:18px;line-height:1.45}.examplePosition{border-top:1px solid var(--bt-line);border-bottom:1px solid var(--bt-line);padding:18px 0;margin:12px 0 18px}.examplePosition strong{font-size:13px;text-transform:uppercase;letter-spacing:1.6px;color:var(--bt-accent)}.exampleSwatches{display:flex;gap:9px;margin-bottom:18px}.exampleSwatches i{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.18)}.exampleBrandCopy ul{display:grid;gap:9px;margin:0;padding:0;list-style:none}.exampleBrandCopy li{color:var(--bt-text);font-weight:850}
-.examplesFinal{margin-top:52px;border:1px solid var(--bt-line);border-radius:44px;background:linear-gradient(135deg,rgba(140,255,210,.12),rgba(143,167,255,.1));padding:54px;display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center}.examplesFinal h2{font-size:clamp(42px,5vw,78px);line-height:.9;letter-spacing:-.075em;margin:0}.examplesFinal p{color:var(--bt-muted);font-size:19px;line-height:1.45;max-width:720px}
-.intelligenceRender{position:relative;min-height:620px;border-radius:42px;overflow:hidden;isolation:isolate;background:radial-gradient(circle at 28% 22%,rgba(140,255,210,.22),transparent 29%),radial-gradient(circle at 78% 72%,rgba(143,167,255,.28),transparent 31%),linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.16);box-shadow:0 70px 180px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.18);perspective:1100px;transform-style:preserve-3d}
-.birthHeroVisual .intelligenceRender{min-height:500px;border-radius:34px}
-.mockupStage .intelligenceRender,.brandHeadquarters .intelligenceRender{height:100%;min-height:620px;border:none;border-radius:0;background:transparent;box-shadow:none}
-.brandWorldRender{position:relative;min-height:780px;border-radius:52px;overflow:hidden;border:1px solid var(--bt-line);background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.025));box-shadow:0 70px 190px rgba(0,0,0,.38);padding:24px}
-.brandWorldRender .intelligenceRender{min-height:720px}
-.launchSequence>.intelligenceRender{min-height:560px;margin-top:36px;margin-bottom:22px}
-.renderLight{position:absolute;border-radius:999px;filter:blur(42px);opacity:.68;mix-blend-mode:screen;pointer-events:none}.renderLight.one{width:280px;height:280px;background:rgba(140,255,210,.42);left:7%;top:9%;animation:lightDrift 7s ease-in-out infinite}.renderLight.two{width:340px;height:340px;background:rgba(143,167,255,.34);right:4%;bottom:5%;animation:lightDrift 8s ease-in-out infinite reverse}
-.renderParticles{position:absolute;inset:0;pointer-events:none}.renderParticles i{position:absolute;width:4px;height:4px;border-radius:50%;background:rgba(248,251,255,.78);left:calc(9% + (var(--particle) * 5.1%));top:calc(18% + ((var(--particle) % 7) * 9%));box-shadow:0 0 18px rgba(140,255,210,.8);animation:particleFloat 6s ease-in-out infinite;animation-delay:calc(var(--particle) * -.28s)}
-.renderConnections{position:absolute;inset:8%;width:84%;height:84%;z-index:1;filter:drop-shadow(0 0 18px rgba(140,255,210,.42));opacity:.88}.renderConnections path{fill:none;stroke:rgba(140,255,210,.72);stroke-width:.36;stroke-dasharray:4 6;animation:connectionFlow 8s linear infinite}
-.renderCore{position:absolute;z-index:4;left:50%;top:50%;width:min(390px,56%);min-height:250px;transform:translate(-50%,-50%) rotateX(8deg) rotateY(-12deg);display:flex;flex-direction:column;justify-content:flex-end;padding:30px;border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.065));border:1px solid rgba(255,255,255,.24);backdrop-filter:blur(28px);box-shadow:0 38px 110px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.22);animation:panelFloat 6s ease-in-out infinite}
-.renderCore small,.renderGlassPanel span{color:var(--bt-accent);text-transform:uppercase;letter-spacing:1.7px;font-size:10px;font-weight:950}.renderCore strong{font-size:clamp(38px,4.8vw,66px);line-height:.86;letter-spacing:-.075em;color:var(--bt-text);margin:16px 0;overflow-wrap:anywhere}.renderCore span{color:var(--bt-muted);font-size:14px;line-height:1.35;font-weight:800}
-.renderNodeField{position:absolute;inset:0;z-index:3}.renderNode{position:absolute;width:132px;min-height:74px;border-radius:22px;background:rgba(255,255,255,.105);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(18px);box-shadow:0 24px 80px rgba(0,0,0,.24);padding:14px;display:flex;flex-direction:column;justify-content:space-between;animation:nodeAppear .72s cubic-bezier(.2,.8,.2,1) both, nodeOrbit 7s ease-in-out infinite;animation-delay:calc(var(--node) * .09s)}
-.renderNode b{color:var(--bt-accent);font-size:10px}.renderNode span{font-size:13px;font-weight:950;color:var(--bt-text);letter-spacing:-.02em}.renderNode:nth-child(1){left:8%;top:18%}.renderNode:nth-child(2){left:36%;top:8%}.renderNode:nth-child(3){right:9%;top:18%}.renderNode:nth-child(4){right:7%;top:48%}.renderNode:nth-child(5){right:27%;bottom:9%}.renderNode:nth-child(6){left:37%;bottom:10%}.renderNode:nth-child(7){left:8%;bottom:22%}.renderNode:nth-child(8){left:18%;top:50%}
-.renderGlassPanel{position:absolute;z-index:5;border-radius:26px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(24px);box-shadow:0 28px 90px rgba(0,0,0,.28);padding:18px;max-width:260px;animation:panelFloat 7.4s ease-in-out infinite}.renderGlassPanel strong{display:block;color:var(--bt-text);font-size:22px;line-height:1;letter-spacing:-.05em;margin:12px 0}.renderGlassPanel p,.renderMiniUi p{color:var(--bt-muted);font-size:12px;line-height:1.38;margin:0}.panelA{left:7%;bottom:8%;transform:rotateY(10deg) rotateX(4deg)}.panelB{right:7%;top:9%;transform:rotateY(-12deg) rotateX(4deg);animation-delay:-1.8s}
-.renderSwatches{display:flex;gap:7px;margin:12px 0}.renderSwatches i{width:34px;height:34px;border-radius:12px;border:1px solid rgba(255,255,255,.24);box-shadow:0 8px 24px rgba(0,0,0,.2)}
-.renderMiniUi{position:absolute;z-index:6;right:8%;bottom:8%;width:220px;border-radius:24px;background:rgba(5,7,11,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(22px);padding:18px;box-shadow:0 30px 90px rgba(0,0,0,.34);animation:panelFloat 6.8s ease-in-out infinite reverse}.renderMiniUi div{display:grid;gap:7px;margin-bottom:14px}.renderMiniUi div span{height:9px;border-radius:999px;background:linear-gradient(90deg,var(--bt-accent),transparent)}.renderMiniUi div span:nth-child(2){width:74%;background:linear-gradient(90deg,var(--bt-accent-2),transparent)}.renderMiniUi div span:nth-child(3){width:52%;background:linear-gradient(90deg,#faffae,transparent)}.renderMiniUi strong{display:block;color:var(--bt-text);margin-bottom:7px}
-.cinematicArtifacts{position:absolute;inset:0;z-index:8;pointer-events:none}.artifactCard{position:absolute;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);backdrop-filter:blur(20px);box-shadow:0 34px 100px rgba(0,0,0,.32);color:var(--bt-text)}.artifactCan{left:9%;top:13%;width:150px;height:340px;border-radius:62px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:38px 18px;transform:rotate(-8deg);animation:panelFloat 6s ease-in-out infinite}.artifactCan span{writing-mode:vertical-rl;font-size:42px;font-weight:950;letter-spacing:-.08em}.artifactCan small{text-transform:uppercase;letter-spacing:1.5px;font-weight:950;color:var(--bt-accent)}.artifactFeed{right:8%;top:18%;width:220px;border-radius:28px;padding:16px;animation:panelFloat 7s ease-in-out infinite reverse}.artifactFeed b{display:block;height:132px;border-radius:20px;background:linear-gradient(135deg,var(--bt-accent),var(--bt-accent-2));margin-bottom:14px}.artifactFeed strong{font-size:22px;letter-spacing:-.05em}.artifactFeed p,.artifactEmail p{font-size:13px;color:var(--bt-muted);line-height:1.35}.artifactEmail{left:11%;bottom:10%;width:250px;border-radius:28px;padding:20px;animation:panelFloat 8s ease-in-out infinite}.artifactEmail small{color:var(--bt-accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:950}.artifactEmail p{font-size:26px;color:var(--bt-text);letter-spacing:-.05em;line-height:1;margin-top:16px}
-@keyframes connectionFlow{to{stroke-dashoffset:-80}}@keyframes panelFloat{50%{transform:translateY(-12px) rotateX(6deg) rotateY(-8deg)}}@keyframes nodeAppear{0%{opacity:0;transform:scale(.82) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}}@keyframes nodeOrbit{50%{translate:0 -8px}}@keyframes particleFloat{50%{transform:translate3d(12px,-18px,0);opacity:.42}}@keyframes lightDrift{50%{transform:translate3d(24px,-18px,0) scale(1.08)}}
-@media(prefers-reduced-motion:reduce){.renderConnections path,.renderParticles i,.renderCore,.renderNode,.renderGlassPanel,.renderMiniUi,.artifactCard,.renderLight{animation:none !important}}
-@media(max-width:980px){.examplesHero,.exampleBrandCard,.examplesFinal{grid-template-columns:1fr}.examplesOrbit{max-width:520px}.exampleFlow{grid-template-columns:1fr 1fr}.exampleBrandCard,.mockupStage{min-height:auto}.mockupStage{aspect-ratio:1.1}.examplesFinal .birthCta{width:max-content}}
-@media(max-width:980px){.intelligenceRender,.birthHeroVisual .intelligenceRender,.brandWorldRender .intelligenceRender,.mockupStage .intelligenceRender{min-height:560px}.renderNode{width:112px}.renderCore{width:min(320px,64%)}.panelB{display:none}.brandWorldRender{min-height:auto}.cinematicArtifacts{display:none}}
-@media(max-width:640px){.examplesPage{padding:42px 20px 80px}.examplesHero h1{font-size:58px}.examplesHero p{font-size:19px}.examplesOrbit{display:none}.exampleFlow{grid-template-columns:1fr;border-radius:22px}.exampleBrandCard{border-radius:28px}.mockupStage{aspect-ratio:auto}.mockupStage .intelligenceRender{min-height:540px}.exampleBrandCopy{padding:28px}.examplesFinal{border-radius:28px;padding:30px}.examplesFinal .birthCta{width:100%}.intelligenceRender{border-radius:28px;min-height:540px}.renderCore{width:72%;min-height:190px;padding:22px}.renderCore strong{font-size:44px}.renderNode{width:96px;min-height:58px;border-radius:18px;padding:10px}.renderNode span{font-size:11px}.renderNode:nth-child(n+6){display:none}.renderGlassPanel{max-width:210px}.panelA{left:6%;bottom:6%}.renderMiniUi{right:6%;bottom:24%;width:170px}.launchSequence>.intelligenceRender{min-height:520px}.brandHeadquarters .intelligenceRender{min-height:540px}}
+:root{
+  --bt-ink:#11110f;
+  --bt-muted:#6f6a61;
+  --bt-paper:#fffdf8;
+  --bt-soft:#f6f2ea;
+  --bt-surface:#ffffff;
+  --bt-line:rgba(17,17,15,.12);
+  --bt-sand:#d7c5ad;
+  --bt-clay:#8f7354;
+  --bt-sage:#747863;
+  --bt-shadow:0 32px 90px rgba(35,28,19,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}
+.app{min-height:100vh;background:var(--bt-paper) !important;color:var(--bt-ink) !important;font-feature-settings:"ss01" on,"cv01" on}
+.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:18px clamp(20px,4vw,56px) 12px;background:rgba(255,253,248,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(17,17,15,.06)}
+.navInner{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.logoText{font-size:24px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink)}
+.navLinks{display:flex;align-items:center;gap:4px;padding:5px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.74)}
+.navLinks button{border:0;background:transparent;border-radius:999px;padding:10px 16px;color:#302d28;font-weight:750;font-size:14px;transition:background .2s ease,color .2s ease,transform .2s ease}
+.navLinks button:hover{background:#11110f;color:#fffdf8;transform:translateY(-1px)}
+.authCluster{display:flex;align-items:center;gap:10px}.authCluster .userEmail{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:14px}
+.authCluster button,.birthCta,.birthSecondary,.inputAction,.examplesFinal button,.priceStatement button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:13px 19px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;box-shadow:none;transition:transform .22s ease,background .22s ease,color .22s ease,border-color .22s ease;text-decoration:none}
+.authCluster button:hover,.birthCta:hover,.inputAction:hover,.examplesFinal button:hover,.priceStatement button:hover{transform:translateY(-2px);background:#2a251f;border-color:#2a251f}.authCluster .ghostButton,.birthSecondary{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.authCluster .ghostButton:hover,.birthSecondary:hover{background:#f0e8dc;color:#11110f;border-color:#d4c2aa}
+.birthPage{overflow:hidden;background:var(--bt-paper);color:var(--bt-ink)}
+.birthHero{width:min(1440px,calc(100% - 44px));margin:0 auto;display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,.9fr);gap:clamp(44px,7vw,108px);align-items:center;padding:84px 0 96px;min-height:calc(100vh - 86px)}
+.birthHeroCopy h1,.examplesHero h1{font-size:clamp(68px,10.5vw,160px);line-height:.86;letter-spacing:-.08em;margin:0 0 28px;font-weight:950;color:var(--bt-ink)}
+.birthHeroCopy>p,.examplesHero p{font-size:clamp(21px,2vw,31px);line-height:1.28;color:var(--bt-muted);max-width:740px;margin:0 0 34px;letter-spacing:-.035em;font-weight:540}.birthHeroActions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:34px}.birthHeroActions span{font-size:14px;color:var(--bt-muted);font-weight:750;letter-spacing:-.01em}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual:before{content:"";position:absolute;inset:-34px;background:linear-gradient(120deg,rgba(215,197,173,.45),rgba(255,253,248,0) 58%);border-radius:44px;z-index:0}.birthHeroVisual>*{position:relative;z-index:1}
+.northlineInputPanel{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:30px;padding:28px;box-shadow:var(--bt-shadow);display:grid;gap:20px;max-width:600px}.inputPanelHeader{display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--bt-muted);font-size:13px;font-weight:820;letter-spacing:.04em;text-transform:uppercase}.inputPanelHeader strong{font-size:18px;text-transform:none;letter-spacing:-.04em;color:var(--bt-ink)}.inputRows{display:grid;gap:14px}.inputRow{display:grid;gap:8px;padding:17px;border:1px solid rgba(17,17,15,.09);border-radius:18px;background:#fffdf8}.inputRow span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--bt-muted);font-weight:850}.inputRow strong{font-size:24px;letter-spacing:-.055em;line-height:1.05}.inputRow p{margin:0;color:#48433c;font-size:17px;line-height:1.42;letter-spacing:-.02em}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:4px 0}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:10px 0;color:#47413a;font-size:13px;font-weight:740}.inputAction{width:100%;padding:15px 18px}
+.northlineOutputPreview{display:grid;gap:18px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:30px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.previewImageFrame{aspect-ratio:3/2}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:12px}.outputTray div{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:16px;min-height:112px}.outputTray span,.systemBlock span,.toolExample span,.roadmapLine span,.workspaceShelf span,.priceStatement span,.exampleBrandCopy>span,.examplesKicker{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.outputTray strong{display:block;font-size:18px;line-height:1.08;letter-spacing:-.045em}
+.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{width:min(1200px,calc(100% - 44px));margin:0 auto;padding:96px 0}.originMoment{display:grid;grid-template-columns:minmax(0,.95fr) minmax(360px,1fr);gap:46px;align-items:end}.originLine p{font-size:clamp(44px,6vw,92px);line-height:.93;letter-spacing:-.075em;margin:0;font-weight:920}.originAnnotations{display:grid;gap:16px}.originAnnotations article{border-top:1px solid var(--bt-line);padding-top:16px}.originAnnotations strong{display:block;font-size:19px;letter-spacing:-.04em;margin-bottom:8px}.originAnnotations span{display:block;color:var(--bt-muted);font-size:17px;line-height:1.42}
+.brandAwakening{display:grid;grid-template-columns:minmax(0,.72fr) minmax(520px,1fr);gap:52px;align-items:start}.awakeningCopy h2,.worldCopy h2,.workspaceManifesto h2,.toolsCopy h2,.birthOffer h2,.birthBuilder h2,.sectionIntro h2{font-size:clamp(48px,7vw,104px);line-height:.9;letter-spacing:-.075em;margin:0 0 18px;font-weight:950}.awakeningCopy p,.worldCopy p,.workspaceManifesto p,.toolsCopy p,.birthOffer p,.birthBuilder p,.sectionIntro p{font-size:clamp(19px,2vw,26px);line-height:1.33;color:var(--bt-muted);letter-spacing:-.035em;margin:0}.northlineSystem{display:grid;grid-template-columns:1fr 1fr;gap:14px}.systemBlock{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px}.systemBlock.large{grid-column:span 2;background:#11110f;color:#fffdf8}.systemBlock h3{font-size:32px;line-height:1.02;letter-spacing:-.06em;margin:0 0 14px}.systemBlock p{margin:0;color:inherit;opacity:.75;line-height:1.42;font-size:16px}.systemPalette{display:flex;gap:10px;align-items:center;margin-top:18px}.systemPalette i{width:48px;height:48px;border-radius:50%;border:1px solid rgba(17,17,15,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.worldShowcase{display:grid;grid-template-columns:minmax(0,.8fr) minmax(520px,1fr);gap:48px;align-items:center}.brandWorldPhoto{aspect-ratio:3/2}.brandWorldPhoto figcaption{font-size:12px;color:var(--bt-muted);margin:10px 4px 0}.worldList{display:grid;gap:12px;margin-top:28px}.worldList div{display:grid;grid-template-columns:116px 1fr;gap:18px;border-top:1px solid var(--bt-line);padding-top:13px}.worldList strong{font-size:14px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}
+.launchSequence{background:#11110f;color:#fffdf8;width:100%;max-width:none;padding:108px max(22px,calc((100vw - 1200px)/2));margin-top:50px}.launchSequence .sectionIntro p{color:rgba(255,253,248,.7)}.launchRail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:34px}.roadmapLine{background:rgba(255,253,248,.07);border:1px solid rgba(255,253,248,.12);border-radius:20px;padding:18px;min-height:204px}.roadmapLine span{color:#d7c5ad}.roadmapLine p{margin:0;color:rgba(255,253,248,.68);font-size:14px;line-height:1.42}.livingWorkspace{display:grid;grid-template-columns:minmax(0,.85fr) minmax(520px,1fr);gap:48px;align-items:center}.brandHeadquarters picture{aspect-ratio:3/2}.workspaceShelf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:28px}.workspaceShelf div{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:16px}.workspaceShelf strong{letter-spacing:-.03em;font-size:16px;line-height:1.25}.northlineToolsSection{display:grid;grid-template-columns:minmax(0,.75fr) minmax(500px,1fr);gap:50px;align-items:start}.northlineToolsList{display:grid;gap:4px}.toolExample{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:start;border-top:1px solid var(--bt-line);padding:18px 0}.toolExample p{margin:0;color:var(--bt-muted);font-size:17px;line-height:1.4}
+.birthOffer{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:44px;align-items:center}.priceStatement{background:#11110f;color:#fffdf8;border-radius:30px;padding:30px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:72px;letter-spacing:-.085em;line-height:.9;margin:6px 0 16px}.priceStatement p{font-size:16px;color:rgba(255,253,248,.7);margin-bottom:22px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%}.birthBuilder{display:grid;grid-template-columns:minmax(0,.75fr) minmax(520px,1fr);gap:44px;align-items:start;padding-bottom:132px}.birthBuilder .brandBuilderFlow,.birthBuilder form,.birthBuilder .workspaceCard{max-width:100%}
+.examplesPage{background:var(--bt-paper);color:var(--bt-ink);padding:72px clamp(22px,5vw,76px) 110px}.examplesHero{max-width:1120px;margin:0 auto 64px}.examplesHero p{max-width:760px}.examplesActions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.exampleBrandGrid{display:grid;gap:58px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:40px;align-items:center;border:0;background:transparent;box-shadow:none;padding:0}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(360px,.88fr) minmax(0,1.12fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandMedia{aspect-ratio:3/2}.exampleBrandCopy{padding:0}.exampleBrandCopy h2{font-size:clamp(46px,7vw,94px);line-height:.9;letter-spacing:-.075em;margin:0 0 18px}.exampleBrandCopy p{font-size:22px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.03em}.exampleDetails{display:grid;gap:12px;margin-top:24px}.exampleDetails div{display:grid;grid-template-columns:120px 1fr;gap:16px;border-top:1px solid var(--bt-line);padding-top:12px}.exampleDetails strong{font-size:14px}.exampleDetails span{color:var(--bt-muted);font-size:15px;line-height:1.35}.examplesFinal{max-width:980px;margin:76px auto 0;text-align:center;background:#11110f;color:#fffdf8;border-radius:34px;padding:52px 28px}.examplesFinal h2{font-size:clamp(44px,6vw,86px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.examplesFinal p{color:rgba(255,253,248,.68);font-size:20px}.examplesFinal .birthCta{background:#fffdf8;color:#11110f;border-color:#fffdf8}
+.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{animation:softReveal .7s ease both}.agentSteps span{animation:lineIn .55s ease both}.agentSteps span:nth-child(2){animation-delay:.08s}.agentSteps span:nth-child(3){animation-delay:.16s}.agentSteps span:nth-child(4){animation-delay:.24s}@keyframes softReveal{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes lineIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;scroll-behavior:auto !important}}
+@media(max-width:1100px){.birthHero,.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{grid-template-columns:1fr}.birthHero{min-height:auto;padding-top:58px}.birthHeroVisual{max-width:760px}.launchRail{grid-template-columns:repeat(2,minmax(0,1fr))}.northlineSystem{grid-template-columns:1fr}.systemBlock.large{grid-column:auto}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:480px}}
+@media(max-width:720px){.nav{padding:12px 18px}.navInner{gap:12px}.logoText{font-size:22px}.navLinks{display:none}.authCluster .userEmail{display:none}.authCluster button{padding:10px 13px;font-size:13px}.birthHero{width:calc(100% - 32px);padding:46px 0 68px;gap:34px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,18vw,86px);line-height:.86}.birthHeroCopy>p,.examplesHero p{font-size:20px}.birthHeroActions{align-items:stretch}.birthCta,.birthSecondary{width:100%}.northlineInputPanel{border-radius:24px;padding:20px}.agentSteps,.outputTray,.workspaceShelf{grid-template-columns:1fr}.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{width:calc(100% - 32px);padding:66px 0;gap:30px}.originLine p,.awakeningCopy h2,.worldCopy h2,.workspaceManifesto h2,.toolsCopy h2,.birthOffer h2,.birthBuilder h2,.sectionIntro h2{font-size:clamp(44px,14vw,70px)}.launchSequence{padding:70px 16px}.launchRail{grid-template-columns:1fr}.roadmapLine{min-height:0}.worldList div,.toolExample,.exampleDetails div{grid-template-columns:1fr;gap:6px}.brandWorldPhoto,.brandHeadquarters picture,.previewImageFrame,.exampleBrandMedia{border-radius:22px}.priceStatement{border-radius:24px;padding:24px}.priceStatement strong{font-size:58px}.examplesPage{padding:46px 16px 80px}.exampleBrandGrid{gap:54px}.examplesFinal{border-radius:24px;padding:34px 18px}.examplesActions .birthCta,.examplesActions .birthSecondary{width:100%}}
 `;

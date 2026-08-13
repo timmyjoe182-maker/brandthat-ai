@@ -1,13 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
-  <rect width="1200" height="1200" fill="#f6f4ef"/>
-  <rect x="76" y="76" width="1048" height="948" rx="44" fill="#ffffff" stroke="#111111" stroke-opacity="0.08"/>
-  <text x="136" y="202" font-family="Inter, Arial, Helvetica, sans-serif" font-size="64" font-weight="900" fill="#111111" letter-spacing="-3">Brandthat.ai</text>
-  <text x="136" y="390" font-family="Inter, Arial, Helvetica, sans-serif" font-size="108" font-weight="900" fill="#111111" letter-spacing="-5">Create the logo.</text>
-  <text x="136" y="516" font-family="Inter, Arial, Helvetica, sans-serif" font-size="108" font-weight="900" fill="#111111" letter-spacing="-5">Build the brand.</text>
-  <text x="140" y="648" font-family="Inter, Arial, Helvetica, sans-serif" font-size="36" font-weight="700" fill="#666666">AI logos, free captions, hashtags,</text>
-  <text x="140" y="702" font-family="Inter, Arial, Helvetica, sans-serif" font-size="36" font-weight="700" fill="#666666">growth plans, and saved workspaces.</text>
-  <g transform="translate(140 818)">
-    <rect width="316" height="76" rx="38" fill="#111111"/>
-    <text x="158" y="50" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#ffffff">Try Brandthat.ai</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#fffdf8"/>
+  <rect x="62" y="58" width="1076" height="514" rx="34" fill="#f6f2ea" stroke="#11110f" stroke-opacity="0.10"/>
+  <g transform="translate(102 96)">
+    <rect width="82" height="82" rx="20" fill="#11110f"/>
+    <path d="M25 17h22c13 0 21 6 21 16 0 6-4 11-10 14 8 3 12 8 12 17 0 12-9 18-23 18H25V17Zm17 26h6c5 0 8-2 8-6s-3-6-8-6h-6v12Zm0 25h8c5 0 8-3 8-7s-3-7-8-7h-8v14Z" fill="#fffdf8"/>
+    <path d="M18 65h46" stroke="#d7c5ad" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="210" y="145" font-family="Inter, Arial, Helvetica, sans-serif" font-size="44" font-weight="900" fill="#11110f" letter-spacing="-2">BrandThat.ai</text>
+  <text x="102" y="286" font-family="Inter, Arial, Helvetica, sans-serif" font-size="86" font-weight="950" fill="#11110f" letter-spacing="-5">One idea.</text>
+  <text x="102" y="385" font-family="Inter, Arial, Helvetica, sans-serif" font-size="86" font-weight="950" fill="#11110f" letter-spacing="-5">An entire brand.</text>
+  <text x="106" y="466" font-family="Inter, Arial, Helvetica, sans-serif" font-size="30" font-weight="650" fill="#6f6a61">Strategy → Identity → Social → Roadmap → Workspace</text>
+  <g transform="translate(802 136)">
+    <rect width="250" height="350" rx="26" fill="#11110f"/>
+    <rect x="28" y="34" width="194" height="72" rx="16" fill="#fffdf8" opacity=".95"/>
+    <rect x="28" y="128" width="194" height="36" rx="18" fill="#d7c5ad"/>
+    <rect x="28" y="188" width="82" height="82" rx="18" fill="#747863"/>
+    <rect x="128" y="188" width="94" height="82" rx="18" fill="#f4f0e8"/>
+    <text x="125" y="306" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="900" fill="#fffdf8" letter-spacing="-1">NORTHLINE</text>
   </g>
 </svg>
