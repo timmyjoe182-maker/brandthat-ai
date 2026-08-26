@@ -16,6 +16,13 @@ function loadHandler({ authResult, env = {}, stripeState = {} } = {}) {
         return function Stripe() {
           return {
             prices: { retrieve: async () => ({ currency: "usd", unit_amount: 999, type: "recurring", recurring: { interval: "month" } }) },
+            customers: {
+              search: async () => ({ data: stripeState.existingCustomer ? [stripeState.existingCustomer] : [] }),
+              create: async (args) => {
+                stripeState.customerArgs = args;
+                return { id: "cus_test_123", email: args.email };
+              },
+            },
             checkout: {
               sessions: {
                 create: async (args) => {
@@ -51,6 +58,14 @@ const missingStripeResponse = await verifiedHandler({ httpMethod: "POST", header
 assert.equal(missingStripeResponse.statusCode, 500, "checkout endpoint should report missing Stripe configuration");
 assert.match(JSON.parse(missingStripeResponse.body).error, /checkout is not configured/i, "checkout endpoint should return a useful configuration error");
 
+const missingPriceHandler = loadHandler({
+  authResult: { user: { id: "user_123", email: "founder@example.com" } },
+  env: { STRIPE_SECRET_KEY: "sk_test_mock" },
+});
+const missingPriceResponse = await missingPriceHandler({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ plan: "member" }) });
+assert.equal(missingPriceResponse.statusCode, 500, "checkout endpoint should report a missing membership price ID");
+assert.equal(JSON.parse(missingPriceResponse.body).code, "STRIPE_PRICE_MISSING", "checkout endpoint should return a specific missing price code");
+
 const stripeState = {};
 const successHandler = loadHandler({
   authResult: { user: { id: "user_123", email: "founder@example.com" } },
@@ -62,7 +77,8 @@ const successBody = JSON.parse(successResponse.body);
 assert.equal(successResponse.statusCode, 200, "checkout endpoint should create a Stripe session for verified members");
 assert.equal(successBody.url, "https://checkout.stripe.test/session", "checkout endpoint should return Stripe checkout URL");
 assert.equal(stripeState.checkoutArgs.line_items[0].price, "price_monthly_999", "checkout must use the server configured monthly price");
-assert.equal(stripeState.checkoutArgs.customer_email, "founder@example.com", "checkout should use the authenticated user's email");
+assert.equal(stripeState.customerArgs.email, "founder@example.com", "checkout should create a Stripe customer with the authenticated user's email");
+assert.equal(stripeState.checkoutArgs.customer, "cus_test_123", "checkout should attach the session to a server-created Stripe customer");
 assert.equal(stripeState.checkoutArgs.metadata.user_id, "user_123", "checkout should bind the session to the authenticated user");
 
 const badPriceHandler = loadHandler({
