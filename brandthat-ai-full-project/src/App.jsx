@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient.js";
+import { buildPreviewFromDraft } from "./previewGenerator.js";
 
 const PLAN_COPY = {
   trial: {
@@ -17,6 +18,7 @@ const PLAN_COPY = {
 const MEMBER_PLAN = "member";
 const BRAND_PLAN_PRICE = "$9.99/mo";
 const TRIAL_GENERATION_LIMIT = 0;
+const PUBLIC_SUPPORT_EMAIL = import.meta.env.VITE_PUBLIC_SUPPORT_EMAIL || "support@brandthat.ai";
 
 function normalizePlan(plan = "free") {
   if (plan === "member" || plan === "starter" || plan === "pro") return MEMBER_PLAN;
@@ -4980,22 +4982,41 @@ ${promptValue}`;
     setSubscribeEmail("");
   };
 
+  const scrollToSection = (sectionId, block = "start") => {
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block });
+    }, 120);
+  };
+
+  const navigateHomeSection = (sectionId, block = "start") => {
+    setPage("home");
+    window.history.pushState({}, "", `/#${sectionId}`);
+    scrollToSection(sectionId, block);
+  };
+
+  useEffect(() => {
+    if (page !== "home") return;
+    const sectionId = window.location.hash.replace("#", "");
+    if (!sectionId) return;
+    scrollToSection(sectionId, sectionId === "brandthat-membership" ? "center" : "start");
+  }, [page]);
+
   return (
     <div className="app">
       <style>{css}</style>
       <style>{futureThemeCss}</style>
 
       <nav className="nav">
-        <button className="brand" onClick={() => { setActiveToolKey("brand"); setPage("home"); window.history.pushState({}, "", "/"); }}>Brandthat</button>
+        <button className="brand" onClick={() => { setActiveToolKey("brand"); setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Brandthat</button>
 
         <div className="navLinks">
-          <button onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("product-demo")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Product</button>
+          <button onClick={() => navigateHomeSection("brandthat-product")}>Product</button>
           <button onClick={() => { setActiveToolKey("brand"); setPage("examples"); window.history.pushState({}, "", "/examples"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Examples</button>
-          <button onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-membership")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}>Pricing</button>
+          <button onClick={() => navigateHomeSection("brandthat-membership", "center")}>Pricing</button>
         </div>
 
         <div className="navActions">
-          <button className="navPrimaryCta" onClick={() => { trackBrandthatEvent("hero_cta_click", { cta: "nav_preview_my_brand" }); setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Preview My Brand</button>
+          <button className="navPrimaryCta" onClick={() => { trackBrandthatEvent("hero_cta_click", { cta: "nav_preview_my_brand" }); navigateHomeSection("brandthat-builder"); }}>Preview My Brand</button>
           {authStatus === "logged_in" ? (
             <div className="accountMenu">
               <span>{user.email || "Account"}</span>
@@ -5348,21 +5369,6 @@ function getSystemCardText(item) {
   return copy[item] || "Build your brand faster with AI.";
 }
 
-function buildPreviewFromDraft(draft) {
-  const name = (draft.name || "Your Brand").trim();
-  const idea = (draft.description || "an early business idea").trim();
-  const audience = (draft.audience || "people most likely to care about this promise").trim();
-  const style = (draft.style || draft.desiredFeeling || "clear, useful, and premium").trim();
-  const industry = (draft.industry || draft.locationMarket || "its category").trim();
-  return {
-    thesis: `${name} should stand for ${idea.toLowerCase().replace(/\.$/, "")}, with a clear promise that feels ${style.toLowerCase()}.`,
-    audience: `${audience}. The preview should sharpen what they want, what they distrust, and why this brand deserves attention in ${industry}.`,
-    traits: ["Specific", "Credible", "Easy to act on"],
-    positioning: `Position ${name} around the most concrete customer outcome, not just the product category.`,
-    colors: ["#11110f", "#fffdf8", "#d7c5ad", "#747863"],
-  };
-}
-
 function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, openAuth, user }) {
   const [preview, setPreview] = useState(null);
   const [previewState, setPreviewState] = useState("idle");
@@ -5401,7 +5407,7 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
       <div className="builderActions previewActions"><button className="btn dark" onClick={generatePreview}>{previewState === "loading" ? "Creating preview..." : "Generate Free Preview"}</button><button className="btn light" onClick={unlockWorkspace}>Unlock Complete Workspace</button></div>
       {previewState === "missing" && <div className="friendlyState warning"><strong>Add a name and idea first.</strong><span>BrandThat needs both fields to create a useful preview.</span></div>}
       {previewState === "loading" && <div className="friendlyState"><strong>Preview generation in progress.</strong><span>Creating thesis, audience, voice, positioning, and visual direction.</span></div>}
-      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual preview</span><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><button onClick={unlockWorkspace}>Unlock Workspace</button></div></div>}
+      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><button onClick={unlockWorkspace}>Unlock Workspace</button></div></div>}
       <p className="builderFinePrint">The free preview avoids expensive generation and does not save a full workspace. Complete generation remains behind authentication, email verification, Stripe checkout, and existing server-side validation.</p>
     </section>
   );
@@ -6305,6 +6311,54 @@ function navigateToPage(setPage, page, path = "/") {
 
 function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
   const startMembership = () => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account before checkout.");
+  const examples = [
+    {
+      id: "northline-example",
+      type: "Physical product / apparel",
+      name: "Northline Goods",
+      description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.",
+      thesis: "Northline Goods makes durable carry feel calm, useful, and design-aware for people whose days move across work, travel, and outdoor time.",
+      audience: "Creators, photographers, founders, and operators who want dependable gear without looking overly tactical.",
+      positioning: "Premium carry goods for people whose day does not fit one category.",
+      voice: "Useful. Durable. Quietly premium.",
+      visual: "Black technical fabric, warm neutrals, muted sage, compact typography, and real material detail.",
+      colors: ["#11110f", "#fffdf8", "#d7c5ad", "#747863"],
+      launch: "Creator commute stories, first-drop waitlist, product-page testing, and email sequence.",
+      image: "/brandthat-assets/northline-brand-world.jpg",
+      smallImage: "/brandthat-assets/northline-brand-world-small.jpg",
+      alt: "Northline Goods tote bag, cap, apparel, packaging, bottle, and stationery photographed in a studio",
+    },
+    {
+      id: "hearthline-example",
+      type: "Local service business",
+      name: "Hearthline Studio",
+      description: "Affordable local interior styling for first-time homeowners.",
+      thesis: "Hearthline Studio gives first-time homeowners an approachable way to make a room feel finished without the cost or overwhelm of full-service design.",
+      audience: "Local homeowners, apartment owners, and young families who have taste but need a practical plan, shopping guidance, and confidence.",
+      positioning: "Editorial taste translated into affordable, step-by-step room decisions for real homes.",
+      voice: "Warm. Practical. Reassuring.",
+      visual: "Warm plaster, muted clay, olive, soft charcoal, natural light, room notes, and before/after framing.",
+      colors: ["#312b25", "#f5eadc", "#b98463", "#7a8065"],
+      launch: "Google Business Profile, before/after reels, local partner referrals, consultation package, and neighborhood proof.",
+      demoLabel: "Clearly labeled demo visualization: service one-sheet, room palette, booking card, and Instagram before/after plan.",
+    },
+    {
+      id: "signaldesk-example",
+      type: "Software / online business",
+      name: "SignalDesk",
+      description: "Software for creators managing sponsorships and invoices.",
+      thesis: "SignalDesk gives creators a calmer operating layer for sponsorships, deliverables, invoices, and campaign memory.",
+      audience: "Independent creators, small talent managers, and creator teams outgrowing spreadsheets but not ready for heavy agency software.",
+      positioning: "The calm workspace between spreadsheets, Notion, and enterprise campaign tools.",
+      voice: "Clear. Composed. Operator-minded.",
+      visual: "Crisp monochrome, cool graphite, soft blue-gray, precise status accents, interface crops, and compact product language.",
+      colors: ["#111317", "#f7f8f5", "#6d7f91", "#a9c6c7"],
+      launch: "Founder-led LinkedIn, creator education threads, template lead magnet, waitlist, demo clips, and invoice workflow examples.",
+      demoLabel: "Clearly labeled demo visualization: sponsorship pipeline, invoice status card, creator dashboard, and launch email.",
+      dark: true,
+    },
+  ];
+
   return (
     <main className="examplesPage">
       <section className="examplesHero compactHero">
@@ -6317,12 +6371,35 @@ function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
         </div>
       </section>
       <section className="exampleBrandGrid" aria-label="BrandThat example categories">
-        <article className="exampleBrandCard editorial" id="northline-example">
-          <figure className="exampleBrandMedia"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, cap, apparel, packaging, bottle, and stationery photographed in a studio" loading="lazy" width="1800" height="1200" /></picture></figure>
-          <div className="exampleBrandCopy"><span>Physical product / apparel</span><h2>Northline Goods</h2><p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p><div className="exampleDetails"><div><strong>Positioning</strong><span>Premium carry goods for people whose day does not fit one category.</span></div><div><strong>Identity</strong><span>Black technical fabric, warm neutrals, muted sage, compact typography.</span></div><div><strong>Launch</strong><span>Creator commute stories, first-drop waitlist, product-page testing, email sequence.</span></div></div></div>
-        </article>
-        <article className="exampleBrandCard editorial reverse"><div className="exampleBrandMedia textExamplePanel"><strong>Hearthline Studio</strong><p>Local interior styling for first homes, small apartments, and warm commercial spaces.</p><ul><li>Audience: busy local homeowners who want a room to feel finished without hiring a full design firm.</li><li>Positioning: practical editorial taste for real spaces, budgets, and timelines.</li><li>Launch: Google Business Profile, before/after reels, neighborhood partnerships, consultation offer.</li></ul></div><div className="exampleBrandCopy"><span>Local service business</span><h2>Hearthline Studio</h2><p>A service brand needs trust, clarity, local discovery, and a simple path from interest to booking.</p></div></article>
-        <article className="exampleBrandCard editorial"><div className="exampleBrandMedia textExamplePanel darkPanel"><strong>SignalDesk</strong><p>A lightweight workspace for creators who manage sponsorships, deliverables, invoices, and campaign notes.</p><ul><li>Audience: independent creators and small talent managers outgrowing spreadsheets.</li><li>Positioning: the calm operating system between Notion and agency software.</li><li>Launch: founder-led LinkedIn, creator education, templates, waitlist, product demo clips.</li></ul></div><div className="exampleBrandCopy"><span>Software / online business</span><h2>SignalDesk</h2><p>An online product needs a sharper promise, proof of workflow, onboarding copy, and channel strategy.</p></div></article>
+        {examples.map((example, index) => (
+          <article className={`exampleBrandCard editorial ${index % 2 ? "reverse" : ""}`} id={example.id} key={example.id}>
+            {example.image ? (
+              <figure className="exampleBrandMedia"><picture><source media="(max-width: 720px)" srcSet={example.smallImage} /><img src={example.image} alt={example.alt} loading="lazy" width="1800" height="1200" /></picture></figure>
+            ) : (
+              <div className={`exampleBrandMedia textExamplePanel demoVisualization ${example.dark ? "darkPanel" : ""}`}>
+                <span>Demo visualization</span>
+                <strong>{example.name}</strong>
+                <p>{example.demoLabel}</p>
+                <div className="demoColorRow">{example.colors.map((color) => <i key={color} style={{ background: color }} />)}</div>
+                <ul><li>{example.voice}</li><li>{example.launch}</li></ul>
+              </div>
+            )}
+            <div className="exampleBrandCopy">
+              <span>{example.type}</span>
+              <h2>{example.name}</h2>
+              <p>{example.description}</p>
+              <div className="exampleDetails">
+                <div><strong>Brand thesis</strong><span>{example.thesis}</span></div>
+                <div><strong>Audience</strong><span>{example.audience}</span></div>
+                <div><strong>Positioning</strong><span>{example.positioning}</span></div>
+                <div><strong>Voice</strong><span>{example.voice}</span></div>
+                <div><strong>Visual direction</strong><span>{example.visual}</span></div>
+                <div><strong>Color palette</strong><span>{example.colors.join(" · ")}</span></div>
+                <div><strong>Launch direction</strong><span>{example.launch}</span></div>
+              </div>
+            </div>
+          </article>
+        ))}
       </section>
     </main>
   );
@@ -6357,22 +6434,26 @@ function HowItWorksSection() {
 }
 
 function PricingSection({ startCheckout, openAuth, user }) {
-  return <section className="pricingSection" id="brandthat-membership"><div><span>Membership and pricing</span><h2>$9.99/month — cancel anytime.</h2><p>Monthly access unlocks the complete BrandThat workspace and connected generators while your subscription is active.</p><p className="policyNote">Product policy items still needing owner/legal review: exact generation limits, what remains editable after cancellation, commercial-use language, refunds, and cancellation terms.</p></div><div className="priceStatement"><span>BrandThat Membership</span><strong>$9.99/mo</strong><ul><li>Complete strategy and expanded audience/positioning</li><li>Brand voice, identity direction, and logo concepts</li><li>Platform/content direction and 90-day launch roadmap</li><li>Saved workspace and connected generators</li></ul><button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account before checkout.")}>{user?.email ? "Start Membership" : "Create Account"}</button><a href="#policies">Cancellation and refund information</a></div></section>;
+  return <section className="pricingSection" id="brandthat-membership"><div><span>Membership and pricing</span><h2>$9.99/month — cancel anytime.</h2><p>Monthly access unlocks the complete BrandThat workspace and connected generators while your subscription is active.</p><p className="policyNote">You can create a free preview before checkout. The complete workspace requires an account, email verification, and active membership.</p></div><div className="priceStatement"><span>BrandThat Membership</span><strong>$9.99/mo</strong><ul><li>Complete strategy and expanded audience/positioning</li><li>Brand voice, identity direction, and logo concepts</li><li>Platform/content direction and 90-day launch roadmap</li><li>Saved workspace and connected generators</li></ul><button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account before checkout.")}>{user?.email ? "Start Membership" : "Create Account"}</button><a href="/cancellation">Cancellation information</a></div></section>;
 }
 
 function TrustSection() {
-  return <section className="trustSection" id="policies"><div className="sectionHeader compact"><span>Trust and product boundaries</span><h2>Know exactly what BrandThat creates.</h2></div><div className="boundaryGrid"><article><strong>Included</strong><ul><li>AI-generated brand strategy</li><li>Audience and positioning direction</li><li>Brand voice and messaging</li><li>Visual and identity direction</li><li>Logo concepts</li><li>Content direction and launch roadmap</li></ul></article><article><strong>Not automatically included</strong><ul><li>Trademark registration or legal clearance</li><li>Guaranteed social-handle availability</li><li>Human-designed custom identity work</li><li>Printed merchandise or packaging</li><li>A completed hosted website</li></ul></article><article><strong>Customer protection</strong><p>BrandThat should use clear checkout, verified accounts, and helpful error states. Commercial-use, cancellation, and refund language require owner/legal review before being treated as final policy.</p></article></div></section>;
+  return <section className="trustSection" id="policies"><div className="sectionHeader compact"><span>Trust and product boundaries</span><h2>Know exactly what BrandThat creates.</h2></div><div className="boundaryGrid"><article><strong>Included</strong><ul><li>AI-generated brand strategy</li><li>Audience and positioning direction</li><li>Brand voice and messaging</li><li>Visual and identity direction</li><li>Logo concepts</li><li>Content direction and launch roadmap</li></ul></article><article><strong>Not automatically included</strong><ul><li>Trademark registration or legal clearance</li><li>Guaranteed social-handle availability</li><li>Human-designed custom identity work</li><li>Printed merchandise or packaging</li><li>A completed hosted website</li></ul></article><article><strong>Customer protection</strong><p>BrandThat uses account authentication and Stripe checkout for paid access. Generated results should be reviewed before use in legal, trademark, advertising, or financial decisions.</p></article></div></section>;
 }
 
 function FAQSection() {
-  const faqs = [["What does BrandThat create?", "A connected brand plan: strategy, audience, positioning, voice, identity direction, logo concepts, content direction, roadmap, and workspace."], ["Is BrandThat using AI?", "Yes. BrandThat uses AI to draft brand strategy and creative direction from the details you provide."], ["Do I need a business name already?", "No. You can start with a working name or rough idea and refine it later."], ["Can I edit my results?", "Workspace fields and saved project details are editable in the current app."], ["Can I create more than one brand?", "The app supports saved brand workspaces. Exact membership limits need a final owner policy."], ["What logo files do I receive?", "The logo flow supports generated logo concepts and downloadable SVG/transparent preview assets where available."], ["Can I use the output commercially?", "This needs final legal terms from the owner before the site makes a definitive promise."], ["Does BrandThat check trademarks?", "No. Trademark clearance requires separate legal verification."], ["Does BrandThat guarantee available domains or handles?", "No. Handle/domain availability is not guaranteed unless separately checked."], ["What happens if I cancel?", "Cancellation behavior needs final owner policy; the app currently gates full tools by active membership."], ["Is the $9.99 charge monthly?", "Yes. The checkout function validates a recurring monthly $9.99 USD Stripe price."], ["How do I contact support?", "Use the support/contact link in the footer. If no support inbox is configured yet, that is an owner setup item."]];
+  const faqs = [["What does BrandThat create?", "A connected brand plan: strategy, audience, positioning, voice, identity direction, logo concepts, content direction, roadmap, and workspace."], ["Is BrandThat using AI?", "Yes. BrandThat uses AI to draft brand strategy and creative direction from the details you provide."], ["Do I need a business name already?", "No. You can start with a working name or rough idea and refine it later."], ["Can I edit my results?", "Workspace fields and saved project details are editable in the current app."], ["Can I create more than one brand?", "BrandThat supports saved brand workspaces for signed-in members. Membership terms may apply to high-volume generation."], ["What logo files do I receive?", "The logo flow supports generated logo concepts and downloadable SVG/transparent preview assets where available."], ["Can I use the output commercially?", "BrandThat provides AI-generated drafts and direction. Review outputs before commercial use and get professional advice for legal, trademark, or regulated claims."], ["Does BrandThat check trademarks?", "No. Trademark clearance requires separate legal verification."], ["Does BrandThat guarantee available domains or handles?", "No. Handle/domain availability is not guaranteed unless separately checked."], ["What happens if I cancel?", "Paid tools require an active membership. You can cancel anytime through the billing flow when customer billing is available."], ["Is the $9.99 charge monthly?", "Yes. The checkout function validates a recurring monthly $9.99 USD Stripe price."], ["How do I contact support?", `Email ${PUBLIC_SUPPORT_EMAIL} for BrandThat support.`]];
   return <section className="faqSection"><div className="sectionHeader compact"><span>FAQ</span><h2>Clear answers before checkout.</h2></div><div className="faqList">{faqs.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>;
 }
 
 function BrandBirthHomepage({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, openAuth, user }) {
-  const seedExampleBrand = () => { setWorkspaceDraft({ ...workspaceDraft, name: "Northline Goods", description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.", audience: "Creators, founders, photographers, designers, and operators", style: "Quietly premium, durable, useful" }); trackBrandthatEvent("example_selection", { example: "northline_goods" }); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); };
-  const scrollToBuilder = () => { trackBrandthatEvent("hero_cta_click", { cta: "preview_my_brand" }); document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
-  return <div className="birthPage"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => document.getElementById("northline-demo")?.scrollIntoView({ behavior: "smooth", block: "start" })}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} openAuth={openAuth} user={user} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} openAuth={openAuth} user={user} /></section></div>;
+  const scrollSection = (sectionId) => {
+    window.history.replaceState({}, "", `/#${sectionId}`);
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const seedExampleBrand = () => { setWorkspaceDraft({ ...workspaceDraft, name: "Northline Goods", description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.", audience: "Creators, founders, photographers, designers, and operators", style: "Quietly premium, durable, useful", industry: "physical goods and apparel" }); trackBrandthatEvent("example_selection", { example: "northline_goods" }); setTimeout(() => scrollSection("brandthat-builder"), 80); };
+  const scrollToBuilder = () => { trackBrandthatEvent("hero_cta_click", { cta: "preview_my_brand" }); scrollSection("brandthat-builder"); };
+  return <div className="birthPage" id="brandthat-product"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => scrollSection("northline-demo")}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} openAuth={openAuth} user={user} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} openAuth={openAuth} user={user} /></section></div>;
 }
 
 function BirthHeroVisual() {
@@ -6390,32 +6471,32 @@ function InfoPage({ page, setPage }) {
     contact: {
       title: "Contact and Support",
       eyebrow: "SUPPORT",
-      body: "Support details need a final owner setup. Add the preferred support email, response-time expectation, and escalation process before publishing this page as final policy.",
-      notes: ["Owner review required: support inbox and response policy.", "Do not collect sensitive payment data through support messages."],
+      body: `For BrandThat account, billing, or product questions, contact ${PUBLIC_SUPPORT_EMAIL}. Do not send passwords, full payment card numbers, or sensitive personal information through email.`,
+      notes: ["Include the email address on your BrandThat account when asking about billing or access.", "BrandThat will never ask you to send a full card number by email."],
     },
     privacy: {
       title: "Privacy Policy",
-      eyebrow: "OWNER REVIEW REQUIRED",
-      body: "Starter privacy page: BrandThat uses account, authentication, checkout, and generation systems to provide the service. A complete policy must be reviewed by the business owner and legal counsel before relying on it as final.",
-      notes: ["Current integrations include Supabase authentication/database, Stripe checkout, Netlify functions, and local privacy-conscious analytics events.", "Do not log passwords, payment details, or private brand descriptions in analytics."],
+      eyebrow: "PRIVACY",
+      body: "BrandThat uses account, authentication, checkout, and generation systems to provide the service. The product uses submitted brand details to generate previews, strategy, identity direction, content direction, roadmap, and workspace output.",
+      notes: ["Current integrations include Supabase authentication/database, Stripe checkout, Netlify functions, and local product analytics events.", "Do not send passwords, full payment details, or sensitive regulated information inside brand prompts."],
     },
     terms: {
       title: "Terms of Service",
-      eyebrow: "OWNER REVIEW REQUIRED",
-      body: "Starter terms page: BrandThat provides software-generated brand strategy, identity direction, content direction, roadmap, saved workspace, and logo concepts. Final commercial-use, ownership, liability, acceptable-use, and subscription terms require owner/legal review.",
-      notes: ["BrandThat does not automatically provide legal clearance, trademark registration, physical merchandise, or a completed hosted website.", "Generated outputs should be reviewed before commercial use."],
+      eyebrow: "TERMS",
+      body: "BrandThat provides software-generated brand strategy, identity direction, content direction, roadmap, saved workspace, and logo concepts. Paid tools require an account, email verification, and active membership.",
+      notes: ["BrandThat does not automatically provide legal clearance, trademark registration, physical merchandise, or a completed hosted website.", "Generated outputs should be reviewed before use in legal, trademark, financial, health, or regulated claims."],
     },
     cancellation: {
       title: "Cancellation Policy",
-      eyebrow: "OWNER REVIEW REQUIRED",
-      body: "Starter cancellation page: BrandThat is currently presented as a $9.99/month membership. Final cancellation mechanics, access after cancellation, and renewal timing need owner confirmation and Stripe account configuration review.",
-      notes: ["The checkout function validates a recurring monthly $9.99 USD Stripe price.", "Final customer-facing cancellation instructions should link to the live billing/customer portal if one is configured."],
+      eyebrow: "CANCELLATION",
+      body: "BrandThat is offered as a $9.99/month membership. You can cancel anytime through the billing flow when customer billing is available, or contact support for help with account access.",
+      notes: ["Paid tools require an active membership.", `For billing help, contact ${PUBLIC_SUPPORT_EMAIL}.`],
     },
     refund: {
       title: "Refund Policy",
-      eyebrow: "OWNER REVIEW REQUIRED",
-      body: "Starter refund page: Do not publish a refund promise until the owner defines the policy. The final page should explain refund eligibility, timing, and how users contact support.",
-      notes: ["Owner decision required: refund window and exceptions.", "Avoid promising refunds that Stripe/business operations are not configured to honor."],
+      eyebrow: "REFUNDS",
+      body: "Refund requests are reviewed through support. Include the email address on your BrandThat account and a short explanation of the issue.",
+      notes: [`For refund or billing questions, contact ${PUBLIC_SUPPORT_EMAIL}.`, "Do not include full card numbers or sensitive payment details in support messages."],
     },
   };
   const content = pages[page] || pages.about;
