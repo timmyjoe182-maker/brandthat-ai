@@ -318,6 +318,9 @@ function safeParse(key, fallback) {
 function getInitialPageFromPath() {
   const path = window.location.pathname;
   if (path === "/examples") return "examples";
+  if (["/about", "/contact", "/privacy", "/terms", "/cancellation", "/refund"].includes(path)) {
+    return path.slice(1);
+  }
   const match = Object.entries(seoPages).find(([, page]) => page.path === path);
   return match ? match[0] : "home";
 }
@@ -366,8 +369,8 @@ function getCurrentSeoMeta(page) {
 
   return {
     title: "BrandThat.ai | Where Brands Are Born",
-    description: "Bring BrandThat a rough idea. Leave with a complete brand strategy, identity direction, launch roadmap, and living brand workspace.",
-    canonical: "https://brandthat.ai/",
+    description: "Start with a brand name and rough idea. BrandThat previews strategy, identity direction, content, roadmap, and workspace before checkout.",
+    canonical: ["about", "contact", "privacy", "terms", "cancellation", "refund"].includes(page) ? `https://brandthat.ai/${page}` : "https://brandthat.ai/",
   };
 }
 
@@ -4992,7 +4995,7 @@ ${promptValue}`;
         </div>
 
         <div className="navActions">
-          <button className="navPrimaryCta" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Build My Brand</button>
+          <button className="navPrimaryCta" onClick={() => { trackBrandthatEvent("hero_cta_click", { cta: "nav_preview_my_brand" }); setPage("home"); window.history.pushState({}, "", "/"); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }}>Preview My Brand</button>
           {authStatus === "logged_in" ? (
             <div className="accountMenu">
               <span>{user.email || "Account"}</span>
@@ -5226,13 +5229,30 @@ ${promptValue}`;
         </section>
       )}
 
-      <footer className="footerSubscribe">
+      {["about", "contact", "privacy", "terms", "cancellation", "refund"].includes(page) && (
+        <InfoPage page={page} setPage={setPage} />
+      )}
+
+      <footer className="footerSubscribe completeFooter">
         <div>
-          <div className="tinyTag">CREATE ACCOUNT</div>
-          <h2>Create your BrandThat account.</h2>
-          <p>Enter your email, create a password, verify your inbox, and build a complete Brand Plan when you are ready.</p>
+          <div className="tinyTag">BRANDTHAT</div>
+          <h2>Type the name. Tell us what it means. Build around it.</h2>
+          <p>BrandThat helps early founders turn rough ideas into brand strategy, identity direction, content systems, and launch roadmaps.</p>
         </div>
         <div className="footerForm">
+          <div className="footerLinks">
+            {[
+              ["About", "about"],
+              ["Contact / Support", "contact"],
+              ["Privacy Policy", "privacy"],
+              ["Terms of Service", "terms"],
+              ["Cancellation Policy", "cancellation"],
+              ["Refund Policy", "refund"],
+            ].map(([label, target]) => (
+              <button key={target} onClick={() => { setPage(target); window.history.pushState({}, "", `/${target}`); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{label}</button>
+            ))}
+            <button onClick={() => openAuth("login")}>Sign In</button>
+          </div>
           <input placeholder="Email address" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
           <button className="btn dark" onClick={subscribe}>Create Account</button>
           {subscribeMessage && <span>{subscribeMessage}</span>}
@@ -5328,99 +5348,64 @@ function getSystemCardText(item) {
   return copy[item] || "Build your brand faster with AI.";
 }
 
-function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading }) {
+function buildPreviewFromDraft(draft) {
+  const name = (draft.name || "Your Brand").trim();
+  const idea = (draft.description || "an early business idea").trim();
+  const audience = (draft.audience || "people most likely to care about this promise").trim();
+  const style = (draft.style || draft.desiredFeeling || "clear, useful, and premium").trim();
+  const industry = (draft.industry || draft.locationMarket || "its category").trim();
+  return {
+    thesis: `${name} should stand for ${idea.toLowerCase().replace(/\.$/, "")}, with a clear promise that feels ${style.toLowerCase()}.`,
+    audience: `${audience}. The preview should sharpen what they want, what they distrust, and why this brand deserves attention in ${industry}.`,
+    traits: ["Specific", "Credible", "Easy to act on"],
+    positioning: `Position ${name} around the most concrete customer outcome, not just the product category.`,
+    colors: ["#11110f", "#fffdf8", "#d7c5ad", "#747863"],
+  };
+}
+
+function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, openAuth, user }) {
+  const [preview, setPreview] = useState(null);
+  const [previewState, setPreviewState] = useState("idle");
+  const canPreview = Boolean((workspaceDraft.name || "").trim() && (workspaceDraft.description || "").trim());
+
+  const generatePreview = () => {
+    if (!canPreview) { setPreviewState("missing"); return; }
+    setPreviewState("loading");
+    trackBrandthatEvent("builder_started", { source: "homepage_preview" });
+    window.setTimeout(() => {
+      setPreview(buildPreviewFromDraft(workspaceDraft));
+      setPreviewState("ready");
+      trackBrandthatEvent("preview_success", { source: "homepage_preview" });
+    }, 450);
+  };
+
+  const unlockWorkspace = () => {
+    trackBrandthatEvent("account_creation_started", { source: "preview_unlock" });
+    if (user?.email) startCheckout?.(MEMBER_PLAN);
+    else openAuth?.("signup", "Create your BrandThat account to unlock the complete workspace.");
+  };
+
   return (
-    <section className="brandBuilderCard" id="brandthat-builder">
-      <div className="builderTop">
-        <div>
-          <h2>Start with two details.</h2>
-          <p>BrandThat infers the audience, positioning, identity direction, platform strategy, roadmap, and workspace from the idea.</p>
-        </div>
-        <span>{autoSaveStatus}</span>
-      </div>
-
-      <label className="builderField full">
-        <span>Brand Name</span>
-        <input
-          placeholder="TrailTail"
-          value={workspaceDraft.name}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
-        />
-      </label>
-
-      <label className="builderField full">
-        <span>What are you building?</span>
-        <textarea
-          placeholder="A premium outdoor clothing brand for dog owners."
-          value={workspaceDraft.description}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })}
-        />
-      </label>
-
+    <section className="brandBuilderCard previewBuilderCard" id="brandthat-preview-form">
+      <div className="builderTop"><div><h2>Preview your brand direction.</h2><p>Enter the basics. The preview is local and limited; the full Brand Workspace requires an account and active membership.</p></div><span>{autoSaveStatus}</span></div>
+      <label className="builderField full"><span>Brand name</span><input placeholder="Northline Goods" value={workspaceDraft.name} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })} /></label>
+      <label className="builderField full"><span>What does the business represent or build?</span><textarea placeholder="Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work." value={workspaceDraft.description} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })} /></label>
       <details className="builderContextFields">
-        <summary>Sharpen the plan with optional context</summary>
+        <summary>Optional context for a sharper preview</summary>
         <div className="builderContextGrid">
-          <label className="builderField">
-            <span>Target customer</span>
-            <input
-              placeholder="Design-conscious dog owners in cities"
-              value={workspaceDraft.audience || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
-            />
-          </label>
-          <label className="builderField">
-            <span><TermTooltip term="positioning">Price position</TermTooltip></span>
-            <input
-              placeholder="Premium, accessible, luxury, value-led"
-              value={workspaceDraft.pricePositioning || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, pricePositioning: e.target.value })}
-            />
-          </label>
-          <label className="builderField">
-            <span>Desired feeling</span>
-            <input
-              placeholder="Warm, capable, rare, calm, rebellious"
-              value={workspaceDraft.desiredFeeling || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, desiredFeeling: e.target.value })}
-            />
-          </label>
-          <label className="builderField">
-            <span>Location or market</span>
-            <input
-              placeholder="Los Angeles, online-first, local service"
-              value={workspaceDraft.locationMarket || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, locationMarket: e.target.value })}
-            />
-          </label>
-          <label className="builderField full">
-            <span>Competitors you admire</span>
-            <input
-              placeholder="Aime Leon Dore, Patagonia, Goop, Liquid Death"
-              value={workspaceDraft.competitors || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })}
-            />
-          </label>
-          <label className="builderField full">
-            <span>Business goal</span>
-            <input
-              placeholder="Launch a waitlist, sell first 50 units, book first 10 clients"
-              value={workspaceDraft.businessGoal || ""}
-              onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, businessGoal: e.target.value, launchGoal: e.target.value || workspaceDraft.launchGoal })}
-            />
-          </label>
+          <label className="builderField"><span>Audience</span><input placeholder="Creators, founders, photographers" value={workspaceDraft.audience || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })} /></label>
+          <label className="builderField"><span>Style/personality</span><input placeholder="Quietly premium, durable, useful" value={workspaceDraft.style || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, style: e.target.value })} /></label>
+          <label className="builderField full"><span>Industry or market</span><input placeholder="Carry goods, local service, software, hospitality" value={workspaceDraft.industry || workspaceDraft.locationMarket || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, industry: e.target.value, locationMarket: e.target.value })} /></label>
         </div>
       </details>
-
-      <div className="builderActions">
-        <button className="btn dark" onClick={buildGuidedBrandPlan}>
-          {loading ? "Building your brand..." : "Build My Brand"}
-        </button>
-        <p>Account and email verification required before BrandThat creates the complete Brand Plan.</p>
-      </div>
+      <div className="builderActions previewActions"><button className="btn dark" onClick={generatePreview}>{previewState === "loading" ? "Creating preview..." : "Generate Free Preview"}</button><button className="btn light" onClick={unlockWorkspace}>Unlock Complete Workspace</button></div>
+      {previewState === "missing" && <div className="friendlyState warning"><strong>Add a name and idea first.</strong><span>BrandThat needs both fields to create a useful preview.</span></div>}
+      {previewState === "loading" && <div className="friendlyState"><strong>Preview generation in progress.</strong><span>Creating thesis, audience, voice, positioning, and visual direction.</span></div>}
+      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual preview</span><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><button onClick={unlockWorkspace}>Unlock Workspace</button></div></div>}
+      <p className="builderFinePrint">The free preview avoids expensive generation and does not save a full workspace. Complete generation remains behind authentication, email verification, Stripe checkout, and existing server-side validation.</p>
     </section>
   );
 }
-
 function SkeletonBlock({ className = "" }) {
   return <div className={`skeletonBlock ${className}`} aria-hidden="true" />;
 }
@@ -6311,360 +6296,139 @@ function HomepageSEOContent({ openSeoPage }) {
 }
 
 
-function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
-  const startMembership = () => user?.email
-    ? startCheckout(MEMBER_PLAN)
-    : openAuth("signup", "Create your BrandThat account to unlock the $9.99/month brand-building workspace.");
 
+function navigateToPage(setPage, page, path = "/") {
+  setPage(page);
+  window.history.pushState({}, "", path);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function BrandExamplesPage({ startCheckout, openAuth, user, setPage }) {
+  const startMembership = () => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account before checkout.");
   return (
     <main className="examplesPage">
-      <section className="examplesHero">
-        <span className="examplesKicker">Example brand world</span>
-        <h1>See how simple it is to BrandThat.</h1>
-        <p>Northline Goods starts as a rough product idea. BrandThat turns it into a strategic brand system, real-world applications, a launch plan, and a workspace.</p>
+      <section className="examplesHero compactHero">
+        <span className="examplesKicker">Example brand builds</span>
+        <h1>Three ways to BrandThat.</h1>
+        <p>These are demo examples, not customer projects. They show how the same system can shape different kinds of early business ideas.</p>
         <div className="examplesActions">
-          <button className="birthCta" onClick={startMembership}>Build My Brand - $9.99/mo</button>
-          <button className="birthSecondary" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Back to Product</button>
+          <button className="birthCta" onClick={() => navigateToPage(setPage, "home", "/")}>Preview My Brand</button>
+          <button className="birthSecondary" onClick={startMembership}>Unlock Workspace - $9.99/mo</button>
         </div>
       </section>
-
-      <section className="exampleBrandGrid" aria-label="Northline Goods BrandThat example">
-        <article className="exampleBrandCard editorial">
-          <figure className="exampleBrandMedia">
-            <picture>
-              <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" />
-              <img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, cap, apparel, packaging, bottle, and stationery photographed in a studio" loading="lazy" />
-            </picture>
-          </figure>
-          <div className="exampleBrandCopy">
-            <span>From idea to physical brand</span>
-            <h2>Northline Goods</h2>
-            <p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p>
-            <div className="exampleDetails">
-              <div><strong>Positioning</strong><span>Premium carry goods for people whose day does not fit one category.</span></div>
-              <div><strong>Identity</strong><span>Black technical fabric, warm neutrals, muted sage, tight industrial typography, minimal labels.</span></div>
-              <div><strong>Applications</strong><span>Tote, utility pouch, cap, heavyweight tee, shipping box, hang tag, business card, bottle.</span></div>
-            </div>
-          </div>
+      <section className="exampleBrandGrid" aria-label="BrandThat example categories">
+        <article className="exampleBrandCard editorial" id="northline-example">
+          <figure className="exampleBrandMedia"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, cap, apparel, packaging, bottle, and stationery photographed in a studio" loading="lazy" width="1800" height="1200" /></picture></figure>
+          <div className="exampleBrandCopy"><span>Physical product / apparel</span><h2>Northline Goods</h2><p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p><div className="exampleDetails"><div><strong>Positioning</strong><span>Premium carry goods for people whose day does not fit one category.</span></div><div><strong>Identity</strong><span>Black technical fabric, warm neutrals, muted sage, compact typography.</span></div><div><strong>Launch</strong><span>Creator commute stories, first-drop waitlist, product-page testing, email sequence.</span></div></div></div>
         </article>
-        <article className="exampleBrandCard editorial reverse">
-          <figure className="exampleBrandMedia">
-            <picture>
-              <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
-              <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods ecommerce website, Instagram profile, brand guidelines, captions, and roadmap" loading="lazy" />
-            </picture>
-          </figure>
-          <div className="exampleBrandCopy">
-            <span>From strategy to launch system</span>
-            <h2>The brand stays connected.</h2>
-            <p>Website direction, Instagram presence, handles, caption examples, color system, typography, and roadmap all come from the same Brand DNA.</p>
-            <div className="exampleDetails">
-              <div><strong>Handle system</strong><span>Instagram @northline.goods · TikTok @northlinegoods · X @northlinegoods</span></div>
-              <div><strong>Content</strong><span>Creator commute stories, packing systems, studio-to-street product use, founder product notes.</span></div>
-              <div><strong>Roadmap</strong><span>Brand identity, packaging, website, social channels, email campaign, launch drop.</span></div>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section className="examplesFinal">
-        <h2>From name and idea to a brand you can actually launch.</h2>
-        <p>The membership unlocks the full BrandThat workspace, strategy generation, platform recommendations, launch roadmap, and logo concepts.</p>
-        <button className="birthCta" onClick={startMembership}>Start Building - $9.99/mo</button>
+        <article className="exampleBrandCard editorial reverse"><div className="exampleBrandMedia textExamplePanel"><strong>Hearthline Studio</strong><p>Local interior styling for first homes, small apartments, and warm commercial spaces.</p><ul><li>Audience: busy local homeowners who want a room to feel finished without hiring a full design firm.</li><li>Positioning: practical editorial taste for real spaces, budgets, and timelines.</li><li>Launch: Google Business Profile, before/after reels, neighborhood partnerships, consultation offer.</li></ul></div><div className="exampleBrandCopy"><span>Local service business</span><h2>Hearthline Studio</h2><p>A service brand needs trust, clarity, local discovery, and a simple path from interest to booking.</p></div></article>
+        <article className="exampleBrandCard editorial"><div className="exampleBrandMedia textExamplePanel darkPanel"><strong>SignalDesk</strong><p>A lightweight workspace for creators who manage sponsorships, deliverables, invoices, and campaign notes.</p><ul><li>Audience: independent creators and small talent managers outgrowing spreadsheets.</li><li>Positioning: the calm operating system between Notion and agency software.</li><li>Launch: founder-led LinkedIn, creator education, templates, waitlist, product demo clips.</li></ul></div><div className="exampleBrandCopy"><span>Software / online business</span><h2>SignalDesk</h2><p>An online product needs a sharper promise, proof of workflow, onboarding copy, and channel strategy.</p></div></article>
       </section>
     </main>
   );
 }
 
 function NorthlineInputPanel({ onExample }) {
-  return (
-    <div className="northlineInputPanel">
-      <div className="inputPanelHeader">
-        <span>Start with two details</span>
-        <strong>BrandThat</strong>
-      </div>
-      <div className="inputRows">
-        <div className="inputRow">
-          <span>Brand name</span>
-          <strong>Northline Goods</strong>
-        </div>
-        <div className="inputRow large">
-          <span>What does it represent?</span>
-          <p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p>
-        </div>
-      </div>
-      <div className="agentSteps" aria-label="BrandThat generation steps">
-        <span>Understanding the idea</span>
-        <span>Defining the audience</span>
-        <span>Building the identity</span>
-        <span>Creating the launch plan</span>
-      </div>
-      <button className="inputAction" onClick={onExample}>Use this example</button>
-    </div>
-  );
+  return <div className="northlineInputPanel"><div className="inputPanelHeader"><span>Start with two details</span><strong>Example</strong></div><div className="inputRows"><div className="inputRow"><span>Brand name</span><strong>Northline Goods</strong></div><div className="inputRow large"><span>What does it represent?</span><p>Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.</p></div></div><div className="agentSteps" aria-label="BrandThat generation steps"><span>Analyzes the idea</span><span>Defines audience</span><span>Builds identity direction</span><span>Creates launch roadmap</span></div><button className="inputAction" onClick={onExample}>Use this example</button></div>;
 }
 
-function NorthlineOutputPreview() {
-  const outputs = [
-    ["Logo", "NORTHLINE GOODS"],
-    ["Handle", "@northline.goods"],
-    ["Voice", "Useful. Durable. Quietly premium."],
-    ["Roadmap", "Launch the first carry system"],
-  ];
-
-  return (
-    <div className="northlineOutputPreview" aria-label="BrandThat output preview for Northline Goods">
-      <figure className="previewImageFrame">
-        <picture>
-          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
-          <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods website, Instagram, brand guidelines, caption examples, and launch roadmap" loading="eager" />
-        </picture>
-      </figure>
-      <div className="outputTray">
-        {outputs.map(([label, value]) => (
-          <div key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function NorthlineOutputPreview({ priority = false }) {
+  const outputs = [["Logo", "NORTHLINE GOODS"], ["Handle", "@northline.goods"], ["Voice", "Useful. Durable. Quietly premium."], ["Roadmap", "First carry-system launch"]];
+  return <div className="northlineOutputPreview" aria-label="BrandThat output preview for Northline Goods"><figure className="previewImageFrame"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" /><img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods website, Instagram, brand guidelines, caption examples, and launch roadmap" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} width="1800" height="1200" /></picture></figure><div className="outputTray">{outputs.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></div>;
 }
 
-function NorthlineBrandSystem() {
-  return (
-    <div className="northlineSystem">
-      <div className="systemBlock large">
-        <span>Brand thesis</span>
-        <h3>Carry goods for creative days that refuse to stay in one lane.</h3>
-        <p>Northline should own the space between technical utility and design-conscious daily life: less outdoor cosplay, more real movement through the city.</p>
-      </div>
-      <div className="systemBlock">
-        <span>Audience</span>
-        <p>Creators, founders, photographers, designers, and operators who need one bag system that looks sharp everywhere.</p>
-      </div>
-      <div className="systemBlock">
-        <span>Voice</span>
-        <p>Plainspoken, durable, observant. Confident without hype.</p>
-      </div>
-      <div className="systemBlock">
-        <span>Visual direction</span>
-        <p>Matte black nylon, warm paper, muted sage, compact sans typography, topographic line details.</p>
-        <div className="systemPalette" aria-label="Northline Goods color palette">
-          {["#101114", "#f4f0e8", "#b7aa94", "#72765f"].map((color) => <i key={color} style={{ background: color }} />)}
-        </div>
-      </div>
-    </div>
-  );
+function BrandDemoWalkthrough({ onExample }) {
+  const stages = [["01", "Input", "Northline Goods: weatherproof everyday carry for creative days."], ["02", "Analysis", "BrandThat identifies a gap between technical bags and polished daily work gear."], ["03", "Strategy", "Thesis, audience, positioning, voice, and differentiator appear together."], ["04", "Identity", "Color, typography, visual direction, and logo concepts follow the strategy."], ["05", "Content", "Captions, bios, handles, and platform direction inherit the same Brand DNA."], ["06", "Roadmap", "A 90-day launch plan turns the direction into concrete next actions."], ["07", "Workspace", "The brand stays saved as a living workspace for future edits and generators."]];
+  return <section className="productWalkthrough" id="northline-demo"><div className="sectionHeader compact"><span>Product demonstration</span><h2>One brand context powers the whole workspace.</h2><p>Every tool uses the same brand context, so your strategy, visuals, content, and roadmap stay connected.</p><button className="textLinkButton inlineAction" onClick={onExample}>Use this example</button></div><div className="walkthroughGrid"><NorthlineOutputPreview /><div className="walkthroughSteps">{stages.map(([num, title, copy]) => <article key={title}><span>{num}</span><strong>{title}</strong><p>{copy}</p></article>)}</div></div></section>;
 }
 
-function NorthlineToolsEverywhere() {
-  const tools = [
-    ["Caption Generator", "Built for what matters. Packed for everywhere else."],
-    ["Hashtag Generator", "#NorthlineGoods #CarryBetter #BuiltForWhatMatters"],
-    ["Instagram Bio", "Thoughtful carry for creative movement. Designed in the details."],
-    ["Social Handles", "Instagram @northline.goods · TikTok @northlinegoods · X @northlinegoods"],
-  ];
-
-  return (
-    <section className="northlineToolsSection">
-      <div className="toolsCopy">
-        <h2>Your brand, everywhere.</h2>
-        <p>BrandThat's tools should not feel disconnected. Captions, hashtags, bios, strategy, and logo concepts all use the same brand context.</p>
-      </div>
-      <div className="northlineToolsList">
-        {tools.map(([title, copy]) => (
-          <article className="toolExample" key={title}>
-            <span>{title}</span>
-            <p>{copy}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
+function WhatYouReceiveSection() {
+  const items = [["Strategy", "Brand thesis, target audience, positioning, differentiator, and customer motivation."], ["Identity direction", "Moodboard notes, visual direction, typography, color system, and logo guidance."], ["Content system", "Brand voice, captions, bios, hashtags, platform direction, and content ideas."], ["Launch roadmap", "30/60/90-day actions, priorities, and next steps saved inside the workspace."]];
+  return <section className="receiveSection" id="receive-section"><div className="sectionHeader compact"><span>What customers receive</span><h2>A connected brand plan, not disconnected prompts.</h2></div><div className="receiveGrid">{items.map(([title, copy]) => <article key={title}><strong>{title}</strong><p>{copy}</p></article>)}</div></section>;
 }
 
-function BrandBirthHomepage({
-  workspaceDraft,
-  setWorkspaceDraft,
-  autoSaveStatus,
-  buildGuidedBrandPlan,
-  loading,
-  startCheckout,
-  openAuth,
-  user,
-}) {
-  const seedExampleBrand = () => {
-    setWorkspaceDraft({
-      ...workspaceDraft,
-      name: "Northline Goods",
-      description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.",
-    });
-    setTimeout(() => document.getElementById("brand-birth")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-  };
+function CompleteExampleSection() {
+  return <section className="completeExample" id="complete-example"><div className="worldCopy"><span>Complete example</span><h2>Northline Goods becomes a full brand world.</h2><p>The mockups are demo examples of brand direction, not physical deliverables. BrandThat produces the strategy, content, identity direction, roadmap, saved workspace, and logo concepts that guide this kind of execution.</p><div className="worldList"><div><strong>Merchandise</strong><span>Heavyweight tee, embroidered cap, utility pouch, and launch tote direction.</span></div><div><strong>Packaging</strong><span>Shipping box, hang tag, customer insert, and product-card direction.</span></div><div><strong>Digital</strong><span>Website direction, social profile, captions, handles, and campaign guidance.</span></div></div></div><figure className="brandWorldPhoto"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, apparel, cap, pouch, packaging, water bottle, and stationery photographed in warm light" loading="lazy" width="1800" height="1200" /></picture></figure></section>;
+}
 
-  return (
-    <div className="birthPage">
-      <section className="birthHero" id="product-demo">
-        <div className="birthHeroCopy">
-          <h1>One idea. An entire brand.</h1>
-          <p>Type the name. Tell BrandThat what it means. Build the strategy, identity, content, website direction, launch plan, and workspace around it.</p>
-          <div className="birthHeroActions">
-            <button className="birthCta" onClick={() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Build My Brand - $9.99/mo</button>
-            <span>Monthly membership. Full BrandThat access. Cancel anytime.</span>
-          </div>
-          <NorthlineInputPanel onExample={seedExampleBrand} />
-        </div>
-        <BirthHeroVisual />
-      </section>
+function HowItWorksSection() {
+  const steps = [["Describe", "Enter the brand name, rough idea, and optional audience/style context."], ["Preview", "See a limited brand direction before deciding whether to unlock the full workspace."], ["Unlock", "Create an account and start the $9.99/month membership when you want the complete system."], ["Build", "Use the saved workspace and connected generators to keep shaping the brand."]];
+  return <section className="howSection"><div className="sectionHeader compact"><span>How BrandThat works</span><h2>Fast enough for an idea. Structured enough for launch.</h2></div><div className="howGrid">{steps.map(([t,c], i)=><article key={t}><span>{String(i+1).padStart(2,"0")}</span><strong>{t}</strong><p>{c}</p></article>)}</div></section>;
+}
 
-      <section className="originMoment" id="brand-birth">
-        <div className="originLine">
-          <p>Northline begins as a name and a practical idea: carry goods for creative days that move through multiple worlds.</p>
-        </div>
-        <div className="originAnnotations">
-          {[
-            ["Why it exists", "Most work bags are either too corporate, too outdoorsy, or too trend-led for the way modern creators actually move."],
-            ["Who it serves", "Design-conscious creators who need reliable tools that still look sharp in client meetings, airports, gyms, and studios."],
-            ["What it can own", "The space between technical carry, quiet style, and daily creative momentum."],
-          ].map(([title, copy]) => (
-            <article key={title}>
-              <strong>{title}</strong>
-              <span>{copy}</span>
-            </article>
-          ))}
-        </div>
-      </section>
+function PricingSection({ startCheckout, openAuth, user }) {
+  return <section className="pricingSection" id="brandthat-membership"><div><span>Membership and pricing</span><h2>$9.99/month — cancel anytime.</h2><p>Monthly access unlocks the complete BrandThat workspace and connected generators while your subscription is active.</p><p className="policyNote">Product policy items still needing owner/legal review: exact generation limits, what remains editable after cancellation, commercial-use language, refunds, and cancellation terms.</p></div><div className="priceStatement"><span>BrandThat Membership</span><strong>$9.99/mo</strong><ul><li>Complete strategy and expanded audience/positioning</li><li>Brand voice, identity direction, and logo concepts</li><li>Platform/content direction and 90-day launch roadmap</li><li>Saved workspace and connected generators</li></ul><button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account before checkout.")}>{user?.email ? "Start Membership" : "Create Account"}</button><a href="#policies">Cancellation and refund information</a></div></section>;
+}
 
-      <section className="brandAwakening">
-        <div className="awakeningCopy">
-          <h2>BrandThat turns the thought into a system.</h2>
-          <p>Strategy, audience, voice, identity, social direction, and launch actions are generated from the same core idea, so the brand feels coherent from the first draft.</p>
-        </div>
-        <NorthlineBrandSystem />
-      </section>
+function TrustSection() {
+  return <section className="trustSection" id="policies"><div className="sectionHeader compact"><span>Trust and product boundaries</span><h2>Know exactly what BrandThat creates.</h2></div><div className="boundaryGrid"><article><strong>Included</strong><ul><li>AI-generated brand strategy</li><li>Audience and positioning direction</li><li>Brand voice and messaging</li><li>Visual and identity direction</li><li>Logo concepts</li><li>Content direction and launch roadmap</li></ul></article><article><strong>Not automatically included</strong><ul><li>Trademark registration or legal clearance</li><li>Guaranteed social-handle availability</li><li>Human-designed custom identity work</li><li>Printed merchandise or packaging</li><li>A completed hosted website</li></ul></article><article><strong>Customer protection</strong><p>BrandThat should use clear checkout, verified accounts, and helpful error states. Commercial-use, cancellation, and refund language require owner/legal review before being treated as final policy.</p></article></div></section>;
+}
 
-      <BrandWorldShowcase />
-      <LaunchSequence />
-      <LivingWorkspaceMoment />
-      <NorthlineToolsEverywhere />
-      <BirthOffer startCheckout={startCheckout} openAuth={openAuth} user={user} />
+function FAQSection() {
+  const faqs = [["What does BrandThat create?", "A connected brand plan: strategy, audience, positioning, voice, identity direction, logo concepts, content direction, roadmap, and workspace."], ["Is BrandThat using AI?", "Yes. BrandThat uses AI to draft brand strategy and creative direction from the details you provide."], ["Do I need a business name already?", "No. You can start with a working name or rough idea and refine it later."], ["Can I edit my results?", "Workspace fields and saved project details are editable in the current app."], ["Can I create more than one brand?", "The app supports saved brand workspaces. Exact membership limits need a final owner policy."], ["What logo files do I receive?", "The logo flow supports generated logo concepts and downloadable SVG/transparent preview assets where available."], ["Can I use the output commercially?", "This needs final legal terms from the owner before the site makes a definitive promise."], ["Does BrandThat check trademarks?", "No. Trademark clearance requires separate legal verification."], ["Does BrandThat guarantee available domains or handles?", "No. Handle/domain availability is not guaranteed unless separately checked."], ["What happens if I cancel?", "Cancellation behavior needs final owner policy; the app currently gates full tools by active membership."], ["Is the $9.99 charge monthly?", "Yes. The checkout function validates a recurring monthly $9.99 USD Stripe price."], ["How do I contact support?", "Use the support/contact link in the footer. If no support inbox is configured yet, that is an owner setup item."]];
+  return <section className="faqSection"><div className="sectionHeader compact"><span>FAQ</span><h2>Clear answers before checkout.</h2></div><div className="faqList">{faqs.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>;
+}
 
-      <section className="birthBuilder" id="brandthat-builder">
-        <div>
-          <h2>Bring the idea. Leave with the brand.</h2>
-          <p>Start with two details. BrandThat handles the strategic thinking, then saves the plan as your Brand Workspace.</p>
-        </div>
-        <BrandBuilderFlow
-          workspaceDraft={workspaceDraft}
-          setWorkspaceDraft={setWorkspaceDraft}
-          autoSaveStatus={autoSaveStatus}
-          buildGuidedBrandPlan={buildGuidedBrandPlan}
-          loading={loading}
-        />
-      </section>
-    </div>
-  );
+function BrandBirthHomepage({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, openAuth, user }) {
+  const seedExampleBrand = () => { setWorkspaceDraft({ ...workspaceDraft, name: "Northline Goods", description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.", audience: "Creators, founders, photographers, designers, and operators", style: "Quietly premium, durable, useful" }); trackBrandthatEvent("example_selection", { example: "northline_goods" }); setTimeout(() => document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); };
+  const scrollToBuilder = () => { trackBrandthatEvent("hero_cta_click", { cta: "preview_my_brand" }); document.getElementById("brandthat-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  return <div className="birthPage"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => document.getElementById("northline-demo")?.scrollIntoView({ behavior: "smooth", block: "start" })}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} openAuth={openAuth} user={user} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} openAuth={openAuth} user={user} /></section></div>;
 }
 
 function BirthHeroVisual() {
-  return (
-    <div className="birthHeroVisual" aria-label="Idea becoming a brand">
-      <NorthlineOutputPreview />
-    </div>
-  );
+  return <div className="birthHeroVisual" aria-label="Idea becoming a brand"><NorthlineOutputPreview priority /></div>;
 }
 
-function BrandWorldShowcase() {
+function InfoPage({ page, setPage }) {
+  const pages = {
+    about: {
+      title: "About BrandThat",
+      eyebrow: "ABOUT",
+      body: "BrandThat exists for people with early ideas who need clarity before they can launch. The product helps founders, creators, local businesses, and online operators shape strategy, identity direction, content direction, and next steps from a rough brand name and idea.",
+      notes: ["BrandThat is a software product, not a human agency.", "Outputs are AI-generated drafts designed to help users make better brand decisions."],
+    },
+    contact: {
+      title: "Contact and Support",
+      eyebrow: "SUPPORT",
+      body: "Support details need a final owner setup. Add the preferred support email, response-time expectation, and escalation process before publishing this page as final policy.",
+      notes: ["Owner review required: support inbox and response policy.", "Do not collect sensitive payment data through support messages."],
+    },
+    privacy: {
+      title: "Privacy Policy",
+      eyebrow: "OWNER REVIEW REQUIRED",
+      body: "Starter privacy page: BrandThat uses account, authentication, checkout, and generation systems to provide the service. A complete policy must be reviewed by the business owner and legal counsel before relying on it as final.",
+      notes: ["Current integrations include Supabase authentication/database, Stripe checkout, Netlify functions, and local privacy-conscious analytics events.", "Do not log passwords, payment details, or private brand descriptions in analytics."],
+    },
+    terms: {
+      title: "Terms of Service",
+      eyebrow: "OWNER REVIEW REQUIRED",
+      body: "Starter terms page: BrandThat provides software-generated brand strategy, identity direction, content direction, roadmap, saved workspace, and logo concepts. Final commercial-use, ownership, liability, acceptable-use, and subscription terms require owner/legal review.",
+      notes: ["BrandThat does not automatically provide legal clearance, trademark registration, physical merchandise, or a completed hosted website.", "Generated outputs should be reviewed before commercial use."],
+    },
+    cancellation: {
+      title: "Cancellation Policy",
+      eyebrow: "OWNER REVIEW REQUIRED",
+      body: "Starter cancellation page: BrandThat is currently presented as a $9.99/month membership. Final cancellation mechanics, access after cancellation, and renewal timing need owner confirmation and Stripe account configuration review.",
+      notes: ["The checkout function validates a recurring monthly $9.99 USD Stripe price.", "Final customer-facing cancellation instructions should link to the live billing/customer portal if one is configured."],
+    },
+    refund: {
+      title: "Refund Policy",
+      eyebrow: "OWNER REVIEW REQUIRED",
+      body: "Starter refund page: Do not publish a refund promise until the owner defines the policy. The final page should explain refund eligibility, timing, and how users contact support.",
+      notes: ["Owner decision required: refund window and exceptions.", "Avoid promising refunds that Stripe/business operations are not configured to honor."],
+    },
+  };
+  const content = pages[page] || pages.about;
   return (
-    <section className="worldShowcase">
-      <div className="worldCopy">
-        <h2>Then the brand becomes real.</h2>
-        <p>Packaging, apparel, product cards, social presence, and website direction come from the same strategic foundation.</p>
-        <div className="worldList">
-          <div><strong>Merchandise</strong><span>Heavyweight tee, embroidered cap, utility pouch, and launch tote.</span></div>
-          <div><strong>Packaging</strong><span>Shipping box, hang tag, product card, and customer insert.</span></div>
-          <div><strong>Digital</strong><span>Website, social profile, captions, handles, and first campaign direction.</span></div>
-        </div>
+    <main className="infoPage">
+      <span>{content.eyebrow}</span>
+      <h1>{content.title}</h1>
+      <p>{content.body}</p>
+      <div className="infoNotes">
+        {content.notes.map((note) => <article key={note}>{note}</article>)}
       </div>
-      <figure className="brandWorldPhoto">
-        <picture>
-          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" />
-          <img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, apparel, cap, pouch, packaging, water bottle, and stationery photographed in warm light" loading="lazy" />
-        </picture>
-        <figcaption>Northline Goods brand world: carry goods, apparel, packaging, and stationery.</figcaption>
-      </figure>
-    </section>
-  );
-}
-
-function LaunchSequence() {
-  const steps = [
-    ["First 24 hours", "Lock the promise: thoughtful carry for creative movement, built for the whole day."],
-    ["First week", "Build the first campaign around studio commutes, travel kits, gym-to-meeting days, and packing rituals."],
-    ["First 30 days", "Launch the waitlist with a founder note, first-drop product page, email sequence, and five creator seeding targets."],
-    ["Days 31-60", "Turn early feedback into product page refinements, paid creative tests, partner outreach, and first wholesale conversations."],
-    ["Days 61-90", "Scale the strongest acquisition angle and convert first buyers into repeat customers through accessories and content."],
-  ];
-
-  return (
-    <section className="launchSequence">
-      <div className="sectionIntro">
-        <h2>A plan that moves.</h2>
-        <p>BrandThat turns a brand direction into concrete action, not a vague list of marketing ideas.</p>
-      </div>
-      <div className="launchRail">
-        {steps.map(([phase, action], index) => (
-          <article className="roadmapLine" key={phase} style={{ "--launch-step": index }}>
-            <span>{phase}</span>
-            <p>{action}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LivingWorkspaceMoment() {
-  return (
-    <section className="livingWorkspace">
-      <div className="workspaceManifesto">
-        <h2>The idea now has a headquarters.</h2>
-        <p>The workspace is where the founder returns to the thesis, follows the roadmap, saves creative direction, and keeps building the company.</p>
-        <div className="workspaceShelf">
-          <div><span>Strategy</span><strong>Positioning, audience, differentiator</strong></div>
-          <div><span>Identity</span><strong>Colors, type, visual direction</strong></div>
-          <div><span>Content</span><strong>Captions, bios, hashtags, channels</strong></div>
-          <div><span>Roadmap</span><strong>Next actions and launch tasks</strong></div>
-        </div>
-      </div>
-      <div className="brandHeadquarters">
-        <picture>
-          <source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-digital-system-small.jpg" />
-          <img src="/brandthat-assets/northline-digital-system.jpg" alt="Northline Goods website, Instagram profile, brand guidelines, caption examples, and launch roadmap" loading="lazy" />
-        </picture>
-      </div>
-    </section>
-  );
-}
-
-function BirthOffer({ startCheckout, openAuth, user }) {
-  return (
-    <section className="birthOffer" id="brandthat-membership">
-      <div>
-        <h2>Every month, build with the full BrandThat system.</h2>
-        <p>Brand thesis, positioning, audience, voice, visual direction, platform strategy, content direction, 90-day roadmap, saved workspace, and logo concepts are unlocked while your membership is active.</p>
-      </div>
-      <div className="priceStatement">
-        <span>BrandThat Membership</span>
-        <strong>$9.99/mo</strong>
-        <p>Monthly access to the complete brand-building workspace and generators.</p>
-        <button onClick={() => user?.email ? startCheckout(MEMBER_PLAN) : openAuth("signup", "Create your BrandThat account to build your first Brand Plan.")}>
-          {user?.email ? "Start Membership - $9.99/mo" : "Create Account"}
-        </button>
-      </div>
-    </section>
+      <button className="birthCta" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Back to BrandThat</button>
+    </main>
   );
 }
 
@@ -10353,49 +10117,11 @@ textarea{height:170px;resize:none;line-height:1.6}
 `;
 
 const futureThemeCss = `
-:root{
-  --bt-ink:#11110f;
-  --bt-muted:#6f6a61;
-  --bt-paper:#fffdf8;
-  --bt-soft:#f6f2ea;
-  --bt-surface:#ffffff;
-  --bt-line:rgba(17,17,15,.12);
-  --bt-sand:#d7c5ad;
-  --bt-clay:#8f7354;
-  --bt-sage:#747863;
-  --bt-shadow:0 32px 90px rgba(35,28,19,.12);
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,input,textarea{font:inherit}
-button{cursor:pointer}
-button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}
-.app{min-height:100vh;background:var(--bt-paper) !important;color:var(--bt-ink) !important;font-feature-settings:"ss01" on,"cv01" on}
-.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:18px clamp(20px,4vw,56px) 12px;background:rgba(255,253,248,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(17,17,15,.06)}
-.navInner{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.logoText{font-size:24px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink)}
-.navLinks{display:flex;align-items:center;gap:4px;padding:5px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.74)}
-.navLinks button{border:0;background:transparent;border-radius:999px;padding:10px 16px;color:#302d28;font-weight:750;font-size:14px;transition:background .2s ease,color .2s ease,transform .2s ease}
-.navLinks button:hover{background:#11110f;color:#fffdf8;transform:translateY(-1px)}
-.authCluster{display:flex;align-items:center;gap:10px}.authCluster .userEmail{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:14px}
-.authCluster button,.birthCta,.birthSecondary,.inputAction,.examplesFinal button,.priceStatement button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:13px 19px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;box-shadow:none;transition:transform .22s ease,background .22s ease,color .22s ease,border-color .22s ease;text-decoration:none}
-.authCluster button:hover,.birthCta:hover,.inputAction:hover,.examplesFinal button:hover,.priceStatement button:hover{transform:translateY(-2px);background:#2a251f;border-color:#2a251f}.authCluster .ghostButton,.birthSecondary{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.authCluster .ghostButton:hover,.birthSecondary:hover{background:#f0e8dc;color:#11110f;border-color:#d4c2aa}
-.birthPage{overflow:hidden;background:var(--bt-paper);color:var(--bt-ink)}
-.birthHero{width:min(1440px,calc(100% - 44px));margin:0 auto;display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,.9fr);gap:clamp(44px,7vw,108px);align-items:center;padding:84px 0 96px;min-height:calc(100vh - 86px)}
-.birthHeroCopy h1,.examplesHero h1{font-size:clamp(68px,10.5vw,160px);line-height:.86;letter-spacing:-.08em;margin:0 0 28px;font-weight:950;color:var(--bt-ink)}
-.birthHeroCopy>p,.examplesHero p{font-size:clamp(21px,2vw,31px);line-height:1.28;color:var(--bt-muted);max-width:740px;margin:0 0 34px;letter-spacing:-.035em;font-weight:540}.birthHeroActions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:34px}.birthHeroActions span{font-size:14px;color:var(--bt-muted);font-weight:750;letter-spacing:-.01em}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual:before{content:"";position:absolute;inset:-34px;background:linear-gradient(120deg,rgba(215,197,173,.45),rgba(255,253,248,0) 58%);border-radius:44px;z-index:0}.birthHeroVisual>*{position:relative;z-index:1}
-.northlineInputPanel{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:30px;padding:28px;box-shadow:var(--bt-shadow);display:grid;gap:20px;max-width:600px}.inputPanelHeader{display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--bt-muted);font-size:13px;font-weight:820;letter-spacing:.04em;text-transform:uppercase}.inputPanelHeader strong{font-size:18px;text-transform:none;letter-spacing:-.04em;color:var(--bt-ink)}.inputRows{display:grid;gap:14px}.inputRow{display:grid;gap:8px;padding:17px;border:1px solid rgba(17,17,15,.09);border-radius:18px;background:#fffdf8}.inputRow span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--bt-muted);font-weight:850}.inputRow strong{font-size:24px;letter-spacing:-.055em;line-height:1.05}.inputRow p{margin:0;color:#48433c;font-size:17px;line-height:1.42;letter-spacing:-.02em}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:4px 0}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:10px 0;color:#47413a;font-size:13px;font-weight:740}.inputAction{width:100%;padding:15px 18px}
-.northlineOutputPreview{display:grid;gap:18px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:30px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.previewImageFrame{aspect-ratio:3/2}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:12px}.outputTray div{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:16px;min-height:112px}.outputTray span,.systemBlock span,.toolExample span,.roadmapLine span,.workspaceShelf span,.priceStatement span,.exampleBrandCopy>span,.examplesKicker{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.outputTray strong{display:block;font-size:18px;line-height:1.08;letter-spacing:-.045em}
-.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{width:min(1200px,calc(100% - 44px));margin:0 auto;padding:96px 0}.originMoment{display:grid;grid-template-columns:minmax(0,.95fr) minmax(360px,1fr);gap:46px;align-items:end}.originLine p{font-size:clamp(44px,6vw,92px);line-height:.93;letter-spacing:-.075em;margin:0;font-weight:920}.originAnnotations{display:grid;gap:16px}.originAnnotations article{border-top:1px solid var(--bt-line);padding-top:16px}.originAnnotations strong{display:block;font-size:19px;letter-spacing:-.04em;margin-bottom:8px}.originAnnotations span{display:block;color:var(--bt-muted);font-size:17px;line-height:1.42}
-.brandAwakening{display:grid;grid-template-columns:minmax(0,.72fr) minmax(520px,1fr);gap:52px;align-items:start}.awakeningCopy h2,.worldCopy h2,.workspaceManifesto h2,.toolsCopy h2,.birthOffer h2,.birthBuilder h2,.sectionIntro h2{font-size:clamp(48px,7vw,104px);line-height:.9;letter-spacing:-.075em;margin:0 0 18px;font-weight:950}.awakeningCopy p,.worldCopy p,.workspaceManifesto p,.toolsCopy p,.birthOffer p,.birthBuilder p,.sectionIntro p{font-size:clamp(19px,2vw,26px);line-height:1.33;color:var(--bt-muted);letter-spacing:-.035em;margin:0}.northlineSystem{display:grid;grid-template-columns:1fr 1fr;gap:14px}.systemBlock{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px}.systemBlock.large{grid-column:span 2;background:#11110f;color:#fffdf8}.systemBlock h3{font-size:32px;line-height:1.02;letter-spacing:-.06em;margin:0 0 14px}.systemBlock p{margin:0;color:inherit;opacity:.75;line-height:1.42;font-size:16px}.systemPalette{display:flex;gap:10px;align-items:center;margin-top:18px}.systemPalette i{width:48px;height:48px;border-radius:50%;border:1px solid rgba(17,17,15,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
-.worldShowcase{display:grid;grid-template-columns:minmax(0,.8fr) minmax(520px,1fr);gap:48px;align-items:center}.brandWorldPhoto{aspect-ratio:3/2}.brandWorldPhoto figcaption{font-size:12px;color:var(--bt-muted);margin:10px 4px 0}.worldList{display:grid;gap:12px;margin-top:28px}.worldList div{display:grid;grid-template-columns:116px 1fr;gap:18px;border-top:1px solid var(--bt-line);padding-top:13px}.worldList strong{font-size:14px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}
-.launchSequence{background:#11110f;color:#fffdf8;width:100%;max-width:none;padding:108px max(22px,calc((100vw - 1200px)/2));margin-top:50px}.launchSequence .sectionIntro p{color:rgba(255,253,248,.7)}.launchRail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:34px}.roadmapLine{background:rgba(255,253,248,.07);border:1px solid rgba(255,253,248,.12);border-radius:20px;padding:18px;min-height:204px}.roadmapLine span{color:#d7c5ad}.roadmapLine p{margin:0;color:rgba(255,253,248,.68);font-size:14px;line-height:1.42}.livingWorkspace{display:grid;grid-template-columns:minmax(0,.85fr) minmax(520px,1fr);gap:48px;align-items:center}.brandHeadquarters picture{aspect-ratio:3/2}.workspaceShelf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:28px}.workspaceShelf div{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:16px}.workspaceShelf strong{letter-spacing:-.03em;font-size:16px;line-height:1.25}.northlineToolsSection{display:grid;grid-template-columns:minmax(0,.75fr) minmax(500px,1fr);gap:50px;align-items:start}.northlineToolsList{display:grid;gap:4px}.toolExample{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:start;border-top:1px solid var(--bt-line);padding:18px 0}.toolExample p{margin:0;color:var(--bt-muted);font-size:17px;line-height:1.4}
-.birthOffer{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:44px;align-items:center}.priceStatement{background:#11110f;color:#fffdf8;border-radius:30px;padding:30px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:72px;letter-spacing:-.085em;line-height:.9;margin:6px 0 16px}.priceStatement p{font-size:16px;color:rgba(255,253,248,.7);margin-bottom:22px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%}.birthBuilder{display:grid;grid-template-columns:minmax(0,.75fr) minmax(520px,1fr);gap:44px;align-items:start;padding-bottom:132px}.birthBuilder .brandBuilderFlow,.birthBuilder form,.birthBuilder .workspaceCard{max-width:100%}
-.examplesPage{background:var(--bt-paper);color:var(--bt-ink);padding:72px clamp(22px,5vw,76px) 110px}.examplesHero{max-width:1120px;margin:0 auto 64px}.examplesHero p{max-width:760px}.examplesActions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.exampleBrandGrid{display:grid;gap:58px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);gap:40px;align-items:center;border:0;background:transparent;box-shadow:none;padding:0}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(360px,.88fr) minmax(0,1.12fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandMedia{aspect-ratio:3/2}.exampleBrandCopy{padding:0}.exampleBrandCopy h2{font-size:clamp(46px,7vw,94px);line-height:.9;letter-spacing:-.075em;margin:0 0 18px}.exampleBrandCopy p{font-size:22px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.03em}.exampleDetails{display:grid;gap:12px;margin-top:24px}.exampleDetails div{display:grid;grid-template-columns:120px 1fr;gap:16px;border-top:1px solid var(--bt-line);padding-top:12px}.exampleDetails strong{font-size:14px}.exampleDetails span{color:var(--bt-muted);font-size:15px;line-height:1.35}.examplesFinal{max-width:980px;margin:76px auto 0;text-align:center;background:#11110f;color:#fffdf8;border-radius:34px;padding:52px 28px}.examplesFinal h2{font-size:clamp(44px,6vw,86px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.examplesFinal p{color:rgba(255,253,248,.68);font-size:20px}.examplesFinal .birthCta{background:#fffdf8;color:#11110f;border-color:#fffdf8}
-.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{animation:softReveal .7s ease both}.agentSteps span{animation:lineIn .55s ease both}.agentSteps span:nth-child(2){animation-delay:.08s}.agentSteps span:nth-child(3){animation-delay:.16s}.agentSteps span:nth-child(4){animation-delay:.24s}@keyframes softReveal{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}@keyframes lineIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}}
-@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;scroll-behavior:auto !important}}
-@media(max-width:1100px){.birthHero,.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{grid-template-columns:1fr}.birthHero{min-height:auto;padding-top:58px}.birthHeroVisual{max-width:760px}.launchRail{grid-template-columns:repeat(2,minmax(0,1fr))}.northlineSystem{grid-template-columns:1fr}.systemBlock.large{grid-column:auto}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:480px}}
-@media(max-width:720px){.nav{padding:12px 18px}.navInner{gap:12px}.logoText{font-size:22px}.navLinks{display:none}.authCluster .userEmail{display:none}.authCluster button{padding:10px 13px;font-size:13px}.birthHero{width:calc(100% - 32px);padding:46px 0 68px;gap:34px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,18vw,86px);line-height:.86}.birthHeroCopy>p,.examplesHero p{font-size:20px}.birthHeroActions{align-items:stretch}.birthCta,.birthSecondary{width:100%}.northlineInputPanel{border-radius:24px;padding:20px}.agentSteps,.outputTray,.workspaceShelf{grid-template-columns:1fr}.originMoment,.brandAwakening,.worldShowcase,.livingWorkspace,.northlineToolsSection,.birthOffer,.birthBuilder{width:calc(100% - 32px);padding:66px 0;gap:30px}.originLine p,.awakeningCopy h2,.worldCopy h2,.workspaceManifesto h2,.toolsCopy h2,.birthOffer h2,.birthBuilder h2,.sectionIntro h2{font-size:clamp(44px,14vw,70px)}.launchSequence{padding:70px 16px}.launchRail{grid-template-columns:1fr}.roadmapLine{min-height:0}.worldList div,.toolExample,.exampleDetails div{grid-template-columns:1fr;gap:6px}.brandWorldPhoto,.brandHeadquarters picture,.previewImageFrame,.exampleBrandMedia{border-radius:22px}.priceStatement{border-radius:24px;padding:24px}.priceStatement strong{font-size:58px}.examplesPage{padding:46px 16px 80px}.exampleBrandGrid{gap:54px}.examplesFinal{border-radius:24px;padding:34px 18px}.examplesActions .birthCta,.examplesActions .birthSecondary{width:100%}}
+:root{--bt-ink:#11110f;--bt-muted:#625d55;--bt-paper:#fffdf8;--bt-soft:#f6f2ea;--bt-line:rgba(17,17,15,.12);--bt-sand:#d7c5ad;--bt-clay:#806546;--bt-sage:#747863;--bt-shadow:0 24px 70px rgba(35,28,19,.1)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}.app{min-height:100vh;background:var(--bt-paper)!important;color:var(--bt-ink)!important}.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:14px clamp(18px,4vw,54px) 10px;background:rgba(255,253,248,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(17,17,15,.06)}.navInner{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand,.logoText{font-size:23px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink);border:0;background:transparent}.navLinks{display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.72)}.navLinks button{border:0;background:transparent;border-radius:999px;padding:9px 14px;color:#302d28;font-weight:760;font-size:14px}.navLinks button:hover{background:#11110f;color:#fffdf8}.navActions,.authCluster{display:flex;align-items:center;gap:10px}.navPrimaryCta,.accountBtn,.authCluster button,.birthCta,.birthSecondary,.inputAction,.priceStatement button,.unlockCallout button,.btn.dark,.btn.light{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:12px 18px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;text-decoration:none;transition:transform .18s ease,background .18s ease,color .18s ease,border-color .18s ease}.birthSecondary,.btn.light{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.navPrimaryCta:hover,.accountBtn:hover,.birthCta:hover,.inputAction:hover,.priceStatement button:hover,.unlockCallout button:hover,.btn.dark:hover{transform:translateY(-1px);background:#2a251f}.birthSecondary:hover,.btn.light:hover{background:#f0e8dc}.accountMenu{display:flex;align-items:center;gap:8px}.accountMenu span{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:13px}
+.birthPage{background:var(--bt-paper);overflow:hidden}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:min(1180px,calc(100% - 44px));margin:0 auto}.birthHero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(420px,.88fr);gap:clamp(30px,5vw,76px);align-items:center;padding:54px 0 60px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,9.5vw,132px);line-height:.87;letter-spacing:-.08em;margin:0 0 22px;font-weight:950;color:var(--bt-ink)}.birthHeroCopy>p,.examplesHero p{font-size:clamp(19px,1.75vw,25px);line-height:1.3;color:var(--bt-muted);max-width:690px;margin:0 0 24px;letter-spacing:-.03em}.birthHeroActions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.textLinkButton{border:0;background:transparent;color:#11110f;text-decoration:underline;text-underline-offset:4px;font-weight:820;padding:10px}.heroSupport,.builderFinePrint,.policyNote{font-size:14px;color:var(--bt-muted);line-height:1.45;margin:0 0 20px}.birthHeroVisual:before{content:"";position:absolute;inset:-22px;background:linear-gradient(120deg,rgba(215,197,173,.35),rgba(255,253,248,0) 56%);border-radius:34px;z-index:0}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual>*{position:relative;z-index:1}.northlineInputPanel,.brandBuilderCard{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:26px;padding:22px;box-shadow:var(--bt-shadow);display:grid;gap:16px}.inputPanelHeader,.builderTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.inputPanelHeader span,.builderTop>span,.sectionHeader>span,.worldCopy>span,.pricingSection>div>span,.exampleBrandCopy>span,.examplesKicker,.priceStatement span{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.inputPanelHeader strong{font-size:16px;color:var(--bt-ink)}.inputRows{display:grid;gap:12px}.inputRow,.builderField{display:grid;gap:8px;padding:15px;border:1px solid rgba(17,17,15,.09);border-radius:16px;background:#fffdf8}.inputRow span,.builderField span,.outputTray span,.toolExample span,.roadmapLine span,.workspaceShelf span,.previewResult span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#806546;font-weight:850}.inputRow strong{font-size:22px;letter-spacing:-.05em}.inputRow p,.builderField input,.builderField textarea{margin:0;color:#38332d;font-size:16px;line-height:1.4}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:8px 0;color:#47413a;font-size:13px;font-weight:740}.northlineOutputPreview{display:grid;gap:14px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:26px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0;aspect-ratio:3/2}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:10px}.outputTray div{background:#11110f;color:#fffdf8;border-radius:16px;padding:15px;min-height:96px}.outputTray span{color:#d7c5ad}.outputTray strong{display:block;color:#fffdf8;font-size:18px;line-height:1.15;letter-spacing:-.03em}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:56px 0}.sectionHeader.compact{max-width:820px;margin-bottom:28px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(42px,6vw,82px);line-height:.94;letter-spacing:-.07em;margin:0 0 14px;font-weight:950}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:clamp(18px,1.8vw,23px);line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em;margin:0}.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder{display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,1fr);gap:36px;align-items:start}.walkthroughSteps,.receiveGrid,.howGrid,.boundaryGrid,.faqList,.infoNotes{display:grid;gap:12px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{border-top:1px solid var(--bt-line);padding:14px 0}.walkthroughSteps span,.howGrid span{color:var(--bt-clay);font-size:12px;font-weight:900;letter-spacing:.08em}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{display:block;font-size:20px;letter-spacing:-.04em;margin-bottom:6px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{color:var(--bt-muted);line-height:1.45;margin:0}.receiveGrid,.howGrid,.boundaryGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.boundaryGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.worldList{display:grid;gap:10px;margin-top:22px}.worldList div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:11px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}.priceStatement{background:#11110f;color:#fffdf8;border-radius:26px;padding:26px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:64px;letter-spacing:-.08em;line-height:.9;margin:6px 0 16px}.priceStatement p,.priceStatement li{color:rgba(255,253,248,.72);line-height:1.45}.priceStatement a{display:inline-block;color:#fffdf8;margin-top:14px;text-decoration:underline;text-underline-offset:4px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%;margin-top:14px}.builderContextGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.builderField.full{grid-column:1/-1}.builderField{padding:0;background:transparent;border:0}.builderField input,.builderField textarea,.footerForm input{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:13px 14px}.builderField textarea{min-height:122px;resize:vertical}.builderActions{display:flex;gap:10px;flex-wrap:wrap}.previewResult{display:grid;grid-template-columns:1fr 1fr;gap:12px}.previewResult>div{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:16px;padding:16px}.previewResult p{margin:6px 0 0;color:#39342e;line-height:1.42}.previewSwatches{display:flex;gap:8px;margin-top:10px}.previewSwatches i{width:38px;height:38px;border-radius:50%;border:1px solid rgba(17,17,15,.14)}.unlockCallout{grid-column:1/-1;background:#11110f!important;color:#fffdf8!important}.unlockCallout p{color:rgba(255,253,248,.72)!important}.unlockCallout button{margin-top:12px;background:#fffdf8;color:#11110f}.faqList details{border-top:1px solid var(--bt-line);padding:16px 0}.faqList summary{font-weight:850;font-size:18px;cursor:pointer}.examplesPage{background:var(--bt-paper);padding:54px clamp(22px,5vw,76px) 90px}.examplesHero{max-width:980px;margin:0 auto 48px}.exampleBrandGrid{display:grid;gap:54px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);gap:34px;align-items:center}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(340px,.95fr) minmax(0,1.05fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandCopy h2{font-size:clamp(42px,6vw,82px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.exampleBrandCopy p{font-size:21px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em}.exampleDetails{display:grid;gap:10px;margin-top:20px}.exampleDetails div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:10px}.exampleDetails span{color:var(--bt-muted);font-size:15px}.textExamplePanel{padding:28px;box-shadow:none}.textExamplePanel strong{font-size:34px;letter-spacing:-.06em}.textExamplePanel li{color:var(--bt-muted);margin:10px 0;line-height:1.4}.darkPanel{background:#11110f;color:#fffdf8}.darkPanel li,.darkPanel p{color:rgba(255,253,248,.7)}.infoPage{padding:78px 0}.infoPage>span{color:var(--bt-clay);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.footerSubscribe.completeFooter{max-width:1180px;margin:0 auto;padding:50px 0 70px;border-top:1px solid var(--bt-line);display:grid;grid-template-columns:1fr 420px;gap:36px}.footerSubscribe h2{font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.06em}.footerSubscribe p,.footerForm span{color:var(--bt-muted);line-height:1.55}.footerLinks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.footerLinks button{border:0;background:transparent;text-align:left;padding:6px 0;color:#11110f;text-decoration:underline;text-underline-offset:3px;font-weight:750}
+.builderContextFields{border:1px solid rgba(17,17,15,.1);border-radius:16px;background:#fffdf8;padding:12px 14px}.builderContextFields summary{cursor:pointer;font-weight:850;color:#2f2a25}.builderContextFields .builderContextGrid{margin-top:14px}
+@media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.exampleBrandMedia{animation:softReveal .55s ease both}@keyframes softReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(max-width:1050px){.birthHero,.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder,.footerSubscribe.completeFooter{grid-template-columns:1fr}.birthHero{padding-top:42px}.birthHero .northlineInputPanel,.productWalkthrough .northlineOutputPreview{display:none}.birthHeroVisual{max-width:760px}.receiveGrid,.howGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.boundaryGrid{grid-template-columns:1fr}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:520px}.navInner{align-items:flex-start}.navLinks{max-width:100%;overflow-x:auto}}
+@media(max-width:720px){.nav{padding:10px 16px}.navInner{display:grid;grid-template-columns:1fr auto;gap:10px}.navLinks{grid-column:1/-1;width:100%;border-radius:14px;justify-content:flex-start}.navPrimaryCta{display:none}.accountMenu span{display:none}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:calc(100% - 32px)}.birthHero{padding:30px 0 34px;gap:20px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(50px,15vw,68px);letter-spacing:-.075em}.birthHeroCopy>p,.examplesHero p{font-size:18px;margin-bottom:18px}.heroSupport{margin-bottom:0}.birthHero .northlineInputPanel{display:none}.birthHeroActions,.builderActions{align-items:stretch;margin-bottom:12px}.birthCta,.birthSecondary,.textLinkButton,.btn.dark,.btn.light{width:100%}.northlineInputPanel,.brandBuilderCard{border-radius:22px;padding:18px}.agentSteps,.outputTray,.builderContextGrid,.previewResult,.receiveGrid,.howGrid{grid-template-columns:1fr}.productWalkthrough .northlineOutputPreview{display:none}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:34px 0}.sectionHeader.compact{margin-bottom:18px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(36px,10.8vw,52px);letter-spacing:-.065em}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:17px}.walkthroughSteps{gap:4px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{padding:10px 0}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{font-size:18px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{font-size:14px}.worldList{margin-top:16px}.worldList div,.exampleDetails div{grid-template-columns:1fr;gap:5px}.previewImageFrame,.brandWorldPhoto,.exampleBrandMedia{border-radius:20px}.priceStatement{border-radius:22px;padding:20px}.priceStatement strong{font-size:48px}.faqList details{padding:11px 0}.faqList summary{font-size:16px}.builderField textarea{min-height:96px}.builderContextFields{padding:11px 12px}.examplesPage{padding:38px 16px 70px}.exampleBrandGrid{gap:44px}.footerSubscribe.completeFooter{width:calc(100% - 32px);padding:34px 0 42px;gap:18px}.footerSubscribe h2{font-size:34px}.footerLinks{grid-template-columns:1fr}.footerForm input,.footerForm button{width:100%}}
 `;
