@@ -1,0 +1,167 @@
+name: Apply checkout fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-checkout-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply checkout fix patch
+        run: |
+          cat > /tmp/brandthat-checkout-fix.patch <<'PATCH'
+          diff --git a/brandthat-ai-full-project/netlify/functions/create-checkout-session.js b/brandthat-ai-full-project/netlify/functions/create-checkout-session.js
+          index 1d47a8d..e762ac9 100644
+          --- a/brandthat-ai-full-project/netlify/functions/create-checkout-session.js
+          +++ b/brandthat-ai-full-project/netlify/functions/create-checkout-session.js
+          @@ -3,6 +3,19 @@ const { requireVerifiedUser } = require("./lib/auth");
+           
+           const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+           
+          +function getMembershipPriceId() {
+          +  return (
+          +    process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
+          +    process.env.STRIPE_MEMBER_PRICE_ID ||
+          +    process.env.STRIPE_MONTHLY_PRICE_ID ||
+          +    process.env.STRIPE_SUBSCRIPTION_PRICE_ID ||
+          +    process.env.STRIPE_PRICE_ID ||
+          +    process.env.STRIPE_PRO_PRICE_ID ||
+          +    process.env.STRIPE_STARTER_PRICE_ID ||
+          +    ""
+          +  );
+          +}
+          +
+           exports.handler = async (event) => {
+             try {
+               if (event.httpMethod && event.httpMethod !== "POST") {
+          @@ -42,12 +55,7 @@ exports.handler = async (event) => {
+                 };
+               }
+           
+          -    const priceId =
+          -      process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
+          -      process.env.STRIPE_MEMBER_PRICE_ID ||
+          -      process.env.STRIPE_PRO_PRICE_ID ||
+          -      process.env.STRIPE_STARTER_PRICE_ID ||
+          -      "";
+          +    const priceId = getMembershipPriceId();
+           
+               if (!priceId) {
+                 console.error("BrandThat checkout misconfigured: membership price ID is missing.");
+          @@ -59,7 +67,35 @@ exports.handler = async (event) => {
+                 };
+               }
+           
+          -    const price = await stripe.prices.retrieve(priceId);
+          +    if (!String(priceId).startsWith("price_")) {
+          +      console.error("BrandThat checkout misconfigured: membership price must be a Stripe Price ID.", {
+          +        configuredPrefix: String(priceId).slice(0, 8),
+          +      });
+          +      return {
+          +        statusCode: 500,
+          +        body: JSON.stringify({
+          +          error: "Stripe membership must be configured with a recurring Price ID, not a payment link or product ID.",
+          +        }),
+          +      };
+          +    }
+          +
+          +    let price;
+          +    try {
+          +      price = await stripe.prices.retrieve(priceId);
+          +    } catch (error) {
+          +      console.error("BrandThat checkout misconfigured: membership price could not be verified.", {
+          +        priceId,
+          +        type: error?.type,
+          +        code: error?.code,
+          +        message: error?.message,
+          +      });
+          +      return {
+          +        statusCode: 500,
+          +        body: JSON.stringify({
+          +          error: "Stripe membership price could not be verified. Please contact BrandThat support.",
+          +        }),
+          +      };
+          +    }
+           
+               const isMonthlyMembership =
+                 price.currency === "usd" &&
+          diff --git a/brandthat-ai-full-project/scripts/test-checkout-handler.mjs b/brandthat-ai-full-project/scripts/test-checkout-handler.mjs
+          index 3bea1e1..8c44854 100644
+          --- a/brandthat-ai-full-project/scripts/test-checkout-handler.mjs
+          +++ b/brandthat-ai-full-project/scripts/test-checkout-handler.mjs
+          @@ -54,7 +54,7 @@ assert.match(JSON.parse(missingStripeResponse.body).error, /checkout is not conf
+           const stripeState = {};
+           const successHandler = loadHandler({
+             authResult: { user: { id: "user_123", email: "founder@example.com" } },
+          -  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_BRAND_PLAN_PRICE_ID: "price_monthly_999", URL: "https://brandthat.ai" },
+          +  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_PRICE_ID: "price_monthly_999", URL: "https://brandthat.ai" },
+             stripeState,
+           });
+           const successResponse = await successHandler({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ plan: "member" }) });
+          @@ -65,4 +65,12 @@ assert.equal(stripeState.checkoutArgs.line_items[0].price, "price_monthly_999",
+           assert.equal(stripeState.checkoutArgs.customer_email, "founder@example.com", "checkout should use the authenticated user's email");
+           assert.equal(stripeState.checkoutArgs.metadata.user_id, "user_123", "checkout should bind the session to the authenticated user");
+           
+          +const badPriceHandler = loadHandler({
+          +  authResult: { user: { id: "user_123", email: "founder@example.com" } },
+          +  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_PRICE_ID: "https://buy.stripe.com/test_123" },
+          +});
+          +const badPriceResponse = await badPriceHandler({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ plan: "member" }) });
+          +assert.equal(badPriceResponse.statusCode, 500, "checkout endpoint should reject payment links as price configuration");
+          +assert.match(JSON.parse(badPriceResponse.body).error, /Price ID/i, "checkout endpoint should explain that Stripe needs a price ID");
+          +
+           console.log("Checkout handler tests passed.");
+          diff --git a/brandthat-ai-full-project/src/App.jsx b/brandthat-ai-full-project/src/App.jsx
+          index e33c3f8..3acc1a2 100644
+          --- a/brandthat-ai-full-project/src/App.jsx
+          +++ b/brandthat-ai-full-project/src/App.jsx
+          @@ -471,9 +471,12 @@ async function fetchJsonWithTimeout(url, options = {}, config = {}) {
+           
+               if (!response.ok) {
+                 if (response.status >= 500) console.warn("BrandThat request failed", { url, status: response.status, data });
+          +      const serverMessage = data.error || data.text;
+                 const publicMessage = response.status >= 500
+          -        ? (config.errorMessage || "BrandThat could not complete that request. Please try again.")
+          -        : (data.error || data.text || config.errorMessage || `Request failed with status ${response.status}.`);
+          +        ? (config.revealServerError && serverMessage
+          +          ? serverMessage
+          +          : (config.errorMessage || "BrandThat could not complete that request. Please try again."))
+          +        : (serverMessage || config.errorMessage || `Request failed with status ${response.status}.`);
+                 const error = new Error(publicMessage);
+                 error.status = response.status;
+                 throw error;
+          @@ -3233,7 +3236,8 @@ export default function App() {
+                 body: JSON.stringify({ plan: checkoutPlan })
+               }, {
+                 timeoutMs: 15000,
+          -        errorMessage: "Checkout could not start.",
+          +        errorMessage: "Checkout could not start. Please try again.",
+          +        revealServerError: true,
+                 timeoutMessage: "Checkout took too long to start. Please try again."
+               });
+           
+          PATCH
+          sed -i 's/^          //' /tmp/brandthat-checkout-fix.patch
+          git apply /tmp/brandthat-checkout-fix.patch
+      - name: Test and build
+        working-directory: brandthat-ai-full-project
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Commit fix and remove workflow
+        run: |
+          rm .github/workflows/apply-checkout-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add brandthat-ai-full-project/src/App.jsx brandthat-ai-full-project/netlify/functions/create-checkout-session.js brandthat-ai-full-project/scripts/test-checkout-handler.mjs .github/workflows/apply-checkout-fix.yml
+          git commit -m "Fix checkout configuration feedback"
+          git push origin HEAD:main
