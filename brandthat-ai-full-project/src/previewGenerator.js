@@ -1,5 +1,15 @@
 const CATEGORY_PROFILES = [
   {
+    key: "pet-service",
+    match: /\b(dog|pet|pets|groom|grooming|puppy|senior pet|families|mobile service|at-home)\b/i,
+    category: "mobile pet care service",
+    audience: "busy families, senior pet owners, and local households who want gentle, convenient grooming without stressful travel or long salon waits",
+    voiceTraits: ["Gentle", "Reliable", "Comforting"],
+    positioning: "Own convenience plus care: a mobile grooming service that makes pets feel safe and gives owners a cleaner, easier way to stay on top of grooming.",
+    visualDirection: "Use clean warm whites, soft charcoal, calming blue-green, and a friendly accent with natural pet photography, van/service cues, hygiene details, and rounded typography that feels trustworthy without becoming childish.",
+    colors: ["#26302d", "#fff8ed", "#7aa6a1", "#d7a66f"],
+  },
+  {
     key: "coffee",
     match: /\b(coffee|espresso|latte|cafe|café|brew|roast|caffeine)\b/i,
     category: "mobile coffee and outdoor hospitality",
@@ -21,12 +31,12 @@ const CATEGORY_PROFILES = [
   },
   {
     key: "software",
-    match: /\b(software|app|saas|platform|dashboard|workspace|invoice|sponsorship|creator|creators|tool)\b/i,
-    category: "creator operations software",
+    match: /\b(software|app|saas|platform|dashboard|workspace|invoice|invoices|sponsorship|sponsorships|deliverable|deliverables|campaign|tool)\b/i,
+    category: "sponsorship workflow software",
     audience: "independent creators, small talent managers, and sponsorship-driven teams who need cleaner control over deals, invoices, deliverables, and campaign notes",
     voiceTraits: ["Clear", "Composed", "Operator-minded"],
-    positioning: "Differentiate as the calm business layer for creators: less chaotic than spreadsheets, lighter than agency software, and built around sponsorship work.",
-    visualDirection: "Use crisp monochrome, cool graphite, soft blue-gray, and a precise accent color with clean interface crops, task states, deal cards, and typography that feels fast and organized.",
+    positioning: "Differentiate as the calm business layer for creators: a focused workflow that keeps sponsorship status, invoices, and deliverables easier to understand and act on.",
+    visualDirection: "Use crisp monochrome, cool graphite, soft blue-gray, and a precise accent color with clean product screenshots, workflow summaries, status labels, and typography that feels fast and organized.",
     colors: ["#111317", "#f7f8f5", "#6d7f91", "#a9c6c7"],
   },
   {
@@ -61,8 +71,10 @@ function sentenceCase(value) {
 }
 
 function inferProfile(draft) {
-  const haystack = [draft.name, draft.description, draft.industry, draft.audience, draft.style, draft.desiredFeeling, draft.locationMarket].map(clean).join(" ");
-  return CATEGORY_PROFILES.find((profile) => profile.match.test(haystack)) || {
+  const primaryText = [draft.name, draft.description].map(clean).join(" ");
+  const optionalText = [draft.industry, draft.audience, draft.style, draft.desiredFeeling, draft.locationMarket].map(clean).join(" ");
+  return CATEGORY_PROFILES.find((profile) => profile.match.test(primaryText)) ||
+  CATEGORY_PROFILES.find((profile) => profile.match.test(optionalText)) || {
     key: "general",
     category: clean(draft.industry, "early-stage brand"),
     audience: "customers whose daily routine, taste, or work would clearly improve if this idea delivered on its promise",

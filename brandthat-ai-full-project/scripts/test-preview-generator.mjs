@@ -3,6 +3,18 @@ import { buildPreviewFromDraft } from "../src/previewGenerator.js";
 
 const cases = [
   {
+    key: "pet-service",
+    draft: {
+      name: "Paws on Wheels",
+      description: "A mobile dog grooming service for busy families and senior pet owners.",
+      industry: "mobile pet grooming",
+      audience: "busy families and senior pet owners",
+      style: "gentle, clean, trustworthy",
+    },
+    expected: ["busy families", "senior pet", "grooming", "convenient", "gentle"],
+    blocked: ["creators", "sponsorship", "software", "invoices", "spreadsheets", "deal cards", "technical bags"],
+  },
+  {
     key: "coffee",
     draft: {
       name: "Canyon Trail Coffee",
@@ -11,7 +23,8 @@ const cases = [
       audience: "hikers and outdoor event organizers",
       style: "rugged, warm, energetic",
     },
-    expected: ["hikers", "coffee", "trail"],
+    expected: ["hikers", "coffee", "trail", "outdoor"],
+    blocked: ["sponsorship software", "dog grooming", "talent managers", "technical work bags"],
   },
   {
     key: "interiors",
@@ -23,17 +36,19 @@ const cases = [
       style: "warm, practical, tasteful",
     },
     expected: ["homeowners", "room", "interior"],
+    blocked: ["sponsorship", "deal cards", "technical bags"],
   },
   {
     key: "software",
     draft: {
       name: "SignalDesk",
-      description: "Software for creators managing sponsorships and invoices.",
+      description: "Software for creators managing sponsorships, invoices, and deliverables.",
       industry: "creator software",
       audience: "independent creators",
       style: "clear, composed, operator-minded",
     },
-    expected: ["creators", "sponsorship", "software"],
+    expected: ["creators", "sponsorship", "software", "invoices", "deliverables"],
+    blocked: ["dog grooming", "senior pets", "mobile grooming", "physical carry goods"],
   },
 ];
 
@@ -44,7 +59,7 @@ const blockedNorthlinePhrases = [
   "carry-system",
 ];
 
-const results = cases.map(({ key, draft, expected }) => {
+const results = cases.map(({ key, draft, expected, blocked = [] }) => {
   const result = buildPreviewFromDraft(draft);
   const combined = [
     result.thesis,
@@ -61,6 +76,9 @@ const results = cases.map(({ key, draft, expected }) => {
   }
   for (const phrase of blockedNorthlinePhrases) {
     assert.ok(!combined.includes(phrase), `${key} leaked Northline phrase: ${phrase}`);
+  }
+  for (const phrase of blocked) {
+    assert.ok(!combined.includes(phrase), `${key} leaked unrelated phrase: ${phrase}`);
   }
   return { key, result };
 });
