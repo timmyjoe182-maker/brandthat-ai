@@ -54,7 +54,7 @@ assert.match(JSON.parse(missingStripeResponse.body).error, /checkout is not conf
 const stripeState = {};
 const successHandler = loadHandler({
   authResult: { user: { id: "user_123", email: "founder@example.com" } },
-  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_BRAND_PLAN_PRICE_ID: "price_monthly_999", URL: "https://brandthat.ai" },
+  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_PRICE_ID: "price_monthly_999", URL: "https://brandthat.ai" },
   stripeState,
 });
 const successResponse = await successHandler({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ plan: "member" }) });
@@ -64,5 +64,13 @@ assert.equal(successBody.url, "https://checkout.stripe.test/session", "checkout 
 assert.equal(stripeState.checkoutArgs.line_items[0].price, "price_monthly_999", "checkout must use the server configured monthly price");
 assert.equal(stripeState.checkoutArgs.customer_email, "founder@example.com", "checkout should use the authenticated user's email");
 assert.equal(stripeState.checkoutArgs.metadata.user_id, "user_123", "checkout should bind the session to the authenticated user");
+
+const badPriceHandler = loadHandler({
+  authResult: { user: { id: "user_123", email: "founder@example.com" } },
+  env: { STRIPE_SECRET_KEY: "sk_test_mock", STRIPE_PRICE_ID: "https://buy.stripe.com/test_123" },
+});
+const badPriceResponse = await badPriceHandler({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ plan: "member" }) });
+assert.equal(badPriceResponse.statusCode, 500, "checkout endpoint should reject payment links as price configuration");
+assert.match(JSON.parse(badPriceResponse.body).error, /Price ID/i, "checkout endpoint should explain that Stripe needs a price ID");
 
 console.log("Checkout handler tests passed.");
