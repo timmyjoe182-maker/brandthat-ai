@@ -3,6 +3,19 @@ const { requireVerifiedUser } = require("./lib/auth");
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
+function getMembershipPriceId() {
+  return (
+    process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
+    process.env.STRIPE_MEMBER_PRICE_ID ||
+    process.env.STRIPE_MONTHLY_PRICE_ID ||
+    process.env.STRIPE_SUBSCRIPTION_PRICE_ID ||
+    process.env.STRIPE_PRICE_ID ||
+    process.env.STRIPE_PRO_PRICE_ID ||
+    process.env.STRIPE_STARTER_PRICE_ID ||
+    ""
+  );
+}
+
 exports.handler = async (event) => {
   try {
     if (event.httpMethod && event.httpMethod !== "POST") {
@@ -42,12 +55,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const priceId =
-      process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
-      process.env.STRIPE_MEMBER_PRICE_ID ||
-      process.env.STRIPE_PRO_PRICE_ID ||
-      process.env.STRIPE_STARTER_PRICE_ID ||
-      "";
+    const priceId = getMembershipPriceId();
 
     if (!priceId) {
       console.error("BrandThat checkout misconfigured: membership price ID is missing.");
@@ -59,7 +67,35 @@ exports.handler = async (event) => {
       };
     }
 
-    const price = await stripe.prices.retrieve(priceId);
+    if (!String(priceId).startsWith("price_")) {
+      console.error("BrandThat checkout misconfigured: membership price must be a Stripe Price ID.", {
+        configuredPrefix: String(priceId).slice(0, 8),
+      });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Stripe membership must be configured with a recurring Price ID, not a payment link or product ID.",
+        }),
+      };
+    }
+
+    let price;
+    try {
+      price = await stripe.prices.retrieve(priceId);
+    } catch (error) {
+      console.error("BrandThat checkout misconfigured: membership price could not be verified.", {
+        priceId,
+        type: error?.type,
+        code: error?.code,
+        message: error?.message,
+      });
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Stripe membership price could not be verified. Please contact BrandThat support.",
+        }),
+      };
+    }
 
     const isMonthlyMembership =
       price.currency === "usd" &&
