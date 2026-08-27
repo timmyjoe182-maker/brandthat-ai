@@ -98,7 +98,7 @@ function inferProfile(draft) {
 function mergeAudience(inputAudience, profileAudience) {
   const audience = clean(inputAudience);
   if (!audience) return profileAudience;
-  return `${sentenceCase(audience)} who need the specific outcome described in this idea, with messaging calibrated beyond the broader ${profileAudience}.`;
+  return `${sentenceCase(audience)} who want a convenient path to the specific outcome described in this idea, with messaging focused on the need, setting, and buying moment instead of a generic category promise.`;
 }
 
 function mergeStyle(inputStyle, profile) {
