@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./workspace-upgrades.css";
+import "./globalQualityGuard.js";
 import App from "./App.jsx";
 
 class BrandThatErrorBoundary extends React.Component {
