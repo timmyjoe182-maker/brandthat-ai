@@ -46,10 +46,10 @@ const tools = [
   },
   {
     key: "captions",
-    title: "Free Caption Generator",
+    title: "Caption Generator",
     shortTitle: "Captions",
     desc: "Choose a platform, describe the post, and get 10 clean caption options instantly.",
-    label: "FREE CAPTION GENERATOR",
+    label: "CAPTION GENERATOR",
     platformLabel: "Social platform",
     platforms: ["Instagram", "TikTok", "Facebook", "LinkedIn", "X / Twitter", "YouTube Shorts", "Pinterest"],
     placeholder: "Example: A sunset ranch dinner with miniature cows, alpacas, and a calm luxury countryside feel.",
@@ -79,10 +79,10 @@ const tools = [
   },
   {
     key: "hashtags",
-    title: "Free Hashtag Generator",
+    title: "Hashtag Generator",
     shortTitle: "Hashtags",
     desc: "Choose a platform, describe what you need hashtagged, and get clean hashtag sets instantly.",
-    label: "FREE HASHTAG GENERATOR",
+    label: "HASHTAG GENERATOR",
     platformLabel: "Social platform",
     platforms: ["Instagram", "TikTok", "Facebook", "LinkedIn", "X / Twitter", "YouTube Shorts", "Pinterest"],
     placeholder: "Example: Mini cows, ranch life, goats, alpacas, luxury countryside content.",
@@ -322,6 +322,8 @@ function safeParse(key, fallback) {
 
 function getInitialPageFromPath() {
   const path = window.location.pathname;
+  if (path === "/workspace" || path.startsWith("/workspace/")) return "workspace";
+  if (path === "/tools" || path.startsWith("/tools/")) return path.includes("/logo") ? "logo" : "studio";
   if (path === "/examples") return "examples";
   if (["/about", "/contact", "/privacy", "/terms", "/cancellation", "/refund"].includes(path)) {
     return path.slice(1);
@@ -332,8 +334,18 @@ function getInitialPageFromPath() {
 
 function getInitialToolFromPath() {
   const path = window.location.pathname;
+  const toolMatch = path.match(/^\/tools\/([^/]+)/);
+  if (toolMatch && toolMap[toolMatch[1]]) return toolMatch[1];
   const match = Object.values(seoPages).find((page) => page.path === path);
   return match?.toolKey || "logo";
+}
+
+function getInitialWorkspaceSectionFromPath() {
+  const path = window.location.pathname;
+  if (path.startsWith("/tools")) return "tools";
+  const section = path.match(/^\/workspace\/([^/]+)/)?.[1];
+  if (["strategy", "identity", "roadmap", "assets", "settings"].includes(section)) return section;
+  return "overview";
 }
 
 
@@ -2488,6 +2500,9 @@ export default function App() {
   const [pendingBrandPlanPrompt, setPendingBrandPlanPrompt] = useState("");
 
   const [activeToolKey, setActiveToolKey] = useState(getInitialToolFromPath());
+  const [workspaceSection, setWorkspaceSection] = useState(getInitialWorkspaceSectionFromPath());
+  const [appMenuOpen, setAppMenuOpen] = useState(false);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const activeTool = toolMap[activeToolKey] || tools[0];
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [creativeTone, setCreativeTone] = useState("");
@@ -4277,10 +4292,41 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setLogoImage("");
     setLogoImageSource("");
     setLogoCreativeBrief(null);
+    setWorkspaceSection("tools");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
-    window.history.pushState({}, "", "/");
+    window.history.pushState({}, "", `/tools/${nextTool.key}`);
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
+
+  const navigateWorkspaceSection = async (section = "overview") => {
+    const session = await requireMembershipOrTrial("open_workspace");
+    if (!session) return;
+    const normalizedSection = ["overview", "strategy", "identity", "tools", "roadmap", "assets", "settings"].includes(section) ? section : "overview";
+    setWorkspaceSection(normalizedSection);
+    setPage("workspace");
+    setAppMenuOpen(false);
+    setCreateMenuOpen(false);
+    const path = normalizedSection === "overview" ? "/workspace" : normalizedSection === "tools" ? "/tools" : `/workspace/${normalizedSection}`;
+    window.history.pushState({}, "", path);
+    setTimeout(() => document.querySelector(".appMain")?.scrollTo?.({ top: 0, behavior: "smooth" }), 40);
+  };
+
+  const openToolFromApp = async (toolKey) => {
+    setCreateMenuOpen(false);
+    setAppMenuOpen(false);
+    await selectTool(toolKey);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const nextPage = getInitialPageFromPath();
+      setPage(nextPage);
+      setWorkspaceSection(getInitialWorkspaceSectionFromPath());
+      setActiveToolKey(getInitialToolFromPath());
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const openSeoPage = async (seoKey) => {
     const seoPage = seoPages[seoKey];
@@ -4725,7 +4771,7 @@ Business goals: ${activeDNA.businessGoals.join("; ")}
 
     if (activeTool.key === "captions") {
       return `
-You are Brandthat.ai's free caption generator.
+You are BrandThat's caption generator for a paid Brand Workspace.
 
 User platform:
 ${selectedPlatform || "General social media"}
@@ -4734,7 +4780,7 @@ User post/topic description:
 ${prompt}
 
 Task:
-Generate exactly 10 different captions based only on what the user wrote.
+Generate exactly 10 genuinely different captions based on the active Brand Workspace and the user's post description.
 
 Format:
 Return ONLY a numbered list from 1 to 10.
@@ -4744,17 +4790,30 @@ Do not mention Brandthat.ai unless the user specifically asks for that brand.
 
 Rules:
 - Exactly 10 captions.
-- Every caption must relate directly to the user's post/topic.
+- Every caption must relate directly to the user's post/topic and the active brand context when provided.
 - Make them platform-aware for ${selectedPlatform || "the selected platform"}.
-- Include a mix of short, polished, warm, clever, CTA, and storytelling styles.
+- Use these ten distinct formats in order:
+  1. Short punchy caption
+  2. Storytelling caption
+  3. Educational caption
+  4. Promotional caption
+  5. Question-led caption
+  6. Lifestyle caption
+  7. Local-community caption
+  8. Problem/solution caption
+  9. Warm brand-voice caption
+  10. Direct call-to-action caption
+- Avoid repeating the same opening phrase or sentence structure.
+- If the brand is local, service-based, product-based, or subscription-based, make that visible where useful.
 - Avoid cheesy filler.
 - Keep each caption copy-ready.
+${workspaceContext}
 `;
     }
 
     if (activeTool.key === "hashtags") {
       return `
-You are Brandthat.ai's free hashtag generator.
+You are BrandThat's hashtag generator for a paid Brand Workspace.
 
 User platform:
 ${selectedPlatform || "General social media"}
@@ -4763,7 +4822,7 @@ User topic/post description:
 ${prompt}
 
 Task:
-Generate exactly 50 highly relevant hashtags based only on what the user wrote.
+Generate exactly 50 highly relevant hashtags based on the active Brand Workspace and the user's topic.
 
 Format:
 Return ONE clean copy-ready block only.
@@ -4784,6 +4843,7 @@ Rules:
 - Avoid random spam tags.
 - Avoid repeated hashtags.
 - Keep the output easy to copy and paste.
+${workspaceContext}
 `;
     }
 
@@ -5471,60 +5531,49 @@ ${promptValue}`;
       )}
 
       {page === "workspace" && (
-        <section className="pageSection">
-          <div className="tinyTag">SAVED BRAND WORKSPACES</div>
-          <h1 className="pageTitle">Your brand headquarters.</h1>
-          <p className="pageLead">Create and save brand workspaces while your membership is active, with strategy, identity direction, platform guidance, roadmap, saved assets, and logo concepts generated from the completed strategy.</p>
-
-          {workspaceLoading && !activeBrand && <WorkspaceSkeleton />}
-
-          {!workspaceLoading && activeBrand && (
-            <BrandDashboard
-              brand={activeBrand}
-              setPage={setPage}
-              downloadBrandKit={downloadBrandKit}
-              remixOutput={remixOutput}
-              copyToClipboard={copyToClipboard}
-              updateActiveBrand={updateActiveBrand}
-              regenerateWorkspaceSection={regenerateWorkspaceSection}
-              autoSaveStatus={autoSaveStatus}
-            />
-          )}
-
-          <div className="workspaceLayout">
-            <WorkspaceCreator
-              workspaceDraft={workspaceDraft}
-              setWorkspaceDraft={setWorkspaceDraft}
-              createWorkspace={createWorkspace}
-              autoSaveStatus={autoSaveStatus}
-              workspaceCreating={workspaceCreating}
-            />
-
-            <WorkspaceLibrary
-              brandWorkspaces={brandWorkspaces}
-              activeBrand={activeBrand}
-              workspaceLoading={workspaceLoading}
-              selectBrand={selectBrand}
-              deleteBrand={deleteBrand}
-              duplicateBrand={duplicateBrand}
-              downloadBrandKit={downloadBrandKit}
-              setPage={setPage}
-            />
-          </div>
-
-          {activeBrand && (
-            <SavedAssets
-              brand={activeBrand}
-              recentGenerations={getRecentGenerations()}
-              favoriteIds={favoriteIds}
-              toggleFavorite={toggleFavorite}
-              remixOutput={remixOutput}
-              copyToClipboard={copyToClipboard}
-              setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
-              continueSavedLogo={continueSavedLogo}
-            />
-          )}
-        </section>
+        <LoggedInAppShell
+          activeBrand={activeBrand}
+          brandWorkspaces={brandWorkspaces}
+          user={user}
+          userPlan={userPlan}
+          activeSection={workspaceSection}
+          appMenuOpen={appMenuOpen}
+          setAppMenuOpen={setAppMenuOpen}
+          createMenuOpen={createMenuOpen}
+          setCreateMenuOpen={setCreateMenuOpen}
+          navigateWorkspaceSection={navigateWorkspaceSection}
+          selectBrand={selectBrand}
+          selectTool={openToolFromApp}
+          logOut={logOut}
+        >
+          <WorkspaceSectionView
+            section={workspaceSection}
+            activeBrand={activeBrand}
+            brandWorkspaces={brandWorkspaces}
+            workspaceLoading={workspaceLoading}
+            workspaceDraft={workspaceDraft}
+            setWorkspaceDraft={setWorkspaceDraft}
+            createWorkspace={createWorkspace}
+            workspaceCreating={workspaceCreating}
+            autoSaveStatus={autoSaveStatus}
+            selectBrand={selectBrand}
+            deleteBrand={deleteBrand}
+            duplicateBrand={duplicateBrand}
+            downloadBrandKit={downloadBrandKit}
+            setPage={setPage}
+            selectTool={openToolFromApp}
+            navigateWorkspaceSection={navigateWorkspaceSection}
+            remixOutput={remixOutput}
+            copyToClipboard={copyToClipboard}
+            updateActiveBrand={updateActiveBrand}
+            regenerateWorkspaceSection={regenerateWorkspaceSection}
+            recentGenerations={getRecentGenerations()}
+            favoriteIds={favoriteIds}
+            toggleFavorite={toggleFavorite}
+            setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
+            continueSavedLogo={continueSavedLogo}
+          />
+        </LoggedInAppShell>
       )}
 
       {seoPages[page] && (
@@ -5591,7 +5640,22 @@ ${promptValue}`;
       )}
 
       {(page === "studio" || page === "logo") && (
-        <section className="pageSection" id="brandthat-generator">
+        <LoggedInAppShell
+          activeBrand={activeBrand}
+          brandWorkspaces={brandWorkspaces}
+          user={user}
+          userPlan={userPlan}
+          activeSection="tools"
+          appMenuOpen={appMenuOpen}
+          setAppMenuOpen={setAppMenuOpen}
+          createMenuOpen={createMenuOpen}
+          setCreateMenuOpen={setCreateMenuOpen}
+          navigateWorkspaceSection={navigateWorkspaceSection}
+          selectBrand={selectBrand}
+          selectTool={openToolFromApp}
+          logOut={logOut}
+        >
+        <section className="appContentSection" id="brandthat-generator">
           <div className="tinyTag">{activeTool.label}</div>
           <h1 className="pageTitle">{activeTool.title}</h1>
           <p className="pageLead">{activeTool.desc} Logo concepts work best after BrandThat has created the thesis, positioning, audience, moodboard, typography, colors, and voice in your Brand Workspace.</p>
@@ -5657,9 +5721,13 @@ ${promptValue}`;
             rememberRejectedLogoDirection={rememberRejectedLogoDirection}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
+            activeBrand={activeBrand}
+            onBackToTools={() => navigateWorkspaceSection("tools")}
+            onViewSavedAssets={() => navigateWorkspaceSection("assets")}
             />
           </LogoGenerationErrorBoundary>
         </section>
+        </LoggedInAppShell>
       )}
 
       {["about", "contact", "privacy", "terms", "cancellation", "refund"].includes(page) && (
@@ -6153,6 +6221,443 @@ function ScorecardPanel({ scorecard }) {
       </div>
     </div>
   );
+}
+
+const appSections = [
+  ["overview", "Overview"],
+  ["strategy", "Brand Strategy"],
+  ["identity", "Visual Identity"],
+  ["tools", "Content Tools"],
+  ["roadmap", "Launch Roadmap"],
+  ["assets", "Saved Assets"],
+  ["settings", "Settings"],
+];
+
+const primaryToolKeys = ["captions", "hashtags", "hooks", "bios", "email", "logo"];
+const secondaryToolKeys = ["strategy", "brand", "audit", "campaign", "growth"];
+
+function getAppToolTitle(tool = {}) {
+  return String(tool.title || tool.shortTitle || "Tool").replace(/^Free\s+/i, "");
+}
+
+function getToolPurpose(toolKey) {
+  const purposes = {
+    captions: "Create platform-ready captions from the active brand context.",
+    hashtags: "Build clean hashtag sets for discovery and local relevance.",
+    hooks: "Write opening lines for Reels, TikTok, Shorts, and launch videos.",
+    bios: "Shape concise social bios that match the brand voice.",
+    email: "Draft launch, welcome, promo, and nurture emails.",
+    logo: "Generate logo concepts from the strategy and identity direction.",
+    strategy: "Plan the strongest platform moves for the brand.",
+    brand: "Regenerate or expand the complete guided brand plan.",
+    audit: "Find the five highest-impact improvements.",
+    campaign: "Turn the brand direction into a focused campaign.",
+    growth: "Create a deeper execution roadmap.",
+  };
+  return purposes[toolKey] || "Create a connected brand asset.";
+}
+
+function getSavedToolCount(brand, toolKey) {
+  if (!brand?.saved) return 0;
+  const key = toolKey === "logo" ? "logos" : toolKey;
+  return Array.isArray(brand.saved[key]) ? brand.saved[key].length : 0;
+}
+
+function getRecentBrandAssets(brand, limit = 5) {
+  if (!brand?.saved) return [];
+  return Object.entries(brand.saved)
+    .flatMap(([bucket, items]) => Array.isArray(items) ? items.map((item) => ({ ...item, bucket })) : [])
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, limit);
+}
+
+function getCompletionChecklist(brand) {
+  const plan = brand ? getWorkspacePlan(brand) : {};
+  const hasSaved = (key) => Array.isArray(brand?.saved?.[key]) && brand.saved[key].length > 0;
+  return [
+    { label: "Brand basics complete", complete: Boolean(brand?.name && brand?.description), action: "Review basics", section: "settings" },
+    { label: "Audience complete", complete: Boolean(plan.targetAudience || brand?.audience), action: "Open Strategy", section: "strategy" },
+    { label: "Positioning complete", complete: Boolean(plan.positioning || brand?.differentiator), action: "Open Strategy", section: "strategy" },
+    { label: "Voice complete", complete: Boolean(plan.brandVoice || brand?.tone), action: "Open Strategy", section: "strategy" },
+    { label: "Colors complete", complete: Boolean(plan.colorSystem || brand?.style), action: "Open Identity", section: "identity" },
+    { label: "Typography complete", complete: Boolean(plan.typographySystem), action: "Open Identity", section: "identity" },
+    { label: "Logo saved", complete: hasSaved("logos") || Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
+    { label: "First content asset saved", complete: ["captions", "hooks", "bios", "hashtags", "email"].some(hasSaved), action: "Create Content", section: "tools" },
+    { label: "Launch channels selected", complete: Boolean(brand?.growthPlatform || brand?.channels || plan.platformStrategy?.length), action: "Open Roadmap", section: "roadmap" },
+  ];
+}
+
+function LoggedInAppShell({
+  activeBrand,
+  brandWorkspaces = [],
+  user,
+  userPlan,
+  activeSection,
+  appMenuOpen,
+  setAppMenuOpen,
+  createMenuOpen,
+  setCreateMenuOpen,
+  navigateWorkspaceSection,
+  selectBrand,
+  selectTool,
+  logOut,
+  children,
+}) {
+  const toolButtons = [...primaryToolKeys, ...secondaryToolKeys].map((key) => toolMap[key]).filter(Boolean);
+  const isMember = normalizePlan(userPlan) === MEMBER_PLAN;
+
+  return (
+    <div className="loggedInApp">
+      <aside className={appMenuOpen ? "appSidebar open" : "appSidebar"} aria-label="Brand workspace navigation">
+        <div className="appSidebarTop">
+          <button className="appBrandButton" onClick={() => navigateWorkspaceSection("overview")}>Brandthat</button>
+          <label className="brandSwitcher">
+            <span>Active brand</span>
+            <select value={activeBrand?.id || ""} onChange={(event) => selectBrand?.(event.target.value)}>
+              {brandWorkspaces.length === 0 ? <option value="">No brand yet</option> : null}
+              {brandWorkspaces.map((brand) => (
+                <option key={brand.id} value={brand.id}>{brand.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <nav className="appSectionNav">
+          {appSections.map(([key, label]) => (
+            <button
+              key={key}
+              className={activeSection === key ? "active" : ""}
+              onClick={() => navigateWorkspaceSection(key)}
+              aria-current={activeSection === key ? "page" : undefined}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="appSidebarBottom">
+          <span>{isMember ? "Membership active" : "Membership required"}</span>
+          <strong>{user?.email || "Account"}</strong>
+          <button onClick={logOut}>Log Out</button>
+        </div>
+      </aside>
+
+      <div className="appShellBody">
+        <header className="appHeader">
+          <button className="mobileAppMenu" onClick={() => setAppMenuOpen(!appMenuOpen)} aria-expanded={appMenuOpen}>
+            Menu
+          </button>
+          <div>
+            <span>{activeBrand?.name || "Brand Workspace"}</span>
+            <strong>{activeSection === "tools" ? "Content Tools" : appSections.find(([key]) => key === activeSection)?.[1] || "Workspace"}</strong>
+          </div>
+          <div className="createMenuWrap">
+            <button className="btn dark appCreateButton" onClick={() => setCreateMenuOpen(!createMenuOpen)} aria-expanded={createMenuOpen}>Create</button>
+            {createMenuOpen && (
+              <div className="createMenu" role="menu">
+                {toolButtons.map((tool) => (
+                  <button key={tool.key} onClick={() => selectTool(tool.key)} role="menuitem">
+                    <strong>{getAppToolTitle(tool)}</strong>
+                    <span>{getToolPurpose(tool.key)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
+        <main className="appMain" tabIndex="-1">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceToolGrid({ brand, selectTool, compact = false }) {
+  const renderTool = (toolKey) => {
+    const tool = toolMap[toolKey];
+    if (!tool) return null;
+    const count = getSavedToolCount(brand, toolKey);
+    return (
+      <article className="appToolCard" key={toolKey}>
+        <div>
+          <span>{count ? `${count} saved` : "Ready"}</span>
+          <strong>{getAppToolTitle(tool)}</strong>
+          <p>{getToolPurpose(toolKey)}</p>
+        </div>
+        <button onClick={() => selectTool(toolKey)}>Open</button>
+      </article>
+    );
+  };
+
+  return (
+    <div className={compact ? "workspaceTools compact" : "workspaceTools"}>
+      <div className="appCardHeader">
+        <div>
+          <span>Quick Tools</span>
+          <h2>Create from this brand context.</h2>
+        </div>
+      </div>
+      <div className="toolCardGrid">{primaryToolKeys.map(renderTool)}</div>
+      {!compact && (
+        <details className="moreTools" open>
+          <summary>More Tools</summary>
+          <div className="toolCardGrid secondaryTools">{secondaryToolKeys.map(renderTool)}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recentGenerations = [] }) {
+  if (!brand) {
+    return (
+      <section className="appContentSection">
+        <div className="tinyTag">WORKSPACE</div>
+        <h1 className="pageTitle">Create your first brand workspace.</h1>
+        <p className="pageLead">Once a brand exists, this screen becomes a short dashboard for strategy, tools, saved assets, and roadmap progress.</p>
+      </section>
+    );
+  }
+  const plan = getWorkspacePlan(brand);
+  const checklist = getCompletionChecklist(brand);
+  const missing = checklist.filter((item) => !item.complete);
+  const recent = recentGenerations.length ? recentGenerations : getRecentBrandAssets(brand);
+  const nextAction = getBrandNextActions(brand)[0] || "Create the first content asset from the active brand context.";
+  const roadmapItems = getExpandedRoadmap(plan, brand);
+
+  return (
+    <section className="appContentSection workspaceOverview">
+      <div className="overviewHero">
+        <div>
+          <div className="tinyTag">OVERVIEW</div>
+          <h1>{brand.name}</h1>
+          <p>{brand.description}</p>
+          <div className="overviewMeta">
+            <span>{getBrandReadinessScore(brand)}% ready</span>
+            <span>{brand.launchGoal || "Goal not set"}</span>
+            <span>Membership active</span>
+          </div>
+        </div>
+        <div className="nextActionCard">
+          <span>Next best action</span>
+          <strong>{nextAction}</strong>
+          <button onClick={() => navigateWorkspaceSection("tools")}>Create Content</button>
+        </div>
+      </div>
+
+      <div className="overviewActions">
+        <button className="btn dark" onClick={() => selectTool("captions")}>Create Content</button>
+        <button className="btn light" onClick={() => selectTool("logo")}>Generate Logo</button>
+        <button className="btn light" onClick={() => navigateWorkspaceSection("strategy")}>View Brand Strategy</button>
+      </div>
+
+      <CompletionPanel brand={brand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} />
+      <WorkspaceToolGrid brand={brand} selectTool={selectTool} compact />
+
+      <div className="overviewGrid">
+        <div className="appPanel">
+          <span>Recent Generations</span>
+          {recent.length ? recent.slice(0, 4).map((item) => (
+            <button className="recentAssetRow" key={item.id} onClick={() => navigateWorkspaceSection("assets")}>
+              <strong>{item.title || item.bucket}</strong>
+              <small>{item.bucket || item.brandName}</small>
+            </button>
+          )) : <p>No saved generations yet. Start with captions or hashtags.</p>}
+        </div>
+        <div className="appPanel">
+          <span>Roadmap Progress</span>
+          {roadmapItems.slice(0, 3).map((item) => (
+            <div className="roadmapMiniRow" key={item.phase}>
+              <strong>{item.phase}</strong>
+              <p>{item.priority}</p>
+            </div>
+          ))}
+          <button onClick={() => navigateWorkspaceSection("roadmap")}>Open Roadmap</button>
+        </div>
+        <div className="appPanel">
+          <span>Missing Brand Elements</span>
+          {missing.slice(0, 5).map((item) => (
+            <button key={item.label} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
+              {item.label} — {item.action}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CompletionPanel({ brand, navigateWorkspaceSection, selectTool }) {
+  const [open, setOpen] = useState(false);
+  const checklist = getCompletionChecklist(brand);
+  const complete = checklist.filter((item) => item.complete).length;
+  const percent = checklist.length ? Math.round((complete / checklist.length) * 100) : 0;
+
+  return (
+    <section className="completionPanel">
+      <button className="completionTop" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span>Brand completion</span>
+        <strong>{percent}%</strong>
+        <small>{complete} of {checklist.length} complete. Open to see what raises the score.</small>
+      </button>
+      {open && (
+        <div className="completionChecklist">
+          {checklist.map((item) => (
+            <button key={item.label} className={item.complete ? "complete" : ""} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
+              <span>{item.complete ? "Done" : "Missing"}</span>
+              <strong>{item.label}</strong>
+              <small>{item.action}</small>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectTool }) {
+  if (!brand) return <WorkspaceEmptyState navigateWorkspaceSection={navigateWorkspaceSection} />;
+  const plan = getWorkspacePlan(brand);
+  const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 6);
+  return (
+    <section className="appContentSection">
+      <div className="tinyTag">VISUAL IDENTITY</div>
+      <h1 className="pageTitle">{brand.name} identity direction.</h1>
+      <div className="identityOverviewGrid">
+        <div className="appPanel wide">
+          <span>Logo Direction</span>
+          <p>{brand.logoDirection || plan.logoDirection || "Generate logo concepts once the strategy and visual direction feel right."}</p>
+          <button onClick={() => selectTool("logo")}>Generate Logo Concepts</button>
+        </div>
+        <div className="appPanel"><span>Colors</span><p>{plan.colorSystem || brand.style || "Color direction is not set yet."}</p></div>
+        <div className="appPanel"><span>Typography</span><p>{plan.typographySystem || "Typography direction is not set yet."}</p></div>
+        <div className="appPanel"><span>Moodboard</span><p>{plan.moodboardDirection || brand.style || "Moodboard direction is not set yet."}</p></div>
+        <div className="appPanel wide"><span>Visual Direction</span><p>{plan.visualIdentityDirection || plan.moodboardDirection || brand.style || "Add visual direction in the brand basics or regenerate the brand plan."}</p></div>
+      </div>
+      {savedLogos.length > 0 && (
+        <div className="identityLogoStrip">
+          {savedLogos.map((logo) => <img key={logo.id} src={logo.image} alt={logo.title || "Saved logo concept"} />)}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WorkspaceRoadmap({ brand, navigateWorkspaceSection }) {
+  if (!brand) return <WorkspaceEmptyState navigateWorkspaceSection={navigateWorkspaceSection} />;
+  const plan = getWorkspacePlan(brand);
+  const roadmap = getExpandedRoadmap(plan, brand);
+  return (
+    <section className="appContentSection">
+      <div className="tinyTag">LAUNCH ROADMAP</div>
+      <h1 className="pageTitle">The next 90 days.</h1>
+      <div className="roadmapPhaseList">
+        {roadmap.map((item) => (
+          <div className="roadmapPhaseCard" key={item.phase}>
+            <strong>{item.phase}</strong>
+            <h3>{item.priority}</h3>
+            <ul>{item.tasks.map((action) => <li key={action}>{action}</li>)}</ul>
+            <p><b>Tools:</b> {item.recommendedTools.join(", ")}</p>
+            <p><b>KPIs:</b> {item.kpis.join(", ")}</p>
+            <p><b>Completion:</b> {item.completionCriteria}</p>
+            <small>{item.status}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceEmptyState({ navigateWorkspaceSection }) {
+  return (
+    <section className="appContentSection">
+      <div className="tinyTag">NEW BRAND</div>
+      <h1 className="pageTitle">Create a brand workspace first.</h1>
+      <p className="pageLead">Your tools, strategy, roadmap, and saved assets will connect to the active brand.</p>
+      <button className="btn dark" onClick={() => navigateWorkspaceSection("settings")}>New Brand</button>
+    </section>
+  );
+}
+
+function WorkspaceSectionView(props) {
+  const {
+    section,
+    activeBrand,
+    brandWorkspaces,
+    workspaceLoading,
+    workspaceDraft,
+    setWorkspaceDraft,
+    createWorkspace,
+    workspaceCreating,
+    autoSaveStatus,
+    selectBrand,
+    deleteBrand,
+    duplicateBrand,
+    downloadBrandKit,
+    setPage,
+    selectTool,
+    navigateWorkspaceSection,
+    remixOutput,
+    copyToClipboard,
+    updateActiveBrand,
+    regenerateWorkspaceSection,
+    recentGenerations,
+    favoriteIds,
+    toggleFavorite,
+    setSavedLogoAsBrandProfile,
+    continueSavedLogo,
+  } = props;
+
+  if (workspaceLoading && !activeBrand) return <WorkspaceSkeleton />;
+
+  if (section === "strategy" && activeBrand) {
+    return (
+      <BrandDashboard
+        brand={activeBrand}
+        setPage={setPage}
+        downloadBrandKit={downloadBrandKit}
+        remixOutput={remixOutput}
+        copyToClipboard={copyToClipboard}
+        updateActiveBrand={updateActiveBrand}
+        regenerateWorkspaceSection={regenerateWorkspaceSection}
+        autoSaveStatus={autoSaveStatus}
+      />
+    );
+  }
+
+  if (section === "identity") return <WorkspaceIdentity brand={activeBrand} setPage={setPage} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} />;
+  if (section === "tools") {
+    return (
+      <section className="appContentSection">
+        <div className="tinyTag">CONTENT TOOLS</div>
+        <h1 className="pageTitle">Create from one connected brand.</h1>
+        <p className="pageLead">Every generator uses the active workspace context so captions, hashtags, bios, emails, roadmaps, and logo concepts stay aligned.</p>
+        <WorkspaceToolGrid brand={activeBrand} selectTool={selectTool} />
+        {activeBrand && <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />}
+      </section>
+    );
+  }
+  if (section === "roadmap") return <WorkspaceRoadmap brand={activeBrand} navigateWorkspaceSection={navigateWorkspaceSection} />;
+  if (section === "assets" && activeBrand) return <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />;
+  if (section === "settings") {
+    return (
+      <section className="appContentSection settingsGrid">
+        <div>
+          <div className="tinyTag">SETTINGS</div>
+          <h1 className="pageTitle">Manage your brands.</h1>
+          <p className="pageLead">Create a new workspace, switch active brands, duplicate a direction, or export the current brand book.</p>
+        </div>
+        <details className="newBrandPanel">
+          <summary>New Brand</summary>
+          <WorkspaceCreator workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} createWorkspace={createWorkspace} autoSaveStatus={autoSaveStatus} workspaceCreating={workspaceCreating} />
+        </details>
+        <WorkspaceLibrary brandWorkspaces={brandWorkspaces} activeBrand={activeBrand} workspaceLoading={workspaceLoading} selectBrand={selectBrand} deleteBrand={deleteBrand} duplicateBrand={duplicateBrand} downloadBrandKit={downloadBrandKit} setPage={setPage} />
+      </section>
+    );
+  }
+
+  return <WorkspaceOverview brand={activeBrand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} recentGenerations={recentGenerations} />;
 }
 
 function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard, updateActiveBrand, regenerateWorkspaceSection, autoSaveStatus = "Saved" }) {
@@ -7793,7 +8298,10 @@ function GeneratorCard({
   onBuildGrowthRoadmap = () => {},
   rememberRejectedLogoDirection,
   toggleFavorite,
-  remixOutput
+  remixOutput,
+  activeBrand = null,
+  onBackToTools = () => {},
+  onViewSavedAssets = () => {}
 }) {
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
 
@@ -7961,6 +8469,10 @@ Designer iteration rules:
 
   return (
     <div className={`generateCard toolResultsV2 ${activeTool.key}Generator`}>
+      <div className="generatorAppCrumb">
+        <button onClick={onBackToTools}>Back to Content Tools</button>
+        {activeBrand && <span>Using {activeBrand.name} context</span>}
+      </div>
       <div className="generateTop">
         <div>
           <div className="tinyTag">{activeTool.label}</div>
@@ -7973,6 +8485,19 @@ Designer iteration rules:
           </div>
         )}
       </div>
+
+      {activeBrand && activeTool.key !== "logo" && (
+        <details className="brandContextPanel">
+          <summary>Using {activeBrand.name} context</summary>
+          <div>
+            <p><b>Audience:</b> {activeBrand.audience || getWorkspacePlan(activeBrand).targetAudience || "Not set"}</p>
+            <p><b>Voice:</b> {activeBrand.tone || getWorkspacePlan(activeBrand).brandVoice || "Not set"}</p>
+            <p><b>Positioning:</b> {activeBrand.differentiator || getWorkspacePlan(activeBrand).positioning || "Not set"}</p>
+            <p><b>Platform:</b> {activeBrand.growthPlatform || activeBrand.channels || selectedPlatform || "Not set"}</p>
+            <p><b>Goal:</b> {activeBrand.launchGoal || "Not set"}</p>
+          </div>
+        </details>
+      )}
 
       {activeTool.key === "logo" ? (
         <>
@@ -8343,13 +8868,14 @@ Generate another logo from the same creative direction. Preserve the strongest p
             <div className="resultActions">
               {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Project</button>}
               {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
+              <button onClick={saveCurrentOutput}>Save to Workspace</button>
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
             </div>
           </div>
 
-          <div className="captionListBox">
+            <div className="captionListBox">
             {parseTenOptions(result).map((item, index) => (
               <div className="captionOptionRow" key={`${item}-${index}`}>
                 <div className="captionNumber">{index + 1}</div>
@@ -8357,6 +8883,10 @@ Generate another logo from the same creative direction. Preserve the strongest p
                 <button onClick={() => copyToClipboard(item)}>Copy</button>
               </div>
             ))}
+          </div>
+          <div className="savedAssetLinkRow">
+            <span>Saved outputs stay attached to {activeBrand?.name || "the active brand"}.</span>
+            <button onClick={onViewSavedAssets}>View Saved Assets</button>
           </div>
         </div>
       )}
@@ -10703,6 +11233,8 @@ const futureThemeCss = `
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}.app{min-height:100vh;background:var(--bt-paper)!important;color:var(--bt-ink)!important}.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:14px clamp(18px,4vw,54px) 10px;background:rgba(255,253,248,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(17,17,15,.06)}.navInner{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand,.logoText{font-size:23px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink);border:0;background:transparent}.navLinks{display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.72)}.navLinks button{border:0;background:transparent;border-radius:999px;padding:9px 14px;color:#302d28;font-weight:760;font-size:14px}.navLinks button:hover{background:#11110f;color:#fffdf8}.navActions,.authCluster{display:flex;align-items:center;gap:10px}.navPrimaryCta,.accountBtn,.authCluster button,.birthCta,.birthSecondary,.inputAction,.priceStatement button,.unlockCallout button,.btn.dark,.btn.light{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:12px 18px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;text-decoration:none;transition:transform .18s ease,background .18s ease,color .18s ease,border-color .18s ease}.birthSecondary,.btn.light{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.navPrimaryCta:hover,.accountBtn:hover,.birthCta:hover,.inputAction:hover,.priceStatement button:hover,.unlockCallout button:hover,.btn.dark:hover{transform:translateY(-1px);background:#2a251f}.birthSecondary:hover,.btn.light:hover{background:#f0e8dc}.accountMenu{display:flex;align-items:center;gap:8px}.accountMenu span{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:13px}
 .birthPage{background:var(--bt-paper);overflow:hidden}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:min(1180px,calc(100% - 44px));margin:0 auto}.birthHero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(420px,.88fr);gap:clamp(30px,5vw,76px);align-items:center;padding:54px 0 60px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,9.5vw,132px);line-height:.87;letter-spacing:-.08em;margin:0 0 22px;font-weight:950;color:var(--bt-ink)}.birthHeroCopy>p,.examplesHero p{font-size:clamp(19px,1.75vw,25px);line-height:1.3;color:var(--bt-muted);max-width:690px;margin:0 0 24px;letter-spacing:-.03em}.birthHeroActions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.textLinkButton{border:0;background:transparent;color:#11110f;text-decoration:underline;text-underline-offset:4px;font-weight:820;padding:10px}.heroSupport,.builderFinePrint,.policyNote{font-size:14px;color:var(--bt-muted);line-height:1.45;margin:0 0 20px}.birthHeroVisual:before{content:"";position:absolute;inset:-22px;background:linear-gradient(120deg,rgba(215,197,173,.35),rgba(255,253,248,0) 56%);border-radius:34px;z-index:0}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual>*{position:relative;z-index:1}.northlineInputPanel,.brandBuilderCard{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:26px;padding:22px;box-shadow:var(--bt-shadow);display:grid;gap:16px}.inputPanelHeader,.builderTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.inputPanelHeader span,.builderTop>span,.sectionHeader>span,.worldCopy>span,.pricingSection>div>span,.exampleBrandCopy>span,.examplesKicker,.priceStatement span{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.inputPanelHeader strong{font-size:16px;color:var(--bt-ink)}.inputRows{display:grid;gap:12px}.inputRow,.builderField{display:grid;gap:8px;padding:15px;border:1px solid rgba(17,17,15,.09);border-radius:16px;background:#fffdf8}.inputRow span,.builderField span,.outputTray span,.toolExample span,.roadmapLine span,.workspaceShelf span,.previewResult span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#806546;font-weight:850}.inputRow strong{font-size:22px;letter-spacing:-.05em}.inputRow p,.builderField input,.builderField textarea{margin:0;color:#38332d;font-size:16px;line-height:1.4}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:8px 0;color:#47413a;font-size:13px;font-weight:740}.northlineOutputPreview{display:grid;gap:14px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:26px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0;aspect-ratio:3/2}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:10px}.outputTray div{background:#11110f;color:#fffdf8;border-radius:16px;padding:15px;min-height:96px}.outputTray span{color:#d7c5ad}.outputTray strong{display:block;color:#fffdf8;font-size:18px;line-height:1.15;letter-spacing:-.03em}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:56px 0}.sectionHeader.compact{max-width:820px;margin-bottom:28px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(42px,6vw,82px);line-height:.94;letter-spacing:-.07em;margin:0 0 14px;font-weight:950}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:clamp(18px,1.8vw,23px);line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em;margin:0}.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder{display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,1fr);gap:36px;align-items:start}.walkthroughSteps,.receiveGrid,.howGrid,.boundaryGrid,.faqList,.infoNotes{display:grid;gap:12px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{border-top:1px solid var(--bt-line);padding:14px 0}.walkthroughSteps span,.howGrid span{color:var(--bt-clay);font-size:12px;font-weight:900;letter-spacing:.08em}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{display:block;font-size:20px;letter-spacing:-.04em;margin-bottom:6px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{color:var(--bt-muted);line-height:1.45;margin:0}.receiveGrid,.howGrid,.boundaryGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.boundaryGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.worldList{display:grid;gap:10px;margin-top:22px}.worldList div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:11px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}.priceStatement{background:#11110f;color:#fffdf8;border-radius:26px;padding:26px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:64px;letter-spacing:-.08em;line-height:.9;margin:6px 0 16px}.priceStatement p,.priceStatement li{color:rgba(255,253,248,.72);line-height:1.45}.priceStatement a{display:inline-block;color:#fffdf8;margin-top:14px;text-decoration:underline;text-underline-offset:4px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%;margin-top:14px}.builderContextGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.builderField.full{grid-column:1/-1}.builderField{padding:0;background:transparent;border:0}.builderField input,.builderField textarea,.footerForm input{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:13px 14px}.builderField textarea{min-height:122px;resize:vertical}.builderActions{display:flex;gap:10px;flex-wrap:wrap}.previewResult{display:grid;grid-template-columns:1fr 1fr;gap:12px}.previewResult>div{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:16px;padding:16px}.previewResult p{margin:6px 0 0;color:#39342e;line-height:1.42}.previewSwatches{display:flex;gap:8px;margin-top:10px}.previewSwatches i{width:38px;height:38px;border-radius:50%;border:1px solid rgba(17,17,15,.14)}.unlockCallout{grid-column:1/-1;background:#11110f!important;color:#fffdf8!important}.unlockCallout p{color:rgba(255,253,248,.72)!important}.unlockCallout button{margin-top:12px;background:#fffdf8;color:#11110f}.faqList details{border-top:1px solid var(--bt-line);padding:16px 0}.faqList summary{font-weight:850;font-size:18px;cursor:pointer}.examplesPage{background:var(--bt-paper);padding:54px clamp(22px,5vw,76px) 90px}.examplesHero{max-width:980px;margin:0 auto 48px}.exampleBrandGrid{display:grid;gap:54px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);gap:34px;align-items:center}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(340px,.95fr) minmax(0,1.05fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandCopy h2{font-size:clamp(42px,6vw,82px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.exampleBrandCopy p{font-size:21px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em}.exampleDetails{display:grid;gap:10px;margin-top:20px}.exampleDetails div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:10px}.exampleDetails span{color:var(--bt-muted);font-size:15px}.textExamplePanel{padding:28px;box-shadow:none}.textExamplePanel strong{font-size:34px;letter-spacing:-.06em}.textExamplePanel li{color:var(--bt-muted);margin:10px 0;line-height:1.4}.darkPanel{background:#11110f;color:#fffdf8}.darkPanel li,.darkPanel p{color:rgba(255,253,248,.7)}.infoPage{padding:78px 0}.infoPage>span{color:var(--bt-clay);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.footerSubscribe.completeFooter{max-width:1180px;margin:0 auto;padding:50px 0 70px;border-top:1px solid var(--bt-line);display:grid;grid-template-columns:1fr 420px;gap:36px}.footerSubscribe h2{font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.06em}.footerSubscribe p,.footerForm span{color:var(--bt-muted);line-height:1.55}.footerLinks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.footerLinks button{border:0;background:transparent;text-align:left;padding:6px 0;color:#11110f;text-decoration:underline;text-underline-offset:3px;font-weight:750}
 .builderContextFields{border:1px solid rgba(17,17,15,.1);border-radius:16px;background:#fffdf8;padding:12px 14px}.builderContextFields summary{cursor:pointer;font-weight:850;color:#2f2a25}.builderContextFields .builderContextGrid{margin-top:14px}
+.loggedInApp{display:grid;grid-template-columns:292px minmax(0,1fr);min-height:calc(100vh - 84px);background:#f8f5ef;border-top:1px solid rgba(17,17,15,.06)}.appSidebar{position:sticky;top:74px;height:calc(100vh - 74px);display:flex;flex-direction:column;justify-content:space-between;padding:22px;border-right:1px solid rgba(17,17,15,.1);background:#fffdf8;z-index:20}.appBrandButton{border:0;background:transparent;text-align:left;font-size:25px;font-weight:950;letter-spacing:-.075em;color:#11110f;padding:0;margin-bottom:22px}.brandSwitcher{display:grid;gap:8px}.brandSwitcher span,.appSidebarBottom span,.appHeader span,.appCardHeader span,.appToolCard span,.appPanel>span,.completionTop span,.completionChecklist span,.identityOverviewGrid span,.generatorAppCrumb span,.brandContextPanel summary{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}.brandSwitcher select{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#f8f5ef;padding:12px;font-weight:850;color:#11110f}.appSectionNav{display:grid;gap:6px;margin:28px 0}.appSectionNav button{border:0;background:transparent;border-radius:14px;padding:12px 13px;text-align:left;font-weight:850;color:#37322c}.appSectionNav button:hover,.appSectionNav button.active{background:#11110f;color:#fffdf8}.appSidebarBottom{display:grid;gap:8px;border-top:1px solid rgba(17,17,15,.1);padding-top:16px}.appSidebarBottom strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#5d554d}.appSidebarBottom button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;padding:10px 12px;font-weight:850;color:#11110f}.appShellBody{min-width:0;display:grid;grid-template-rows:auto 1fr}.appHeader{position:sticky;top:74px;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;background:rgba(248,245,239,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(17,17,15,.08)}.appHeader strong{display:block;font-size:22px;letter-spacing:-.045em}.mobileAppMenu{display:none}.createMenuWrap{position:relative}.appCreateButton{min-width:104px}.createMenu{position:absolute;right:0;top:calc(100% + 8px);width:360px;max-height:70vh;overflow:auto;background:#fffdf8;border:1px solid rgba(17,17,15,.12);border-radius:20px;padding:10px;box-shadow:0 24px 70px rgba(35,28,19,.16);display:grid;gap:6px;z-index:30}.createMenu button{border:0;background:transparent;border-radius:14px;padding:12px;text-align:left;color:#11110f}.createMenu button:hover{background:#f1eadf}.createMenu strong{display:block;font-size:15px;margin-bottom:4px}.createMenu span{display:block;color:#6b625b;font-size:12px;line-height:1.35}.appMain{min-width:0;padding:28px;scroll-margin-top:120px}.appContentSection{max-width:1180px;margin:0 auto;padding:0 0 54px}.workspaceOverview .pageTitle,.overviewHero h1{font-size:clamp(46px,7vw,88px);line-height:.92;letter-spacing:-.075em;margin:0 0 14px}.overviewHero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.62fr);gap:24px;align-items:stretch}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px;box-shadow:0 20px 58px rgba(35,28,19,.07)}.overviewHero p{font-size:20px;line-height:1.35;color:#5d554d;max-width:760px}.overviewMeta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.overviewMeta span{border:1px solid rgba(17,17,15,.1);border-radius:999px;padding:9px 12px;background:#f8f5ef;font-size:13px;font-weight:850;color:#37322c}.nextActionCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px}.nextActionCard strong{font-size:28px;line-height:1.08;letter-spacing:-.055em}.nextActionCard button,.appPanel button,.appToolCard button,.completionChecklist button,.identityOverviewGrid button{align-self:flex-start;border:1px solid #11110f;border-radius:999px;background:#11110f;color:#fffdf8;padding:10px 14px;font-weight:850}.overviewActions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.completionTop{width:100%;border:0;background:transparent;text-align:left;display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:center;color:#11110f}.completionTop strong{font-size:44px;letter-spacing:-.075em}.completionTop small{color:#6b625b;font-weight:750}.completionChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.completionChecklist button{display:grid;gap:4px;align-items:start;text-align:left;border-color:rgba(17,17,15,.12);background:#f8f5ef;color:#11110f;border-radius:16px}.completionChecklist button.complete{background:#11110f;color:#fffdf8}.completionChecklist button.complete span,.completionChecklist button.complete small{color:rgba(255,253,248,.68)}.completionChecklist small{color:#6b625b}.workspaceTools{margin-top:18px}.appCardHeader h2{font-size:32px;line-height:1;letter-spacing:-.06em;margin:6px 0 0}.toolCardGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.appToolCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px;background:#f8f5ef;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:18px;min-height:178px}.appToolCard strong{display:block;font-size:22px;letter-spacing:-.05em;margin:8px 0}.appToolCard p{color:#5d554d;line-height:1.4;margin:0}.moreTools{margin-top:18px}.moreTools summary{font-weight:900;cursor:pointer}.overviewGrid,.identityOverviewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.appPanel{box-shadow:none}.appPanel.wide{grid-column:span 2}.appPanel p{color:#5d554d;line-height:1.5}.recentAssetRow,.appPanel>button:not(.btn){display:block;width:100%;border:0;border-top:1px solid rgba(17,17,15,.1);border-radius:0;background:transparent;color:#11110f;text-align:left;padding:12px 0;margin:0}.recentAssetRow strong{display:block}.recentAssetRow small,.roadmapMiniRow p{color:#6b625b}.roadmapMiniRow{border-top:1px solid rgba(17,17,15,.1);padding:12px 0}.identityLogoStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.identityLogoStrip img{width:100%;aspect-ratio:1;border-radius:20px;object-fit:contain;background:#fffdf8;border:1px solid rgba(17,17,15,.1);padding:18px}.settingsGrid{display:grid;gap:18px}.newBrandPanel summary{font-size:18px;font-weight:950;cursor:pointer}.newBrandPanel .workspaceCard{box-shadow:none;border:0;padding:18px 0 0}.generatorAppCrumb{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.generatorAppCrumb button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.brandContextPanel{border:1px solid rgba(17,17,15,.1);border-radius:18px;background:#fffdf8;padding:14px 16px;margin-bottom:18px}.brandContextPanel summary{cursor:pointer;color:#806546}.brandContextPanel div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.brandContextPanel p{margin:0;color:#5d554d;line-height:1.45}.captionRowActions{display:flex;gap:8px;flex-wrap:wrap}.savedAssetLinkRow{border-top:1px solid rgba(17,17,15,.08);padding:14px 22px;display:flex;justify-content:space-between;gap:12px;align-items:center}.savedAssetLinkRow span{color:#6b625b;font-weight:760}.savedAssetLinkRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}
+@media(max-width:1040px){.loggedInApp{grid-template-columns:1fr}.appSidebar{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);height:100vh;top:0;transform:translateX(-105%);transition:transform .2s ease;box-shadow:20px 0 70px rgba(35,28,19,.16)}.appSidebar.open{transform:translateX(0)}.appHeader{top:0}.mobileAppMenu{display:inline-flex;border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:10px 12px;font-weight:850}.appMain{padding:20px}.overviewHero,.overviewGrid,.identityOverviewGrid{grid-template-columns:1fr}.appPanel.wide{grid-column:auto}.toolCardGrid,.completionChecklist{grid-template-columns:repeat(2,minmax(0,1fr))}.createMenu{right:-8px;width:min(88vw,360px)}}@media(max-width:680px){.appHeader{align-items:flex-start;padding:12px 16px}.appHeader strong{font-size:18px}.appMain{padding:16px}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{border-radius:18px;padding:18px}.overviewHero p{font-size:17px}.overviewActions .btn{width:100%}.toolCardGrid,.completionChecklist,.brandContextPanel div{grid-template-columns:1fr}.completionTop{grid-template-columns:1fr;gap:5px}.captionOptionRow{grid-template-columns:34px 1fr}.captionRowActions{grid-column:2}.savedAssetLinkRow{flex-direction:column;align-items:flex-start}.savedAssetLinkRow button{width:100%}}
 @media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.exampleBrandMedia{animation:softReveal .55s ease both}@keyframes softReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:1050px){.birthHero,.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder,.footerSubscribe.completeFooter{grid-template-columns:1fr}.birthHero{padding-top:42px}.birthHero .northlineInputPanel,.productWalkthrough .northlineOutputPreview{display:none}.birthHeroVisual{max-width:760px}.receiveGrid,.howGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.boundaryGrid{grid-template-columns:1fr}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:520px}.navInner{align-items:flex-start}.navLinks{max-width:100%;overflow-x:auto}}
 @media(max-width:720px){.nav{padding:10px 16px}.navInner{display:grid;grid-template-columns:1fr auto;gap:10px}.navLinks{grid-column:1/-1;width:100%;border-radius:14px;justify-content:flex-start}.navPrimaryCta{display:none}.accountMenu span{display:none}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:calc(100% - 32px)}.birthHero{padding:30px 0 34px;gap:20px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(50px,15vw,68px);letter-spacing:-.075em}.birthHeroCopy>p,.examplesHero p{font-size:18px;margin-bottom:18px}.heroSupport{margin-bottom:0}.birthHero .northlineInputPanel{display:none}.birthHeroActions,.builderActions{align-items:stretch;margin-bottom:12px}.birthCta,.birthSecondary,.textLinkButton,.btn.dark,.btn.light{width:100%}.northlineInputPanel,.brandBuilderCard{border-radius:22px;padding:18px}.agentSteps,.outputTray,.builderContextGrid,.previewResult,.receiveGrid,.howGrid{grid-template-columns:1fr}.productWalkthrough .northlineOutputPreview{display:none}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:34px 0}.sectionHeader.compact{margin-bottom:18px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(36px,10.8vw,52px);letter-spacing:-.065em}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:17px}.walkthroughSteps{gap:4px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{padding:10px 0}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{font-size:18px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{font-size:14px}.worldList{margin-top:16px}.worldList div,.exampleDetails div{grid-template-columns:1fr;gap:5px}.previewImageFrame,.brandWorldPhoto,.exampleBrandMedia{border-radius:20px}.priceStatement{border-radius:22px;padding:20px}.priceStatement strong{font-size:48px}.faqList details{padding:11px 0}.faqList summary{font-size:16px}.builderField textarea{min-height:96px}.builderContextFields{padding:11px 12px}.examplesPage{padding:38px 16px 70px}.exampleBrandGrid{gap:44px}.footerSubscribe.completeFooter{width:calc(100% - 32px);padding:34px 0 42px;gap:18px}.footerSubscribe h2{font-size:34px}.footerLinks{grid-template-columns:1fr}.footerForm input,.footerForm button{width:100%}}

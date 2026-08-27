@@ -266,7 +266,7 @@ function makeTaglines({ brandName, industry, opportunity }) {
   }
   const options = {
     luxury: [`${brandName}, quietly exceptional.`, `Made for the rare ${noun} moment.`, `A more considered way to choose ${noun}.`, `Where restraint becomes recognition.`],
-    convenience: [`${brandName} makes the next step easier.`, `${noun} without the usual friction.`, `Less hassle. More momentum.`, `Built for the easy yes.`],
+    convenience: [`${brandName} makes ${noun} feel easier to choose.`, `The simpler way to bring ${noun} into everyday life.`, `Clearer steps. Better follow-through.`, `Made for people who want the answer to feel obvious.`],
     trust: [`${brandName} brings certainty closer.`, `Clearer decisions for serious moments.`, `The steady way forward.`, `Confidence, handled with care.`],
     craftsmanship: [`${brandName}, shaped with care.`, `Craft you can recognize.`, `Made with origin, finished with intention.`, `A more personal kind of ${noun}.`],
     speed: [`${brandName} moves ideas faster.`, `Less waiting. Sharper work.`, `Momentum with a clearer system.`, `Built for the next version.`],
