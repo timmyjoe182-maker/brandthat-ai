@@ -77,7 +77,7 @@ export const handler = async (event) => {
       return json(200, {
         alreadySubscribed: true,
         plan: MEMBER_PLAN,
-        url: `${getSiteUrl()}/#workspace`,
+        url: `${getSiteUrl()}/?membership_synced=true#workspace`,
         requestId,
       });
     }
