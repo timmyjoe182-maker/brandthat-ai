@@ -98,7 +98,7 @@ function inferProfile(draft) {
 function mergeAudience(inputAudience, profileAudience) {
   const audience = clean(inputAudience);
   if (!audience) return profileAudience;
-  return `${sentenceCase(audience)} who want a convenient path to the specific outcome described in this idea, with messaging focused on the need, setting, and buying moment instead of a generic category promise.`;
+  return `${sentenceCase(audience)} who want the brand to solve a clear practical problem while still feeling easy to trust, remember, and choose.`;
 }
 
 function mergeStyle(inputStyle, profile) {
@@ -117,13 +117,14 @@ export function buildPreviewFromDraft(draft = {}) {
   const audience = mergeAudience(draft.audience, profile.audience);
   const voiceTraits = mergeStyle(draft.style || draft.desiredFeeling, profile);
   const stylePhrase = clean(draft.style || draft.desiredFeeling, voiceTraits.join(", ").toLowerCase());
+  const promise = description.replace(/^a\s+/i, "").replace(/\.$/, "");
 
   return {
-    thesis: `${name} should become the ${category} brand that turns "${description}" into a clear customer promise: useful enough to understand quickly and distinctive enough to remember.`,
+    thesis: `${name} turns ${promise} into a clear ${category} promise that customers can understand quickly and remember after the first impression.`,
     audience,
     traits: voiceTraits,
-    positioning: `${profile.positioning} For ${name}, the sharper angle is to sell the situation and outcome, not just the product or service.`,
-    visualDirection: `${profile.visualDirection} The requested personality should feel ${stylePhrase.toLowerCase()} without losing category clarity.`,
+    positioning: `${profile.positioning} Lead with the customer situation and the outcome they want, not only the product or service category.`,
+    visualDirection: `${profile.visualDirection} Keep the personality ${stylePhrase.toLowerCase()} while making the category easy to recognize at a glance.`,
     colors: profile.colors,
   };
 }
