@@ -2240,26 +2240,44 @@ function getDefaultWorkspaceDraft() {
 }
 
 function getBrandReadinessScore(brand) {
-  if (!brand) return 0;
+  return getBrandCompletion(brand).percent;
+}
 
-  const fields = [
-    "name",
-    "description",
-    "audience",
-    "audiencePain",
-    "offer",
-    "differentiator",
-    "tone",
-    "style",
-    "logoDirection",
-    "channels",
-    "launchGoal",
-    "growthPlatform",
-    "targetFollowers",
+function getSavedBucketKey(toolKey = "") {
+  return toolKey === "logo" ? "logos" : toolKey;
+}
+
+function normalizeAssetContent(value = "") {
+  return cleanGeneratedText(value).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function getBrandCompletionChecklist(brand) {
+  const plan = brand ? getWorkspacePlan(brand) : {};
+  const hasSaved = (key) => Array.isArray(brand?.saved?.[key]) && brand.saved[key].length > 0;
+  const hasContentAsset = ["captions", "hooks", "bios", "hashtags", "email", "campaign", "strategy", "growth"].some(hasSaved);
+
+  return [
+    { key: "basics", completeLabel: "Brand basics complete", missingLabel: "Brand basics missing", complete: Boolean(brand?.name), action: "Review basics", section: "settings" },
+    { key: "description", completeLabel: "Description complete", missingLabel: "Description missing", complete: Boolean(String(brand?.description || "").trim()), action: "Review basics", section: "settings" },
+    { key: "audience", completeLabel: "Audience complete", missingLabel: "Audience missing", complete: Boolean(plan.targetAudience || brand?.audience), action: "Open Strategy", section: "strategy" },
+    { key: "positioning", completeLabel: "Positioning complete", missingLabel: "Positioning missing", complete: Boolean(plan.positioning || brand?.differentiator), action: "Open Strategy", section: "strategy" },
+    { key: "voice", completeLabel: "Voice complete", missingLabel: "Voice missing", complete: Boolean(plan.brandVoice || brand?.tone), action: "Open Strategy", section: "strategy" },
+    { key: "colors", completeLabel: "Colors complete", missingLabel: "Colors missing", complete: Boolean(plan.colorSystem || brand?.style), action: "Open Identity", section: "identity" },
+    { key: "typography", completeLabel: "Typography complete", missingLabel: "Typography missing", complete: Boolean(plan.typographySystem), action: "Open Identity", section: "identity" },
+    { key: "logo", completeLabel: "Logo saved", missingLabel: "Logo missing", complete: hasSaved("logos") || Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
+    { key: "content", completeLabel: "First content asset saved", missingLabel: "First content asset missing", complete: hasContentAsset, action: "Create Content", section: "tools" },
   ];
+}
 
-  const completed = fields.filter((field) => String(brand[field] || "").trim()).length;
-  return Math.round((completed / fields.length) * 100);
+function getBrandCompletion(brand) {
+  const checklist = getBrandCompletionChecklist(brand);
+  const completeCount = checklist.filter((item) => item.complete).length;
+  return {
+    checklist,
+    completeCount,
+    total: checklist.length,
+    percent: checklist.length ? Math.round((completeCount / checklist.length) * 100) : 0,
+  };
 }
 
 function countSavedAssets(brand) {
@@ -3618,6 +3636,8 @@ export default function App() {
     setLogoImageSource("");
     setLogoCreativeBrief(null);
     setPage("workspace");
+    setWorkspaceSection("overview");
+    window.history.pushState({}, "", "/workspace");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
     trackBrandthatEvent("workspace_created", { hasLogoDirection: Boolean(baseBrand.logoDirection), goal: baseBrand.targetFollowers || baseBrand.launchGoal || "" });
@@ -3645,6 +3665,7 @@ export default function App() {
     setLogoSvg("");
     setLogoTransparentSvg("");
     setLogoVariations([]);
+    setWorkspaceSection("overview");
   };
 
   const deleteBrand = async (brandId) => {
@@ -3668,7 +3689,7 @@ export default function App() {
     }
   };
 
-  const saveCurrentOutput = async () => {
+  const saveGeneratedAsset = async ({ contentOverride = "", imageOverride = "", titleOverride = "", collection = false, favorite = false } = {}) => {
     const session = await requireMembershipOrTrial("save_output");
     if (!session) return;
 
@@ -3677,22 +3698,25 @@ export default function App() {
       return;
     }
 
-    if (!result && !logoImage) {
+    const sourceContent = contentOverride || result;
+    const sourceImage = imageOverride || logoImage;
+
+    if (!sourceContent && !sourceImage) {
       notify("error", "Generate something first", "Once an output appears, you can save it to your workspace.");
       return;
     }
 
-    if (activeTool.key !== "logo" && isGenerationFailureText(result)) {
+    if (activeTool.key !== "logo" && isGenerationFailureText(sourceContent)) {
       notify("error", "Nothing to save yet", "The last generation failed. Retry before saving this to your workspace.");
       return;
     }
 
-    const bucket = activeTool.key === "logo" ? "logos" : activeTool.key;
+    const bucket = getSavedBucketKey(activeTool.key);
     const logoProject = activeTool.key === "logo"
       ? {
-          image: logoImage,
+          image: sourceImage,
           source: logoImageSource || "openai",
-          vectorImage: logoVectorImage || logoImage,
+          vectorImage: logoVectorImage || sourceImage,
           svg: logoSvg || "",
           transparentSvg: logoTransparentSvg || logoSvg || "",
           variations: logoVariations || [],
@@ -3708,14 +3732,22 @@ export default function App() {
           savedAt: new Date().toISOString(),
         }
       : null;
-    const displayContent = stripLogoProjectMetadata(result);
+    const displayContent = stripLogoProjectMetadata(sourceContent);
+    const normalizedContent = normalizeAssetContent(displayContent || sourceImage);
+    const duplicate = (activeBrand.saved?.[bucket] || []).some((item) => normalizeAssetContent(item.content || item.image) === normalizedContent);
+
+    if (duplicate) {
+      notify("info", "This result is already saved.", "Choose another result or generate a fresh version before saving again.");
+      return null;
+    }
+
     const storageContent = logoProject ? encodeLogoProjectContent(displayContent, logoProject) : displayContent;
     let entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       tool: activeTool.key,
-      title: `${activeTool.shortTitle} • ${new Date().toLocaleDateString()}`,
+      title: titleOverride || `${activeTool.shortTitle}${collection ? " Collection" : ""} • ${new Date().toLocaleDateString()}`,
       content: displayContent,
-      image: logoImage,
+      image: sourceImage,
       project: logoProject,
       source: logoProject?.source || "",
       vectorImage: logoProject?.vectorImage || "",
@@ -3731,6 +3763,7 @@ export default function App() {
       symbol: logoProject?.symbol || "",
       colors: logoProject?.colors || "",
       avoid: logoProject?.avoid || "",
+      favorite,
       createdAt: new Date().toISOString(),
     };
 
@@ -3745,6 +3778,7 @@ export default function App() {
             title: entry.title,
             content: storageContent,
             image_url: entry.image,
+            favorite,
           })
           .select("*")
           .single();
@@ -3771,10 +3805,16 @@ export default function App() {
       )
     );
 
+    if (favorite) {
+      setFavoriteIds((prev) => ({ ...prev, [entry.id]: true }));
+    }
+
     notify("success", "Saved to workspace", `${entry.title} was added to ${activeBrand.name}.`);
     trackBrandthatEvent("asset_saved", { tool: activeTool.key, hasImage: Boolean(entry.image) });
     return entry;
   };
+
+  const saveCurrentOutput = async () => saveGeneratedAsset({ collection: activeTool.key !== "logo" });
 
   const setLogoAsBrandProfile = async () => {
     const session = await requireMembershipOrTrial("workspace");
@@ -4134,9 +4174,66 @@ Generated with Brandthat.ai`;
     notify("success", "Workspace duplicated", `${finalBrand.name} is ready to edit.`);
   };
 
-  const toggleFavorite = (entryId) => {
+  const toggleFavorite = async (entryId) => {
     if (!entryId) return;
-    setFavoriteIds((prev) => ({ ...prev, [entryId]: !prev[entryId] }));
+    let nextFavorite = false;
+    setFavoriteIds((prev) => {
+      nextFavorite = !prev[entryId];
+      return { ...prev, [entryId]: nextFavorite };
+    });
+    setBrandWorkspaces((prev) => prev.map((brand) => ({
+      ...brand,
+      saved: Object.fromEntries(Object.entries(brand.saved || {}).map(([bucket, items]) => [
+        bucket,
+        Array.isArray(items) ? items.map((item) => item.id === entryId ? { ...item, favorite: nextFavorite } : item) : items,
+      ])),
+    })));
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        await supabase
+          .from("saved_generations")
+          .update({ favorite: nextFavorite })
+          .eq("id", entryId)
+          .eq("user_id", sessionData.session.user.id);
+      }
+    } catch (error) {
+      console.warn("Could not sync favorite:", error.message);
+    }
+  };
+
+  const deleteSavedAsset = async (entryId) => {
+    if (!entryId || !activeBrand) return;
+    if (!window.confirm("Delete this saved asset?")) return;
+    setBrandWorkspaces((prev) => prev.map((brand) => {
+      if (brand.id !== activeBrand.id) return brand;
+      return {
+        ...brand,
+        saved: Object.fromEntries(Object.entries(brand.saved || {}).map(([bucket, items]) => [
+          bucket,
+          Array.isArray(items) ? items.filter((item) => item.id !== entryId) : items,
+        ])),
+      };
+    }));
+    setFavoriteIds((prev) => {
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        const { error } = await supabase
+          .from("saved_generations")
+          .delete()
+          .eq("id", entryId)
+          .eq("user_id", sessionData.session.user.id);
+        if (error) throw error;
+      }
+      notify("success", "Asset deleted", "The saved asset was removed from this workspace.");
+    } catch (error) {
+      notify("warning", "Deleted locally", `We could not sync the deletion yet. ${error.message || ""}`);
+    }
   };
 
   const remixOutput = (entry) => {
@@ -4805,6 +4902,10 @@ Rules:
   10. Direct call-to-action caption
 - Avoid repeating the same opening phrase or sentence structure.
 - If the brand is local, service-based, product-based, or subscription-based, make that visible where useful.
+- Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, or availability claims unless the user explicitly supplied that evidence.
+- Prefer non-quantified lifestyle language when mentioning benefits.
+- Do not invent reviews, sales results, guarantees, product features, or fulfillment promises.
+- Avoid repetitive openings such as "Exciting news" and "New arrivals alert."
 - Avoid cheesy filler.
 - Keep each caption copy-ready.
 ${workspaceContext}
@@ -5445,12 +5546,14 @@ ${promptValue}`;
     scrollToSection(sectionId, sectionId === "brandthat-membership" ? "center" : "start");
   }, [page]);
 
+  const isLoggedInApplicationPage = authStatus === "logged_in" && ["workspace", "studio", "logo"].includes(page);
+
   return (
     <div className="app">
       <style>{css}</style>
       <style>{futureThemeCss}</style>
 
-      <nav className="nav">
+      {!isLoggedInApplicationPage && <nav className="nav">
         <button className="brand" onClick={() => { setActiveToolKey("brand"); setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Brandthat</button>
 
         <div className="navLinks">
@@ -5473,7 +5576,7 @@ ${promptValue}`;
             <button className="accountBtn" onClick={() => openAuth("login")}>{authLoading ? "Loading..." : "Sign In"}</button>
           )}
         </div>
-      </nav>
+      </nav>}
 
       {appNotice && (
         <div className={`appNotice ${appNotice.type || "info"}`}>
@@ -5570,6 +5673,7 @@ ${promptValue}`;
             recentGenerations={getRecentGenerations()}
             favoriteIds={favoriteIds}
             toggleFavorite={toggleFavorite}
+            deleteSavedAsset={deleteSavedAsset}
             setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
             continueSavedLogo={continueSavedLogo}
           />
@@ -5715,6 +5819,7 @@ ${promptValue}`;
             shareOutput={shareOutput}
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
+            saveGeneratedAsset={saveGeneratedAsset}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
             onStartWorkspace={startWorkspaceFromCurrentLogo}
             onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
@@ -6272,19 +6377,7 @@ function getRecentBrandAssets(brand, limit = 5) {
 }
 
 function getCompletionChecklist(brand) {
-  const plan = brand ? getWorkspacePlan(brand) : {};
-  const hasSaved = (key) => Array.isArray(brand?.saved?.[key]) && brand.saved[key].length > 0;
-  return [
-    { label: "Brand basics complete", complete: Boolean(brand?.name && brand?.description), action: "Review basics", section: "settings" },
-    { label: "Audience complete", complete: Boolean(plan.targetAudience || brand?.audience), action: "Open Strategy", section: "strategy" },
-    { label: "Positioning complete", complete: Boolean(plan.positioning || brand?.differentiator), action: "Open Strategy", section: "strategy" },
-    { label: "Voice complete", complete: Boolean(plan.brandVoice || brand?.tone), action: "Open Strategy", section: "strategy" },
-    { label: "Colors complete", complete: Boolean(plan.colorSystem || brand?.style), action: "Open Identity", section: "identity" },
-    { label: "Typography complete", complete: Boolean(plan.typographySystem), action: "Open Identity", section: "identity" },
-    { label: "Logo saved", complete: hasSaved("logos") || Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
-    { label: "First content asset saved", complete: ["captions", "hooks", "bios", "hashtags", "email"].some(hasSaved), action: "Create Content", section: "tools" },
-    { label: "Launch channels selected", complete: Boolean(brand?.growthPlatform || brand?.channels || plan.platformStrategy?.length), action: "Open Roadmap", section: "roadmap" },
-  ];
+  return getBrandCompletionChecklist(brand);
 }
 
 function LoggedInAppShell({
@@ -6305,6 +6398,15 @@ function LoggedInAppShell({
 }) {
   const toolButtons = [...primaryToolKeys, ...secondaryToolKeys].map((key) => toolMap[key]).filter(Boolean);
   const isMember = normalizePlan(userPlan) === MEMBER_PLAN;
+
+  useEffect(() => {
+    if (!createMenuOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setCreateMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [createMenuOpen, setCreateMenuOpen]);
 
   return (
     <div className="loggedInApp">
@@ -6355,6 +6457,7 @@ function LoggedInAppShell({
             <button className="btn dark appCreateButton" onClick={() => setCreateMenuOpen(!createMenuOpen)} aria-expanded={createMenuOpen}>Create</button>
             {createMenuOpen && (
               <div className="createMenu" role="menu">
+                <div className="createMenuContext">Creating for {activeBrand?.name || "the active brand"}</div>
                 {toolButtons.map((tool) => (
                   <button key={tool.key} onClick={() => selectTool(tool.key)} role="menuitem">
                     <strong>{getAppToolTitle(tool)}</strong>
@@ -6421,6 +6524,7 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
   }
   const plan = getWorkspacePlan(brand);
   const checklist = getCompletionChecklist(brand);
+  const completion = getBrandCompletion(brand);
   const missing = checklist.filter((item) => !item.complete);
   const recent = recentGenerations.length ? recentGenerations : getRecentBrandAssets(brand);
   const nextAction = getBrandNextActions(brand)[0] || "Create the first content asset from the active brand context.";
@@ -6434,7 +6538,8 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
           <h1>{brand.name}</h1>
           <p>{brand.description}</p>
           <div className="overviewMeta">
-            <span>{getBrandReadinessScore(brand)}% ready</span>
+            <span>{completion.percent}% ready</span>
+            <span>{completion.completeCount} of {completion.total} complete</span>
             <span>{brand.launchGoal || "Goal not set"}</span>
             <span>Membership active</span>
           </div>
@@ -6444,12 +6549,6 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
           <strong>{nextAction}</strong>
           <button onClick={() => navigateWorkspaceSection("tools")}>Create Content</button>
         </div>
-      </div>
-
-      <div className="overviewActions">
-        <button className="btn dark" onClick={() => selectTool("captions")}>Create Content</button>
-        <button className="btn light" onClick={() => selectTool("logo")}>Generate Logo</button>
-        <button className="btn light" onClick={() => navigateWorkspaceSection("strategy")}>View Brand Strategy</button>
       </div>
 
       <CompletionPanel brand={brand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} />
@@ -6478,10 +6577,11 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
         <div className="appPanel">
           <span>Missing Brand Elements</span>
           {missing.slice(0, 5).map((item) => (
-            <button key={item.label} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
-              {item.label} — {item.action}
+            <button key={item.key} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
+              {item.missingLabel || item.label} — {item.action}
             </button>
           ))}
+          {!missing.length && <p>Core brand elements are complete. Keep building assets and refining the roadmap.</p>}
         </div>
       </div>
     </section>
@@ -6490,23 +6590,21 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
 
 function CompletionPanel({ brand, navigateWorkspaceSection, selectTool }) {
   const [open, setOpen] = useState(false);
-  const checklist = getCompletionChecklist(brand);
-  const complete = checklist.filter((item) => item.complete).length;
-  const percent = checklist.length ? Math.round((complete / checklist.length) * 100) : 0;
+  const { checklist, completeCount, total, percent } = getBrandCompletion(brand);
 
   return (
     <section className="completionPanel">
       <button className="completionTop" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span>Brand completion</span>
         <strong>{percent}%</strong>
-        <small>{complete} of {checklist.length} complete. Open to see what raises the score.</small>
+        <small>{completeCount} of {total} complete. Open to see what raises the score.</small>
       </button>
       {open && (
         <div className="completionChecklist">
           {checklist.map((item) => (
-            <button key={item.label} className={item.complete ? "complete" : ""} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
+            <button key={item.key} className={item.complete ? "complete" : ""} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
               <span>{item.complete ? "Done" : "Missing"}</span>
-              <strong>{item.label}</strong>
+              <strong>{item.complete ? item.completeLabel : item.missingLabel}</strong>
               <small>{item.action}</small>
             </button>
           ))}
@@ -6605,6 +6703,7 @@ function WorkspaceSectionView(props) {
     recentGenerations,
     favoriteIds,
     toggleFavorite,
+    deleteSavedAsset,
     setSavedLogoAsBrandProfile,
     continueSavedLogo,
   } = props;
@@ -6634,12 +6733,12 @@ function WorkspaceSectionView(props) {
         <h1 className="pageTitle">Create from one connected brand.</h1>
         <p className="pageLead">Every generator uses the active workspace context so captions, hashtags, bios, emails, roadmaps, and logo concepts stay aligned.</p>
         <WorkspaceToolGrid brand={activeBrand} selectTool={selectTool} />
-        {activeBrand && <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />}
+        {activeBrand && <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} deleteSavedAsset={deleteSavedAsset} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />}
       </section>
     );
   }
   if (section === "roadmap") return <WorkspaceRoadmap brand={activeBrand} navigateWorkspaceSection={navigateWorkspaceSection} />;
-  if (section === "assets" && activeBrand) return <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />;
+  if (section === "assets" && activeBrand) return <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} deleteSavedAsset={deleteSavedAsset} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />;
   if (section === "settings") {
     return (
       <section className="appContentSection settingsGrid">
@@ -7038,206 +7137,154 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, workspaceLoading = fal
   );
 }
 
-function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, remixOutput, copyToClipboard, setSavedLogoAsBrandProfile, continueSavedLogo }) {
-  const buckets = [
-    ["logos", "Saved Logos"],
-    ["captions", "Saved Captions"],
-    ["hooks", "Saved Hooks"],
-    ["bios", "Saved Bios"],
-    ["hashtags", "Saved Hashtags"],
-    ["email", "Saved Emails"],
-    ["strategy", "Saved Strategy"],
-    ["brand", "Saved Brand Ideas"],
-    ["audit", "Saved Audits"],
-    ["campaign", "Saved Campaigns"],
-    ["growth", "Saved Growth Roadmaps"],
+function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFavorite, deleteSavedAsset, remixOutput, copyToClipboard, setSavedLogoAsBrandProfile, continueSavedLogo }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const bucketLabels = {
+    logos: "Logos",
+    captions: "Captions",
+    hooks: "Hooks",
+    bios: "Bios",
+    hashtags: "Hashtags",
+    email: "Emails",
+    strategy: "Strategies",
+    brand: "Brand Plans",
+    audit: "Audits",
+    campaign: "Campaigns",
+    growth: "Roadmaps",
+  };
+  const allAssets = Object.entries(bucketLabels)
+    .flatMap(([bucket, label]) => (brand.saved?.[bucket] || []).map((item) => ({
+      ...item,
+      bucket,
+      bucketLabel: label,
+      brandName: brand.name,
+      isFavorite: Boolean(favoriteIds[item.id] || item.favorite),
+    })));
+  const counts = allAssets.reduce((acc, item) => {
+    acc[item.bucket] = (acc[item.bucket] || 0) + 1;
+    if (item.isFavorite) acc.favorites = (acc.favorites || 0) + 1;
+    return acc;
+  }, { all: allAssets.length, favorites: 0 });
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredAssets = allAssets
+    .filter((item) => {
+      if (filter === "favorites" && !item.isFavorite) return false;
+      if (filter !== "all" && filter !== "favorites" && item.bucket !== filter) return false;
+      if (!normalizedSearch) return true;
+      return `${item.title} ${item.content} ${item.bucketLabel} ${item.brandName}`.toLowerCase().includes(normalizedSearch);
+    })
+    .sort((a, b) => {
+      const aTime = new Date(a.createdAt || 0).getTime();
+      const bTime = new Date(b.createdAt || 0).getTime();
+      return sortOrder === "oldest" ? aTime - bTime : bTime - aTime;
+    });
+  const filters = [
+    ["all", "All"],
+    ["logos", "Logos"],
+    ["captions", "Captions"],
+    ["hooks", "Hooks"],
+    ["bios", "Bios"],
+    ["hashtags", "Hashtags"],
+    ["email", "Emails"],
+    ["strategy", "Strategies"],
+    ["audit", "Audits"],
+    ["campaign", "Campaigns"],
+    ["growth", "Roadmaps"],
+    ["favorites", "Favorites"],
   ];
+  const visibleRecent = recentGenerations.length ? recentGenerations : allAssets.slice(0, 5);
 
-  const favoriteItems = buckets
-    .flatMap(([key]) => (brand.saved?.[key] || []).map((item) => ({ ...item, bucket: key })))
-    .filter((item) => favoriteIds[item.id] || item.favorite);
-  const savedLogos = (brand.saved?.logos || []).filter((item) => item.image);
-  const comparisonLogos = savedLogos.slice(0, 3);
-  const logoTimeline = savedLogos.slice(0, 8);
-
-  const renderItem = (item) => (
-    <div className="savedItem" key={item.id}>
-      {item.image && <img src={item.image} alt={item.title} />}
-      <strong>{item.title}</strong>
-      {item.content && <p>{item.content.split("\n").filter(Boolean).slice(0, 2).join(" ").slice(0, 140)}{item.content.length > 140 ? "..." : ""}</p>}
-      <div className="savedItemActions">
-        <button onClick={() => toggleFavorite(item.id)}>{favoriteIds[item.id] || item.favorite ? "Favorited" : "Favorite"}</button>
-        {item.content && <button onClick={() => copyToClipboard(item.content)}>Copy</button>}
-        <button onClick={() => remixOutput(item)}>Remix</button>
+  const renderAssetCard = (item) => (
+    <article className={item.image ? "assetLibraryCard logoAsset" : "assetLibraryCard"} key={item.id}>
+      {item.image && (
+        <button className="assetImageButton" onClick={() => openGeneratedImage(item.image)}>
+          <img src={item.image} alt={item.title || `${item.bucketLabel} asset`} />
+        </button>
+      )}
+      <div className="assetCardMeta">
+        <span>{item.bucketLabel}</span>
+        <small>{item.brandName} · {new Date(item.createdAt || Date.now()).toLocaleDateString()}</small>
       </div>
-    </div>
+      <strong>{item.title || item.bucketLabel}</strong>
+      {item.content && <p>{item.content.split("\n").filter(Boolean).slice(0, 3).join(" ").slice(0, 220)}{item.content.length > 220 ? "..." : ""}</p>}
+      <details>
+        <summary>Open details</summary>
+        <pre>{item.content || item.title}</pre>
+      </details>
+      <div className="assetCardActions">
+        <button onClick={() => toggleFavorite(item.id)}>{item.isFavorite ? "Favorited" : "Favorite"}</button>
+        {item.content && <button onClick={() => copyToClipboard(item.content)}>Copy</button>}
+        {item.bucket === "logos" && item.image && <button onClick={() => setSavedLogoAsBrandProfile(item)}>Set Logo</button>}
+        {item.bucket === "logos" && item.image && <button onClick={() => continueSavedLogo(item)}>Refine</button>}
+        <button onClick={() => remixOutput(item)}>Remix</button>
+        <button className="miniDanger" onClick={() => deleteSavedAsset?.(item.id)}>Delete</button>
+      </div>
+    </article>
   );
 
   return (
-    <section className="savedAssets">
-      <div className="tinyTag">SAVED OUTPUTS</div>
-      <h2>{brand.name} Brand Kit</h2>
-
-      {comparisonLogos.length > 0 && (
-        <div className="conceptComparisonPanel">
-          <div className="comparisonHeader">
-            <div>
-              <h3>Concept Comparison</h3>
-              <p>Review the strongest saved directions side by side and mark the version that feels closest to the brand.</p>
-            </div>
-          </div>
-
-          <div className="comparisonGrid">
-            {["A", "B", "C"].map((label, index) => {
-              const item = comparisonLogos[index];
-              if (!item) {
-                return (
-                  <div className="comparisonCard emptyComparisonCard" key={label}>
-                    <span>Concept {label}</span>
-                    <p>Save another logo concept to compare it here.</p>
-                  </div>
-                );
-              }
-
-              const project = getLogoProjectFromEntry(item);
-              const isFavorite = favoriteIds[item.id] || item.favorite;
-
-              return (
-                <div className={isFavorite ? "comparisonCard favoriteComparisonCard" : "comparisonCard"} key={item.id}>
-                  <div className="comparisonLabel">
-                    <span>Concept {label}</span>
-                    {isFavorite && <strong>Favorite</strong>}
-                  </div>
-                  <button className="comparisonImage" onClick={() => openGeneratedImage(item.image)}>
-                    <img src={item.image} alt={item.title} />
-                  </button>
-                  <div className="comparisonCopy">
-                    <h4>{project.brandName || item.title}</h4>
-                    <p>{project.style || "Logo direction"}{project.industry ? ` for ${project.industry}` : ""}</p>
-                  </div>
-                  <div className="comparisonActions">
-                    <button onClick={() => toggleFavorite(item.id)}>{isFavorite ? "Favorited" : "Favorite"}</button>
-                    <button onClick={() => continueSavedLogo(item)}>Refine</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+    <section className="savedAssets assetLibrary">
+      <div className="assetLibraryHero">
+        <div>
+          <div className="tinyTag">SAVED ASSETS</div>
+          <h2>{brand.name} asset library</h2>
+          <p>Search, filter, favorite, copy, remix, and manage the strongest outputs attached to this workspace.</p>
         </div>
-      )}
+        <strong>{allAssets.length} saved</strong>
+      </div>
 
-      {savedLogos.length > 0 && (
-        <div className="logoLibraryPanel">
-          <div className="logoLibraryTop">
-            <div>
-              <h3>Logo Library</h3>
-              <p>Compare generated logos, open them full size, download files, or choose the active workspace logo.</p>
-            </div>
-            {brand.logoImage && <img src={brand.logoImage} alt={`${brand.name} active logo`} />}
-          </div>
-          <div className="logoLibraryGrid">
-            {savedLogos.slice(0, 8).map((item) => (
-              <div className={brand.logoImage === item.image ? "logoLibraryItem activeLogoLibraryItem" : "logoLibraryItem"} key={item.id}>
-                <button className="logoPreviewButton" onClick={() => openGeneratedImage(item.image)}>
-                  <img src={item.image} alt={item.title} />
-                </button>
-                <strong>{item.title}</strong>
-                <div>
-                  <button onClick={() => downloadGeneratedImage(item.image, item.title)}>Download</button>
-                  <button onClick={() => openGeneratedImage(item.image)}>Open</button>
-                  <button onClick={() => setSavedLogoAsBrandProfile(item)}>Use as Brand Logo</button>
-                  <button onClick={() => remixOutput(item)}>Remix</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="assetControls">
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search saved assets..." />
+        <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+          {filters.map(([key, label]) => (
+            <option key={key} value={key}>{label} ({counts[key] || 0})</option>
+          ))}
+        </select>
+        <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </div>
 
-      {logoTimeline.length > 0 && (
-        <div className="brandProjectTimeline">
-          <div className="timelineHeader">
-            <div>
-              <h3>Brand Project Timeline</h3>
-              <p>Saved logo concepts and refinements for this brand. Open any version and keep refining from there.</p>
-            </div>
-            <span>{logoTimeline.length} saved version{logoTimeline.length === 1 ? "" : "s"}</span>
-          </div>
+      <div className="assetCountRow">
+        {Object.entries(bucketLabels).filter(([key]) => counts[key]).map(([key, label]) => (
+          <button key={key} onClick={() => setFilter(key)}>{label}: {counts[key]}</button>
+        ))}
+        {counts.favorites ? <button onClick={() => setFilter("favorites")}>Favorites: {counts.favorites}</button> : null}
+      </div>
 
-          <div className="timelineList">
-            {logoTimeline.map((item, index) => {
-              const project = getLogoProjectFromEntry(item);
-              const note = getLogoTimelineNote(item);
-              const isFavorite = favoriteIds[item.id] || item.favorite;
-
-              return (
-                <div className={brand.logoImage === item.image ? "timelineItem activeTimelineItem" : "timelineItem"} key={item.id}>
-                  <div className="timelineRail">
-                    <span>{index + 1}</span>
-                  </div>
-                  <button className="timelineThumb" onClick={() => continueSavedLogo(item)}>
-                    <img src={item.image} alt={item.title} />
-                  </button>
-                  <div className="timelineBody">
-                    <strong>{project.brandName || item.title}</strong>
-                    <span>{new Date(item.createdAt || Date.now()).toLocaleDateString()} · {project.style || "Logo concept"}</span>
-                    <p>{note.slice(0, 150)}{note.length > 150 ? "..." : ""}</p>
-                  </div>
-                  <div className="timelineActions">
-                    <button onClick={() => continueSavedLogo(item)}>Continue</button>
-                    <button onClick={() => toggleFavorite(item.id)}>{isFavorite ? "Favorited" : "Favorite"}</button>
-                    <button onClick={() => setSavedLogoAsBrandProfile(item)}>Set Logo</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="recentPanel">
+      <div className="recentPanel assetRecentPanel">
         <div>
           <h3>Recent Generations</h3>
-          <p>Your newest saved logos, captions, hooks, bios, and launch assets.</p>
+          <p>The newest saved outputs for this brand.</p>
         </div>
         <div className="recentList">
-          {recentGenerations.length === 0 ? (
-            <span>No recent generations yet.</span>
+          {visibleRecent.length === 0 ? (
+            <span>No recent generations yet. Open Content Tools and save the first caption, hashtag set, or logo concept.</span>
           ) : (
-            recentGenerations.slice(0, 5).map((item) => (
+            visibleRecent.slice(0, 5).map((item) => (
               <button key={item.id} onClick={() => remixOutput(item)}>
                 <strong>{item.title}</strong>
-                <span>{item.brandName}</span>
+                <span>{item.bucketLabel || item.brandName || brand.name}</span>
               </button>
             ))
           )}
         </div>
       </div>
 
-      {favoriteItems.length > 0 && (
-        <div className="favoritePanel">
-          <h3>Favorites</h3>
-          <div className="savedGrid compactSavedGrid">
-            {favoriteItems.slice(0, 4).map(renderItem)}
-          </div>
+      {filteredAssets.length ? (
+        <div className="assetLibraryGrid">
+          {filteredAssets.map(renderAssetCard)}
+        </div>
+      ) : (
+        <div className="emptyState assetEmptyState">
+          {search || filter !== "all"
+            ? "No saved assets match this search or filter."
+            : "No saved assets yet. Generate a caption, hashtag set, bio, email, roadmap, or logo concept to start building this brand library."}
         </div>
       )}
-
-      <div className="savedGrid">
-        {buckets.map(([key, title]) => {
-          const items = brand.saved?.[key] || [];
-          return (
-            <div className="savedBucket" key={key}>
-              <h3>{title}</h3>
-              {items.length === 0 ? (
-                <p>No saved outputs yet.</p>
-              ) : (
-                items.slice(0, 3).map(renderItem)
-              )}
-            </div>
-          );
-        })}
-      </div>
     </section>
   );
 }
@@ -7587,6 +7634,7 @@ function SEOPage({
   shareOutput,
   clearGenerator,
   saveCurrentOutput,
+  saveGeneratedAsset = () => {},
   setLogoAsBrandProfile,
   onStartWorkspace,
   onBuildGrowthRoadmap,
@@ -7646,9 +7694,10 @@ function SEOPage({
           trialRemaining={trialRemaining}
           copyToClipboard={copyToClipboard}
           shareOutput={shareOutput}
-          clearGenerator={clearGenerator}
-          saveCurrentOutput={saveCurrentOutput}
-          setLogoAsBrandProfile={setLogoAsBrandProfile}
+            clearGenerator={clearGenerator}
+            saveCurrentOutput={saveCurrentOutput}
+            saveGeneratedAsset={saveGeneratedAsset}
+            setLogoAsBrandProfile={setLogoAsBrandProfile}
           onStartWorkspace={onStartWorkspace}
           onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
@@ -8304,6 +8353,13 @@ function GeneratorCard({
   onViewSavedAssets = () => {}
 }) {
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
+  const currentBucket = getSavedBucketKey(activeTool.key);
+  const isAssetSaved = (content = "", image = "") => {
+    const fingerprint = normalizeAssetContent(content || image);
+    if (!fingerprint || !activeBrand?.saved?.[currentBucket]) return false;
+    return activeBrand.saved[currentBucket].some((item) => normalizeAssetContent(item.content || item.image) === fingerprint);
+  };
+  const currentOutputSaved = activeTool.key === "logo" ? isAssetSaved("", logoImage) : isAssetSaved(stripLogoProjectMetadata(result));
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -8481,7 +8537,7 @@ Designer iteration rules:
         </div>
         {activeTool.key !== "logo" && (
           <div className="generatorMeta">
-            {userPlan === "free" ? <span>Brand Plan required</span> : <span>Brand Plan unlocked</span>}
+            {userPlan === "free" ? <span>Brand Plan required</span> : <span>Brand Plan unlocked{activeBrand ? ` · ${getBrandCompletion(activeBrand).percent}% ready` : ""}</span>}
           </div>
         )}
       </div>
@@ -8847,6 +8903,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
           <div className="resultTop">
             <span>50 COPY-READY HASHTAGS</span>
             <div className="resultActions">
+              <button onClick={() => saveGeneratedAsset({ titleOverride: `${activeTool.shortTitle} Set • ${new Date().toLocaleDateString()}` })} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save Set"}</button>
               <button onClick={() => copyToClipboard(result)}>Copy Hashtags</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
@@ -8868,7 +8925,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
             <div className="resultActions">
               {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Project</button>}
               {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
-              <button onClick={saveCurrentOutput}>Save to Workspace</button>
+              <button onClick={saveCurrentOutput} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save All"}</button>
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
@@ -8880,7 +8937,15 @@ Generate another logo from the same creative direction. Preserve the strongest p
               <div className="captionOptionRow" key={`${item}-${index}`}>
                 <div className="captionNumber">{index + 1}</div>
                 <p>{item}</p>
-                <button onClick={() => copyToClipboard(item)}>Copy</button>
+                <div className="captionRowActions">
+                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}` })} disabled={isAssetSaved(item)}>
+                    {isAssetSaved(item) ? "Saved ✓" : "Save"}
+                  </button>
+                  <button onClick={() => copyToClipboard(item)}>Copy</button>
+                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}`, favorite: true })} disabled={isAssetSaved(item)}>
+                    {isAssetSaved(item) ? "Saved" : "Favorite"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -11233,7 +11298,7 @@ const futureThemeCss = `
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}.app{min-height:100vh;background:var(--bt-paper)!important;color:var(--bt-ink)!important}.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:14px clamp(18px,4vw,54px) 10px;background:rgba(255,253,248,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(17,17,15,.06)}.navInner{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand,.logoText{font-size:23px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink);border:0;background:transparent}.navLinks{display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.72)}.navLinks button{border:0;background:transparent;border-radius:999px;padding:9px 14px;color:#302d28;font-weight:760;font-size:14px}.navLinks button:hover{background:#11110f;color:#fffdf8}.navActions,.authCluster{display:flex;align-items:center;gap:10px}.navPrimaryCta,.accountBtn,.authCluster button,.birthCta,.birthSecondary,.inputAction,.priceStatement button,.unlockCallout button,.btn.dark,.btn.light{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:12px 18px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;text-decoration:none;transition:transform .18s ease,background .18s ease,color .18s ease,border-color .18s ease}.birthSecondary,.btn.light{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.navPrimaryCta:hover,.accountBtn:hover,.birthCta:hover,.inputAction:hover,.priceStatement button:hover,.unlockCallout button:hover,.btn.dark:hover{transform:translateY(-1px);background:#2a251f}.birthSecondary:hover,.btn.light:hover{background:#f0e8dc}.accountMenu{display:flex;align-items:center;gap:8px}.accountMenu span{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:13px}
 .birthPage{background:var(--bt-paper);overflow:hidden}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:min(1180px,calc(100% - 44px));margin:0 auto}.birthHero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(420px,.88fr);gap:clamp(30px,5vw,76px);align-items:center;padding:54px 0 60px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,9.5vw,132px);line-height:.87;letter-spacing:-.08em;margin:0 0 22px;font-weight:950;color:var(--bt-ink)}.birthHeroCopy>p,.examplesHero p{font-size:clamp(19px,1.75vw,25px);line-height:1.3;color:var(--bt-muted);max-width:690px;margin:0 0 24px;letter-spacing:-.03em}.birthHeroActions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.textLinkButton{border:0;background:transparent;color:#11110f;text-decoration:underline;text-underline-offset:4px;font-weight:820;padding:10px}.heroSupport,.builderFinePrint,.policyNote{font-size:14px;color:var(--bt-muted);line-height:1.45;margin:0 0 20px}.birthHeroVisual:before{content:"";position:absolute;inset:-22px;background:linear-gradient(120deg,rgba(215,197,173,.35),rgba(255,253,248,0) 56%);border-radius:34px;z-index:0}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual>*{position:relative;z-index:1}.northlineInputPanel,.brandBuilderCard{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:26px;padding:22px;box-shadow:var(--bt-shadow);display:grid;gap:16px}.inputPanelHeader,.builderTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.inputPanelHeader span,.builderTop>span,.sectionHeader>span,.worldCopy>span,.pricingSection>div>span,.exampleBrandCopy>span,.examplesKicker,.priceStatement span{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.inputPanelHeader strong{font-size:16px;color:var(--bt-ink)}.inputRows{display:grid;gap:12px}.inputRow,.builderField{display:grid;gap:8px;padding:15px;border:1px solid rgba(17,17,15,.09);border-radius:16px;background:#fffdf8}.inputRow span,.builderField span,.outputTray span,.toolExample span,.roadmapLine span,.workspaceShelf span,.previewResult span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#806546;font-weight:850}.inputRow strong{font-size:22px;letter-spacing:-.05em}.inputRow p,.builderField input,.builderField textarea{margin:0;color:#38332d;font-size:16px;line-height:1.4}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:8px 0;color:#47413a;font-size:13px;font-weight:740}.northlineOutputPreview{display:grid;gap:14px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:26px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0;aspect-ratio:3/2}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:10px}.outputTray div{background:#11110f;color:#fffdf8;border-radius:16px;padding:15px;min-height:96px}.outputTray span{color:#d7c5ad}.outputTray strong{display:block;color:#fffdf8;font-size:18px;line-height:1.15;letter-spacing:-.03em}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:56px 0}.sectionHeader.compact{max-width:820px;margin-bottom:28px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(42px,6vw,82px);line-height:.94;letter-spacing:-.07em;margin:0 0 14px;font-weight:950}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:clamp(18px,1.8vw,23px);line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em;margin:0}.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder{display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,1fr);gap:36px;align-items:start}.walkthroughSteps,.receiveGrid,.howGrid,.boundaryGrid,.faqList,.infoNotes{display:grid;gap:12px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{border-top:1px solid var(--bt-line);padding:14px 0}.walkthroughSteps span,.howGrid span{color:var(--bt-clay);font-size:12px;font-weight:900;letter-spacing:.08em}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{display:block;font-size:20px;letter-spacing:-.04em;margin-bottom:6px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{color:var(--bt-muted);line-height:1.45;margin:0}.receiveGrid,.howGrid,.boundaryGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.boundaryGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.worldList{display:grid;gap:10px;margin-top:22px}.worldList div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:11px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}.priceStatement{background:#11110f;color:#fffdf8;border-radius:26px;padding:26px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:64px;letter-spacing:-.08em;line-height:.9;margin:6px 0 16px}.priceStatement p,.priceStatement li{color:rgba(255,253,248,.72);line-height:1.45}.priceStatement a{display:inline-block;color:#fffdf8;margin-top:14px;text-decoration:underline;text-underline-offset:4px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%;margin-top:14px}.builderContextGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.builderField.full{grid-column:1/-1}.builderField{padding:0;background:transparent;border:0}.builderField input,.builderField textarea,.footerForm input{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:13px 14px}.builderField textarea{min-height:122px;resize:vertical}.builderActions{display:flex;gap:10px;flex-wrap:wrap}.previewResult{display:grid;grid-template-columns:1fr 1fr;gap:12px}.previewResult>div{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:16px;padding:16px}.previewResult p{margin:6px 0 0;color:#39342e;line-height:1.42}.previewSwatches{display:flex;gap:8px;margin-top:10px}.previewSwatches i{width:38px;height:38px;border-radius:50%;border:1px solid rgba(17,17,15,.14)}.unlockCallout{grid-column:1/-1;background:#11110f!important;color:#fffdf8!important}.unlockCallout p{color:rgba(255,253,248,.72)!important}.unlockCallout button{margin-top:12px;background:#fffdf8;color:#11110f}.faqList details{border-top:1px solid var(--bt-line);padding:16px 0}.faqList summary{font-weight:850;font-size:18px;cursor:pointer}.examplesPage{background:var(--bt-paper);padding:54px clamp(22px,5vw,76px) 90px}.examplesHero{max-width:980px;margin:0 auto 48px}.exampleBrandGrid{display:grid;gap:54px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);gap:34px;align-items:center}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(340px,.95fr) minmax(0,1.05fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandCopy h2{font-size:clamp(42px,6vw,82px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.exampleBrandCopy p{font-size:21px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em}.exampleDetails{display:grid;gap:10px;margin-top:20px}.exampleDetails div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:10px}.exampleDetails span{color:var(--bt-muted);font-size:15px}.textExamplePanel{padding:28px;box-shadow:none}.textExamplePanel strong{font-size:34px;letter-spacing:-.06em}.textExamplePanel li{color:var(--bt-muted);margin:10px 0;line-height:1.4}.darkPanel{background:#11110f;color:#fffdf8}.darkPanel li,.darkPanel p{color:rgba(255,253,248,.7)}.infoPage{padding:78px 0}.infoPage>span{color:var(--bt-clay);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.footerSubscribe.completeFooter{max-width:1180px;margin:0 auto;padding:50px 0 70px;border-top:1px solid var(--bt-line);display:grid;grid-template-columns:1fr 420px;gap:36px}.footerSubscribe h2{font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.06em}.footerSubscribe p,.footerForm span{color:var(--bt-muted);line-height:1.55}.footerLinks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.footerLinks button{border:0;background:transparent;text-align:left;padding:6px 0;color:#11110f;text-decoration:underline;text-underline-offset:3px;font-weight:750}
 .builderContextFields{border:1px solid rgba(17,17,15,.1);border-radius:16px;background:#fffdf8;padding:12px 14px}.builderContextFields summary{cursor:pointer;font-weight:850;color:#2f2a25}.builderContextFields .builderContextGrid{margin-top:14px}
-.loggedInApp{display:grid;grid-template-columns:292px minmax(0,1fr);min-height:calc(100vh - 84px);background:#f8f5ef;border-top:1px solid rgba(17,17,15,.06)}.appSidebar{position:sticky;top:74px;height:calc(100vh - 74px);display:flex;flex-direction:column;justify-content:space-between;padding:22px;border-right:1px solid rgba(17,17,15,.1);background:#fffdf8;z-index:20}.appBrandButton{border:0;background:transparent;text-align:left;font-size:25px;font-weight:950;letter-spacing:-.075em;color:#11110f;padding:0;margin-bottom:22px}.brandSwitcher{display:grid;gap:8px}.brandSwitcher span,.appSidebarBottom span,.appHeader span,.appCardHeader span,.appToolCard span,.appPanel>span,.completionTop span,.completionChecklist span,.identityOverviewGrid span,.generatorAppCrumb span,.brandContextPanel summary{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}.brandSwitcher select{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#f8f5ef;padding:12px;font-weight:850;color:#11110f}.appSectionNav{display:grid;gap:6px;margin:28px 0}.appSectionNav button{border:0;background:transparent;border-radius:14px;padding:12px 13px;text-align:left;font-weight:850;color:#37322c}.appSectionNav button:hover,.appSectionNav button.active{background:#11110f;color:#fffdf8}.appSidebarBottom{display:grid;gap:8px;border-top:1px solid rgba(17,17,15,.1);padding-top:16px}.appSidebarBottom strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#5d554d}.appSidebarBottom button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;padding:10px 12px;font-weight:850;color:#11110f}.appShellBody{min-width:0;display:grid;grid-template-rows:auto 1fr}.appHeader{position:sticky;top:74px;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;background:rgba(248,245,239,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(17,17,15,.08)}.appHeader strong{display:block;font-size:22px;letter-spacing:-.045em}.mobileAppMenu{display:none}.createMenuWrap{position:relative}.appCreateButton{min-width:104px}.createMenu{position:absolute;right:0;top:calc(100% + 8px);width:360px;max-height:70vh;overflow:auto;background:#fffdf8;border:1px solid rgba(17,17,15,.12);border-radius:20px;padding:10px;box-shadow:0 24px 70px rgba(35,28,19,.16);display:grid;gap:6px;z-index:30}.createMenu button{border:0;background:transparent;border-radius:14px;padding:12px;text-align:left;color:#11110f}.createMenu button:hover{background:#f1eadf}.createMenu strong{display:block;font-size:15px;margin-bottom:4px}.createMenu span{display:block;color:#6b625b;font-size:12px;line-height:1.35}.appMain{min-width:0;padding:28px;scroll-margin-top:120px}.appContentSection{max-width:1180px;margin:0 auto;padding:0 0 54px}.workspaceOverview .pageTitle,.overviewHero h1{font-size:clamp(46px,7vw,88px);line-height:.92;letter-spacing:-.075em;margin:0 0 14px}.overviewHero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.62fr);gap:24px;align-items:stretch}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px;box-shadow:0 20px 58px rgba(35,28,19,.07)}.overviewHero p{font-size:20px;line-height:1.35;color:#5d554d;max-width:760px}.overviewMeta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.overviewMeta span{border:1px solid rgba(17,17,15,.1);border-radius:999px;padding:9px 12px;background:#f8f5ef;font-size:13px;font-weight:850;color:#37322c}.nextActionCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px}.nextActionCard strong{font-size:28px;line-height:1.08;letter-spacing:-.055em}.nextActionCard button,.appPanel button,.appToolCard button,.completionChecklist button,.identityOverviewGrid button{align-self:flex-start;border:1px solid #11110f;border-radius:999px;background:#11110f;color:#fffdf8;padding:10px 14px;font-weight:850}.overviewActions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.completionTop{width:100%;border:0;background:transparent;text-align:left;display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:center;color:#11110f}.completionTop strong{font-size:44px;letter-spacing:-.075em}.completionTop small{color:#6b625b;font-weight:750}.completionChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.completionChecklist button{display:grid;gap:4px;align-items:start;text-align:left;border-color:rgba(17,17,15,.12);background:#f8f5ef;color:#11110f;border-radius:16px}.completionChecklist button.complete{background:#11110f;color:#fffdf8}.completionChecklist button.complete span,.completionChecklist button.complete small{color:rgba(255,253,248,.68)}.completionChecklist small{color:#6b625b}.workspaceTools{margin-top:18px}.appCardHeader h2{font-size:32px;line-height:1;letter-spacing:-.06em;margin:6px 0 0}.toolCardGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.appToolCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px;background:#f8f5ef;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:18px;min-height:178px}.appToolCard strong{display:block;font-size:22px;letter-spacing:-.05em;margin:8px 0}.appToolCard p{color:#5d554d;line-height:1.4;margin:0}.moreTools{margin-top:18px}.moreTools summary{font-weight:900;cursor:pointer}.overviewGrid,.identityOverviewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.appPanel{box-shadow:none}.appPanel.wide{grid-column:span 2}.appPanel p{color:#5d554d;line-height:1.5}.recentAssetRow,.appPanel>button:not(.btn){display:block;width:100%;border:0;border-top:1px solid rgba(17,17,15,.1);border-radius:0;background:transparent;color:#11110f;text-align:left;padding:12px 0;margin:0}.recentAssetRow strong{display:block}.recentAssetRow small,.roadmapMiniRow p{color:#6b625b}.roadmapMiniRow{border-top:1px solid rgba(17,17,15,.1);padding:12px 0}.identityLogoStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.identityLogoStrip img{width:100%;aspect-ratio:1;border-radius:20px;object-fit:contain;background:#fffdf8;border:1px solid rgba(17,17,15,.1);padding:18px}.settingsGrid{display:grid;gap:18px}.newBrandPanel summary{font-size:18px;font-weight:950;cursor:pointer}.newBrandPanel .workspaceCard{box-shadow:none;border:0;padding:18px 0 0}.generatorAppCrumb{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.generatorAppCrumb button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.brandContextPanel{border:1px solid rgba(17,17,15,.1);border-radius:18px;background:#fffdf8;padding:14px 16px;margin-bottom:18px}.brandContextPanel summary{cursor:pointer;color:#806546}.brandContextPanel div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.brandContextPanel p{margin:0;color:#5d554d;line-height:1.45}.captionRowActions{display:flex;gap:8px;flex-wrap:wrap}.savedAssetLinkRow{border-top:1px solid rgba(17,17,15,.08);padding:14px 22px;display:flex;justify-content:space-between;gap:12px;align-items:center}.savedAssetLinkRow span{color:#6b625b;font-weight:760}.savedAssetLinkRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}
+.loggedInApp{display:grid;grid-template-columns:292px minmax(0,1fr);min-height:100vh;background:#f8f5ef;border-top:1px solid rgba(17,17,15,.06)}.appSidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:space-between;padding:22px;border-right:1px solid rgba(17,17,15,.1);background:#fffdf8;z-index:20}.appBrandButton{border:0;background:transparent;text-align:left;font-size:25px;font-weight:950;letter-spacing:-.075em;color:#11110f;padding:0;margin-bottom:22px}.brandSwitcher{display:grid;gap:8px}.brandSwitcher span,.appSidebarBottom span,.appHeader span,.appCardHeader span,.appToolCard span,.appPanel>span,.completionTop span,.completionChecklist span,.identityOverviewGrid span,.generatorAppCrumb span,.brandContextPanel summary,.assetCardMeta span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}.brandSwitcher select{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#f8f5ef;padding:12px;font-weight:850;color:#11110f}.appSectionNav{display:grid;gap:6px;margin:28px 0}.appSectionNav button{border:0;background:transparent;border-radius:14px;padding:12px 13px;text-align:left;font-weight:850;color:#37322c}.appSectionNav button:hover,.appSectionNav button.active{background:#11110f;color:#fffdf8}.appSidebarBottom{display:grid;gap:8px;border-top:1px solid rgba(17,17,15,.1);padding-top:16px}.appSidebarBottom strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#5d554d}.appSidebarBottom button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;padding:10px 12px;font-weight:850;color:#11110f}.appShellBody{min-width:0;display:grid;grid-template-rows:auto 1fr}.appHeader{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;background:rgba(248,245,239,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(17,17,15,.08)}.appHeader strong{display:block;font-size:22px;letter-spacing:-.045em}.mobileAppMenu{display:none}.createMenuWrap{position:relative}.appCreateButton{min-width:104px}.createMenu{position:absolute;right:0;top:calc(100% + 8px);width:360px;max-height:70vh;overflow:auto;background:#fffdf8;border:1px solid rgba(17,17,15,.12);border-radius:20px;padding:10px;box-shadow:0 24px 70px rgba(35,28,19,.16);display:grid;gap:6px;z-index:30}.createMenuContext{padding:10px 12px;color:#806546;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.createMenu button{border:0;background:transparent;border-radius:14px;padding:12px;text-align:left;color:#11110f}.createMenu button:hover{background:#f1eadf}.createMenu strong{display:block;font-size:15px;margin-bottom:4px}.createMenu span{display:block;color:#6b625b;font-size:12px;line-height:1.35}.appMain{min-width:0;padding:28px;scroll-margin-top:120px}.appContentSection{max-width:1180px;margin:0 auto;padding:0 0 54px}.workspaceOverview .pageTitle,.overviewHero h1{font-size:clamp(46px,7vw,88px);line-height:.92;letter-spacing:-.075em;margin:0 0 14px}.overviewHero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.62fr);gap:24px;align-items:stretch}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px;box-shadow:0 20px 58px rgba(35,28,19,.07)}.overviewHero p{font-size:20px;line-height:1.35;color:#5d554d;max-width:760px}.overviewMeta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.overviewMeta span{border:1px solid rgba(17,17,15,.1);border-radius:999px;padding:9px 12px;background:#f8f5ef;font-size:13px;font-weight:850;color:#37322c}.nextActionCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px}.nextActionCard strong{font-size:28px;line-height:1.08;letter-spacing:-.055em}.nextActionCard button,.appPanel button,.appToolCard button,.completionChecklist button,.identityOverviewGrid button{align-self:flex-start;border:1px solid #11110f;border-radius:999px;background:#11110f;color:#fffdf8;padding:10px 14px;font-weight:850}.overviewActions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.completionTop{width:100%;border:0;background:transparent;text-align:left;display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:center;color:#11110f}.completionTop strong{font-size:44px;letter-spacing:-.075em}.completionTop small{color:#6b625b;font-weight:750}.completionChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.completionChecklist button{display:grid;gap:4px;align-items:start;text-align:left;border-color:rgba(17,17,15,.12);background:#f8f5ef;color:#11110f;border-radius:16px}.completionChecklist button.complete{background:#11110f;color:#fffdf8}.completionChecklist button.complete span,.completionChecklist button.complete small{color:rgba(255,253,248,.68)}.completionChecklist small{color:#6b625b}.workspaceTools{margin-top:18px}.appCardHeader h2{font-size:32px;line-height:1;letter-spacing:-.06em;margin:6px 0 0}.toolCardGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.appToolCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px;background:#f8f5ef;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:18px;min-height:178px}.appToolCard strong{display:block;font-size:22px;letter-spacing:-.05em;margin:8px 0}.appToolCard p{color:#5d554d;line-height:1.4;margin:0}.moreTools{margin-top:18px}.moreTools summary{font-weight:900;cursor:pointer}.overviewGrid,.identityOverviewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.appPanel{box-shadow:none}.appPanel.wide{grid-column:span 2}.appPanel p{color:#5d554d;line-height:1.5}.recentAssetRow,.appPanel>button:not(.btn){display:block;width:100%;border:0;border-top:1px solid rgba(17,17,15,.1);border-radius:0;background:transparent;color:#11110f;text-align:left;padding:12px 0;margin:0}.recentAssetRow strong{display:block}.recentAssetRow small,.roadmapMiniRow p{color:#6b625b}.roadmapMiniRow{border-top:1px solid rgba(17,17,15,.1);padding:12px 0}.identityLogoStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.identityLogoStrip img{width:100%;aspect-ratio:1;border-radius:20px;object-fit:contain;background:#fffdf8;border:1px solid rgba(17,17,15,.1);padding:18px}.settingsGrid{display:grid;gap:18px}.newBrandPanel summary{font-size:18px;font-weight:950;cursor:pointer}.newBrandPanel .workspaceCard{box-shadow:none;border:0;padding:18px 0 0}.generatorAppCrumb{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.generatorAppCrumb button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.brandContextPanel{border:1px solid rgba(17,17,15,.1);border-radius:18px;background:#fffdf8;padding:14px 16px;margin-bottom:18px}.brandContextPanel summary{cursor:pointer;color:#806546}.brandContextPanel div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.brandContextPanel p{margin:0;color:#5d554d;line-height:1.45}.captionRowActions{display:flex;gap:8px;flex-wrap:wrap}.savedAssetLinkRow{border-top:1px solid rgba(17,17,15,.08);padding:14px 22px;display:flex;justify-content:space-between;gap:12px;align-items:center}.savedAssetLinkRow span{color:#6b625b;font-weight:760}.savedAssetLinkRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.assetLibraryHero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:18px}.assetLibraryHero h2{font-size:clamp(42px,6vw,80px);line-height:.94;letter-spacing:-.07em;margin:0 0 12px}.assetLibraryHero p{color:#5d554d;font-size:18px;line-height:1.4}.assetLibraryHero>strong{font-size:42px;letter-spacing:-.07em}.assetControls{display:grid;grid-template-columns:minmax(220px,1fr) 220px 180px;gap:10px;margin-bottom:12px}.assetControls input,.assetControls select{border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:12px 13px;font-weight:760;color:#11110f}.assetCountRow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.assetCountRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:8px 11px;font-weight:820;color:#11110f}.assetRecentPanel{margin:0 0 18px}.assetLibraryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.assetLibraryCard{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:22px;padding:18px;display:grid;gap:12px}.assetImageButton{border:0;background:#f8f5ef;border-radius:16px;padding:12px}.assetImageButton img{width:100%;aspect-ratio:1;object-fit:contain}.assetCardMeta{display:flex;justify-content:space-between;gap:10px}.assetCardMeta small{color:#6b625b}.assetLibraryCard>strong{font-size:20px;letter-spacing:-.045em}.assetLibraryCard p{color:#5d554d;line-height:1.45;margin:0}.assetLibraryCard details{border-top:1px solid rgba(17,17,15,.1);padding-top:10px}.assetLibraryCard summary{cursor:pointer;font-weight:850}.assetLibraryCard pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;color:#4d463f}.assetCardActions{display:flex;gap:8px;flex-wrap:wrap}.assetCardActions button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;color:#11110f;padding:8px 10px;font-weight:820}.assetCardActions .miniDanger{border-color:rgba(145,34,18,.25);color:#8d2718}
 @media(max-width:1040px){.loggedInApp{grid-template-columns:1fr}.appSidebar{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);height:100vh;top:0;transform:translateX(-105%);transition:transform .2s ease;box-shadow:20px 0 70px rgba(35,28,19,.16)}.appSidebar.open{transform:translateX(0)}.appHeader{top:0}.mobileAppMenu{display:inline-flex;border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:10px 12px;font-weight:850}.appMain{padding:20px}.overviewHero,.overviewGrid,.identityOverviewGrid{grid-template-columns:1fr}.appPanel.wide{grid-column:auto}.toolCardGrid,.completionChecklist{grid-template-columns:repeat(2,minmax(0,1fr))}.createMenu{right:-8px;width:min(88vw,360px)}}@media(max-width:680px){.appHeader{align-items:flex-start;padding:12px 16px}.appHeader strong{font-size:18px}.appMain{padding:16px}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{border-radius:18px;padding:18px}.overviewHero p{font-size:17px}.overviewActions .btn{width:100%}.toolCardGrid,.completionChecklist,.brandContextPanel div{grid-template-columns:1fr}.completionTop{grid-template-columns:1fr;gap:5px}.captionOptionRow{grid-template-columns:34px 1fr}.captionRowActions{grid-column:2}.savedAssetLinkRow{flex-direction:column;align-items:flex-start}.savedAssetLinkRow button{width:100%}}
 @media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.exampleBrandMedia{animation:softReveal .55s ease both}@keyframes softReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:1050px){.birthHero,.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder,.footerSubscribe.completeFooter{grid-template-columns:1fr}.birthHero{padding-top:42px}.birthHero .northlineInputPanel,.productWalkthrough .northlineOutputPreview{display:none}.birthHeroVisual{max-width:760px}.receiveGrid,.howGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.boundaryGrid{grid-template-columns:1fr}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:520px}.navInner{align-items:flex-start}.navLinks{max-width:100%;overflow-x:auto}}
