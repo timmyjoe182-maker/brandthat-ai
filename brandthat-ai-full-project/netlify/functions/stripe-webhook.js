@@ -1,16 +1,146 @@
-const Stripe = require("stripe");
-const { createClient } = require("@supabase/supabase-js");
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  MEMBER_PLAN,
+  getStripe,
+  getSupabaseAdminClient,
+  json,
+  updateProfileMembership,
+} from "./lib/membership.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = getStripe();
+const supabaseAdmin = getSupabaseAdminClient();
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+async function markEventStarted(stripeEvent) {
+  if (!supabaseAdmin) return { processed: false, skipped: true };
 
-exports.handler = async (event) => {
-  const sig = event.headers["stripe-signature"];
+  const { error } = await supabaseAdmin
+    .from("stripe_webhook_events")
+    .insert({
+      id: stripeEvent.id,
+      type: stripeEvent.type,
+      processed_at: new Date().toISOString(),
+    });
 
+  if (!error) return { processed: false, skipped: false };
+
+  if (error.code === "23505") {
+    return { processed: true, skipped: false };
+  }
+
+  if (error.code === "42P01" || /relation .*stripe_webhook_events.* does not exist/i.test(error.message || "")) {
+    console.warn("BrandThat webhook idempotency table missing; continuing without event lock.", {
+      eventId: stripeEvent.id,
+      eventType: stripeEvent.type,
+    });
+    return { processed: false, skipped: true };
+  }
+
+  console.error("BrandThat webhook idempotency insert failed", {
+    eventId: stripeEvent.id,
+    eventType: stripeEvent.type,
+    code: error.code,
+    message: error.message,
+  });
+  throw error;
+}
+
+async function findProfileUserId({ userId, customerId }) {
+  if (userId) return userId;
+  if (!customerId || !supabaseAdmin) return "";
+
+  const { data, error } = await supabaseAdmin
+    .from("user_profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.id || "";
+}
+
+async function applySubscriptionMembership({ subscription, userId, email = "", eventId, eventType }) {
+  const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id || "";
+  const profileUserId = await findProfileUserId({ userId, customerId });
+
+  if (!profileUserId) {
+    console.error("BrandThat webhook could not match subscription to a Supabase user", {
+      eventId,
+      eventType,
+      customerId,
+      subscriptionId: subscription.id,
+      metadataUserIdPresent: Boolean(userId),
+    });
+    const error = new Error("No matching Supabase user for Stripe subscription.");
+    error.code = "USER_PROFILE_NOT_FOUND";
+    throw error;
+  }
+
+  const plan = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status) ? MEMBER_PLAN : "free";
+
+  return updateProfileMembership(supabaseAdmin, {
+    userId: profileUserId,
+    email,
+    plan,
+    customerId,
+    subscriptionId: plan === MEMBER_PLAN ? subscription.id : null,
+    operation: "stripe_webhook_subscription",
+    eventId,
+    eventType,
+  });
+}
+
+async function handleCheckoutCompleted(stripeEvent) {
+  const session = stripeEvent.data.object;
+
+  if (session.payment_status && !["paid", "no_payment_required"].includes(session.payment_status)) {
+    return { ignored: "payment_not_paid" };
+  }
+
+  const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  if (!subscriptionId) {
+    const error = new Error("Checkout Session completed without a subscription ID.");
+    error.code = "SUBSCRIPTION_ID_MISSING";
+    throw error;
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (!ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) {
+    return { ignored: `subscription_${subscription.status}` };
+  }
+
+  const userId = session.metadata?.user_id || session.client_reference_id || subscription.metadata?.user_id || "";
+
+  return applySubscriptionMembership({
+    subscription,
+    userId,
+    email: session.customer_details?.email || session.customer_email || "",
+    eventId: stripeEvent.id,
+    eventType: stripeEvent.type,
+  });
+}
+
+async function handleSubscriptionEvent(stripeEvent) {
+  const subscription = stripeEvent.data.object;
+  const userId = subscription.metadata?.user_id || "";
+
+  return applySubscriptionMembership({
+    subscription,
+    userId,
+    eventId: stripeEvent.id,
+    eventType: stripeEvent.type,
+  });
+}
+
+export const handler = async (event) => {
+  if (!stripe) {
+    return json(500, { error: "Stripe webhook is not configured.", code: "STRIPE_SECRET_MISSING" });
+  }
+
+  if (!supabaseAdmin) {
+    return json(500, { error: "Supabase admin access is not configured.", code: "SUPABASE_ADMIN_MISSING" });
+  }
+
+  const sig = event.headers["stripe-signature"] || event.headers["Stripe-Signature"];
   let stripeEvent;
 
   try {
@@ -19,88 +149,54 @@ exports.handler = async (event) => {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-  } catch (err) {
-    return {
-      statusCode: 400,
-      body: `Webhook Error: ${err.message}`,
-    };
+  } catch (error) {
+    console.error("BrandThat webhook signature verification failed", {
+      type: error?.type,
+      code: error?.code,
+      message: error?.message,
+    });
+    return json(400, { error: "Webhook signature verification failed.", code: "WEBHOOK_SIGNATURE_FAILED" });
   }
 
   try {
-    if (stripeEvent.type === "checkout.session.completed") {
-      const session = stripeEvent.data.object;
-
-      if (session.payment_status !== "paid") {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ received: true, ignored: "payment_not_paid" }),
-        };
-      }
-
-      const email = session.customer_email || session.metadata?.email;
-      const userId = session.metadata?.user_id || "";
-      const customerId = session.customer;
-      const subscriptionId = session.subscription;
-      const plan = "member";
-
-      let profileUserId = userId;
-      if (!profileUserId && email) {
-        const { data: existingProfile } = await supabaseAdmin
-          .from("user_profiles")
-          .select("id")
-          .eq("email", email)
-          .maybeSingle();
-        profileUserId = existingProfile?.id || "";
-      }
-
-      if (profileUserId) {
-        await supabaseAdmin.from("user_profiles").upsert({
-          id: profileUserId,
-          email,
-          plan,
-          stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
-          updated_at: new Date().toISOString(),
-        });
-      } else {
-        console.warn("Stripe checkout completed but no BrandThat user profile was found for email:", email);
-      }
+    const lock = await markEventStarted(stripeEvent);
+    if (lock.processed) {
+      return json(200, { received: true, alreadyProcessed: true });
     }
 
-    if (stripeEvent.type === "customer.subscription.updated") {
-      const subscription = stripeEvent.data.object;
-      const plan = ["active", "trialing"].includes(subscription.status) ? "member" : "free";
+    let result = { ignored: "event_not_handled" };
 
-      await supabaseAdmin
-        .from("user_profiles")
-        .update({
-          plan,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("stripe_subscription_id", subscription.id);
+    if (stripeEvent.type === "checkout.session.completed") {
+      result = await handleCheckoutCompleted(stripeEvent);
+    }
+
+    if (stripeEvent.type === "customer.subscription.created" || stripeEvent.type === "customer.subscription.updated") {
+      result = await handleSubscriptionEvent(stripeEvent);
     }
 
     if (stripeEvent.type === "customer.subscription.deleted") {
-      const subscription = stripeEvent.data.object;
-
-      await supabaseAdmin
-        .from("user_profiles")
-        .update({
-          plan: "free",
-          stripe_subscription_id: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("stripe_subscription_id", subscription.id);
+      result = await handleSubscriptionEvent(stripeEvent);
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ received: true }),
-    };
+    if (stripeEvent.type === "invoice.paid" || stripeEvent.type === "invoice.payment_failed") {
+      result = { received: true, observed: stripeEvent.type };
+    }
+
+    return json(200, { received: true, result });
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
-    };
+    console.error("BrandThat webhook failed", {
+      eventId: stripeEvent?.id,
+      eventType: stripeEvent?.type,
+      type: error?.type,
+      code: error?.code,
+      statusCode: error?.statusCode,
+      message: error?.message,
+    });
+
+    return json(500, {
+      error: "Webhook processing failed.",
+      code: error?.code || "WEBHOOK_PROCESSING_FAILED",
+      eventId: stripeEvent?.id,
+    });
   }
 };

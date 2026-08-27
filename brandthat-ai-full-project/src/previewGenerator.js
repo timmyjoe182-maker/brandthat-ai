@@ -1,5 +1,15 @@
 const CATEGORY_PROFILES = [
   {
+    key: "houseplants",
+    match: /\b(plant|plants|houseplant|houseplants|botanical|greenery|subscription|low-maintenance|natural light|apartment renter|plant care)\b/i,
+    category: "houseplant subscription and care service",
+    audience: "apartment renters, busy beginners, and people with limited natural light who want the feeling of a calmer home without guessing which plants will survive",
+    voiceTraits: ["Fresh", "Encouraging", "Practical"],
+    positioning: "Own confidence for new plant owners: a local subscription that pairs resilient plants with simple care guidance, so renters can make their homes feel alive without becoming plant experts.",
+    visualDirection: "Use calm greens, stone gray, warm ivory, and soft terracotta with bright apartment photography, simple care cards, delivery moments, and readable botanical typography that feels fresh without becoming a generic wellness brand.",
+    colors: ["#1f3d32", "#f7f2e8", "#879f73", "#b88a63"],
+  },
+  {
     key: "pet-service",
     match: /\b(dog|pet|pets|groom|grooming|puppy|senior pet|families|mobile service|at-home)\b/i,
     category: "mobile pet care service",
@@ -21,7 +31,7 @@ const CATEGORY_PROFILES = [
   },
   {
     key: "interiors",
-    match: /\b(interior|home|room|styling|decor|furniture|apartment|house|homeowner)\b/i,
+    match: /\b(interior|room|styling|decor|furniture|homeowner)\b/i,
     category: "local interior styling",
     audience: "first-time homeowners, apartment owners, and local families who want their space to feel finished without committing to a full-service design firm",
     voiceTraits: ["Practical", "Warm", "Tasteful"],

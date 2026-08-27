@@ -1,118 +1,18 @@
-import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
-
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://vfnkmabnocbwawbdvxfo.supabase.co";
-const supabaseKey =
-  process.env.SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk";
-
-const supabaseAuth = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
-
-function getMembershipPriceId() {
-  return (
-    process.env.STRIPE_BRAND_PLAN_PRICE_ID ||
-    process.env.STRIPE_MEMBER_PRICE_ID ||
-    process.env.STRIPE_MONTHLY_PRICE_ID ||
-    process.env.STRIPE_SUBSCRIPTION_PRICE_ID ||
-    process.env.STRIPE_PRICE_ID ||
-    process.env.STRIPE_PRO_PRICE_ID ||
-    process.env.STRIPE_STARTER_PRICE_ID ||
-    ""
-  );
-}
-
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
-function getRequestId() {
-  return crypto.randomUUID?.() || `checkout_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function getBearerToken(event) {
-  const header = event.headers?.authorization || event.headers?.Authorization || "";
-  const match = String(header).match(/^Bearer\s+(.+)$/i);
-  return match?.[1] || "";
-}
-
-function isEmailVerified(user) {
-  return Boolean(user?.email_confirmed_at || user?.confirmed_at);
-}
-
-async function requireVerifiedUser(event) {
-  const token = getBearerToken(event);
-
-  if (!token) {
-    return {
-      error: {
-        statusCode: 401,
-        message: "Create your BrandThat account to try the full product.",
-      },
-    };
-  }
-
-  const { data, error } = await supabaseAuth.auth.getUser(token);
-  const user = data?.user || null;
-
-  if (error || !user) {
-    return {
-      error: {
-        statusCode: 401,
-        message: "Please log in again to continue.",
-      },
-    };
-  }
-
-  if (!isEmailVerified(user)) {
-    return {
-      error: {
-        statusCode: 403,
-        message: "Check your email to verify your account before continuing.",
-      },
-    };
-  }
-
-  return { user };
-}
-
-async function getOrCreateStripeCustomer(user) {
-  const metadata = { user_id: user.id, supabase_user_id: user.id };
-
-  try {
-    const search = await stripe.customers.search({
-      query: `metadata['supabase_user_id']:'${user.id}'`,
-      limit: 1,
-    });
-    const existingCustomer = search?.data?.[0];
-    if (existingCustomer?.id) return existingCustomer;
-  } catch (error) {
-    console.warn("BrandThat checkout customer search skipped:", {
-      type: error?.type,
-      code: error?.code,
-    });
-  }
-
-  return stripe.customers.create({
-    email: user.email,
-    metadata,
-  });
-}
+import {
+  MEMBER_PLAN,
+  getMembershipPriceId,
+  getOrCreateStripeCustomer,
+  getRequestId,
+  getSiteUrl,
+  getStripe,
+  getSupabaseAdminClient,
+  json,
+  reconcileMembershipFromStripe,
+  requireVerifiedUser,
+} from "./lib/membership.js";
 
 export const handler = async (event) => {
-  const requestId = getRequestId();
+  const requestId = getRequestId("checkout");
   let checkoutStage = "initializing";
 
   try {
@@ -125,7 +25,7 @@ export const handler = async (event) => {
     if (auth.error) {
       return json(auth.error.statusCode, {
         error: auth.error.message,
-        code: auth.error.statusCode === 403 ? "EMAIL_NOT_VERIFIED" : "AUTH_REQUIRED",
+        code: auth.error.code || (auth.error.statusCode === 403 ? "EMAIL_NOT_VERIFIED" : "AUTH_REQUIRED"),
         stage: checkoutStage,
         requestId,
       });
@@ -134,7 +34,7 @@ export const handler = async (event) => {
     const { plan = "member" } = JSON.parse(event.body || "{}");
     const user = auth.user;
 
-    if (plan !== "member") {
+    if (plan !== MEMBER_PLAN) {
       return json(400, {
         error: "Choose the BrandThat monthly membership to continue.",
         code: "INVALID_PLAN",
@@ -143,6 +43,7 @@ export const handler = async (event) => {
     }
 
     checkoutStage = "reading_price_id";
+    const stripe = getStripe();
     if (!stripe) {
       console.error("BrandThat checkout misconfigured: STRIPE_SECRET_KEY is missing.", { requestId, stage: checkoutStage });
       return json(500, {
@@ -153,6 +54,34 @@ export const handler = async (event) => {
       });
     }
 
+    const supabaseAdmin = getSupabaseAdminClient();
+    if (!supabaseAdmin) {
+      console.error("BrandThat checkout misconfigured: SUPABASE_SERVICE_ROLE_KEY is missing.", { requestId, stage: checkoutStage });
+      return json(500, {
+        error: "Checkout is not configured yet. Please contact BrandThat support.",
+        code: "SUPABASE_ADMIN_MISSING",
+        stage: checkoutStage,
+        requestId,
+      });
+    }
+
+    checkoutStage = "checking_existing_subscription";
+    const reconciliation = await reconcileMembershipFromStripe({
+      stripe,
+      supabaseAdmin,
+      user,
+      operation: "checkout_preflight",
+    });
+
+    if (reconciliation.member) {
+      return json(200, {
+        alreadySubscribed: true,
+        plan: MEMBER_PLAN,
+        requestId,
+      });
+    }
+
+    checkoutStage = "reading_price_id";
     const priceId = getMembershipPriceId();
 
     if (!priceId) {
@@ -248,8 +177,8 @@ export const handler = async (event) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.URL || "https://brandthat.ai"}/?success=true#workspace`,
-      cancel_url: `${process.env.URL || "https://brandthat.ai"}/?brand_plan=canceled`,
+      success_url: `${getSiteUrl()}/?success=true&session_id={CHECKOUT_SESSION_ID}#workspace`,
+      cancel_url: `${getSiteUrl()}/?brand_plan=canceled`,
     });
 
     checkoutStage = "returning_checkout_url";
