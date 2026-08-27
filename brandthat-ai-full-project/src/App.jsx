@@ -451,12 +451,43 @@ async function readJsonResponse(response) {
   try {
     return text ? JSON.parse(text) : {};
   } catch {
-    if (!response.ok) {
-      throw new Error(text || "Request failed.");
-    }
-
-    return {};
+    return {
+      text,
+      parseError: text ? "NON_JSON_RESPONSE" : "",
+    };
   }
+}
+
+function getSafeRequestId(response, data) {
+  return data?.requestId || response.headers.get("x-nf-request-id") || response.headers.get("x-request-id") || "";
+}
+
+function createRequestError(response, data, config = {}) {
+  const status = response.status;
+  const requestId = getSafeRequestId(response, data);
+  const code = data?.code || data?.parseError || `HTTP_${status}`;
+  const serverMessage = data?.error || data?.message || data?.text;
+  const publicMessage = status >= 500
+    ? (config.revealServerError && serverMessage
+      ? serverMessage
+      : (config.errorMessage || "BrandThat could not complete that request. Please try again."))
+    : (serverMessage || config.errorMessage || `Request failed with status ${status}.`);
+  const details = [
+    code ? `Error code: ${code}` : "",
+    requestId ? `Request ID: ${requestId}` : "",
+  ].filter(Boolean);
+  const error = new Error(details.length ? `${publicMessage}\n${details.join("\n")}` : publicMessage);
+  error.status = status;
+  error.code = code;
+  error.requestId = requestId;
+  error.diagnostic = {
+    url: response.url,
+    status,
+    code,
+    requestId,
+    contentType: response.headers.get("content-type") || "",
+  };
+  return error;
 }
 
 async function fetchJsonWithTimeout(url, options = {}, config = {}) {
@@ -472,16 +503,10 @@ async function fetchJsonWithTimeout(url, options = {}, config = {}) {
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-      if (response.status >= 500) console.warn("BrandThat request failed", { url, status: response.status, data });
-      const serverMessage = data.error || data.text;
-      const publicMessage = response.status >= 500
-        ? (config.revealServerError && serverMessage
-          ? serverMessage
-          : (config.errorMessage || "BrandThat could not complete that request. Please try again."))
-        : (serverMessage || config.errorMessage || `Request failed with status ${response.status}.`);
-      const error = new Error(publicMessage);
-      error.status = response.status;
-      error.code = data.code || "";
+      const error = createRequestError(response, data, config);
+      if (response.status >= 500) {
+        console.warn("BrandThat request failed", JSON.stringify(error.diagnostic));
+      }
       throw error;
     }
 

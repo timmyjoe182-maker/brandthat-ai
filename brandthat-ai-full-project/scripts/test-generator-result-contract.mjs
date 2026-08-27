@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const generateFunctionSource = readFileSync(new URL("../netlify/functions/generate.js", import.meta.url), "utf8");
+const generateFunction = await import("../netlify/functions/generate.js");
 
 assert.ok(
   appSource.includes("setGenerationError(error?.message"),
@@ -32,6 +33,17 @@ assert.ok(
 assert.ok(
   generateFunctionSource.includes("ok: false") && generateFunctionSource.includes("requestId"),
   "generate function should return structured failure responses"
+);
+
+assert.equal(
+  typeof generateFunction.handler,
+  "function",
+  "generate function must load in the production module format and export a handler"
+);
+
+assert.ok(
+  generateFunctionSource.includes("export const handler"),
+  "generate function should use an ES module handler in this type=module project"
 );
 
 assert.ok(
