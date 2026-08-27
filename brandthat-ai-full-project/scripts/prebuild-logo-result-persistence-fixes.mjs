@@ -168,7 +168,7 @@ replaceBetween(
     `                <details className="logoMoreActions">`,
     `                  <summary>More</summary>`,
     `                  <button onClick={openLogoImage}>Open Full Size</button>`,
-    `                  {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, \`${editorFileName}-vector\`)}>Download SVG</button>}`,
+    `                  {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, editorFileName + "-vector")}>Download SVG</button>}`,
     `                  {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}`,
     `                  <button onClick={() => saveLogoConceptFromResult({ favorite: true, titleOverride: "Favorite Logo Concept • " + new Date().toLocaleDateString() })}>Favorite</button>`,
     `                </details>`,
