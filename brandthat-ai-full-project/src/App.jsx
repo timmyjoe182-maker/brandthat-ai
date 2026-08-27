@@ -1643,6 +1643,7 @@ function getRefinementStateLabel(memory = {}) {
 }
 
 const LOGO_PROJECT_MARKER = "BRANDTHAT_LOGO_PROJECT:";
+const SAVED_ASSET_META_MARKER = "BRANDTHAT_ASSET_META:";
 
 function encodeJsonForContent(value) {
   try {
@@ -1673,6 +1674,25 @@ function decodeLogoProjectFromContent(content = "") {
 
 function stripLogoProjectMetadata(content = "") {
   return String(content || "").replace(/\n?\s*<!--BRANDTHAT_LOGO_PROJECT:[A-Za-z0-9+/=]+-->\s*/g, "").trim();
+}
+
+function encodeSavedAssetContent(content = "", metadata = {}) {
+  const cleanContent = stripSavedAssetMetadata(stripLogoProjectMetadata(content));
+  const encoded = encodeJsonForContent(metadata);
+  return encoded ? `${cleanContent}\n\n<!--${SAVED_ASSET_META_MARKER}${encoded}-->` : cleanContent;
+}
+
+function decodeSavedAssetMetadata(content = "") {
+  const match = String(content || "").match(/<!--BRANDTHAT_ASSET_META:([A-Za-z0-9+/=]+)-->/);
+  return match ? decodeJsonFromContent(match[1]) : null;
+}
+
+function stripSavedAssetMetadata(content = "") {
+  return String(content || "").replace(/\n?\s*<!--BRANDTHAT_ASSET_META:[A-Za-z0-9+/=]+-->\s*/g, "").trim();
+}
+
+function stripAllAssetMetadata(content = "") {
+  return stripSavedAssetMetadata(stripLogoProjectMetadata(content));
 }
 
 function getLogoProjectFromEntry(entry = {}) {
@@ -2729,14 +2749,21 @@ export default function App() {
 
   const mapGenerationRow = (row) => {
     const project = decodeLogoProjectFromContent(row.content || "");
+    const assetMeta = decodeSavedAssetMetadata(row.content || "") || {};
+    const content = stripAllAssetMetadata(row.content || "");
 
     return {
       id: row.id,
       tool: row.tool,
-      title: row.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
-      content: stripLogoProjectMetadata(row.content || ""),
+      title: row.title || assetMeta.title || `${row.tool || "Asset"} • ${new Date(row.created_at || Date.now()).toLocaleDateString()}`,
+      content,
       image: row.image_url || project?.image || "",
-      favorite: Boolean(row.favorite),
+      favorite: Boolean(row.favorite || assetMeta.favorite),
+      isCollection: Boolean(assetMeta.collection),
+      assetType: assetMeta.assetType || row.tool || "",
+      platform: assetMeta.platform || "",
+      contentHash: assetMeta.contentHash || normalizeAssetContent(content || row.image_url || ""),
+      assetMeta,
       project,
       source: project?.source || "",
       vectorImage: project?.vectorImage || "",
@@ -3732,16 +3759,32 @@ export default function App() {
           savedAt: new Date().toISOString(),
         }
       : null;
-    const displayContent = stripLogoProjectMetadata(sourceContent);
+    const displayContent = stripAllAssetMetadata(sourceContent);
     const normalizedContent = normalizeAssetContent(displayContent || sourceImage);
-    const duplicate = (activeBrand.saved?.[bucket] || []).some((item) => normalizeAssetContent(item.content || item.image) === normalizedContent);
+    const duplicate = (activeBrand.saved?.[bucket] || []).find((item) => normalizeAssetContent(item.content || item.image) === normalizedContent);
 
     if (duplicate) {
       notify("info", "This result is already saved.", "Choose another result or generate a fresh version before saving again.");
+      return duplicate;
+    }
+
+    if (!session.user?.id) {
+      notify("error", "Sign in required", "Sign in again before saving this asset.");
       return null;
     }
 
-    const storageContent = logoProject ? encodeLogoProjectContent(displayContent, logoProject) : displayContent;
+    const assetMetadata = {
+      assetType: collection ? `${bucket.replace(/s$/, "")}_collection` : bucket.replace(/s$/, ""),
+      generatorType: activeTool.key,
+      platform: selectedPlatform || activeBrand?.growthPlatform || activeBrand?.channels || "",
+      collection,
+      favorite,
+      contentHash: normalizedContent,
+      workspaceId: activeBrand.id,
+      savedAt: new Date().toISOString(),
+    };
+    const contentWithAssetMetadata = encodeSavedAssetContent(displayContent, assetMetadata);
+    const storageContent = logoProject ? encodeLogoProjectContent(contentWithAssetMetadata, logoProject) : contentWithAssetMetadata;
     let entry = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       tool: activeTool.key,
@@ -3764,30 +3807,40 @@ export default function App() {
       colors: logoProject?.colors || "",
       avoid: logoProject?.avoid || "",
       favorite,
+      isCollection: collection,
+      assetType: assetMetadata.assetType,
+      platform: assetMetadata.platform,
+      contentHash: normalizedContent,
+      assetMeta: assetMetadata,
       createdAt: new Date().toISOString(),
     };
 
-    if (session.user?.id) {
-      try {
-        const { data, error } = await supabase
-          .from("saved_generations")
-          .insert({
-            user_id: session.user.id,
-            workspace_id: activeBrand.id,
-            tool: activeTool.key,
-            title: entry.title,
-            content: storageContent,
-            image_url: entry.image,
-            favorite,
-          })
-          .select("*")
-          .single();
+    try {
+      const { data, error } = await supabase
+        .from("saved_generations")
+        .insert({
+          user_id: session.user.id,
+          workspace_id: activeBrand.id,
+          tool: activeTool.key,
+          title: entry.title,
+          content: storageContent,
+          image_url: entry.image,
+        })
+        .select("*")
+        .single();
 
-        if (error) throw error;
-        entry = mapGenerationRow(data);
-      } catch (error) {
-        notify("warning", "Saved locally", `We could not save this to your account yet. ${error.message || ""}`);
-      }
+      if (error) throw error;
+      if (!data?.id) throw new Error("Saved asset did not return a durable ID.");
+      entry = mapGenerationRow(data);
+    } catch (error) {
+      console.error("BrandThat durable asset save failed", {
+        tool: activeTool.key,
+        workspaceId: activeBrand.id,
+        code: error?.code || "",
+        message: error?.message || "Unknown Supabase save error",
+      });
+      notify("error", `Couldn't save this ${bucket === "captions" ? "caption" : "asset"}. Try again.`, "Your generated result is still here.");
+      return null;
     }
 
     setBrandWorkspaces((prev) =>
@@ -4174,32 +4227,76 @@ Generated with Brandthat.ai`;
     notify("success", "Workspace duplicated", `${finalBrand.name} is ready to edit.`);
   };
 
+  const findSavedAssetById = (entryId) => {
+    for (const brand of brandWorkspaces) {
+      for (const [bucket, items] of Object.entries(brand.saved || {})) {
+        if (!Array.isArray(items)) continue;
+        const item = items.find((asset) => asset.id === entryId);
+        if (item) return { brand, bucket, item };
+      }
+    }
+    return null;
+  };
+
   const toggleFavorite = async (entryId) => {
     if (!entryId) return;
-    let nextFavorite = false;
-    setFavoriteIds((prev) => {
-      nextFavorite = !prev[entryId];
-      return { ...prev, [entryId]: nextFavorite };
-    });
+    const savedMatch = findSavedAssetById(entryId);
+    if (!savedMatch) {
+      notify("error", "Favorite could not update", "This saved asset could not be found. Refresh the workspace and try again.");
+      return false;
+    }
+
+    const nextFavorite = !Boolean(savedMatch.item.favorite || favoriteIds[entryId]);
+    const nextMetadata = {
+      ...(savedMatch.item.assetMeta || {}),
+      assetType: savedMatch.item.assetType || (savedMatch.item.isCollection ? `${savedMatch.bucket.replace(/s$/, "")}_collection` : savedMatch.bucket.replace(/s$/, "")),
+      generatorType: savedMatch.item.tool || savedMatch.bucket,
+      platform: savedMatch.item.platform || "",
+      collection: Boolean(savedMatch.item.isCollection),
+      favorite: nextFavorite,
+      contentHash: savedMatch.item.contentHash || normalizeAssetContent(savedMatch.item.content || savedMatch.item.image || ""),
+      workspaceId: savedMatch.brand.id,
+      updatedAt: new Date().toISOString(),
+    };
+    const nextContentWithMeta = encodeSavedAssetContent(savedMatch.item.content || "", nextMetadata);
+    const nextStoredContent = savedMatch.item.project
+      ? encodeLogoProjectContent(nextContentWithMeta, savedMatch.item.project)
+      : nextContentWithMeta;
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user?.id) throw new Error("No authenticated session.");
+
+      const { data, error } = await supabase
+        .from("saved_generations")
+        .update({ content: nextStoredContent })
+        .eq("id", entryId)
+        .eq("user_id", sessionData.session.user.id)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      if (!data?.id) throw new Error("Favorite update did not return a durable record.");
+    } catch (error) {
+      console.error("BrandThat durable favorite update failed", {
+        entryId,
+        code: error?.code || "",
+        message: error?.message || "Unknown Supabase favorite error",
+      });
+      notify("error", "Favorite could not update", "Please try again. Your saved assets were not changed.");
+      return false;
+    }
+
+    setFavoriteIds((prev) => ({ ...prev, [entryId]: nextFavorite }));
     setBrandWorkspaces((prev) => prev.map((brand) => ({
       ...brand,
       saved: Object.fromEntries(Object.entries(brand.saved || {}).map(([bucket, items]) => [
         bucket,
-        Array.isArray(items) ? items.map((item) => item.id === entryId ? { ...item, favorite: nextFavorite } : item) : items,
+        Array.isArray(items) ? items.map((item) => item.id === entryId ? { ...item, favorite: nextFavorite, assetMeta: { ...(item.assetMeta || {}), favorite: nextFavorite } } : item) : items,
       ])),
     })));
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session?.user?.id) {
-        await supabase
-          .from("saved_generations")
-          .update({ favorite: nextFavorite })
-          .eq("id", entryId)
-          .eq("user_id", sessionData.session.user.id);
-      }
-    } catch (error) {
-      console.warn("Could not sync favorite:", error.message);
-    }
+    notify("success", nextFavorite ? "Favorited" : "Favorite removed", nextFavorite ? "This asset now appears in Favorites." : "This asset was removed from Favorites.");
+    return true;
   };
 
   const deleteSavedAsset = async (entryId) => {
@@ -4903,6 +5000,8 @@ Rules:
 - Avoid repeating the same opening phrase or sentence structure.
 - If the brand is local, service-based, product-based, or subscription-based, make that visible where useful.
 - Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, or availability claims unless the user explicitly supplied that evidence.
+- For plant care, pet care, health, finance, legal, or technical setup, do not provide exact instructions, schedules, frequencies, diagnoses, claims, or guarantees unless the user supplied those details.
+- For plant watering, do not give an exact watering frequency unless the plant species, lighting, soil, pot, season, or explicit care instructions are provided. Say watering needs vary and point to the included care card instead.
 - Prefer non-quantified lifestyle language when mentioning benefits.
 - Do not invent reviews, sales results, guarantees, product features, or fulfillment promises.
 - Avoid repetitive openings such as "Exciting news" and "New arrivals alert."
@@ -4942,6 +5041,7 @@ Rules:
 - Use platform-aware hashtags for ${selectedPlatform || "the selected platform"}.
 - Mix broad, niche, community, and discovery hashtags naturally in one block.
 - Avoid random spam tags.
+- Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, availability, or exact-care claims.
 - Avoid repeated hashtags.
 - Keep the output easy to copy and paste.
 ${workspaceContext}
@@ -4992,6 +5092,8 @@ Rules:
 - Add a concise "Why this works" line under major recommendations when the tool is strategic, brand, audit, campaign, or growth.
 - Replace vague advice with concrete channels, cadence, content types, proof points, KPIs, costs, or completion criteria.
 - Avoid generic filler and cheesy phrasing.
+- Do not invent health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, availability, or exact-care claims unless the user supplied those details.
+- For plant watering or care advice, never invent universal schedules; say needs vary by plant, light, soil, pot, and season unless the user provided exact care facts.
 - Keep the output fast, clean, and easy to scan.
 - If generating emails, make the email content specific, accurate, and complete enough to use.
 - If auditing or building a campaign, give direct recommendations and next actions, not vague advice.
@@ -7159,6 +7261,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
       ...item,
       bucket,
       bucketLabel: label,
+      assetLabel: item.assetType === "caption_collection" || item.isCollection ? "Caption Collection" : bucket === "captions" ? "Caption" : label,
       brandName: brand.name,
       isFavorite: Boolean(favoriteIds[item.id] || item.favorite),
     })));
@@ -7204,7 +7307,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
         </button>
       )}
       <div className="assetCardMeta">
-        <span>{item.bucketLabel}</span>
+        <span>{item.assetLabel || item.bucketLabel}</span>
         <small>{item.brandName} · {new Date(item.createdAt || Date.now()).toLocaleDateString()}</small>
       </div>
       <strong>{item.title || item.bucketLabel}</strong>
@@ -8342,6 +8445,7 @@ function GeneratorCard({
   shareOutput,
   clearGenerator,
   saveCurrentOutput,
+  saveGeneratedAsset = () => {},
   setLogoAsBrandProfile,
   onStartWorkspace = () => {},
   onBuildGrowthRoadmap = () => {},
@@ -8354,12 +8458,87 @@ function GeneratorCard({
 }) {
   const resultCards = activeTool.key === "logo" ? [] : formatSmartResultCards(activeTool.key, result);
   const currentBucket = getSavedBucketKey(activeTool.key);
-  const isAssetSaved = (content = "", image = "") => {
+  const [savingResultKey, setSavingResultKey] = useState("");
+  const [copiedResultKey, setCopiedResultKey] = useState("");
+  const getSavedAsset = (content = "", image = "") => {
     const fingerprint = normalizeAssetContent(content || image);
-    if (!fingerprint || !activeBrand?.saved?.[currentBucket]) return false;
-    return activeBrand.saved[currentBucket].some((item) => normalizeAssetContent(item.content || item.image) === fingerprint);
+    if (!fingerprint || !activeBrand?.saved?.[currentBucket]) return null;
+    return activeBrand.saved[currentBucket].find((item) => normalizeAssetContent(item.content || item.image) === fingerprint) || null;
   };
+  const isAssetSaved = (content = "", image = "") => Boolean(getSavedAsset(content, image));
   const currentOutputSaved = activeTool.key === "logo" ? isAssetSaved("", logoImage) : isAssetSaved(stripLogoProjectMetadata(result));
+  const getIndividualResultTitle = (index) => {
+    const singularLabels = {
+      captions: "Caption",
+      hooks: "Hook",
+      bios: "Bio",
+      hashtags: "Hashtag Set",
+      email: "Email",
+      strategy: "Strategy",
+      audit: "Audit",
+      campaign: "Campaign Idea",
+      growth: "Roadmap Idea",
+      brand: "Brand Plan Section",
+    };
+    return `${singularLabels[activeTool.key] || activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}`;
+  };
+  const getCollectionTitle = () => {
+    const platformPrefix = selectedPlatform ? `${selectedPlatform} ` : "";
+    const collectionLabels = {
+      captions: "Captions",
+      hooks: "Hooks",
+      bios: "Bios",
+      hashtags: "Hashtags",
+      email: "Emails",
+      strategy: "Strategy Ideas",
+      audit: "Audit Notes",
+      campaign: "Campaign Ideas",
+      growth: "Roadmap",
+      brand: "Brand Plan",
+    };
+    return `${platformPrefix}${collectionLabels[activeTool.key] || activeTool.shortTitle} — ${new Date().toLocaleDateString()}`;
+  };
+  const handleSaveResultItem = async (item, index, favorite = false) => {
+    const key = `${activeTool.key}-${index}`;
+    const savedAsset = getSavedAsset(item);
+    if (savedAsset && !favorite) return;
+    setSavingResultKey(key);
+    try {
+      if (savedAsset) {
+        if (favorite && !savedAsset.favorite) {
+          await toggleFavorite?.(savedAsset.id);
+        }
+        return;
+      }
+      await saveGeneratedAsset({
+        contentOverride: item,
+        titleOverride: getIndividualResultTitle(index),
+        favorite,
+      });
+    } catch (error) {
+      console.error("BrandThat individual asset save failed", {
+        tool: activeTool.key,
+        message: error?.message || "Unknown save error",
+      });
+    } finally {
+      setSavingResultKey("");
+    }
+  };
+  const handleCopyResultItem = async (item, index) => {
+    const key = `${activeTool.key}-${index}`;
+    try {
+      await copyToClipboard(item);
+      setCopiedResultKey(key);
+      window.setTimeout(() => {
+        setCopiedResultKey((current) => current === key ? "" : current);
+      }, 1400);
+    } catch (error) {
+      console.error("BrandThat copy failed", {
+        tool: activeTool.key,
+        message: error?.message || "Clipboard unavailable",
+      });
+    }
+  };
 
   const activeEntry = {
     id: `active-${activeTool.key}`,
@@ -8903,7 +9082,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
           <div className="resultTop">
             <span>50 COPY-READY HASHTAGS</span>
             <div className="resultActions">
-              <button onClick={() => saveGeneratedAsset({ titleOverride: `${activeTool.shortTitle} Set • ${new Date().toLocaleDateString()}` })} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save Set"}</button>
+              <button onClick={() => saveGeneratedAsset({ collection: true, titleOverride: getCollectionTitle() })} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save Set"}</button>
               <button onClick={() => copyToClipboard(result)}>Copy Hashtags</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
@@ -8925,7 +9104,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
             <div className="resultActions">
               {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Project</button>}
               {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
-              <button onClick={saveCurrentOutput} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save All"}</button>
+              <button onClick={() => saveGeneratedAsset({ collection: true, titleOverride: getCollectionTitle() })} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save All"}</button>
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
               <button onClick={() => remixOutput(activeEntry)}>Generate More</button>
               <button onClick={() => shareOutput(result)}>Share</button>
@@ -8933,21 +9112,27 @@ Generate another logo from the same creative direction. Preserve the strongest p
           </div>
 
             <div className="captionListBox">
-            {parseTenOptions(result).map((item, index) => (
-              <div className="captionOptionRow" key={`${item}-${index}`}>
+            {parseTenOptions(result).map((item, index) => {
+              const key = `${activeTool.key}-${index}`;
+              const savedAsset = getSavedAsset(item);
+              const isSaving = savingResultKey === key;
+              const isCopied = copiedResultKey === key;
+              return (
+              <div className="captionOptionRow" key={`${item}-${index}`}> 
                 <div className="captionNumber">{index + 1}</div>
                 <p>{item}</p>
                 <div className="captionRowActions">
-                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}` })} disabled={isAssetSaved(item)}>
-                    {isAssetSaved(item) ? "Saved ✓" : "Save"}
+                  <button onClick={() => handleSaveResultItem(item, index)} disabled={Boolean(savedAsset) || isSaving}>
+                    {isSaving ? "Saving..." : savedAsset ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save"}
                   </button>
-                  <button onClick={() => copyToClipboard(item)}>Copy</button>
-                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}`, favorite: true })} disabled={isAssetSaved(item)}>
-                    {isAssetSaved(item) ? "Saved" : "Favorite"}
+                  <button onClick={() => handleCopyResultItem(item, index)}>{isCopied ? "Copied" : "Copy"}</button>
+                  <button onClick={() => handleSaveResultItem(item, index, true)} disabled={isSaving}>
+                    {isSaving ? "Saving..." : savedAsset?.favorite ? "Favorited" : "Favorite"}
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="savedAssetLinkRow">
             <span>Saved outputs stay attached to {activeBrand?.name || "the active brand"}.</span>
