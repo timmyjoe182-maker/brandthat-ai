@@ -1,32 +1,9 @@
-const { createClient } = require("@supabase/supabase-js");
-const crypto = require("node:crypto");
-const { requireVerifiedUser } = require("./lib/auth.js");
-
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
-function getRequestId() {
-  return crypto.randomUUID?.() || `primary_logo_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-
-  if (!supabaseUrl || !serviceRoleKey) return null;
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
+import {
+  getRequestId,
+  getSupabaseAdminClient,
+  json,
+  requireVerifiedUser,
+} from "./lib/membership.js";
 
 function safeErrorCode(error, fallback = "PRIMARY_LOGO_UPDATE_FAILED") {
   if (error?.code === "PGRST204" || /schema cache|logo_image_url|primary_logo/i.test(error?.message || "")) {
@@ -35,8 +12,8 @@ function safeErrorCode(error, fallback = "PRIMARY_LOGO_UPDATE_FAILED") {
   return error?.code || fallback;
 }
 
-exports.handler = async (event) => {
-  const requestId = getRequestId();
+export const handler = async (event) => {
+  const requestId = getRequestId("primary_logo");
 
   if (event.httpMethod !== "POST") {
     return json(405, {
