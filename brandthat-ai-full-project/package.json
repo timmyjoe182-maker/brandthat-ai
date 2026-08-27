@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "prebuild:logo-runtime": "node scripts/prebuild-logo-runtime-fixes.mjs",
+    "build": "npm run prebuild:logo-runtime && vite build",
     "preview": "vite preview",
     "lint": "node scripts/check-undefined-helpers.mjs",
-    "test": "node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs && node scripts/test-logo-context-contract.mjs && node scripts/test-logo-result-persistence-contract.mjs && node scripts/test-generation-claim-safety-contract.mjs && node scripts/test-primary-logo-contract.mjs",
+    "test": "npm run prebuild:logo-runtime && node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs && node scripts/test-logo-context-contract.mjs && node scripts/test-logo-result-persistence-contract.mjs && node scripts/test-generation-claim-safety-contract.mjs && node scripts/test-primary-logo-contract.mjs",
     "db:primary-logo-sql": "node scripts/print-primary-logo-migration.mjs"
   },
   "dependencies": {
