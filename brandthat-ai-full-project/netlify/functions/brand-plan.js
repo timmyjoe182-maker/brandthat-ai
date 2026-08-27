@@ -229,6 +229,41 @@ function ensureThesisDriven(value, replacement) {
 
 function makeTaglines({ brandName, industry, opportunity }) {
   const noun = industry.replace(/\s*\/.*$/, "");
+  const lower = `${brandName} ${industry}`.toLowerCase();
+  if (/houseplant|plant delivery|apartment greenery|indoor plant|plant subscription|plant care/.test(lower)) {
+    return [
+      `${brandName} makes greenery easier to keep.`,
+      "Apartment plants, delivered with confidence.",
+      "Greener rooms. Simpler care.",
+      "Plants beginners can keep alive.",
+      "Local greenery for smaller spaces.",
+      "Care cards included. Confidence delivered.",
+    ];
+  }
+  if (/dog|pet groom|grooming|pet care/.test(lower)) {
+    return [
+      `${brandName} brings gentle care to the driveway.`,
+      "Clean pets, calmer days.",
+      "Mobile grooming without the stressful trip.",
+      "Trusted care for busy families and older pets.",
+    ];
+  }
+  if (/coffee|hiker|outdoor event|trail/.test(lower)) {
+    return [
+      `${brandName} keeps the trail warm.`,
+      "Coffee built for the next mile.",
+      "Better energy, served outdoors.",
+      "A warm stop wherever the day starts.",
+    ];
+  }
+  if (/sponsor|invoice|creator|software|saas|platform|desk/.test(lower)) {
+    return [
+      `${brandName} keeps creator work in order.`,
+      "Sponsorships, invoices, and deadlines in one place.",
+      "Less admin between creators and paid work.",
+      "The calmer way to manage brand deals.",
+    ];
+  }
   const options = {
     luxury: [`${brandName}, quietly exceptional.`, `Made for the rare ${noun} moment.`, `A more considered way to choose ${noun}.`, `Where restraint becomes recognition.`],
     convenience: [`${brandName} makes the next step easier.`, `${noun} without the usual friction.`, `Less hassle. More momentum.`, `Built for the easy yes.`],

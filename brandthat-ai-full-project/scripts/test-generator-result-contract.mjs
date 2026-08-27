@@ -35,6 +35,26 @@ assert.ok(
 );
 
 assert.ok(
+  generateFunctionSource.includes("function getOpenAiClient()") && !generateFunctionSource.includes("const client = new OpenAI"),
+  "generate function should initialize OpenAI lazily after configuration checks"
+);
+
+assert.ok(
+  generateFunctionSource.includes("function getMembershipResult(userId)") && generateFunctionSource.includes("MEMBERSHIP_INACTIVE"),
+  "generate function should verify paid membership server-side"
+);
+
+assert.ok(
+  appSource.includes("tool: activeTool.key") && appSource.includes("brandId: activeBrand?.id"),
+  "client generation requests should identify the active tool and brand without sending secrets"
+);
+
+assert.ok(
+  appSource.includes("}, [activeToolKey, activeBrand?.id]);"),
+  "transient generator state should reset when the tool or active brand changes"
+);
+
+assert.ok(
   !/catch\s*\([^)]*\)\s*{[\s\S]{0,240}text:\s*error\.message/.test(generateFunctionSource),
   "generate function catch block must not return error.message as generated text"
 );

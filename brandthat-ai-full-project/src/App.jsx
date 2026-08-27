@@ -630,6 +630,8 @@ function normalizeRoadmapItems(value, fallback = []) {
 function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "new business / brand", opportunity = "trust" } = {}) {
   const category = industry.replace(/\s*\/.*$/, "");
   const lower = `${brandName} ${idea} ${industry} ${opportunity}`.toLowerCase();
+  const categoryBuyer = /s$/.test(category) ? category : `${category} brand`;
+  const categoryCompetitors = /s$/.test(category) ? category : `${category} brands`;
   const audience = lower.includes("dog")
     ? "style-conscious dog owners who treat outdoor time as part of their identity, not only a practical routine"
     : lower.includes("wedding")
@@ -638,10 +640,10 @@ function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "
         ? "apartment renters and first-time plant owners who want a greener home without complicated maintenance"
       : lower.includes("ai") || lower.includes("software")
         ? "busy founders and small teams who need sharper brand decisions without hiring a full strategy team first"
-        : `buyers choosing a ${category} brand who need a clearer reason to trust, remember, and act`;
+        : `buyers choosing ${categoryBuyer} who need a clearer reason to trust, remember, and act`;
   const customerMotivation = `They want ${brandName} to reduce uncertainty: the brand should make the buying decision feel specific, emotionally justified, and easier to explain to someone else.`;
-  const positioning = `${brandName} should own ${opportunity} in ${category} by making the customer outcome more concrete than category competitors and backing every claim with visible proof.`;
-  const differentiation = `Competing ${category} brands often describe what they sell. ${brandName} should make a stronger decision by showing why this version exists, who it is for, and what the customer can do next.`;
+  const positioning = `${brandName} should own ${opportunity} in ${category} by making the customer outcome more concrete than nearby competitors and backing every claim with visible proof.`;
+  const differentiation = `Competing ${categoryCompetitors} often describe what they sell. ${brandName} should make a stronger decision by showing why this version exists, who it is for, and what the customer can do next.`;
   const personality = opportunity === "luxury"
     ? "restrained, exacting, quietly confident, and taste-led"
     : opportunity === "joy"
@@ -659,7 +661,7 @@ function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "
       ? `Bright apartments, resilient greenery, delivery handoff moments, simple care cards, natural textures, and calm shelf/window-light scenes that prove plant ownership can feel easy.`
     : opportunity === "luxury"
       ? `Editorial spacing, high-contrast detail shots, restrained layouts, premium materials, and calm environments that make ${brandName} feel selective.`
-      : `Clean product context, customer-before-and-after moments, simple interface or service proof, and enough negative space to make the promise feel clear.`;
+    : `Clean product context, customer-before-and-after moments, simple service proof, and enough negative space to make the promise feel clear.`;
   const typography = opportunity === "luxury" || opportunity === "craftsmanship"
     ? `Use a high-contrast serif for the brand voice and a restrained grotesk for practical UI because the audience needs both taste and clarity.`
     : lower.includes("houseplant") || lower.includes("plant delivery") || lower.includes("apartment greenery") || lower.includes("plant care")
@@ -2524,6 +2526,22 @@ export default function App() {
     setCheckoutError("");
     setCheckoutStatus((current) => current === "loading" || current === "redirecting" ? "idle" : current);
   }, [isMember]);
+
+  useEffect(() => {
+    setGenerationError("");
+    setLogoGenerationError("");
+    setResult("");
+    setPrompt("");
+    setSelectedPlatform("");
+    setCreativeTone("");
+    setLogoImage("");
+    setLogoImageSource("");
+    setLogoVectorImage("");
+    setLogoSvg("");
+    setLogoTransparentSvg("");
+    setLogoVariations([]);
+    setLogoCreativeBrief(null);
+  }, [activeToolKey, activeBrand?.id]);
 
 
   useEffect(() => {
@@ -5123,7 +5141,9 @@ ${promptValue}`;
           method: "POST",
           headers: authHeaders,
           body: JSON.stringify({
-            prompt: generationPrompt
+            prompt: generationPrompt,
+            tool: activeTool.key,
+            brandId: activeBrand?.id || ""
           })
         }, {
           timeoutMs: 20000,
@@ -5148,7 +5168,12 @@ ${promptValue}`;
           data = await fetchJsonWithTimeout("/.netlify/functions/generate", {
             method: "POST",
             headers: authHeaders,
-            body: JSON.stringify({ prompt: retryPrompt })
+            body: JSON.stringify({
+              prompt: retryPrompt,
+              tool: activeTool.key,
+              brandId: activeBrand?.id || "",
+              retry: "quality"
+            })
           }, {
             timeoutMs: 20000,
             errorMessage: "Generation quality retry failed.",

@@ -9,8 +9,10 @@ assert.equal(
   "Use moss green, warm ivory, and clay because the brand has to make apartment plant care feel calm, local, and easy to keep alive."
 );
 assert.deepEqual(makeTaglines({ brandName: "Stone & Stem", industry: "houseplant subscription", opportunity: "trust" }).slice(0, 2), [
-  "Stone & Stem brings certainty closer.",
-  "Clearer decisions for serious moments.",
+  "Stone & Stem makes greenery easier to keep.",
+  "Apartment plants, delivered with confidence.",
 ]);
+assert.ok(!makeTaglines({ brandName: "Stone & Stem", industry: "houseplant subscription", opportunity: "convenience" }).join(" ").includes("usual friction"));
+assert.ok(makeTaglines({ brandName: "SignalDesk", industry: "creator sponsorship software", opportunity: "trust" }).join(" ").includes("Sponsorships"));
 
 console.log("Brand plan quality tests passed.");
