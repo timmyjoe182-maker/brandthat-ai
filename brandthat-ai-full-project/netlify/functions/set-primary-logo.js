@@ -140,7 +140,6 @@ export const handler = async (event) => {
           assetTitle: asset.title || "Logo concept",
           ...logoMetadata,
         },
-        updated_at: now,
       })
       .eq("id", workspaceId)
       .eq("user_id", auth.user.id)

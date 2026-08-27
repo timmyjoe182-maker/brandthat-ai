@@ -28,6 +28,7 @@ assert(primaryLogoFunction.includes("PRIMARY_LOGO_SCHEMA_MISSING"), "Primary-log
 assert(primaryLogoFunction.includes("primary_logo_asset_id"), "Primary-logo function must persist the primary asset ID.");
 assert(primaryLogoFunction.includes("success: true"), "Primary-logo function must return an explicit success value.");
 assert(primaryLogoFunction.includes("workspace: updatedWorkspace"), "Primary-logo function must return the persisted workspace row.");
+assert(!/(^|[^A-Za-z0-9_])updated_at\s*:\s*now/.test(primaryLogoFunction), "Primary-logo function must not write brand_workspaces.updated_at unless that production column exists.");
 
 assert(app.includes('/.netlify/functions/set-primary-logo'), "App must use the centralized primary-logo function.");
 assert(!/\.from\("brand_workspaces"\)\s*\.\s*update\(\{\s*logo_image_url/.test(app), "App must not directly write logo_image_url from the browser.");
