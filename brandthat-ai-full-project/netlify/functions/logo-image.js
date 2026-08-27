@@ -3594,10 +3594,22 @@ exports.handler = async (event, context) => {
       };
     } catch (imageError) {
       clearTimeout(timeout);
+      console.warn("BrandThat logo image provider failed; returning instant vector fallback", {
+        type: imageError?.type || imageError?.name,
+        code: imageError?.code,
+        statusCode: imageError?.status || imageError?.statusCode,
+        message: imageError?.message,
+      });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
+          ok: true,
+          fallback: true,
+          providerError: {
+            code: imageError?.code || imageError?.type || imageError?.name || "LOGO_IMAGE_PROVIDER_FAILED",
+            statusCode: imageError?.status || imageError?.statusCode || null,
+          },
           image: vectorLogo.image,
           source: "instant-svg",
           vectorImage: vectorLogo.image,
@@ -3610,15 +3622,24 @@ exports.handler = async (event, context) => {
           promptInterpreter,
           brandStrategy,
           qualityGate,
-          note: "Brandthat created an editable vector logo from your exact fields, including the brand name, industry, style, colors, and notes.",
+          note: "AI logo generation is temporarily unavailable. BrandThat created an instant editable vector concept from your exact fields instead.",
         }),
       };
     }
   } catch (error) {
+    console.error("BrandThat logo image function failed", {
+      type: error?.type || error?.name,
+      code: error?.code,
+      statusCode: error?.status || error?.statusCode,
+      message: error?.message,
+    });
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: error.message || "Logo generation failed.",
+        ok: false,
+        code: error?.code || error?.type || "LOGO_IMAGE_FUNCTION_FAILED",
+        message: "Logo generation is temporarily unavailable.",
       }),
     };
   }

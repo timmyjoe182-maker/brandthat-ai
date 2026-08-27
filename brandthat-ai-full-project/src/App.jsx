@@ -2891,6 +2891,9 @@ export default function App() {
     targetFollowers: row.target_followers || "",
     weeklyTime: row.weekly_time || "",
     logoImage: row.logo_image_url || "",
+    primaryLogoAssetId: row.primary_logo_asset_id || "",
+    primaryLogoUpdatedAt: row.primary_logo_updated_at || "",
+    logoMetadata: row.logo_metadata || null,
     tone: row.tone || "Modern",
     style: row.style || "",
     launchGoal: row.launch_goal || "",
@@ -4068,30 +4071,51 @@ export default function App() {
 
     const durableLogoImage = savedEntry?.image || candidateImage;
 
-    if (session.user?.id) {
-      try {
-        const { error } = await supabase
-          .from("brand_workspaces")
-          .update({ logo_image_url: durableLogoImage, updated_at: new Date().toISOString() })
-          .eq("id", activeBrand.id)
-          .eq("user_id", session.user.id);
-
-        if (error) throw error;
-      } catch (error) {
-        console.error("BrandThat primary logo save failed", {
+    let primaryLogoResult = null;
+    try {
+      primaryLogoResult = await fetchJsonWithTimeout("/.netlify/functions/set-primary-logo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
           workspaceId: activeBrand.id,
-          code: error?.code || "",
-          message: error?.message || "Unknown Supabase workspace update error",
-        });
-        notify("error", "Primary logo was not updated", "The concept is still available. Try setting it as primary again.");
-        return;
+          assetId: savedEntry.id,
+          logoImageUrl: durableLogoImage,
+          logoMetadata: getLogoProjectFromEntry(savedEntry),
+        }),
+      }, {
+        timeoutMs: 15000,
+        errorMessage: "Primary logo was not updated.",
+        revealServerError: true,
+      });
+
+      if (!primaryLogoResult?.ok || !primaryLogoResult?.primaryLogoAssetId || !primaryLogoResult?.logoImageUrl) {
+        throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
       }
+    } catch (error) {
+      console.error("BrandThat primary logo save failed", {
+        workspaceId: activeBrand.id,
+        assetId: savedEntry.id,
+        code: error?.code || "",
+        status: error?.status || "",
+        message: error?.message || "Unknown primary-logo server error",
+      });
+      notify("error", "Primary logo was not updated", error?.message || "The concept is still available. Try setting it as primary again.");
+      return;
     }
 
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
         brand.id === activeBrand.id
-          ? { ...brand, logoImage: durableLogoImage }
+          ? {
+              ...brand,
+              logoImage: primaryLogoResult.logoImageUrl,
+              primaryLogoAssetId: primaryLogoResult.primaryLogoAssetId,
+              primaryLogoUpdatedAt: primaryLogoResult.primaryLogoUpdatedAt || new Date().toISOString(),
+              logoMetadata: primaryLogoResult.logoMetadata || getLogoProjectFromEntry(savedEntry),
+            }
           : brand
       )
     );
@@ -4109,27 +4133,54 @@ export default function App() {
       return;
     }
 
+    let primaryLogoResult = null;
+    try {
+      primaryLogoResult = await fetchJsonWithTimeout("/.netlify/functions/set-primary-logo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          workspaceId: activeBrand.id,
+          assetId: entry.id,
+          logoImageUrl: entry.image,
+          logoMetadata: getLogoProjectFromEntry(entry),
+        }),
+      }, {
+        timeoutMs: 15000,
+        errorMessage: "Primary logo was not updated.",
+        revealServerError: true,
+      });
+
+      if (!primaryLogoResult?.ok || !primaryLogoResult?.primaryLogoAssetId || !primaryLogoResult?.logoImageUrl) {
+        throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
+      }
+    } catch (error) {
+      console.error("Could not sync saved brand logo:", {
+        workspaceId: activeBrand.id,
+        assetId: entry.id,
+        code: error?.code || "",
+        status: error?.status || "",
+        message: error?.message || "Unknown primary-logo server error",
+      });
+      notify("error", "Primary logo was not updated", error?.message || "Please try again.");
+      return;
+    }
+
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
         brand.id === activeBrand.id
-          ? { ...brand, logoImage: entry.image }
+          ? {
+              ...brand,
+              logoImage: primaryLogoResult.logoImageUrl,
+              primaryLogoAssetId: primaryLogoResult.primaryLogoAssetId,
+              primaryLogoUpdatedAt: primaryLogoResult.primaryLogoUpdatedAt || new Date().toISOString(),
+              logoMetadata: primaryLogoResult.logoMetadata || getLogoProjectFromEntry(entry),
+            }
           : brand
       )
     );
-
-    if (session.user?.id) {
-      try {
-        const { error } = await supabase
-          .from("brand_workspaces")
-          .update({ logo_image_url: entry.image, updated_at: new Date().toISOString() })
-          .eq("id", activeBrand.id)
-          .eq("user_id", session.user.id);
-
-        if (error) throw error;
-      } catch (error) {
-        console.warn("Could not sync saved brand logo:", error.message);
-      }
-    }
 
     notify("success", "Brand logo updated", `${activeBrand.name} now uses ${entry.title || "this saved logo"}.`);
     trackBrandthatEvent("brand_logo_set", { source: "saved_logo" });
