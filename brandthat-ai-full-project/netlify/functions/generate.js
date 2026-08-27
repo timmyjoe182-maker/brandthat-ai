@@ -46,6 +46,42 @@ function getPublicError(statusCode, code, message, requestId) {
   });
 }
 
+function sanitizeUnsafeGeneratedClaims(text = "") {
+  let safeText = String(text || "");
+  const replacements = [
+    {
+      pattern: /\b(snake plants?|pothos|peace lilies?|spider plants?|houseplants?|plants?)\s+(can|may|will|are proven to)\s+(improve|purify|clean|boost)\s+(your\s+)?(indoor\s+)?air quality\b/gi,
+      replacement: "$1 are popular low-maintenance choices for apartment greenery",
+    },
+    {
+      pattern: /\b(improve|purify|clean|boost)\s+(your\s+)?(indoor\s+)?air quality\b/gi,
+      replacement: "bring more greenery into the space",
+    },
+    {
+      pattern: /\b(boost|improve|lift|support)\s+(your\s+)?mood\b/gi,
+      replacement: "make the space feel calmer",
+    },
+    {
+      pattern: /\b(pet[- ]safe|pet\s+safe|non[- ]toxic|non\s+toxic|safe for pets|safe for dogs|safe for cats)\b/gi,
+      replacement: "chosen with clear care guidance",
+    },
+    {
+      pattern: /\b(guaranteed growth|guaranteed|guarantees|will always|never fails|scientifically proven)\s+[^.!?\n]*(growth|results|outcomes|benefits|performance)[^.!?\n]*/gi,
+      replacement: "designed to be easier to understand and care for",
+    },
+    {
+      pattern: /\b(removes toxins|toxins from the air|air purification|purifies the air|cleaner air)\b/gi,
+      replacement: "fresh visual greenery",
+    },
+  ];
+
+  for (const { pattern, replacement } of replacements) {
+    safeText = safeText.replace(pattern, replacement);
+  }
+
+  return safeText.replace(/\s+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
+}
+
 const supabaseAuthUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://vfnkmabnocbwawbdvxfo.supabase.co";
 const supabaseAuthKey =
   process.env.SUPABASE_ANON_KEY ||
@@ -451,9 +487,9 @@ Rules:
       completion = await createCompletion();
     }
 
-    const text = completion.choices?.[0]?.message?.content || "";
+    const safeText = sanitizeUnsafeGeneratedClaims(completion.choices?.[0]?.message?.content || "");
 
-    if (!text.trim()) {
+    if (!safeText.trim()) {
       logGenerateFailure({
         requestId,
         generatorType,
@@ -469,7 +505,7 @@ Rules:
       return getPublicError(502, "OPENAI_EMPTY_RESPONSE", "We couldn't generate that right now. Please try again.", requestId);
     }
 
-    return json(200, { ok: true, text, requestId });
+    return json(200, { ok: true, text: safeText, requestId });
   } catch (error) {
     const providerError = normalizeOpenAiError(error);
     logGenerateFailure({

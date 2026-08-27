@@ -1478,8 +1478,8 @@ function getTypographyPairing(parsedLogo = {}) {
     };
   }
   return {
-    headline: "Modern wordmark",
-    supporting: "Neutral sans",
+    headline: "Readable wordmark",
+    supporting: "Humanist sans",
     note: "Simple type and generous spacing keep the identity flexible across social, web, and print.",
   };
 }
@@ -1656,11 +1656,17 @@ function createMiniBrandAssetSvg({ brandName = "Brand", initials = "BT", primary
   return createDataUriFromSvg(svg);
 }
 
-function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreativeBrief = {}, logoImage = "" }) {
-  const brandName = parsedLogo.brandName || logoCreativeBrief?.brandName || "Brand";
+function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreativeBrief = {}, logoImage = "", activeBrand = null, workspacePlan = {} }) {
+  const brandName = activeBrand?.name || parsedLogo.brandName || logoCreativeBrief?.brandName || "Brand";
   const initials = getInitialsFromBrandName(brandName);
-  const palette = getPaletteFromLogoContext(parsedLogo, logoEditor, logoCreativeBrief);
-  const typography = getTypographyPairing(parsedLogo);
+  const workspacePalette = activeBrand ? getIdentityPalette(activeBrand, workspacePlan) : [];
+  const palette = workspacePalette.length
+    ? {
+        primary: workspacePalette.slice(0, 3).map((color) => color.hex),
+        secondary: workspacePalette.slice(2, 4).map((color) => color.hex),
+      }
+    : getPaletteFromLogoContext(parsedLogo, logoEditor, logoCreativeBrief);
+  const typography = activeBrand ? getIdentityTypography(activeBrand, workspacePlan) : getTypographyPairing(parsedLogo);
   const primary = palette.primary[0] || "#111111";
   const accent = palette.primary[1] || "#111111";
   const paper = palette.secondary[0] || "#f5f5f5";
@@ -1672,7 +1678,9 @@ function buildLightweightBrandKit({ parsedLogo = {}, logoEditor = {}, logoCreati
     primaryColors: palette.primary,
     secondaryColors: palette.secondary,
     typography,
-    styleDirection: firstConcept.whyFits || logoCreativeBrief?.visualTerritory || `${parsedLogo.style || "Clean modern"} identity for ${parsedLogo.industry || "a modern brand"}.`,
+    styleDirection: activeBrand
+      ? workspacePlan.visualIdentityDirection || workspacePlan.moodboardDirection || activeBrand.logoDirection || activeBrand.style || "Identity direction from the active Brand Workspace."
+      : firstConcept.whyFits || logoCreativeBrief?.visualTerritory || `${parsedLogo.style || "Clean modern"} identity for ${parsedLogo.industry || "a modern brand"}.`,
     logoUsage: [
       "Website header",
       "Social profile",
@@ -2429,7 +2437,7 @@ function getBrandCompletionChecklist(brand) {
     { key: "voice", completeLabel: "Voice complete", missingLabel: "Voice missing", complete: Boolean(plan.brandVoice || brand?.tone), action: "Open Strategy", section: "strategy" },
     { key: "colors", completeLabel: "Colors complete", missingLabel: "Colors missing", complete: Boolean(plan.colorSystem || brand?.style), action: "Open Identity", section: "identity" },
     { key: "typography", completeLabel: "Typography complete", missingLabel: "Typography missing", complete: Boolean(plan.typographySystem), action: "Open Identity", section: "identity" },
-    { key: "logo", completeLabel: "Logo saved", missingLabel: "Logo missing", complete: hasSaved("logos") || Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
+    { key: "logo", completeLabel: "Primary logo set", missingLabel: "Logo missing", complete: Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
     { key: "content", completeLabel: "First content asset saved", missingLabel: "First content asset missing", complete: hasContentAsset, action: "Create Content", section: "tools" },
   ];
 }
@@ -3993,7 +4001,7 @@ export default function App() {
         brand.id === activeBrand.id
           ? {
               ...brand,
-              logoImage: activeTool.key === "logo" && logoImage ? logoImage : brand.logoImage,
+              logoImage: brand.logoImage,
               saved: {
                 ...brand.saved,
                 [bucket]: [entry, ...(brand.saved?.[bucket] || [])],
@@ -4014,44 +4022,82 @@ export default function App() {
 
   const saveCurrentOutput = async () => saveGeneratedAsset({ collection: activeTool.key !== "logo" });
 
-  const setLogoAsBrandProfile = async () => {
+  const saveCurrentLogoConcept = async ({ imageOverride = "", contentOverride = "", favorite = false, titleOverride = "" } = {}) => {
+    const conceptImage = imageOverride || logoImage;
+    const conceptContent = contentOverride || result || "Logo concept generated from the active Brand Workspace.";
+
+    if (!conceptImage) {
+      notify("error", "Generate a logo first", "Once a concept appears, you can save it to this brand workspace.");
+      return null;
+    }
+
+    return saveGeneratedAsset({
+      imageOverride: conceptImage,
+      contentOverride: conceptContent,
+      titleOverride: titleOverride || "Logo Concept • " + new Date().toLocaleDateString(),
+      collection: false,
+      favorite,
+    });
+  };
+
+  const setLogoAsBrandProfile = async (logoEntry = null) => {
     const session = await requireMembershipOrTrial("workspace");
     if (!session) return;
 
     if (!activeBrand) {
-      notify("error", "Create a Brand Workspace first", "Then you can set a generated logo as the brand profile image.");
+      notify("error", "Create a Brand Workspace first", "Then you can set a saved logo concept as the brand profile image.");
       return;
     }
 
-    if (!logoImage) {
-      notify("error", "Generate a logo first", "Once a logo appears, you can set it as this workspace's brand image.");
+    const candidateImage = logoEntry?.image || logoImage;
+
+    if (!candidateImage) {
+      notify("error", "Generate a logo first", "Once a logo appears, save it and set it as the primary logo.");
       return;
     }
 
-    setBrandWorkspaces((prev) =>
-      prev.map((brand) =>
-        brand.id === activeBrand.id
-          ? { ...brand, logoImage }
-          : brand
-      )
-    );
+    const savedEntry = logoEntry?.id
+      ? logoEntry
+      : await saveCurrentLogoConcept({
+          imageOverride: candidateImage,
+          contentOverride: logoEntry?.content || result || "Primary logo concept generated from the active Brand Workspace.",
+          titleOverride: "Primary Logo Concept • " + new Date().toLocaleDateString(),
+        });
+
+    if (!savedEntry?.id && !savedEntry?.image) return;
+
+    const durableLogoImage = savedEntry?.image || candidateImage;
 
     if (session.user?.id) {
       try {
         const { error } = await supabase
           .from("brand_workspaces")
-          .update({ logo_image_url: logoImage, updated_at: new Date().toISOString() })
+          .update({ logo_image_url: durableLogoImage, updated_at: new Date().toISOString() })
           .eq("id", activeBrand.id)
           .eq("user_id", session.user.id);
 
         if (error) throw error;
       } catch (error) {
-        console.warn("Could not sync brand profile logo:", error.message);
+        console.error("BrandThat primary logo save failed", {
+          workspaceId: activeBrand.id,
+          code: error?.code || "",
+          message: error?.message || "Unknown Supabase workspace update error",
+        });
+        notify("error", "Primary logo was not updated", "The concept is still available. Try setting it as primary again.");
+        return;
       }
     }
 
-    notify("success", "Brand logo updated", `${activeBrand.name} now uses this generated logo as its workspace image.`);
-    trackBrandthatEvent("brand_logo_set", { source: "current_generation" });
+    setBrandWorkspaces((prev) =>
+      prev.map((brand) =>
+        brand.id === activeBrand.id
+          ? { ...brand, logoImage: durableLogoImage }
+          : brand
+      )
+    );
+
+    notify("success", "Primary logo updated", `${activeBrand.name} now uses this saved concept as its primary logo.`);
+    trackBrandthatEvent("brand_logo_set", { source: "saved_generation", savedAssetId: savedEntry?.id || "existing" });
   };
 
   const setSavedLogoAsBrandProfile = async (entry) => {
@@ -5035,7 +5081,7 @@ Output should make the user feel: "I know exactly what my brand is and exactly w
       logoImage,
     });
     setPage("workspace");
-    notify("success", "Brand project prepared", "Your logo, strategy, and direction are ready to save as a workspace.");
+    notify("success", "Concept prepared", "Review the generated concept, then save it to the active brand workspace.");
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
@@ -6017,6 +6063,8 @@ ${promptValue}`;
           shareOutput={shareOutput}
           clearGenerator={clearGenerator}
           saveCurrentOutput={saveCurrentOutput}
+          saveGeneratedAsset={saveGeneratedAsset}
+          saveCurrentLogoConcept={saveCurrentLogoConcept}
           setLogoAsBrandProfile={setLogoAsBrandProfile}
           onStartWorkspace={startWorkspaceFromCurrentLogo}
           onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
@@ -6110,6 +6158,7 @@ ${promptValue}`;
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
             saveGeneratedAsset={saveGeneratedAsset}
+            saveCurrentLogoConcept={saveCurrentLogoConcept}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
             onStartWorkspace={startWorkspaceFromCurrentLogo}
             onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
@@ -7924,6 +7973,7 @@ function SEOPage({
   clearGenerator,
   saveCurrentOutput,
   saveGeneratedAsset = () => {},
+  saveCurrentLogoConcept = () => {},
   setLogoAsBrandProfile,
   onStartWorkspace,
   onBuildGrowthRoadmap,
@@ -7986,6 +8036,7 @@ function SEOPage({
             clearGenerator={clearGenerator}
             saveCurrentOutput={saveCurrentOutput}
             saveGeneratedAsset={saveGeneratedAsset}
+            saveCurrentLogoConcept={saveCurrentLogoConcept}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
           onStartWorkspace={onStartWorkspace}
           onBuildGrowthRoadmap={onBuildGrowthRoadmap}
@@ -8632,6 +8683,7 @@ function GeneratorCard({
   clearGenerator,
   saveCurrentOutput,
   saveGeneratedAsset = () => {},
+  saveCurrentLogoConcept = () => {},
   setLogoAsBrandProfile,
   onStartWorkspace = () => {},
   onBuildGrowthRoadmap = () => {},
@@ -8653,6 +8705,8 @@ function GeneratorCard({
   };
   const isAssetSaved = (content = "", image = "") => Boolean(getSavedAsset(content, image));
   const currentOutputSaved = activeTool.key === "logo" ? isAssetSaved("", logoImage) : isAssetSaved(stripLogoProjectMetadata(result));
+  const logoSaveInProgress = savingResultKey === "logo-current";
+  const logoPrimaryInProgress = savingResultKey === "logo-primary";
   const getIndividualResultTitle = (index) => {
     const singularLabels = {
       captions: "Caption",
@@ -8724,6 +8778,56 @@ function GeneratorCard({
         message: error?.message || "Clipboard unavailable",
       });
     }
+  };
+  const saveLogoConceptFromResult = async ({ favorite = false, setPrimary = false, image = "", content = "", title = "" } = {}) => {
+    const conceptImage = image || logoImage;
+    const savedAsset = getSavedAsset("", conceptImage);
+    const key = setPrimary ? "logo-primary" : "logo-current";
+    if (savedAsset && !setPrimary && !favorite) return savedAsset;
+
+    setSavingResultKey(key);
+    try {
+      const savedEntry = savedAsset || await saveCurrentLogoConcept({
+        imageOverride: conceptImage,
+        contentOverride: content || result || "Logo concept generated from the active Brand Workspace.",
+        favorite,
+        titleOverride: title || "Logo Concept • " + new Date().toLocaleDateString(),
+      });
+
+      if (savedEntry?.id && favorite && !savedEntry.favorite) {
+        await toggleFavorite?.(savedEntry.id);
+      }
+
+      if (savedEntry?.id && setPrimary) {
+        await setLogoAsBrandProfile(savedEntry);
+      }
+
+      return savedEntry;
+    } catch (error) {
+      console.error("BrandThat logo concept save failed", {
+        workspaceId: activeBrand?.id || "",
+        message: error?.message || "Unknown logo save error",
+      });
+      return null;
+    } finally {
+      setSavingResultKey("");
+    }
+  };
+  const saveLogoVariation = (variation, index, options = {}) => {
+    const directionLabel = ["Wordmark-led Concept", "Symbol Plus Wordmark", "Compact Avatar Badge"][index] || variation?.name || "Logo Concept";
+    return saveLogoConceptFromResult({
+      ...options,
+      image: variation?.image || variation?.svg || logoImage,
+      content: [
+        directionLabel,
+        variation?.name,
+        variation?.whyFits,
+        variation?.symbol && `Symbol: ${variation.symbol}`,
+        variation?.typography && `Typography: ${variation.typography}`,
+        variation?.palette && `Palette: ${variation.palette}`,
+      ].filter(Boolean).join("\n"),
+      title: `${directionLabel} • ${new Date().toLocaleDateString()}`,
+    });
   };
 
   const activeEntry = {
@@ -8837,8 +8941,10 @@ function GeneratorCard({
       logoEditor,
       logoCreativeBrief,
       logoImage,
+      activeBrand,
+      workspacePlan: logoWorkspacePlan,
     }),
-    [parsedLogoPreview, logoEditor, logoCreativeBrief, logoImage]
+    [parsedLogoPreview, logoEditor, logoCreativeBrief, logoImage, activeBrand, logoWorkspacePlan]
   );
   const logoPromptPlaceholder = activeTool.key === "logo"
     ? logoWorkspaceBrief || "Describe the logo direction, brand name, audience, mood, symbols, colors, and where the logo must work."
@@ -9187,11 +9293,11 @@ Designer iteration rules:
               <span className={logoImageSource === "instant-svg" ? "logoSourceBadge instant" : "logoSourceBadge"}>
                 {logoImageSource === "instant-svg" ? "Editable vector" : "AI image"}
               </span>
-              <h3>Your logo is ready</h3>
+              <h3>Concept generated</h3>
               <p>
                 {logoImageSource === "instant-svg"
-                  ? "A clean first concept, built from your brand name, style, colors, and notes."
-                  : "A first brand direction is ready to review, download, refine, or save."}
+                  ? "A clean first concept, built from your active brand strategy and logo brief."
+                  : "Review this direction, then save it as a logo concept or set it as the primary logo."}
               </p>
 
               <div className="creativeDirectorNotes">
@@ -9205,18 +9311,21 @@ Designer iteration rules:
               </div>
 
               <div className="logoActionStack">
-                <button className="downloadLink" onClick={downloadLogoImage}>Download Logo</button>
+                <button onClick={() => saveLogoConceptFromResult()} disabled={currentOutputSaved || logoSaveInProgress}>
+                  {logoSaveInProgress ? "Saving..." : currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save Logo Concept"}
+                </button>
+                <button onClick={() => saveLogoConceptFromResult({ setPrimary: true })} disabled={logoPrimaryInProgress}>
+                  {logoPrimaryInProgress ? "Updating..." : "Set as Primary Logo"}
+                </button>
+                <button className="downloadLink" onClick={downloadLogoImage}>Download Preview</button>
                 <button onClick={() => document.querySelector(".logoRefinePanel textarea")?.focus()}>Refine</button>
-                <button onClick={onStartWorkspace}>Save Brand Project</button>
                 <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>
                 <details className="logoMoreActions">
                   <summary>More</summary>
                   <button onClick={openLogoImage}>Open Full Size</button>
                   {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, `${editorFileName}-vector`)}>Download SVG</button>}
                   {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
-                  <button onClick={saveCurrentOutput} disabled={currentOutputSaved}>{currentOutputSaved ? "Saved to " + (activeBrand?.name || "Workspace") + " ✓" : "Save Concept"}</button>
-                  <button onClick={() => saveGeneratedAsset({ favorite: true, titleOverride: "Favorite Logo Concept • " + new Date().toLocaleDateString() })}>Favorite</button>
-                  <button onClick={setLogoAsBrandProfile}>Set as Primary Logo</button>
+                  <button onClick={() => saveLogoConceptFromResult({ favorite: true })}>Favorite</button>
                 </details>
                 <button onClick={() => {
                   const continuityPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
@@ -9237,12 +9346,54 @@ Generate another logo from the same creative direction. Preserve the strongest p
             </div>
           </div>
 
+          {logoVariations.length > 0 && (
+            <section className="logoConceptDirections" aria-label="Logo concept directions">
+              <div>
+                <div className="tinyTag">THREE DIRECTIONS</div>
+                <h3>Choose the direction to keep building.</h3>
+              </div>
+              <div className="logoConceptGrid">
+                {logoVariations.slice(0, 3).map((variation, index) => {
+                  const conceptImage = variation?.image || variation?.svg || logoImage;
+                  const directionLabel = ["Wordmark-led concept", "Symbol plus wordmark", "Compact avatar/badge"][index] || variation?.name || "Logo concept";
+                  const savedVariation = getSavedAsset("", conceptImage);
+                  const conceptKey = `logo-variation-${index}`;
+                  const isSavingVariation = savingResultKey === conceptKey;
+                  return (
+                    <article className="logoConceptCard" key={`${directionLabel}-${index}`}>
+                      <div className="logoConceptPreview">
+                        {conceptImage && <img src={conceptImage} alt={`${directionLabel} preview`} />}
+                      </div>
+                      <span>{directionLabel}</span>
+                      <h4>{variation?.name || directionLabel}</h4>
+                      <p>{variation?.whyFits || "Built from the active brand strategy, palette, typography, and logo brief."}</p>
+                      <dl>
+                        {variation?.symbol && <><dt>Symbol</dt><dd>{variation.symbol}</dd></>}
+                        {variation?.typography && <><dt>Type</dt><dd>{variation.typography}</dd></>}
+                        {variation?.palette && <><dt>Palette</dt><dd>{variation.palette}</dd></>}
+                      </dl>
+                      <div className="logoConceptActions">
+                        <button onClick={async () => { setSavingResultKey(conceptKey); await saveLogoVariation(variation, index); setSavingResultKey(""); }} disabled={Boolean(savedVariation) || isSavingVariation}>
+                          {isSavingVariation ? "Saving..." : savedVariation ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save"}
+                        </button>
+                        <button onClick={() => saveLogoVariation(variation, index, { favorite: true })}>Favorite</button>
+                        <button onClick={() => saveLogoVariation(variation, index, { setPrimary: true })}>Set Primary</button>
+                        <button onClick={() => refineLogo(`Refine the ${directionLabel}. ${variation?.symbol ? `Preserve this symbol direction: ${variation.symbol}.` : ""} Improve small-size readability and keep the workspace palette.`)}>Refine</button>
+                        {conceptImage && <button onClick={() => downloadGeneratedImage(conceptImage, `${editorFileName}-${directionLabel}`)}>Download</button>}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           <BrandJourneyPanel
             brandName={parsedLogoPreview.brandName || creativeTone || logoCreativeBrief?.brandName}
             creativeBrief={logoCreativeBrief}
             isLoggedIn={Boolean(user?.id)}
             canSaveProject={userPlan !== "free"}
-            onStartWorkspace={onStartWorkspace}
+            onStartWorkspace={() => saveLogoConceptFromResult()}
             onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           />
 
@@ -9259,11 +9410,11 @@ Generate another logo from the same creative direction. Preserve the strongest p
               <textarea
                 value={refinementPrompt}
                 onChange={(e) => setRefinementPrompt(e.target.value)}
-                placeholder="Example: make it more luxury, simplify it, use a stronger monogram, make typography the focus, remove the icon, softer colors..."
+                placeholder="Example: make the symbol clearer, use the workspace typography, improve the avatar, add a subtle accent color..."
               />
               <div className="logoRefineActions">
                 <button onClick={() => refineLogo()} disabled={loading || !refinementPrompt.trim()}>Refine Logo</button>
-                {["More luxury", "Simplify it", "Stronger monogram", "Typography focus", "Remove icon", "More timeless", "More editorial", "Less corporate"].map((item) => (
+                {["Clarify the symbol", "Improve small-size readability", "Use workspace typography", "Keep symbol, change type", "Keep type, change symbol", "Try workspace colors"].map((item) => (
                   <button key={item} onClick={() => refineLogo(item)} disabled={loading}>{item}</button>
                 ))}
               </div>
@@ -9283,6 +9434,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
               setLogoColors={setLogoColors}
               rememberRejectedLogoDirection={rememberRejectedLogoDirection}
               generate={generate}
+              workspaceLogoContext={structuredLogoContext}
             />
           )}
 
@@ -9348,7 +9500,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
           <div className="resultTop">
             <span>{getTenResultHeader(activeTool.key)}</span>
             <div className="resultActions">
-              {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Project</button>}
+              {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Plan</button>}
               {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
               <button onClick={() => saveGeneratedAsset({ collection: true, titleOverride: getCollectionTitle() })} disabled={currentOutputSaved}>{currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save All"}</button>
               <button onClick={() => copyToClipboard(result)}>Copy All</button>
@@ -9409,19 +9561,19 @@ function BrandJourneyPanel({
   const projectName = brandName || "this brand";
   const steps = [
     ["Strategy", strategy.positioning || "Brand direction created"],
-    ["Logo", "Primary mark generated"],
-    ["Brand Kit", "Colors, type, avatar, and exports ready"],
-    ["Roadmap", "Next step: turn this identity into launch content"],
+    ["Logo", "Concept generated for review"],
+    ["Brand Kit", "Workspace palette, typography, and avatar previews remain connected"],
+    ["Roadmap", "Next step: save a concept or build launch content"],
   ];
   const saveLabel = !isLoggedIn
     ? "Create Account to Keep It"
     : canSaveProject
-      ? "Save This Brand Project"
+      ? "Save Logo Concept"
       : "Buy Brand Plan to Keep Building";
   const ownershipCopy = !isLoggedIn
     ? "This project is only on this screen right now. Create an account to try the workspace and keep the logo, strategy, kit, and roadmap together."
     : canSaveProject
-      ? "Save this as a real workspace so you can come back, refine it, and keep building from the same direction."
+      ? "Save this concept to the active workspace, then set the strongest direction as the primary logo when it is ready."
       : "Start the $9.99/month membership to keep saving, refining, exporting, and building this brand.";
 
   return (
@@ -9432,7 +9584,7 @@ function BrandJourneyPanel({
           <h3>{`${projectName} is now more than a logo.`}</h3>
           <p>{ownershipCopy}</p>
         </div>
-        <span>{isLoggedIn ? "Workspace ready" : "Unsaved project"}</span>
+        <span>{isLoggedIn ? "Concept generated" : "Unsaved project"}</span>
       </div>
       <div className="brandJourneySteps">
         {steps.map(([label, copy], index) => (
@@ -9528,6 +9680,7 @@ function LogoCreativeDirectorPanel({
   creativeBrief,
   logoVariations = [],
   prompt = "",
+  workspaceLogoContext = null,
   setPrompt,
   setSelectedPlatform,
   setCreativeTone,
@@ -9577,13 +9730,19 @@ function LogoCreativeDirectorPanel({
     });
   };
 
+  const summaryParts = [
+    ["Brand", workspaceLogoContext?.brandName || creativeBrief?.brandName],
+    ["Audience", workspaceLogoContext?.audience || creativeBrief?.targetAudience],
+    ["Visual territory", workspaceLogoContext?.symbol || creativeBrief?.visualTerritory],
+  ].filter(([, value]) => String(value || "").trim());
+
   const refinements = [
-    ["Make more luxury", "Regenerate this logo with more luxury, restraint, premium spacing, refined typography, and fewer casual details."],
-    ["Make simpler", "Regenerate this logo in a simpler, cleaner, more scalable vector-style direction."],
-    ["Make bolder", "Regenerate this logo with a bolder mark, stronger silhouette, and more confident contrast."],
-    ["Try different icon", "Regenerate this logo with a different icon or symbol that still accurately matches the brand words."],
-    ["More modern", "Regenerate this logo with a more modern, polished, current brand-system look."],
-    ["More premium", "Regenerate this logo with a more premium commercial identity direction and stronger brand fit."],
+    ["Clarify the symbol", "Regenerate this logo with a clearer symbol direction while preserving the active brand name, category, palette, and typography."],
+    ["Improve small-size readability", "Regenerate this logo so the avatar and wordmark remain readable at small sizes without adding unrelated symbols."],
+    ["Use the workspace typography", "Regenerate this logo with typography closer to the active Brand Workspace type direction."],
+    ["Keep symbol, change type", "Keep the current symbol idea but explore a stronger wordmark treatment that still fits the active brand."],
+    ["Keep type, change symbol", "Keep the current typography direction but try a more distinctive category-appropriate symbol."],
+    ["Try workspace colors", "Regenerate this logo using the active Brand Workspace palette as the primary color system."],
   ];
 
   return (
@@ -9598,9 +9757,9 @@ function LogoCreativeDirectorPanel({
         )}
       </div>
 
-      {creativeBrief && (
+      {summaryParts.length > 0 && (
         <p className="creativeDirectorSummary">
-          Brand: {creativeBrief.brandName}. Audience: {creativeBrief.targetAudience}. Visual territory: {creativeBrief.visualTerritory}.
+          {summaryParts.map(([label, value]) => `${label}: ${value}`).join(". ")}.
         </p>
       )}
 
@@ -10657,6 +10816,19 @@ textarea{height:170px;resize:none;line-height:1.6}
 .logoLoadingSteps span{display:inline-flex!important;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;color:#555!important;font-size:12px!important;font-weight:800}
 .logoResultGrid{grid-template-columns:repeat(2,1fr)}
 .logoResultGrid .premiumResultCard{min-height:150px}
+.logoConceptDirections{margin-top:22px;background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:22px}
+.logoConceptDirections h3{margin:4px 0 0;font-size:32px;letter-spacing:-.06em}
+.logoConceptGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
+.logoConceptCard{display:grid;gap:12px;background:#f8f5ef;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:14px}
+.logoConceptPreview{background:#fffdf8;border:1px solid rgba(17,17,15,.08);border-radius:14px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.logoConceptPreview img{width:100%;height:100%;object-fit:contain;padding:12px}
+.logoConceptCard>span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#806546;font-weight:900}
+.logoConceptCard h4{margin:0;font-size:22px;letter-spacing:-.05em}
+.logoConceptCard p,.logoConceptCard dd{margin:0;color:#5d554d;line-height:1.4}
+.logoConceptCard dl{margin:0;display:grid;gap:6px}
+.logoConceptCard dt{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#806546;font-weight:900}
+.logoConceptActions{display:flex;gap:8px;flex-wrap:wrap}
+.logoConceptActions button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;color:#11110f;padding:8px 10px;font-weight:850}
 .logoResultGrid .featuredResultCard{grid-row:span 1}
 .logoShowcase{
   margin-top:34px;
@@ -11722,7 +11894,7 @@ textarea{height:170px;resize:none;line-height:1.6}
 @media(max-width:820px){.birthHero,.originMoment,.brandAwakening,.worldShowcase,.launchSequence,.livingWorkspace,.birthOffer,.birthBuilder{padding-left:20px;padding-right:20px}.birthHero{padding-top:48px;gap:32px}.birthHeroCopy h1{font-size:68px}.birthHeroCopy p{font-size:20px}.birthHeroVisual{min-height:520px;border-radius:28px;padding:16px}.founderNote{border-radius:22px;padding:18px}.founderNote p{font-size:21px}.thinkingColumn{width:100%}.brandSignal{border-radius:24px;padding:22px}.originLine p{font-size:46px}.originMoment,.brandAwakening,.worldShowcase,.launchSequence,.livingWorkspace,.birthOffer,.birthBuilder{padding-top:58px;padding-bottom:58px}.awakeningCopy h2,.worldCopy h2,.launchSequence h2,.workspaceManifesto h2,.birthOffer h2,.birthBuilder h2{font-size:46px}.awakeningBoard,.brandWorldGrid{grid-template-columns:1fr}.thesisSpread,.voiceSpread,.identitySpread{border-radius:24px;padding:22px;min-height:auto}.thesisSpread h3{font-size:35px}.canScene{min-height:520px}.canMock{width:170px;height:390px}.brandWorldGrid>div{border-radius:26px}.launchRail{grid-template-columns:repeat(5,260px)}.launchRail article{min-height:280px}.brandHeadquarters{border-radius:28px;padding:24px;min-height:auto;gap:54px}.hqHeader{flex-direction:column}.birthOffer{gap:24px}.priceStatement{border-radius:28px;padding:26px}.priceStatement strong{font-size:78px}.birthBuilder .brandBuilderCard{border-radius:24px}}
 
 @media(max-width:1100px){.logoHero,.dreamHero,.brandHero,.workspaceLayout,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.brandUnderstoodPanel,.caseStudySection,.receivesSection,.finalBuilderSection{grid-template-columns:1fr}.dreamHero .heroTop,.operatingIntro,.caseCopy,.receivesSection>div:first-child,.finalBuilderIntro{position:relative;top:auto}.builderSteps{grid-template-columns:repeat(2,1fr)}.toolGrid,.featureGrid,.seoTextGrid,.systemGrid,.savedGrid,.logoLibraryGrid,.logoVariantGrid,.recentLogoGrid,.trustBar,.comparisonGrid,.brandJourneySteps,.brandInsightGrid,.logoGuideGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock{grid-template-columns:repeat(2,1fr)}.footerSubscribe{grid-template-columns:1fr}.generatorControls{grid-template-columns:1fr}.membershipBand>div:first-child{min-height:auto}.membershipPanel{max-width:none}.brandHero .heroTop{max-width:760px}.brandHero .heroCtas{justify-content:flex-start}}
-@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.navActions{grid-column:2;grid-row:1}.navPrimaryCta{display:none}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.productDemoSection,.caseStudySection,.receivesSection,.finalBuilderSection{padding-left:20px;padding-right:20px}.hero{padding-top:36px}.brandHero{gap:24px}.heroTop{margin-bottom:10px}.heroCopy{text-align:left}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro,.roadmapIntro{flex-direction:column;align-items:flex-start}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.membershipValueGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.identityBoard,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock,.receivesList article,.agentStepList{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}.agentPromptBox p{font-size:19px}.demoWorkspaceReveal,.workspaceHeaderMock,.launchTimeline article{grid-template-columns:1fr}.demoStage{min-height:auto}.moodTile.tall{min-height:160px;grid-row:auto}}
+@media(max-width:820px){h1,.heroTitle{font-size:48px}h2{font-size:34px}.membershipBand h2{font-size:48px}.nav{grid-template-columns:1fr auto;gap:12px;padding:22px 20px 8px}.navLinks{grid-column:1 / -1;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px;width:100%;border-radius:14px}.navActions{grid-column:2;grid-row:1}.navPrimaryCta{display:none}.accountBtn,.accountMenu{grid-column:2;grid-row:1}.accountMenu{max-width:210px}.accountMenu span{display:none}.hero,.offersSection,.pageSection,.footerSubscribe,.seoHomeSection,.brandSystemSection,.freeToolsSection,.operatingSection,.membershipBand,.beforeAfterSection,.creativeDirectorExplainer,.trustBar,.productDemoSection,.caseStudySection,.receivesSection,.finalBuilderSection{padding-left:20px;padding-right:20px}.hero{padding-top:36px}.brandHero{gap:24px}.heroTop{margin-bottom:10px}.heroCopy{text-align:left}.brandBuilderCard{padding:22px;border-radius:16px}.builderTop,.logoGuideIntro,.roadmapIntro{flex-direction:column;align-items:flex-start}.builderGrid,.builderActions,.builderSteps{grid-template-columns:1fr}.toolGrid,.featureGrid,.workspaceGrid,.generatorButtons,.seoTextGrid,.creativeDirectionsTop,.creativeDirectionGrid,.brandEverywhereHero,.brandTouchpointGrid,.useCaseGrid,.faqGrid,.systemGrid,.savedGrid,.visualOutput,.logoShowcase,.resultCardGrid,.freeToolCards,.operatingGrid button,.logoLibraryGrid,.logoStudioFields,.logoVariantGrid,.recentLogoGrid,.logoEditorGrid,.logoEditorControls,.workspaceSnapshot,.directionReasonGrid,.proofMiniGrid,.proofMetricRow,.trustBar,.beforeAfterGrid,.directorFlow,.comparisonGrid,.brandJourneySteps,.brandDashboardHero,.dashboardGrid,.dashboardIdentityGrid,.dashboardLogoStrip,.brandInsightGrid,.socialSetupGrid,.logoGuideGrid,.logoQualityGrid,.logoConceptGrid,.membershipValueGrid,.roadmapPhaseList,.contentIdeaGrid,.demoFlow,.demoRoadmap,.reasoningStack,.identityBoard,.platformMatrix,.workspaceModuleGrid,.workspaceProgressMock,.receivesList article,.agentStepList{grid-template-columns:1fr}.operatingGrid span{grid-row:auto}.membershipBand>div:first-child,.membershipPanel{border-radius:16px;padding:22px}.brandDashboard{border-radius:22px;padding:22px}.brandDashboardMark{width:118px}.brandDashboardHero h2{font-size:40px}.dashboardEmptyLogo{flex-direction:column;align-items:flex-start}.offersTop,.generateTop,.logoLibraryTop,.recentLogoHeader,.creativeDirectorTop,.timelineHeader,.comparisonHeader,.brandJourneyTop,.screenHeader{flex-direction:column;align-items:flex-start}.brandUnderstoodPanel{grid-template-columns:1fr}.timelineItem{grid-template-columns:34px 68px 1fr}.timelineActions{grid-column:2 / -1;justify-content:flex-start}.comparisonCard,.emptyComparisonCard{min-height:auto}.resultTop{align-items:flex-start;flex-direction:column}.captionOptionRow{grid-template-columns:34px 1fr}.captionOptionRow button{grid-column:2}textarea{height:160px}.logoFrame{min-height:360px}.logoStudioNotes{grid-column:auto}.beforeCard p{font-size:20px}.afterPreviewGrid{grid-template-columns:1fr}.proofMiniGrid{grid-template-columns:repeat(3,1fr)}.agentPromptBox p{font-size:19px}.demoWorkspaceReveal,.workspaceHeaderMock,.launchTimeline article{grid-template-columns:1fr}.demoStage{min-height:auto}.moodTile.tall{min-height:160px;grid-row:auto}}
 `;
 
 const futureThemeCss = `
