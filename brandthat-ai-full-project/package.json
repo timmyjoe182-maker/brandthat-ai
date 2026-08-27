@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "prebuild:brandthat": "node scripts/prebuild-logo-identity-fixes.mjs && node scripts/prebuild-logo-result-persistence-fixes-v2.mjs",
+    "prebuild:brandthat": "node scripts/prebuild-logo-identity-fixes.mjs && node scripts/prebuild-logo-result-persistence-fixes-v3.mjs",
     "dev": "vite",
     "build": "npm run prebuild:brandthat && vite build",
     "preview": "vite preview",
