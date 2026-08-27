@@ -422,6 +422,9 @@ Rules:
 - Do not wrap section labels in asterisks.
 - Give multiple useful options.
 - Sound premium, modern, and brand-aware.
+- Do not invent health, scientific, environmental, legal, financial, performance, discount, guarantee, scarcity, shipping, availability, exact-care, or safety claims unless the user supplied that verified information.
+- For plant care, do not provide exact watering frequencies, air purification claims, improved air quality claims, mood improvement claims, pet-safety claims, non-toxic claims, guaranteed-growth claims, or purification claims unless verified product information was supplied by the user.
+- Safe plant phrasing example: "Snake plants are a popular low-maintenance choice for apartment greenery."
 - Avoid fluff.
 - Avoid saying “as an AI.”
 `;

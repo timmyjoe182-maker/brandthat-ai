@@ -1484,6 +1484,157 @@ function getTypographyPairing(parsedLogo = {}) {
   };
 }
 
+
+function getIdentitySourceText(brand = {}, plan = {}) {
+  return [brand.name, brand.description, brand.audience, brand.logoDirection, brand.style, brand.tone, brand.launchGoal, plan.workspaceContext?.industry, plan.logoContext?.industry, plan.colorSystem, plan.typographySystem, plan.moodboardDirection, plan.visualIdentityDirection, plan.brandPersonality].filter(Boolean).join(" ").toLowerCase();
+}
+
+function getWorkspaceIndustry(brand = {}, plan = {}) {
+  const inferred = inferSimpleIndustry((brand.name || "") + " " + (brand.description || "") + " " + (brand.style || ""));
+  if (/plant|houseplant|botanical|greenery/i.test(`${brand.description || ""} ${brand.logoDirection || ""} ${brand.style || ""}`)) {
+    return "Houseplants / local plant delivery";
+  }
+  if (/dog|pet|groom|walking|sitting/i.test(`${brand.description || ""} ${brand.logoDirection || ""}`)) {
+    return "Pet care / mobile local service";
+  }
+  if (/coffee|cafe|hiker|outdoor event/i.test(`${brand.description || ""} ${brand.logoDirection || ""}`)) {
+    return "Outdoor coffee / mobile hospitality";
+  }
+  return plan.logoContext?.industry || plan.workspaceContext?.industry || inferred;
+}
+
+function getIdentityPalette(brand = {}, plan = {}) {
+  const text = getIdentitySourceText(brand, plan);
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return [{ role: "Primary", name: "Leaf Green", hex: "#3F6F45" }, { role: "Secondary", name: "Stone Gray", hex: "#827F73" }, { role: "Background", name: "Warm Ivory", hex: "#F6F0E3" }, { role: "Accent", name: "Soft Terracotta", hex: "#B86F4B" }];
+  if (/coffee|cafe|bakery|restaurant|hospitality|food/.test(text)) return [{ role: "Primary", name: "Roasted Brown", hex: "#4A2F24" }, { role: "Secondary", name: "Cream Foam", hex: "#F4E9D8" }, { role: "Background", name: "Warm Paper", hex: "#FBF7EF" }, { role: "Accent", name: "Copper Heat", hex: "#B66A3C" }];
+  if (/pet|dog|grooming|walking/.test(text)) return [{ role: "Primary", name: "Trust Navy", hex: "#26364A" }, { role: "Secondary", name: "Clean Cream", hex: "#F7F1E6" }, { role: "Background", name: "Soft White", hex: "#FCFAF6" }, { role: "Accent", name: "Leash Clay", hex: "#C88462" }];
+  if (/software|saas|creator|invoice|sponsorship|platform|app/.test(text)) return [{ role: "Primary", name: "Deep Ink", hex: "#15171A" }, { role: "Secondary", name: "Interface Gray", hex: "#747C86" }, { role: "Background", name: "Cloud White", hex: "#F7F8F6" }, { role: "Accent", name: "Signal Blue", hex: "#4D6BFE" }];
+  return [{ role: "Primary", name: "Brand Ink", hex: "#11110F" }, { role: "Secondary", name: "Warm Stone", hex: "#837B6D" }, { role: "Background", name: "Studio Cream", hex: "#F7F1E8" }, { role: "Accent", name: "Clay Accent", hex: "#AA6A45" }];
+}
+
+function hexToRgb(hex = "") {
+  const clean = String(hex || "").replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return { r: 17, g: 17, b: 17 };
+  return { r: parseInt(clean.slice(0, 2), 16), g: parseInt(clean.slice(2, 4), 16), b: parseInt(clean.slice(4, 6), 16) };
+}
+
+function getContrastTextColor(hex = "") {
+  const rgb = hexToRgb(hex);
+  return ((0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255) > 0.62 ? "#11110F" : "#FFFDF8";
+}
+
+function getRgbLabel(hex = "") {
+  const rgb = hexToRgb(hex);
+  return "RGB " + rgb.r + ", " + rgb.g + ", " + rgb.b;
+}
+
+function getIdentityTypography(brand = {}, plan = {}) {
+  const text = getIdentitySourceText(brand, plan);
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return { headline: "Fraunces or Cormorant Garamond", supporting: "Inter or Source Sans 3", wordmark: "Warm botanical serif", source: "Google Fonts / open-source font licenses", note: "A soft serif gives the wordmark a living, botanical quality while the humanist sans keeps care cards, captions, and subscription details easy to read." };
+  return { ...getTypographyPairing({ style: (brand.style || "") + " " + (brand.tone || "") + " " + (plan.brandPersonality || ""), industry: getWorkspaceIndustry(brand, plan), typography: plan.typographySystem || brand.logoDirection || "" }), source: "Google Fonts alternatives / confirm license before final use" };
+}
+
+function getMoodboardTiles(brand = {}, plan = {}) {
+  const text = getIdentitySourceText(brand, plan);
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return [["Window-light apartment greenery", "Bright compact rooms, shelves, and entryways with practical greenery."], ["Local delivery moment", "Hands, kraft care cards, doorstep handoff, and calm packaging materials."], ["Beginner confidence", "Simple labels, clear instructions, resilient plant varieties, and no intimidating gardening language."], ["Avoid", "Generic wellness leaves, technology symbols, health claims, and over-polished greenhouse imagery."]];
+  if (/pet|dog|grooming|walking/.test(text)) return [["Neighborhood trust", "Real homes, clean service details, friendly arrival moments, and calm pet handling."], ["Care cues", "Soft towels, tidy tools, appointment reminders, and warm human photography."], ["Family convenience", "Busy entryways, personal service, clear scheduling, and reliable local proof."], ["Avoid", "Cartoon paws, veterinary claims, generic pet-store colors, and chaotic grooming scenes."]];
+  if (/software|saas|creator|invoice|sponsorship|platform|app/.test(text)) return [["Calm operator workspace", "Clean interface crops, organized cards, clear task states, and creator desk context."], ["Deal clarity", "Invoices, deliverables, timelines, and status moments shown as simple systems."], ["Founder credibility", "Sharp UI typography, restrained color, and lightweight product proof."], ["Avoid", "Abstract AI art, random code screens, fake metrics, and neon technology cliches."]];
+  return [["Real customer context", "Show the brand in the moment where the customer understands why it matters."], ["Material proof", "Use product, service, texture, environment, or process details instead of decorative art."], ["Launch-ready system", "Show social, packaging, web, and workspace assets sharing one visual language."], ["Avoid", "Generic stock photos, random gradients, weak icons, and unrelated mockups."]];
+}
+
+function getLogoRecommendations(brand = {}, plan = {}) {
+  const text = getIdentitySourceText(brand, plan);
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return { markType: ["Icon + wordmark"], brandFeel: ["Friendly", "Minimal"], useCases: ["Website header", "Instagram profile", "Packaging"], qualityTargets: ["Readable at small size", "Distinct silhouette", "Print-ready", "No generic symbols"], symbolDirection: "Subtle stone-and-leaf symbol or grounded botanical mark, restrained enough for a profile avatar." };
+  if (/software|saas|creator|invoice|sponsorship|platform|app/.test(text)) return { markType: ["Wordmark", "Icon + wordmark"], brandFeel: ["Minimal", "Tech-forward"], useCases: ["Website header", "App icon", "Social avatar"], qualityTargets: ["Readable at small size", "Distinct silhouette", "No generic symbols"], symbolDirection: "A simple signal, workflow, or status mark that reads cleanly in product UI." };
+  return { markType: ["Icon + wordmark"], brandFeel: ["Premium", "Minimal"], useCases: ["Website header", "Instagram profile", "Business cards"], qualityTargets: ["Readable at small size", "Distinct silhouette", "Print-ready", "No generic symbols"], symbolDirection: "A simple meaning-led symbol tied to the brand promise, not a generic category icon." };
+}
+
+function buildWorkspaceLogoBrief(brand = {}, plan = {}) {
+  if (!brand?.name) return "";
+  const industry = getWorkspaceIndustry(brand, plan);
+  const palette = getIdentityPalette(brand, plan);
+  const type = getIdentityTypography(brand, plan);
+  const recs = getLogoRecommendations(brand, plan);
+  const colors = palette.map((item) => item.name.toLowerCase()).join(", ");
+  const personality = [brand.tone, plan.brandPersonality, brand.style].filter(Boolean).join(", ") || "clear, useful, and premium";
+  const description = brand.description || "a " + industry + " brand";
+  return "Create an " + recs.markType[0].toLowerCase() + " identity for " + brand.name + ", " + description + ". Use " + (type.wordmark || type.headline) + " paired with " + (type.supporting || "a readable supporting type system") + ". Explore " + recs.symbolDirection + " Use " + colors + ". The identity should feel " + personality + ". It must work in full color, black, white, horizontal, and square formats. Avoid generic category symbols, unrelated technology cues, gradients, tiny details, unsupported claims, and misspelled text.";
+}
+
+function getStructuredLogoContext({ activeBrand = null, promptValue = "", brandNameValue = "", styleValue = "", industryValue = "", symbolValue = "", colorsValue = "", avoidValue = "" } = {}) {
+  if (!activeBrand) {
+    return { activeWorkspace: false, parsedLogo: parseNaturalLogoPrompt({ prompt: promptValue, brandName: brandNameValue, style: styleValue, industry: industryValue, symbol: symbolValue, colors: colorsValue, avoid: avoidValue }) };
+  }
+
+  const plan = getWorkspacePlan(activeBrand);
+  const palette = getIdentityPalette(activeBrand, plan);
+  const typography = getIdentityTypography(activeBrand, plan);
+  const recommendations = getLogoRecommendations(activeBrand, plan);
+  const category = industryValue || getWorkspaceIndustry(activeBrand, plan);
+  const colors = colorsValue || palette.map((item) => `${item.name} ${item.hex}`).join(", ");
+  const style = styleValue || recommendations.brandFeel.join(", ") || activeBrand.tone || plan.brandPersonality || "brand strategy-led";
+  const symbol = symbolValue || recommendations.symbolDirection || activeBrand.logoDirection || plan.logoDirection || "";
+  const avoid = avoidValue || "generic wellness leaves, unrelated technology symbols, misspelled text, tiny decorative details, unsupported claims";
+  const promptText = String(promptValue || "").trim();
+  const exampleNames = ["Northline Goods", "SignalDesk", "Hearthline Studio", "Canyon Trail Coffee", "Paws on Wheels"];
+  const unrelatedExample = exampleNames.some((name) => name.toLowerCase() !== String(activeBrand.name || "").toLowerCase() && promptText.toLowerCase().includes(name.toLowerCase()));
+  const promptAddsTechnology = /\b(ai startup|modern saas|software logo|technology startup|saas logo)\b/i.test(promptText) && !/\b(avoid|no|not|without)\b[^.]{0,120}\b(ai|software|technology|saas)\b/i.test(promptText);
+  const workspaceSupportsTechnology = /software|saas|creator|invoice|sponsorship|platform|app|technology/i.test(`${activeBrand.description || ""} ${plan.workspaceContext?.industry || ""} ${plan.logoContext?.industry || ""}`);
+  const categoryConflict = !workspaceSupportsTechnology && (/\b(ai startup|modern saas|software|technology)\b/i.test(`${category} ${style}`) || promptAddsTechnology);
+
+  return {
+    activeWorkspace: true,
+    brandId: activeBrand.id,
+    brandName: activeBrand.name || brandNameValue || "",
+    business: activeBrand.description || plan.brandSummary || "",
+    category,
+    audience: activeBrand.audience || plan.targetAudience || "",
+    positioning: activeBrand.differentiator || plan.positioning || plan.brandThesis || "",
+    voice: activeBrand.tone || plan.brandVoice || "",
+    personality: plan.brandPersonality || activeBrand.style || activeBrand.tone || "",
+    palette,
+    colors,
+    typography: typography.wordmark ? `${typography.wordmark} plus ${typography.supporting}` : `${typography.headline} plus ${typography.supporting}`,
+    markType: recommendations.markType.join(", "),
+    brandFeel: recommendations.brandFeel.join(", "),
+    useCases: recommendations.useCases.join(", "),
+    qualityTargets: recommendations.qualityTargets.join(", "),
+    symbol,
+    avoid,
+    prompt: promptText,
+    validationIssues: [
+      activeBrand.name ? "" : "Active workspace is missing a brand name.",
+      categoryConflict ? "Category conflicts with the active workspace. Restore from Brand Strategy before generating." : "",
+      unrelatedExample ? "The brief contains another example brand. Restore from Brand Strategy before generating." : "",
+      category ? "" : "Category needs confirmation.",
+      colors ? "" : "Palette needs confirmation.",
+      symbol ? "" : "Symbol direction needs confirmation.",
+    ].filter(Boolean),
+    parsedLogo: {
+      brandName: activeBrand.name || brandNameValue || "",
+      industry: category || "Category needs confirmation",
+      style,
+      colors,
+      symbol,
+      mood: [recommendations.brandFeel.join(", "), activeBrand.tone || plan.brandPersonality].filter(Boolean).join(", ") || "brand strategy-led",
+      typography: typography.wordmark ? `${typography.wordmark} plus ${typography.supporting}` : `${typography.headline} plus ${typography.supporting}`,
+      layout: recommendations.markType.join(", "),
+      avoid,
+      interpretation: { summary: "Structured Brand Workspace context is the source of truth for this logo brief." },
+      originalPrompt: promptText,
+      isRefinement: isLogoRefinementPrompt(promptText),
+      isNewBrandRequest: false,
+      promptBrandName: "",
+      extractionConfidence: { brandName: "workspace", industry: "workspace", style: "workspace", symbol: "workspace", colors: "workspace" },
+    },
+  };
+}
+
+function buildLogoContextValidationIssues(context = {}) {
+  return Array.isArray(context.validationIssues) ? context.validationIssues : [];
+}
+
+
 function createMiniBrandAssetSvg({ brandName = "Brand", initials = "BT", primary = "#111111", accent = "#111111", paper = "#f5f5f5", variant = "avatar" }) {
   const safeBrand = escapeSvgText(brandName || "Brand");
   const safeInitials = escapeSvgText(initials || "BT");
@@ -1613,23 +1764,17 @@ function buildAuthoritativeLogoContext({
   memory = {},
   explicitMemoryProvided = false,
 }) {
-  const promptBrandName = extractBrandNameFromPrompt(promptValue);
+  const structuredContext = getStructuredLogoContext({ activeBrand, promptValue, brandNameValue, styleValue, industryValue, symbolValue, colorsValue, avoidValue });
+  const promptBrandName = activeBrand ? "" : extractBrandNameFromPrompt(promptValue);
   const hasPromptBrand = Boolean(promptBrandName);
-  const parsedLogo = parseNaturalLogoPrompt({
-    prompt: promptValue,
-    brandName: hasPromptBrand || !promptValue.trim() ? brandNameValue || activeBrand?.name || "" : brandNameValue,
-    style: styleValue,
-    industry: industryValue,
-    symbol: symbolValue,
-    colors: colorsValue,
-    avoid: avoidValue,
-  });
+  const parsedLogo = structuredContext.parsedLogo;
   const preserveMemory = shouldPreserveLogoGenerationMemory({ parsedLogo, memory, explicitMemoryProvided });
 
   return {
+    structuredContext,
     parsedLogo,
     generationMemory: preserveMemory ? memory || {} : {},
-    shouldUseWorkspaceContext: !parsedLogo.isNewBrandRequest && !hasPromptBrand && Boolean(activeBrand),
+    shouldUseWorkspaceContext: Boolean(activeBrand),
     resetReason: preserveMemory ? "" : "fresh-current-prompt",
   };
 }
@@ -4475,13 +4620,16 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
 
     const nextTool = toolMap[toolKey] || tools[0];
     setActiveToolKey(nextTool.key);
-    setSelectedPlatform("");
-    setCreativeTone("");
-    setLogoIndustry("");
-    setLogoSymbol("");
-    setLogoColors("");
-    setLogoAvoid("");
-    setPrompt("");
+    const activePlanForLogo = activeBrand ? getWorkspacePlan(activeBrand) : {};
+    const logoDefaults = activeBrand ? getLogoRecommendations(activeBrand, activePlanForLogo) : null;
+    const logoPalette = activeBrand ? getIdentityPalette(activeBrand, activePlanForLogo) : [];
+    setSelectedPlatform(nextTool.key === "logo" && activeBrand ? logoDefaults.brandFeel.join(", ") : "");
+    setCreativeTone(nextTool.key === "logo" && activeBrand ? activeBrand.name || "" : "");
+    setLogoIndustry(nextTool.key === "logo" && activeBrand ? getWorkspaceIndustry(activeBrand, activePlanForLogo) : "");
+    setLogoSymbol(nextTool.key === "logo" && activeBrand ? logoDefaults.symbolDirection : "");
+    setLogoColors(nextTool.key === "logo" && activeBrand ? logoPalette.map((item) => item.name + " " + item.hex).join(", ") : "");
+    setLogoAvoid(nextTool.key === "logo" && activeBrand ? "generic wellness leaves, unrelated technology symbols, misspelled text, tiny decorative details" : "");
+    setPrompt(nextTool.key === "logo" && activeBrand ? buildWorkspaceLogoBrief(activeBrand, activePlanForLogo) : "");
     setResult("");
     setLogoImage("");
     setLogoImageSource("");
@@ -5002,6 +5150,8 @@ Rules:
 - Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, or availability claims unless the user explicitly supplied that evidence.
 - For plant care, pet care, health, finance, legal, or technical setup, do not provide exact instructions, schedules, frequencies, diagnoses, claims, or guarantees unless the user supplied those details.
 - For plant watering, do not give an exact watering frequency unless the plant species, lighting, soil, pot, season, or explicit care instructions are provided. Say watering needs vary and point to the included care card instead.
+- Even when a plant species is supplied, do not claim air purification, improved air quality, mood improvement, pet safety, non-toxicity, guaranteed growth, or health benefits as fact unless verified product information was supplied by the user.
+- Safe plant phrasing example: "Snake plants are a popular low-maintenance choice for apartment greenery."
 - Prefer non-quantified lifestyle language when mentioning benefits.
 - Do not invent reviews, sales results, guarantees, product features, or fulfillment promises.
 - Avoid repetitive openings such as "Exciting news" and "New arrivals alert."
@@ -5094,6 +5244,7 @@ Rules:
 - Avoid generic filler and cheesy phrasing.
 - Do not invent health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, availability, or exact-care claims unless the user supplied those details.
 - For plant watering or care advice, never invent universal schedules; say needs vary by plant, light, soil, pot, and season unless the user provided exact care facts.
+- For plant-related output, avoid unsupported air-quality, mood, health-benefit, pet-safety, non-toxic, purification, or guaranteed-growth claims even when the user mentions a specific plant species.
 - Keep the output fast, clean, and easy to scan.
 - If generating emails, make the email content specific, accurate, and complete enough to use.
 - If auditing or building a campaign, give direct recommendations and next actions, not vague advice.
@@ -5157,7 +5308,15 @@ Rules:
       explicitMemoryProvided: Boolean(overrides.generationMemory),
     });
     const parsedLogo = logoContext.parsedLogo;
+    const structuredLogo = logoContext.structuredContext || {};
     const generationMemoryValue = logoContext.generationMemory;
+    const validationIssues = buildLogoContextValidationIssues(structuredLogo);
+    if (validationIssues.length) {
+      const message = validationIssues.join(" ");
+      setLogoGenerationError(message);
+      notify("error", "Logo brief needs review", message);
+      throw new Error(message);
+    }
 
     const enhancedLogoPrompt = `
 Create a high-quality professional logo.
@@ -5195,6 +5354,22 @@ ${parsedLogo.layout}
 Avoid:
 ${parsedLogo.avoid}
 
+Structured Brand Workspace source of truth:
+Brand ID: ${structuredLogo.brandId || "none"}
+Brand: ${structuredLogo.brandName || parsedLogo.brandName || "not provided"}
+Business: ${structuredLogo.business || "not provided"}
+Category: ${structuredLogo.category || parsedLogo.industry}
+Audience: ${structuredLogo.audience || "not provided"}
+Positioning: ${structuredLogo.positioning || "not provided"}
+Voice/personality: ${[structuredLogo.voice, structuredLogo.personality].filter(Boolean).join(", ") || parsedLogo.mood}
+Mark type: ${structuredLogo.markType || parsedLogo.layout}
+Brand feel: ${structuredLogo.brandFeel || parsedLogo.style}
+Palette: ${structuredLogo.colors || parsedLogo.colors}
+Typography: ${structuredLogo.typography || parsedLogo.typography}
+Symbol direction: ${structuredLogo.symbol || parsedLogo.symbol}
+Use cases: ${structuredLogo.useCases || "website header, social profile, brand workspace"}
+Quality targets: ${structuredLogo.qualityTargets || "readable at small size, distinct silhouette"}
+
 Brand workspace context:
 ${logoContext.shouldUseWorkspaceContext ? buildBrandPrompt(activeBrand) : "No saved workspace context is being used. The current user request is the only brand authority."}
 
@@ -5205,8 +5380,11 @@ ${generationMemoryValue?.lastSuccessfulDirection ? `Preserve successful prior di
 ${logoContext.resetReason ? "Previous logo memory was ignored because this appears to be a fresh or different brand request." : ""}
 
 Requirements:
+- Generate three meaningfully different logo directions: 1. wordmark-led, 2. symbol plus wordmark, 3. compact avatar or badge.
+- Each direction must include rationale, black/white usage logic, square/avatar usage, horizontal usage, and small-size readability guidance.
 - Generate a polished logo concept suitable for a real business.
-- Treat the natural user request as the source of truth.
+- If a Brand Workspace source of truth exists, treat its structured fields as more authoritative than the editable natural-language brief.
+- Treat the editable natural user request as supplemental context only when it does not conflict with the structured Brand Workspace.
 - Brand name fidelity is mandatory. Use only this current brand name if provided: ${parsedLogo.brandName || "not provided"}.
 - Industry fidelity is mandatory. The design must visually match this current industry/niche: ${parsedLogo.industry}.
 - Do not reuse prior brand names, prior ranch/real-estate/luxury context, or any saved workspace context unless it is explicitly shown above.
@@ -5236,7 +5414,9 @@ Requirements:
       parsedLogo,
       generationMemory: generationMemoryValue,
       contextReset: logoContext.resetReason,
+      structuredLogo,
       brandStrategy: getBrandStrategyContextForLogo(),
+      conceptCount: 3,
       logoPrompt: enhancedLogoPrompt
     };
 
@@ -5306,10 +5486,18 @@ Requirements:
         })
       : null;
     const parsedLogo = logoContext?.parsedLogo || null;
+    const logoValidationIssues = activeTool.key === "logo" ? buildLogoContextValidationIssues(logoContext?.structuredContext || {}) : [];
     const hasLogoFields = activeTool.key === "logo" && [brandNameValue, industryValue, styleValue, symbolValue, colorsValue, avoidValue, promptValue].some((value) => String(value || "").trim());
 
     if (!promptValue.trim() && !hasLogoFields) {
       notify("error", "Add a prompt first", `Tell Brandthat what you want the ${activeTool.title} to create.`);
+      return;
+    }
+
+    if (activeTool.key === "logo" && logoValidationIssues.length) {
+      const message = logoValidationIssues.join(" ");
+      setLogoGenerationError(message);
+      notify("error", "Logo brief needs review", message);
       return;
     }
 
@@ -6720,26 +6908,24 @@ function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectToo
   if (!brand) return <WorkspaceEmptyState navigateWorkspaceSection={navigateWorkspaceSection} />;
   const plan = getWorkspacePlan(brand);
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 6);
+  const palette = getIdentityPalette(brand, plan);
+  const typography = getIdentityTypography(brand, plan);
+  const moodboard = getMoodboardTiles(brand, plan);
+  const logoDefaults = getLogoRecommendations(brand, plan);
+  const logoBrief = buildWorkspaceLogoBrief(brand, plan);
   return (
     <section className="appContentSection">
       <div className="tinyTag">VISUAL IDENTITY</div>
       <h1 className="pageTitle">{brand.name} identity direction.</h1>
-      <div className="identityOverviewGrid">
-        <div className="appPanel wide">
-          <span>Logo Direction</span>
-          <p>{brand.logoDirection || plan.logoDirection || "Generate logo concepts once the strategy and visual direction feel right."}</p>
-          <button onClick={() => selectTool("logo")}>Generate Logo Concepts</button>
-        </div>
-        <div className="appPanel"><span>Colors</span><p>{plan.colorSystem || brand.style || "Color direction is not set yet."}</p></div>
-        <div className="appPanel"><span>Typography</span><p>{plan.typographySystem || "Typography direction is not set yet."}</p></div>
-        <div className="appPanel"><span>Moodboard</span><p>{plan.moodboardDirection || brand.style || "Moodboard direction is not set yet."}</p></div>
-        <div className="appPanel wide"><span>Visual Direction</span><p>{plan.visualIdentityDirection || plan.moodboardDirection || brand.style || "Add visual direction in the brand basics or regenerate the brand plan."}</p></div>
+      <p className="pageLead">Your logo, palette, typography, moodboard, and saved concepts all come from the active Brand Workspace context.</p>
+      <div className="visualIdentityBoard">
+        <div className="identityBoardHero"><div className="identityPrimaryMark">{brand.logoImage ? <img src={brand.logoImage} alt={(brand.name || "Brand") + " primary logo"} /> : <span>{getInitialsFromBrandName(brand.name)}</span>}</div><div><span>Logo Direction</span><h2>{brand.logoImage ? "Primary logo selected" : "Ready for logo concepts"}</h2><p>{brand.logoDirection || plan.logoDirection || logoDefaults.symbolDirection}</p><button className="btn dark" onClick={() => selectTool("logo")}>Generate Logo Concepts</button></div></div>
+        <div className="identityPalettePanel"><div className="appCardHeader"><div><span>Color Palette</span><h2>Editable starting system.</h2></div></div><div className="identityPaletteGrid">{palette.map((color) => <div className="identitySwatchCard" key={color.name}><div className="identitySwatch" style={{ background: color.hex, color: getContrastTextColor(color.hex) }}><strong>{color.role}</strong></div><b>{color.name}</b><span>{color.hex}</span><small>{getRgbLabel(color.hex)}</small><button onClick={() => navigator.clipboard?.writeText(color.hex)}>Copy HEX</button></div>)}</div><p className="identityRationale">{plan.colorSystem || "Palette generated from the brand category, personality, and visual direction. Check contrast before final production use."}</p></div>
+        <div className="identityTypePanel"><span>Typography</span><div className="typeSpecimen headlineSpecimen">{brand.name}</div><p className="bodySpecimen">{brand.description || plan.brandThesis}</p><div className="typePairingGrid"><div><strong>Headline / Wordmark</strong><span>{typography.headline}</span></div><div><strong>Body / UI</strong><span>{typography.supporting}</span></div><div><strong>Source</strong><span>{typography.source}</span></div></div><p>{plan.typographySystem || typography.note}</p></div>
+        <div className="identityMoodboardPanel"><span>Moodboard Direction</span><div className="moodboardTileGrid">{moodboard.map(([title, copy]) => <article key={title}><strong>{title}</strong><p>{copy}</p></article>)}</div><p>{plan.moodboardDirection || brand.style || "Use these as honest direction tiles until custom photography or generated references are supplied."}</p></div>
+        <div className="identityLogoSpecPanel"><span>Logo System</span><div className="logoSpecGrid"><div><strong>Mark type</strong><p>{logoDefaults.markType.join(", ")}</p></div><div><strong>Brand feel</strong><p>{logoDefaults.brandFeel.join(", ")}</p></div><div><strong>Use cases</strong><p>{logoDefaults.useCases.join(", ")}</p></div><div><strong>Quality target</strong><p>{logoDefaults.qualityTargets.join(", ")}</p></div></div><details><summary>Logo brief generated from this workspace</summary><p>{logoBrief}</p></details></div>
       </div>
-      {savedLogos.length > 0 && (
-        <div className="identityLogoStrip">
-          {savedLogos.map((logo) => <img key={logo.id} src={logo.image} alt={logo.title || "Saved logo concept"} />)}
-        </div>
-      )}
+      {savedLogos.length > 0 && <div className="identityLogoStrip">{savedLogos.map((logo) => <img key={logo.id} src={logo.image} alt={logo.title || "Saved logo concept"} />)}</div>}
     </section>
   );
 }
@@ -8569,18 +8755,46 @@ function GeneratorCard({
   const editorFileName = creativeTone || "brandthat-logo";
   const [refinementPrompt, setRefinementPrompt] = useState("");
   const [logoExampleIndex, setLogoExampleIndex] = useState(0);
-  const parsedLogoPreview = useMemo(
-    () => parseNaturalLogoPrompt({
-      prompt,
-      brandName: creativeTone,
-      style: selectedPlatform,
-      industry: logoIndustry,
-      symbol: logoSymbol,
-      colors: logoColors,
-      avoid: logoAvoid,
+  const [logoPrefillBrandId, setLogoPrefillBrandId] = useState("");
+  const logoWorkspacePlan = activeBrand ? getWorkspacePlan(activeBrand) : {};
+  const logoWorkspaceBrief = activeBrand ? buildWorkspaceLogoBrief(activeBrand, logoWorkspacePlan) : "";
+  const logoWorkspaceDefaults = activeBrand ? getLogoRecommendations(activeBrand, logoWorkspacePlan) : null;
+  const logoWorkspacePalette = activeBrand ? getIdentityPalette(activeBrand, logoWorkspacePlan) : [];
+  const recommendedLogoOptions = activeBrand && logoWorkspaceDefaults ? { "Mark Type": logoWorkspaceDefaults.markType, "Brand Feel": logoWorkspaceDefaults.brandFeel, "Use Case": logoWorkspaceDefaults.useCases, "Quality Target": logoWorkspaceDefaults.qualityTargets } : {};
+  const structuredLogoContext = useMemo(
+    () => getStructuredLogoContext({
+      activeBrand,
+      promptValue: prompt,
+      brandNameValue: creativeTone,
+      styleValue: selectedPlatform,
+      industryValue: logoIndustry,
+      symbolValue: logoSymbol,
+      colorsValue: logoColors,
+      avoidValue: logoAvoid,
     }),
-    [prompt, creativeTone, selectedPlatform, logoIndustry, logoSymbol, logoColors, logoAvoid]
+    [activeBrand, prompt, creativeTone, selectedPlatform, logoIndustry, logoSymbol, logoColors, logoAvoid]
   );
+  const parsedLogoPreview = useMemo(
+    () => structuredLogoContext.parsedLogo,
+    [structuredLogoContext]
+  );
+  const logoContextValidationIssues = buildLogoContextValidationIssues(structuredLogoContext);
+  const logoContextIsValid = logoContextValidationIssues.length === 0;
+  const restoreLogoFromBrandStrategy = () => {
+    if (!activeBrand) return;
+    const plan = getWorkspacePlan(activeBrand);
+    const defaults = getLogoRecommendations(activeBrand, plan);
+    const palette = getIdentityPalette(activeBrand, plan);
+    setPrompt(buildWorkspaceLogoBrief(activeBrand, plan));
+    setCreativeTone(activeBrand.name || "");
+    setSelectedPlatform(defaults.brandFeel.join(", "));
+    setLogoIndustry(getWorkspaceIndustry(activeBrand, plan));
+    setLogoSymbol(defaults.symbolDirection);
+    setLogoColors(palette.map((item) => item.name + " " + item.hex).join(", "));
+    setLogoAvoid("misspelled brand name, generic category symbols, unrelated technology cues, tiny decorative details, unsupported claims");
+    setLogoGenerationError("");
+    setLogoPrefillBrandId(activeBrand.id || "");
+  };
   const getCurrentLogoDirection = () => {
     const direction = logoCreativeBrief?.concepts?.[0] || logoVariations?.[0] || {};
     return {
@@ -8627,7 +8841,7 @@ function GeneratorCard({
     [parsedLogoPreview, logoEditor, logoCreativeBrief, logoImage]
   );
   const logoPromptPlaceholder = activeTool.key === "logo"
-    ? premiumLogoPromptExamples[logoExampleIndex % premiumLogoPromptExamples.length]
+    ? logoWorkspaceBrief || "Describe the logo direction, brand name, audience, mood, symbols, colors, and where the logo must work."
     : getMainPromptPlaceholder(activeTool);
   const addLogoSuggestion = (suggestion) => {
     const cleanSuggestion = String(suggestion || "").trim();
@@ -8638,6 +8852,15 @@ function GeneratorCard({
 
     setPrompt(currentPrompt ? `${currentPrompt}, ${cleanSuggestion}` : `Create a ${cleanSuggestion} logo`);
   };
+  const logoPromptSuggestionOptions = activeBrand && logoWorkspaceDefaults
+    ? [
+        ...(logoWorkspaceDefaults.brandFeel || []),
+        ...(logoWorkspaceDefaults.markType || []),
+        getWorkspaceIndustry(activeBrand, logoWorkspacePlan),
+        logoWorkspaceDefaults.symbolDirection,
+        ...(logoWorkspacePalette || []).map((color) => color.name),
+      ].filter(Boolean).map((item) => String(item).replace(/\s+/g, " ").trim()).filter((item, index, list) => item && list.indexOf(item) === index).slice(0, 8)
+    : logoPromptSuggestions;
   const logoBriefSections = [
     ["Mark Type", ["Wordmark", "Monogram", "Icon + wordmark", "Badge", "Social avatar"]],
     ["Brand Feel", ["Premium", "Minimal", "Bold", "Editorial", "Friendly", "Tech-forward"]],
@@ -8651,13 +8874,19 @@ function GeneratorCard({
   ];
 
   useEffect(() => {
-    if (activeTool.key !== "logo") return undefined;
-    const timer = window.setInterval(() => {
-      setLogoExampleIndex((index) => (index + 1) % premiumLogoPromptExamples.length);
-    }, 5200);
-
-    return () => window.clearInterval(timer);
-  }, [activeTool.key]);
+    if (activeTool.key !== "logo" || !activeBrand?.id) return;
+    const brandChanged = logoPrefillBrandId !== activeBrand.id;
+    const promptLooksStale = !String(prompt || "").trim() || /Northline Goods|carry goods/i.test(prompt);
+    if (!promptLooksStale && !brandChanged) return;
+    if (promptLooksStale || brandChanged) setPrompt(logoWorkspaceBrief);
+    if (brandChanged || !creativeTone || /Northline Goods|deserves attention now/i.test(creativeTone)) setCreativeTone(activeBrand.name || "");
+    if (brandChanged || !selectedPlatform || /carry goods|Northline|AI startup|modern SaaS/i.test(selectedPlatform)) setSelectedPlatform(logoWorkspaceDefaults?.brandFeel?.join(", ") || activeBrand.tone || "");
+    if (brandChanged || !logoIndustry || /carry goods|Northline|AI startup|modern SaaS|software|technology/i.test(logoIndustry)) setLogoIndustry(getWorkspaceIndustry(activeBrand, logoWorkspacePlan));
+    if (brandChanged || !logoSymbol || /Northline|N mark|technology|startup/i.test(logoSymbol)) setLogoSymbol(logoWorkspaceDefaults?.symbolDirection || activeBrand.logoDirection || "");
+    if (brandChanged || !logoColors || /black and warm-neutral|Northline|green, gray, tan/i.test(logoColors)) setLogoColors(logoWorkspacePalette.map((item) => item.name + " " + item.hex).join(", "));
+    if (brandChanged || !logoAvoid) setLogoAvoid("misspelled brand name, generic category symbols, unrelated technology cues, tiny decorative details, unsupported claims");
+    setLogoPrefillBrandId(activeBrand.id);
+  }, [activeTool.key, activeBrand?.id, logoWorkspaceBrief]);
 
   const refineLogo = (instruction = refinementPrompt) => {
     const cleanInstruction = String(instruction || "").trim();
@@ -8745,15 +8974,12 @@ Designer iteration rules:
               </div>
               <span>$9.99/mo unlocks all concepts</span>
             </div>
+            {activeBrand && <div className="recommendedFromStrategy">Recommended from your Brand Strategy</div>}
             <div className="logoGuideGrid">
               {logoBriefSections.map(([label, options]) => (
                 <div className="logoGuideColumn" key={label}>
                   <strong>{label}</strong>
-                  <div>
-                    {options.map((option) => (
-                      <button key={option} onClick={() => addLogoSuggestion(option)}>{option}</button>
-                    ))}
-                  </div>
+                  <div>{options.map((option) => { const selected = (recommendedLogoOptions[label] || []).includes(option); return <button key={option} className={selected ? "selectedLogoOption" : ""} aria-pressed={selected} onClick={() => addLogoSuggestion(option)}>{option}</button>; })}</div>
                 </div>
               ))}
             </div>
@@ -8767,16 +8993,16 @@ Designer iteration rules:
             </div>
           </div>
 
-          <textarea
+          <label className="logoBriefLabel"><span>Editable logo brief</span><textarea
             className="mainPromptBox logoPromptFirstBox"
             placeholder={logoPromptPlaceholder}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-          />
+          /></label>
 
           {prompt.trim() && (
             <div className="smartPromptSuggestions" aria-label="Logo prompt suggestions">
-              {logoPromptSuggestions.map((suggestion) => (
+              {logoPromptSuggestionOptions.map((suggestion) => (
                 <button key={suggestion} onClick={() => addLogoSuggestion(suggestion)}>
                   {suggestion}
                 </button>
@@ -8792,7 +9018,7 @@ Designer iteration rules:
                 <input
                   value={creativeTone}
                   onChange={(e) => setCreativeTone(e.target.value)}
-                  placeholder={parsedLogoPreview.brandName || "Optional if included above"}
+                  placeholder={activeBrand?.name || parsedLogoPreview.brandName || "Optional if included above"}
                 />
               </label>
               <label>
@@ -8800,7 +9026,7 @@ Designer iteration rules:
                 <input
                   value={selectedPlatform}
                   onChange={(e) => setSelectedPlatform(e.target.value)}
-                  placeholder={parsedLogoPreview.style || "Luxury, modern, bold, playful..."}
+                  placeholder={activeBrand && logoWorkspaceDefaults ? logoWorkspaceDefaults.brandFeel.join(", ") : parsedLogoPreview.style || "Luxury, modern, bold, playful..."}
                 />
               </label>
               <label>
@@ -8808,7 +9034,7 @@ Designer iteration rules:
                 <input
                   value={logoIndustry}
                   onChange={(e) => setLogoIndustry(e.target.value)}
-                  placeholder={parsedLogoPreview.industry || "Skincare, AI, real estate..."}
+                  placeholder={activeBrand ? getWorkspaceIndustry(activeBrand, logoWorkspacePlan) : parsedLogoPreview.industry || "Skincare, AI, real estate..."}
                 />
               </label>
               <label>
@@ -8847,7 +9073,26 @@ Designer iteration rules:
               <p>
                 {parsedLogoPreview.industry || "Industry will be inferred"} · {parsedLogoPreview.style || "best-fit style"} · {parsedLogoPreview.colors || "brand-fit colors"}
               </p>
-              <small>Wrong? Edit the prompt or open Advanced options before generating.</small>
+              {activeBrand && (
+                <div className="brandUnderstoodDetails">
+                  <span><b>Business:</b> {structuredLogoContext.business || "Not provided"}</span>
+                  <span><b>Audience:</b> {structuredLogoContext.audience || "Not provided"}</span>
+                  <span><b>Mark:</b> {structuredLogoContext.markType}</span>
+                  <span><b>Feel:</b> {structuredLogoContext.brandFeel}</span>
+                  <span><b>Typography:</b> {structuredLogoContext.typography}</span>
+                  <span><b>Symbol:</b> {structuredLogoContext.symbol}</span>
+                  <span><b>Use cases:</b> {structuredLogoContext.useCases}</span>
+                </div>
+              )}
+              {logoContextValidationIssues.length > 0 ? (
+                <div className="logoValidationPanel" role="alert">
+                  <strong>Review before generating</strong>
+                  <ul>{logoContextValidationIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
+                  <button type="button" onClick={restoreLogoFromBrandStrategy}>Restore from Brand Strategy</button>
+                </div>
+              ) : (
+                <small>{activeBrand ? "Structured workspace fields are locked as the source of truth. Edit Advanced options only if you want to change the logo direction." : "Wrong? Edit the prompt or open Advanced options before generating."}</small>
+              )}
             </div>
           )}
         </>
@@ -8881,7 +9126,7 @@ Designer iteration rules:
       )}
 
       <div className="generatorButtons">
-        <button className="btn dark" onClick={generate} disabled={loading}>
+        <button className="btn dark" onClick={generate} disabled={loading || (activeTool.key === "logo" && !logoContextIsValid)}>
           {loading ? getLoadingText(activeTool.key) : getGenerateButtonText(activeTool.key, activeTool.shortTitle)}
         </button>
         <button className="btn light" onClick={clearGenerator} disabled={loading}>Clear</button>
@@ -8896,8 +9141,8 @@ Designer iteration rules:
             {activeTool.key === "logo" && (
               <div className="logoLoadingSteps">
                 <span>Preparing brand prompt</span>
-                <span>Designing logo concept</span>
-                <span>Finalizing image</span>
+                <span>Creating three logo directions</span>
+                <span>Finalizing logo previews</span>
               </div>
             )}
             {activeTool.key === "brand" && (
@@ -8969,8 +9214,9 @@ Designer iteration rules:
                   <button onClick={openLogoImage}>Open Full Size</button>
                   {editableLogo && <button onClick={() => downloadGeneratedImage(editableLogo, `${editorFileName}-vector`)}>Download SVG</button>}
                   {editableTransparentLogo && <button onClick={() => downloadTransparentPng(editableTransparentLogo, editorFileName)}>Transparent PNG</button>}
-                  <button onClick={saveCurrentOutput}>Save Output</button>
-                  <button onClick={setLogoAsBrandProfile}>Set as Brand Logo</button>
+                  <button onClick={saveCurrentOutput} disabled={currentOutputSaved}>{currentOutputSaved ? "Saved to " + (activeBrand?.name || "Workspace") + " ✓" : "Save Concept"}</button>
+                  <button onClick={() => saveGeneratedAsset({ favorite: true, titleOverride: "Favorite Logo Concept • " + new Date().toLocaleDateString() })}>Favorite</button>
+                  <button onClick={setLogoAsBrandProfile}>Set as Primary Logo</button>
                 </details>
                 <button onClick={() => {
                   const continuityPrompt = `${prompt || parsedLogoPreview.originalPrompt || "Create a logo."}
@@ -9523,7 +9769,7 @@ function getTonePlaceholder(toolKey) {
 
 function getMainPromptPlaceholder(activeTool) {
   if (activeTool.key === "logo") {
-    return "Example: Make me a premium black and warm-neutral logo for a carry goods brand called Northline Goods with a clean N mark.";
+    return "Describe the logo direction, brand name, audience, mood, symbols, colors, and where the logo must work.";
   }
   if (activeTool.key === "captions") {
     return "Describe the post, video, product, brand moment, launch, or idea you need captions for. Example: A behind-the-scenes video of a luxury coffee shop opening day.";
@@ -9960,7 +10206,8 @@ h2{font-size:44px;line-height:1;letter-spacing:-.05em;margin:0}
 .reasoningStack{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
 .reasoningStack strong,.platformMatrix strong,.workspaceProgressMock strong{display:block;font-size:16px;letter-spacing:-.03em;margin-bottom:8px}
 .reasoningStack p,.platformMatrix p,.workspaceProgressMock p{color:#5f5a56;line-height:1.55;margin:0;font-size:13px}
-.identityBoard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.identityBoard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}.visualIdentityBoard{display:grid;gap:18px;margin-top:22px}.identityBoardHero,.identityPalettePanel,.identityTypePanel,.identityMoodboardPanel,.identityLogoSpecPanel{background:#11110f;color:#fffdf8;border-radius:24px;padding:24px;border:1px solid rgba(255,255,255,.08)}.identityBoardHero{display:grid;grid-template-columns:180px 1fr;gap:24px;align-items:center}.identityPrimaryMark{aspect-ratio:1;border-radius:22px;background:#fffdf8;color:#11110f;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:950;overflow:hidden}.identityPrimaryMark img{width:100%;height:100%;object-fit:contain;padding:16px}.identityPaletteGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.identitySwatchCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:12px}.identitySwatch{height:112px;border-radius:12px;padding:12px;display:flex;align-items:flex-end}.identitySwatchCard b,.identitySwatchCard span,.identitySwatchCard small{display:block;margin-top:8px}.identitySwatchCard button,.identityLogoSpecPanel button{margin-top:10px;border:1px solid rgba(255,255,255,.18);background:#fffdf8;color:#11110f;border-radius:999px;padding:8px 10px;font-weight:850}.identityTypePanel .typeSpecimen{font-size:52px;letter-spacing:-.05em;line-height:.95;margin:14px 0}.bodySpecimen{font-size:18px;color:rgba(255,255,255,.72)}.typePairingGrid,.logoSpecGrid,.moodboardTileGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.typePairingGrid div,.logoSpecGrid div,.moodboardTileGrid article{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px}.recommendedFromStrategy{display:inline-flex;margin-bottom:12px;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900;color:#fff;background:rgba(255,255,255,.08)}.logoGuideColumn button.selectedLogoOption{background:#fffdf8;color:#11110f;box-shadow:0 0 0 2px rgba(255,255,255,.32)}.logoBriefLabel span{display:block;margin:0 0 8px 6px;font-size:12px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#444}@media(max-width:820px){.identityBoardHero,.identityPaletteGrid,.typePairingGrid,.logoSpecGrid,.moodboardTileGrid{grid-template-columns:1fr}.identityPrimaryMark{width:150px}.identityTypePanel .typeSpecimen{font-size:40px}}
+.brandUnderstoodDetails{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:12px;color:#4d4941}.brandUnderstoodDetails span{font-size:13px;line-height:1.35}.logoValidationPanel{margin-top:14px;border:1px solid #d18f72;background:#fff6ef;color:#3b2218;border-radius:14px;padding:14px}.logoValidationPanel ul{margin:8px 0 12px;padding-left:18px}.logoValidationPanel button{border:0;border-radius:999px;background:#11110f;color:#fffdf8;font-weight:850;padding:10px 14px}.generatorButtons .btn:disabled{opacity:.55;cursor:not-allowed}@media(max-width:820px){.brandUnderstoodDetails{grid-template-columns:1fr}}
 .moodTile,.typeTile,.paletteTile{min-height:150px;border-radius:18px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;position:relative;font-weight:950;letter-spacing:-.03em}
 .moodTile{background:#221916;color:#fff}
 .moodTile.tall{background:linear-gradient(160deg,#2a201c,#8f4b36);min-height:210px;grid-row:span 2}

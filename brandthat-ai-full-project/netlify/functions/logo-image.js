@@ -264,6 +264,7 @@ function getSubject(words) {
   if (hasWord(words, ["barber", "salon", "hair"])) return "barber";
   if (hasWord(words, ["tattoo", "ink", "flash"])) return "tattoo";
   if (hasWord(words, ["roof", "roofing", "shingle"])) return "roofing";
+  if (hasWord(words, ["houseplant", "houseplants", "botanical", "greenery", "plant", "plants", "apartment", "subscription"])) return "houseplants";
   if (hasWord(words, ["fashion", "clothing", "apparel", "boutique", "jewelry", "watch", "shoe", "streetwear", "couture", "runway", "label"]) || (hasWord(words, ["luxury", "premium", "high-end"]) && hasWord(words, ["house", "maison", "atelier"]))) return "fashion";
   if (hasWord(words, ["real", "estate", "realtor", "realty", "brokerage", "home", "house", "property"])) return "realestate";
   if (hasWord(words, ["law", "legal", "attorney", "lawyer", "firm"])) return "law";
@@ -1248,6 +1249,13 @@ function buildBrandStrategy({ brandName = "", subject = "abstract", positioning 
   const reachScore = personality?.matrix?.reach?.score || 50;
 
   const categoryMap = {
+    houseplants: {
+      competitorCategory: "local plant delivery, apartment lifestyle, and beginner-friendly houseplant brands",
+      coreMessage: `${brandName || "The brand"} makes apartment greenery feel easy, calm, and realistic for beginners.`,
+      visual: "botanical identity with resilient plant, care-card, doorstep delivery, stone, leaf, or apartment-window cues",
+      colors: "leaf green, stone gray, warm ivory, soft terracotta",
+      type: "warm botanical serif paired with readable humanist sans",
+    },
     chocolate: {
       competitorCategory: "premium confectionery and giftable candy brands",
       coreMessage: `${brandName || "The brand"} makes sweets feel memorable, giftable, and worth choosing.`,
@@ -1887,7 +1895,8 @@ function getConceptSymbolKey(concept) {
 function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, brandStrategy = null }) {
   const inferredName = inferBrandName({ brandName, userPrompt, logoPrompt });
   const wordsResult = getLogoWords({ brandName: inferredName, logoPrompt, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt });
-  const subject = getSubject(wordsResult.words);
+  const industryWords = String(logoIndustry || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const subject = industryWords.length ? getSubject(industryWords) : getSubject(wordsResult.words);
   const safeGenerationMemory = sanitizeGenerationMemoryForRequest(generationMemory, { brandName: inferredName, logoIndustry: subject });
   const profile = getStyleProfile({ logoStyle, logoIndustry, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
   const styles = detectLogoStyles({ subject, logoStyle, logoIndustry, logoSymbol, userPrompt, logoPrompt });
@@ -2249,6 +2258,11 @@ function getConceptLibrary(subject, profile) {
       ["Spatial Line Mark", "floorplan corner and doorway line forming a refined monogram", "minimal architectural sans", "charcoal, ivory, warm stone", "thin mark above wide wordmark", "It signals space, proportion, and design taste."],
       ["Studio Column Grid", "column/grid geometry with subtle perspective", "elevated serif/sans pairing", "black, white, muted gold", "structured icon and name", "It feels premium for architecture or interiors."],
       ["Interior Frame", "window/frame shape with negative-space room path", "clean editorial typography", "deep taupe, cream, black", "horizontal lockup", "It connects interiors and built environments."],
+    ],
+    houseplants: [
+      ["Botanical Wordmark", "stone-and-leaf cue tucked into a warm serif wordmark", "warm botanical serif with readable humanist sans support", "leaf green, stone gray, warm ivory, soft terracotta", "wordmark-led horizontal identity", "It makes the name feel calm and plant-specific while keeping the logo readable for a website header."],
+      ["Apartment Greenery Mark", "simple window, leaf, and delivery-card geometry reduced into one friendly symbol", "soft serif wordmark with clean sans details", "leaf green, warm ivory, stone gray", "symbol plus wordmark", "It connects apartment living, local delivery, and beginner-friendly care without using a generic wellness leaf."],
+      ["Care Card Avatar", "compact stone-and-sprout badge designed for Instagram profile use", "rounded humanist sans with botanical serif accent", "deep leaf green, ivory, terracotta", "square avatar badge with matching horizontal lockup", "It gives the subscription a small-size mark that still feels grounded, friendly, and easy to trust."],
     ],
     cannabis: [
       ["Botanical Leaf Seal", "cannabis leaf simplified into a premium botanical emblem", "quiet serif or wellness sans", "deep green, cream, muted gold", "emblem above name", "It reflects the category clearly while avoiding head-shop clutter."],

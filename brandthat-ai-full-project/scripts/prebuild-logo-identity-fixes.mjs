@@ -6,6 +6,7 @@ let changed = false;
 
 function replaceOnce(needle, replacement, label) {
   if (source.includes(replacement)) return;
+  if (label === "logo prefill effect" && source.includes("const brandChanged = logoPrefillBrandId !== activeBrand.id;")) return;
   if (!source.includes(needle)) throw new Error("Missing expected block for " + label);
   source = source.replace(needle, replacement);
   changed = true;
