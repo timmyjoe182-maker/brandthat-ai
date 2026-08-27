@@ -4095,14 +4095,18 @@ export default function App() {
         throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
       }
     } catch (error) {
-      console.error("BrandThat primary logo save failed", {
+      const diagnostic = {
         workspaceId: activeBrand.id,
         assetId: savedEntry.id,
+        attemptedFields: ["logo_image_url", "primary_logo_asset_id", "primary_logo_updated_at", "logo_metadata"],
         code: error?.code || "",
         status: error?.status || "",
         message: error?.message || "Unknown primary-logo server error",
-      });
-      notify("error", "Primary logo was not updated", error?.message || "The concept is still available. Try setting it as primary again.");
+        details: error?.details || "",
+        hint: error?.hint || "",
+      };
+      console.error("BrandThat primary logo save failed", JSON.stringify(diagnostic));
+      notify("error", "Primary logo was not updated", `${error?.message || "The concept is still available. Try setting it as primary again."}${error?.code ? ` (${error.code})` : ""}`);
       return;
     }
 
@@ -4157,14 +4161,18 @@ export default function App() {
         throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
       }
     } catch (error) {
-      console.error("Could not sync saved brand logo:", {
+      const diagnostic = {
         workspaceId: activeBrand.id,
         assetId: entry.id,
+        attemptedFields: ["logo_image_url", "primary_logo_asset_id", "primary_logo_updated_at", "logo_metadata"],
         code: error?.code || "",
         status: error?.status || "",
         message: error?.message || "Unknown primary-logo server error",
-      });
-      notify("error", "Primary logo was not updated", error?.message || "Please try again.");
+        details: error?.details || "",
+        hint: error?.hint || "",
+      };
+      console.error("Could not sync saved brand logo:", JSON.stringify(diagnostic));
+      notify("error", "Primary logo was not updated", `${error?.message || "Please try again."}${error?.code ? ` (${error.code})` : ""}`);
       return;
     }
 
@@ -9400,8 +9408,8 @@ Generate another logo from the same creative direction. Preserve the strongest p
           {logoVariations.length > 0 && (
             <section className="logoConceptDirections" aria-label="Logo concept directions">
               <div>
-                <div className="tinyTag">THREE DIRECTIONS</div>
-                <h3>Choose the direction to keep building.</h3>
+                <div className="tinyTag">{logoVariations.length >= 3 ? "THREE DIRECTIONS" : "ONE DIRECTION"}</div>
+                <h3>{logoVariations.length >= 3 ? "Choose the direction to keep building." : "Keep building this direction."}</h3>
               </div>
               <div className="logoConceptGrid">
                 {logoVariations.slice(0, 3).map((variation, index) => {
