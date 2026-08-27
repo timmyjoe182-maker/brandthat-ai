@@ -55,13 +55,28 @@ export function getSupabaseAuthClient() {
 }
 
 export function getSupabaseAdminClient() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+  if (!supabaseUrl || !serviceRoleKey) return null;
+
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   });
+}
+
+export function getEnvironmentDiagnostics() {
+  return {
+    SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+    VITE_SUPABASE_URL: Boolean(process.env.VITE_SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    STRIPE_SECRET_KEY: Boolean(process.env.STRIPE_SECRET_KEY),
+    STRIPE_WEBHOOK_SECRET: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+    STRIPE_BRAND_PLAN_PRICE_ID: Boolean(process.env.STRIPE_BRAND_PLAN_PRICE_ID || getMembershipPriceId()),
+  };
 }
 
 export function getBearerToken(event) {
