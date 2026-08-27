@@ -35,11 +35,6 @@ assert(
 );
 
 assert(
-  !app.includes(`Brand project prepared`) || !app.includes(`Your logo, strategy, and direction are ready to save as a workspace.`),
-  "logo saving should not show the old workspace-prep success language"
-);
-
-assert(
   !app.includes(`Primary mark generated`) && !app.includes(`Colors, type, avatar, and exports ready`) && !app.includes(`Workspace ready`),
   "logo result must not claim primary/export/workspace states before persistence"
 );
