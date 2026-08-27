@@ -17,6 +17,16 @@ function replaceOnce(needle, replacement, label) {
   changed = true;
 }
 
+function replaceBetween(startNeedle, endNeedle, replacement, label) {
+  if (source.includes(replacement)) return;
+  const start = source.indexOf(startNeedle);
+  if (start === -1) throw new Error("Missing expected start block for " + label);
+  const end = source.indexOf(endNeedle, start);
+  if (end === -1) throw new Error("Missing expected end block for " + label);
+  source = source.slice(0, start) + replacement + source.slice(end + endNeedle.length);
+  changed = true;
+}
+
 replaceOnce(
   block([
     "  clearGenerator,",
@@ -141,11 +151,9 @@ replaceOnce(
   "Save All collection title"
 );
 
-replaceOnce(
-  block([
-    "{parseTenOptions(result).map((item, index) => (",
-    "              <div className=\"captionOptionRow\" key={`${item}-${index}`}",
-  ]).replace("key={`${item}-${index}`}", "key={`${item}-${index}`}>"),
+replaceBetween(
+  "{parseTenOptions(result).map((item, index) => (",
+  "            ))}",
   block([
     "{parseTenOptions(result).map((item, index) => {",
     "              const key = `${activeTool.key}-${index}`;",
@@ -153,46 +161,23 @@ replaceOnce(
     "              const isSaving = savingResultKey === key;",
     "              const isCopied = copiedResultKey === key;",
     "              return (",
-    "              <div className=\"captionOptionRow\" key={`${item}-${index}`}>"
-  ]),
-  "per-result row opening"
-);
-
-replaceOnce(
-  block([
-    "                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}` })} disabled={isAssetSaved(item)}>",
-    "                    {isAssetSaved(item) ? \"Saved ✓\" : \"Save\"}",
+    "              <div className=\"captionOptionRow\" key={`${item}-${index}`}> ",
+    "                <div className=\"captionNumber\">{index + 1}</div>",
+    "                <p>{item}</p>",
+    "                <div className=\"captionRowActions\">",
+    "                  <button onClick={() => handleSaveResultItem(item, index)} disabled={Boolean(savedAsset) || isSaving}>",
+    "                    {isSaving ? \"Saving...\" : savedAsset ? `Saved to ${activeBrand?.name || \"Workspace\"} ✓` : \"Save\"}",
     "                  </button>",
-    "                  <button onClick={() => copyToClipboard(item)}>Copy</button>",
-    "                  <button onClick={() => saveGeneratedAsset({ contentOverride: item, titleOverride: `${activeTool.shortTitle} ${index + 1} • ${new Date().toLocaleDateString()}`, favorite: true })} disabled={isAssetSaved(item)}>",
-    "                    {isAssetSaved(item) ? \"Saved\" : \"Favorite\"}",
+    "                  <button onClick={() => handleCopyResultItem(item, index)}>{isCopied ? \"Copied\" : \"Copy\"}</button>",
+    "                  <button onClick={() => handleSaveResultItem(item, index, true)} disabled={isSaving}>",
+    "                    {isSaving ? \"Saving...\" : savedAsset?.favorite ? \"Favorited\" : \"Favorite\"}",
     "                  </button>",
-  ]),
-  block([
-    "                    <button onClick={() => handleSaveResultItem(item, index)} disabled={Boolean(savedAsset) || isSaving}>",
-    "                      {isSaving ? \"Saving...\" : savedAsset ? `Saved to ${activeBrand?.name || \"Workspace\"} ✓` : \"Save\"}",
-    "                    </button>",
-    "                    <button onClick={() => handleCopyResultItem(item, index)}>{isCopied ? \"Copied\" : \"Copy\"}</button>",
-    "                    <button onClick={() => handleSaveResultItem(item, index, true)} disabled={isSaving}>",
-    "                      {isSaving ? \"Saving...\" : savedAsset?.favorite ? \"Favorited\" : \"Favorite\"}",
-    "                    </button>",
-  ]),
-  "per-result row controls"
-);
-
-replaceOnce(
-  block([
-    "              </div>",
-    "            ))}",
-    "          </div>",
-  ]),
-  block([
+    "                </div>",
     "              </div>",
     "              );",
-    "            })}",
-    "          </div>",
+    "            })}"
   ]),
-  "per-result row closing"
+  "per-result row actions"
 );
 
 replaceOnce(
