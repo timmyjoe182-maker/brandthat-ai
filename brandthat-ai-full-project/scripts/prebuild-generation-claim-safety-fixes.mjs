@@ -4,7 +4,13 @@ const generatePath = new URL("../netlify/functions/generate.js", import.meta.url
 let source = readFileSync(generatePath, "utf8");
 let changed = false;
 
+function normalize(value) {
+  return String(value).replaceAll("\\n", "\n");
+}
+
 function replaceOnce(needle, replacement, label) {
+  needle = normalize(needle);
+  replacement = normalize(replacement);
   if (source.includes(replacement)) return;
   if (!source.includes(needle)) throw new Error(`Missing expected block for ${label}`);
   source = source.replace(needle, replacement);
