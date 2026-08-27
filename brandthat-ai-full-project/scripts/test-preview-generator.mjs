@@ -3,6 +3,18 @@ import { buildPreviewFromDraft } from "../src/previewGenerator.js";
 
 const cases = [
   {
+    key: "houseplants",
+    draft: {
+      name: "Stone & Stem",
+      description: "A local subscription service delivering low-maintenance houseplants to apartment renters, with simple care guidance.",
+      industry: "Houseplants and subscription delivery",
+      audience: "Apartment renters, busy beginners, and people with limited natural light",
+      style: "Fresh, encouraging, calm, and practical",
+    },
+    expected: ["apartment renters", "houseplant", "subscription", "care", "natural light"],
+    blocked: ["first-time homeowners", "local families", "full-service design firm", "room decisions", "warm plaster", "creators", "sponsorship", "technical work bags"],
+  },
+  {
     key: "pet-service",
     draft: {
       name: "Paws on Wheels",
@@ -11,7 +23,7 @@ const cases = [
       audience: "busy families and senior pet owners",
       style: "gentle, clean, trustworthy",
     },
-    expected: ["busy families", "senior pet", "grooming", "convenient", "gentle"],
+    expected: ["busy families", "senior pet", "grooming", "convenience", "gentle"],
     blocked: ["creators", "sponsorship", "software", "invoices", "spreadsheets", "deal cards", "technical bags"],
   },
   {
@@ -57,6 +69,10 @@ const blockedNorthlinePhrases = [
   "weatherproof everyday carry",
   "northline goods",
   "carry-system",
+  "the specific outcome described in this idea",
+  "the sharper angle is",
+  "useful enough to understand quickly and distinctive enough to remember",
+  "the requested personality should feel",
 ];
 
 const results = cases.map(({ key, draft, expected, blocked = [] }) => {
