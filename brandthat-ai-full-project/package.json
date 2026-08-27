@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/prebuild-production-fixes.mjs && vite build",
     "preview": "vite preview",
-    "lint": "node scripts/check-undefined-helpers.mjs",
-    "test": "node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs"
+    "lint": "node scripts/prebuild-production-fixes.mjs && node scripts/check-undefined-helpers.mjs",
+    "test": "node scripts/prebuild-production-fixes.mjs && node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
