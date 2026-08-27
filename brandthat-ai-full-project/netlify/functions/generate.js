@@ -1,7 +1,6 @@
-const OpenAI = require("openai");
-const { createClient } = require("@supabase/supabase-js");
-const crypto = require("node:crypto");
-const { requireVerifiedUser } = require("./lib/auth.js");
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 
 const rateLimitStore = global.brandthatGenerateRateLimit || new Map();
 global.brandthatGenerateRateLimit = rateLimitStore;
@@ -45,6 +44,69 @@ function getPublicError(statusCode, code, message, requestId) {
     error: message,
     requestId,
   });
+}
+
+const supabaseAuthUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://vfnkmabnocbwawbdvxfo.supabase.co";
+const supabaseAuthKey =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  "sb_publishable_Hc3jSEKgrOf1ntpRxnVJzg_Ttr1oAuk";
+
+const supabaseAuth = createClient(supabaseAuthUrl, supabaseAuthKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+function getBearerToken(event) {
+  const header = event.headers?.authorization || event.headers?.Authorization || "";
+  const match = String(header).match(/^Bearer\s+(.+)$/i);
+  return match?.[1] || "";
+}
+
+function isEmailVerified(user) {
+  return Boolean(user?.email_confirmed_at || user?.confirmed_at);
+}
+
+async function requireVerifiedUser(event) {
+  const token = getBearerToken(event);
+
+  if (!token) {
+    return {
+      error: {
+        statusCode: 401,
+        code: "AUTH_REQUIRED",
+        message: "Create your BrandThat account to try the full product.",
+      },
+    };
+  }
+
+  const { data, error } = await supabaseAuth.auth.getUser(token);
+  const user = data?.user || null;
+
+  if (error || !user) {
+    return {
+      error: {
+        statusCode: 401,
+        code: "AUTH_REQUIRED",
+        message: "Please log in again to continue.",
+      },
+    };
+  }
+
+  if (!isEmailVerified(user)) {
+    return {
+      error: {
+        statusCode: 403,
+        code: "EMAIL_VERIFICATION_REQUIRED",
+        message: "Check your email to verify your account before continuing.",
+      },
+    };
+  }
+
+  return { user };
 }
 
 function isTransientOpenAiError(error) {
@@ -224,7 +286,7 @@ function checkRateLimit(event, { limit = 35, windowMs = 60_000 } = {}) {
   return bucket.length <= limit;
 }
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   const requestId = getRequestId();
   const startedAt = Date.now();
   if (event.httpMethod && event.httpMethod !== "POST") {
