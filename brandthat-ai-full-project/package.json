@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "prebuild:brandthat": "node scripts/prebuild-logo-identity-fixes.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run prebuild:brandthat && vite build",
     "preview": "vite preview",
-    "lint": "node scripts/check-undefined-helpers.mjs",
-    "test": "node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs"
+    "lint": "npm run prebuild:brandthat && node scripts/check-undefined-helpers.mjs",
+    "test": "npm run prebuild:brandthat && node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs && node scripts/test-workspace-app-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
