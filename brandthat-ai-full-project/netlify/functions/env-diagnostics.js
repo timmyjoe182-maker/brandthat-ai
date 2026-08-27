@@ -16,3 +16,4 @@ export const handler = async (event) => {
     configured: getEnvironmentDiagnostics(),
   });
 };
+

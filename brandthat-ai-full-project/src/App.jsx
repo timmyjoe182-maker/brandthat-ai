@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient.js";
 import { buildPreviewFromDraft } from "./previewGenerator.js";
 import { getMembershipCtaState } from "./membershipState.js";
+import { cleanGeneratedText, ensureThesisDriven, makeTaglines } from "./brandPlanQuality.js";
 
 const PLAN_COPY = {
   trial: {
@@ -527,18 +528,11 @@ function clearPendingMembershipIntent() {
   localStorage.removeItem("brandthat_pending_plan");
 }
 
-function cleanGeneratedText(text = "") {
-  return String(text)
-    .replace(/\*\*/g, "")
-    .replace(/__+/g, "")
-    .replace(/^\s*[-•]\s+/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 function inferSimpleIndustry(value = "") {
   const text = String(value || "").toLowerCase();
   const matches = [
+    ["houseplants / local plant delivery", ["houseplant", "houseplants", "plant care", "low-maintenance plant", "low maintenance plant", "apartment greenery", "plant subscription", "botanical", "greenery"]],
+    ["pet care / mobile grooming", ["dog grooming", "mobile grooming", "pet grooming", "senior pet", "senior pets", "pet care"]],
     ["chocolate / confectionery", ["chocolate", "candy", "candies", "sweet"]],
     ["restaurant / hospitality", ["restaurant", "pizza", "cafe", "coffee", "food", "bakery"]],
     ["AI / technology", ["ai", "software", "saas", "startup", "app", "platform"]],
@@ -549,7 +543,15 @@ function inferSimpleIndustry(value = "") {
     ["ranch / western lifestyle", ["ranch", "horse", "alpaca", "farm", "western"]],
     ["law firm", ["law", "legal", "attorney", "lawyer"]],
   ];
-  return matches.find(([, words]) => words.some((word) => text.includes(word)))?.[0] || "new business / brand";
+  const hasKeyword = (word) => {
+    const keyword = String(word || "").toLowerCase().trim();
+    if (!keyword) return false;
+    if (keyword.length <= 3 || /^[a-z0-9+#.-]+$/.test(keyword)) {
+      return new RegExp(`(^|[^a-z0-9])${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i").test(text);
+    }
+    return text.includes(keyword);
+  };
+  return matches.find(([, words]) => words.some(hasKeyword))?.[0] || "new business / brand";
 }
 
 const WORKSPACE_DATA_VERSION = "2026-06-thesis-v1";
@@ -632,6 +634,8 @@ function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "
     ? "style-conscious dog owners who treat outdoor time as part of their identity, not only a practical routine"
     : lower.includes("wedding")
       ? "modern couples who want the wedding to feel documented, shareable, and emotionally true without managing multiple creative vendors"
+      : lower.includes("houseplant") || lower.includes("plant delivery") || lower.includes("apartment greenery") || lower.includes("plant care")
+        ? "apartment renters and first-time plant owners who want a greener home without complicated maintenance"
       : lower.includes("ai") || lower.includes("software")
         ? "busy founders and small teams who need sharper brand decisions without hiring a full strategy team first"
         : `buyers choosing a ${category} brand who need a clearer reason to trust, remember, and act`;
@@ -651,14 +655,20 @@ function getBrandPlanDefaults({ brandName = "New Brand", idea = "", industry = "
   const messaging = `Lead with the customer moment, name the tension, prove why ${brandName} is different, then ask for one next action.`;
   const moodboard = opportunity === "craftsmanship"
     ? `Natural materials, close-up textures, product-in-use scenes, quiet maker details, and real customer environments that make ${opportunity} visible.`
+    : lower.includes("houseplant") || lower.includes("plant delivery") || lower.includes("apartment greenery") || lower.includes("plant care")
+      ? `Bright apartments, resilient greenery, delivery handoff moments, simple care cards, natural textures, and calm shelf/window-light scenes that prove plant ownership can feel easy.`
     : opportunity === "luxury"
       ? `Editorial spacing, high-contrast detail shots, restrained layouts, premium materials, and calm environments that make ${brandName} feel selective.`
       : `Clean product context, customer-before-and-after moments, simple interface or service proof, and enough negative space to make the promise feel clear.`;
   const typography = opportunity === "luxury" || opportunity === "craftsmanship"
     ? `Use a high-contrast serif for the brand voice and a restrained grotesk for practical UI because the audience needs both taste and clarity.`
+    : lower.includes("houseplant") || lower.includes("plant delivery") || lower.includes("apartment greenery") || lower.includes("plant care")
+      ? `Use a warm botanical serif for the wordmark with a clean humanist sans for care instructions because the identity needs both softness and beginner-friendly clarity.`
     : `Use a confident grotesk for the primary wordmark and a highly readable neutral sans for body copy because the brand needs to feel modern, usable, and easy to act on.`;
   const colors = opportunity === "craftsmanship"
     ? `Use charcoal, warm white, and muted forest green because those colors connect ${brandName} to heritage, outdoor materials, and durable quality without looking decorative.`
+    : lower.includes("houseplant") || lower.includes("plant delivery") || lower.includes("apartment greenery") || lower.includes("plant care")
+      ? `Use leaf green, stone gray, warm ivory, and soft terracotta because the palette connects apartment greenery, simple care, and local delivery without feeling like a tech product.`
     : opportunity === "luxury"
       ? `Use black, warm white, and one muted metallic-neutral accent because restraint makes the brand feel premium and avoids looking like a template.`
       : `Use black, white, soft gray, and one disciplined accent only where action is required because the strategy depends on clarity and repeatable recognition.`;
@@ -2468,6 +2478,7 @@ export default function App() {
   const [logoVariations, setLogoVariations] = useState([]);
   const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);
   const [logoGenerationError, setLogoGenerationError] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
@@ -2479,8 +2490,10 @@ export default function App() {
   const [checkoutStatus, setCheckoutStatus] = useState("idle");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutResumePrompt, setCheckoutResumePrompt] = useState(false);
+  const [checkoutReturnSessionId, setCheckoutReturnSessionId] = useState("");
   const isCheckoutBusy = checkoutStatus === "loading" || checkoutStatus === "redirecting";
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceCreating, setWorkspaceCreating] = useState(false);
   const [recentLogoResults, setRecentLogoResults] = useState(() => safeParse("brandthat_recent_logo_results", []));
 
   const [brandWorkspaces, setBrandWorkspaces] = useState(getInitialStoredWorkspaces);
@@ -2503,6 +2516,14 @@ export default function App() {
   const isLogoTestingUnlocked = isBrandthatTester(user);
   const emailVerified = isUserEmailVerified(user);
   const authStatus = authLoading ? "loading" : !user ? "logged_out" : !emailVerified ? "email_not_verified" : "logged_in";
+
+  useEffect(() => {
+    if (!isMember) return;
+    clearPendingMembershipIntent();
+    setCheckoutResumePrompt(false);
+    setCheckoutError("");
+    setCheckoutStatus((current) => current === "loading" || current === "redirecting" ? "idle" : current);
+  }, [isMember]);
 
 
   useEffect(() => {
@@ -2659,6 +2680,82 @@ export default function App() {
     };
   };
 
+  const verifyCheckoutSession = async (session, checkoutSessionId) => {
+    if (!session?.access_token || !checkoutSessionId) return false;
+
+    setCheckoutStatus("loading");
+    setCheckoutError("");
+    notify("info", "Confirming your membership", "BrandThat is verifying your Stripe payment before opening the workspace.");
+
+    try {
+      const data = await fetchJsonWithTimeout("/.netlify/functions/verify-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ session_id: checkoutSessionId }),
+      }, {
+        timeoutMs: 15000,
+        errorMessage: "Membership could not be confirmed yet. Please retry from your account.",
+        revealServerError: true,
+      });
+
+      if (data?.member || normalizePlan(data?.plan) === MEMBER_PLAN) {
+        clearPendingMembershipIntent();
+        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
+        setUserPlan(MEMBER_PLAN);
+        setCheckoutStatus("idle");
+        setCheckoutError("");
+        setCheckoutReturnSessionId("");
+        setPage("workspace");
+        window.history.replaceState({}, "", "/#workspace");
+        notify("success", "Membership active", "Your BrandThat workspace is unlocked.");
+        return true;
+      }
+    } catch (error) {
+      console.warn("Checkout return verification failed:", { message: error?.message, code: error?.code, status: error?.status });
+      setCheckoutError(error?.message || "Membership could not be confirmed yet. Please try again.");
+      setCheckoutStatus("idle");
+      return false;
+    }
+
+    setCheckoutStatus("idle");
+    return false;
+  };
+
+  const reconcileMembership = async (session, source = "profile_load") => {
+    if (!session?.access_token) return false;
+
+    try {
+      const data = await fetchJsonWithTimeout("/.netlify/functions/reconcile-membership", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ source }),
+      }, {
+        timeoutMs: 15000,
+        errorMessage: "BrandThat could not confirm membership yet.",
+        revealServerError: true,
+      });
+
+      if (data?.member || normalizePlan(data?.plan) === MEMBER_PLAN) {
+        clearPendingMembershipIntent();
+        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
+        setUserPlan(MEMBER_PLAN);
+        setCheckoutResumePrompt(false);
+        setCheckoutError("");
+        return true;
+      }
+    } catch (error) {
+      console.warn("Membership reconciliation failed:", { message: error?.message, code: error?.code, status: error?.status });
+    }
+
+    return false;
+  };
+
   const loadSavedWorkspaceData = async (currentUser) => {
     if (!currentUser?.id) return;
 
@@ -2675,8 +2772,12 @@ export default function App() {
         localStorage.setItem("brandthat_plan", nextPlan);
         setUserPlan(nextPlan);
       } else {
-        localStorage.setItem("brandthat_plan", "free");
-        setUserPlan("free");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const reconciled = await reconcileMembership(sessionData?.session, "workspace_load");
+        if (!reconciled) {
+          localStorage.setItem("brandthat_plan", "free");
+          setUserPlan("free");
+        }
       }
 
       const today = getTodayKey();
@@ -2743,12 +2844,12 @@ export default function App() {
     }
 
     const params = new URLSearchParams(window.location.search);
+    const returnSessionId = params.get("session_id") || "";
     if (params.get("success") === "true") {
-      clearPendingMembershipIntent();
       localStorage.removeItem("brandthat_plan");
-      setUserPlan("free");
-      notify("info", "Payment processing", "BrandThat will unlock your Brand Plan after the payment is confirmed.");
-      window.history.replaceState({}, "", "/");
+      setCheckoutReturnSessionId(returnSessionId);
+      setCheckoutStatus("loading");
+      notify("info", "Confirming your membership", "BrandThat is verifying your Stripe payment before opening the workspace.");
     }
 
     if (params.get("brand_plan") === "canceled") {
@@ -2768,6 +2869,9 @@ export default function App() {
         trackBrandthatEvent("auth_state_resolved", { signed_in: Boolean(currentUser), source: "initial_load" });
         if (currentUser && isUserEmailVerified(currentUser)) {
           await loadSavedWorkspaceData(currentUser);
+          if (params.get("success") === "true" && returnSessionId) {
+            await verifyCheckoutSession(data.session, returnSessionId);
+          }
           if (getPendingMembershipIntent()) {
             setCheckoutResumePrompt(true);
             setCheckoutError("Your account is ready. Continue to secure checkout to start membership.");
@@ -2798,6 +2902,11 @@ export default function App() {
       trackBrandthatEvent("auth_state_resolved", { signed_in: Boolean(currentUser), source: "auth_listener" });
       if (currentUser && isUserEmailVerified(currentUser)) {
         loadSavedWorkspaceData(currentUser);
+        const authParams = new URLSearchParams(window.location.search);
+        const authReturnSessionId = authParams.get("session_id") || checkoutReturnSessionId;
+        if (authParams.get("success") === "true" && authReturnSessionId) {
+          verifyCheckoutSession(session, authReturnSessionId);
+        }
         if (getPendingMembershipIntent()) {
           setCheckoutResumePrompt(true);
           setCheckoutError("Your account is ready. Continue to secure checkout to start membership.");
@@ -3233,6 +3342,9 @@ export default function App() {
 
     if (normalizePlan(userPlan) === MEMBER_PLAN) {
       trackBrandthatEvent("auth_state_resolved", { signed_in: Boolean(user), member: true, source: eventSource });
+      setCheckoutStatus("idle");
+      setCheckoutError("");
+      setCheckoutResumePrompt(false);
       setPage("workspace");
       window.history.pushState({}, "", "/#workspace");
       notify("success", "Membership active", "Opening your BrandThat workspace.");
@@ -3305,11 +3417,36 @@ export default function App() {
       });
 
       trackBrandthatEvent("checkout_response_received", { ok: Boolean(data?.url), source: eventSource });
+      if (data?.alreadySubscribed || normalizePlan(data?.plan) === MEMBER_PLAN) {
+        clearPendingMembershipIntent();
+        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
+        setUserPlan(MEMBER_PLAN);
+        setCheckoutStatus("idle");
+        setCheckoutError("");
+        setCheckoutResumePrompt(false);
+        setPage("workspace");
+        window.history.pushState({}, "", "/#workspace");
+        notify("success", "Membership active", "Opening your BrandThat workspace.");
+        return;
+      }
       if (!data?.url) throw new Error("Stripe did not return a checkout link. Please try again.");
+      const checkoutUrl = String(data.url);
+      if (!checkoutUrl.includes("checkout.stripe.com") && checkoutUrl.includes("#workspace")) {
+        clearPendingMembershipIntent();
+        localStorage.setItem("brandthat_plan", MEMBER_PLAN);
+        setUserPlan(MEMBER_PLAN);
+        setCheckoutStatus("idle");
+        setCheckoutError("");
+        setCheckoutResumePrompt(false);
+        setPage("workspace");
+        window.history.pushState({}, "", "/#workspace");
+        notify("success", "Membership active", "Opening your BrandThat workspace.");
+        return;
+      }
       trackBrandthatEvent("checkout_session_created", { plan: checkoutPlan, source: eventSource });
       trackBrandthatEvent("checkout_redirect_started", { plan: checkoutPlan, source: eventSource });
       setCheckoutStatus("redirecting");
-      window.location.assign(data.url);
+      window.location.assign(checkoutUrl);
     } catch (error) {
       const publicMessage = error?.message || "Checkout could not start. Please try again in a moment.";
       console.warn("BrandThat checkout failed:", { message: publicMessage, plan: checkoutPlan });
@@ -3331,6 +3468,8 @@ export default function App() {
     );
 
   const createWorkspace = async () => {
+    if (workspaceCreating) return;
+
     const session = await requireMembershipOrTrial("workspace");
     if (!session) return;
 
@@ -3338,6 +3477,9 @@ export default function App() {
       notify("error", "Add a brand name first", "Your workspace needs a name before it can be saved.");
       return;
     }
+
+    setWorkspaceCreating(true);
+    notify("info", "Creating workspace", "Saving your brand workspace to your account.");
 
     const baseBrand = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
@@ -3366,6 +3508,12 @@ export default function App() {
 
     const ownerId = session.user.id;
 
+    if (!ownerId) {
+      setWorkspaceCreating(false);
+      notify("error", "Workspace was not created", "BrandThat could not confirm your account. Please sign in again.");
+      return;
+    }
+
     if (ownerId) {
       try {
         const { data, error } = await supabase
@@ -3384,9 +3532,15 @@ export default function App() {
           .single();
 
         if (error) throw error;
+        if (!data?.id) throw new Error("BrandThat did not receive a saved workspace ID. Please try again.");
         brand = mapWorkspaceRow(data);
       } catch (error) {
-        notify("warning", "Workspace saved locally", `We could not save this to your account yet. ${error.message || ""}`);
+        const message = error?.message || "BrandThat could not save this workspace. Please try again.";
+        console.warn("Workspace creation failed:", { message });
+        handleAppError("Workspace creation failed", error, message);
+        notify("error", "Workspace was not created", message);
+        setWorkspaceCreating(false);
+        return;
       }
     }
 
@@ -3409,7 +3563,8 @@ export default function App() {
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
     trackBrandthatEvent("workspace_created", { hasLogoDirection: Boolean(baseBrand.logoDirection), goal: baseBrand.targetFollowers || baseBrand.launchGoal || "" });
-    notify("success", "Brand headquarters created", `${brand.name} is ready to build from.`);
+    notify("success", "Workspace created", `${brand.name} is saved to your BrandThat account.`);
+    setWorkspaceCreating(false);
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
   };
 
@@ -3466,6 +3621,11 @@ export default function App() {
 
     if (!result && !logoImage) {
       notify("error", "Generate something first", "Once an output appears, you can save it to your workspace.");
+      return;
+    }
+
+    if (activeTool.key !== "logo" && isGenerationFailureText(result)) {
+      notify("error", "Nothing to save yet", "The last generation failed. Retry before saving this to your workspace.");
       return;
     }
 
@@ -4049,6 +4209,9 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     if (!session) return null;
 
     if (isMember) return session;
+
+    const reconciled = await reconcileMembership(session, action);
+    if (reconciled) return session;
 
     showMembershipOffer("BrandThat costs $9.99/month and unlocks the full workspace, roadmap, generators, and logo concepts.");
     return null;
@@ -4854,6 +5017,7 @@ Requirements:
     const trialLimitsBypassed = isMember;
 
     setLoading(true);
+    setGenerationError("");
     setLogoGenerationError("");
     setLogoImage("");
     setLogoImageSource("");
@@ -4967,6 +5131,11 @@ ${promptValue}`;
           timeoutMessage: "Generation took too long. Please try again with a shorter request."
         });
 
+        if (data?.ok === false) {
+          const error = new Error(data.message || data.error || "Generation failed.");
+          error.code = data.code || "";
+          throw error;
+        }
         let cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
         const qualityIssues = getOutputQualityIssues(cleanText, activeBrand || workspaceDraft);
         if (qualityIssues.length) {
@@ -4985,6 +5154,11 @@ ${promptValue}`;
             errorMessage: "Generation quality retry failed.",
             timeoutMessage: "The quality retry took too long. Please try again with a shorter request."
           });
+          if (data?.ok === false) {
+            const error = new Error(data.message || data.error || "Generation failed.");
+            error.code = data.code || "";
+            throw error;
+          }
           cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
         }
         if (!cleanText) {
@@ -5009,7 +5183,8 @@ ${promptValue}`;
         setLogoVariations([]);
         setLogoCreativeBrief(null);
       } else {
-        setResult(error.message || "Something went wrong. Please try again.");
+        setResult("");
+        setGenerationError(error?.message || "Something went wrong. Please try again.");
       }
     }
 
@@ -5077,6 +5252,7 @@ ${promptValue}`;
     setLogoVariations([]);
     setLogoCreativeBrief(null);
     setLogoGenerationError("");
+    setGenerationError("");
   };
 
   const restoreRecentLogo = (entry) => {
@@ -5133,9 +5309,17 @@ ${promptValue}`;
   };
 
   const scrollToSection = (sectionId, block = "start") => {
-    window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block });
-    }, 120);
+    let attempts = 0;
+    const scroll = () => {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        target.scrollIntoView({ behavior: attempts === 0 ? "auto" : "smooth", block });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 12) window.requestAnimationFrame(scroll);
+    };
+    window.requestAnimationFrame(scroll);
   };
 
   const navigateHomeSection = (sectionId, block = "start") => {
@@ -5240,7 +5424,7 @@ ${promptValue}`;
         <section className="pageSection">
           <div className="tinyTag">SAVED BRAND WORKSPACES</div>
           <h1 className="pageTitle">Your brand headquarters.</h1>
-          <p className="pageLead">Every purchased Brand Plan becomes a saved workspace with strategy, identity direction, platform guidance, roadmap, saved assets, and logo concepts generated from the completed strategy.</p>
+          <p className="pageLead">Create and save brand workspaces while your membership is active, with strategy, identity direction, platform guidance, roadmap, saved assets, and logo concepts generated from the completed strategy.</p>
 
           {workspaceLoading && !activeBrand && <WorkspaceSkeleton />}
 
@@ -5263,6 +5447,7 @@ ${promptValue}`;
               setWorkspaceDraft={setWorkspaceDraft}
               createWorkspace={createWorkspace}
               autoSaveStatus={autoSaveStatus}
+              workspaceCreating={workspaceCreating}
             />
 
             <WorkspaceLibrary
@@ -5313,6 +5498,7 @@ ${promptValue}`;
           generate={generate}
           loading={loading}
           result={result}
+          generationError={generationError}
           logoGenerationError={logoGenerationError}
           logoImage={logoImage}
           setLogoImage={setLogoImage}
@@ -5389,6 +5575,7 @@ ${promptValue}`;
             generate={generate}
             loading={loading}
             result={result}
+            generationError={generationError}
             logoGenerationError={logoGenerationError}
             logoImage={logoImage}
             setLogoImage={setLogoImage}
@@ -5447,11 +5634,24 @@ ${promptValue}`;
             ].map(([label, target]) => (
               <button key={target} onClick={() => { setPage(target); window.history.pushState({}, "", `/${target}`); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{label}</button>
             ))}
-            <button onClick={() => openAuth("login")}>Sign In</button>
+            {authStatus === "logged_in" ? (
+              <>
+                <button onClick={() => openProtectedPage("workspace", "workspace")}>Workspace</button>
+                <button onClick={logOut}>Log Out</button>
+              </>
+            ) : (
+              <button onClick={() => openAuth("login")}>Sign In</button>
+            )}
           </div>
-          <input placeholder="Email address" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
-          <button className="btn dark" onClick={subscribe}>Create Account</button>
-          {subscribeMessage && <span>{subscribeMessage}</span>}
+          {authStatus === "logged_in" ? (
+            <button className="btn dark" onClick={() => openProtectedPage("workspace", "workspace")}>Open Workspace</button>
+          ) : (
+            <>
+              <input placeholder="Email address" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)} />
+              <button className="btn dark" onClick={subscribe}>Create Account</button>
+              {subscribeMessage && <span>{subscribeMessage}</span>}
+            </>
+          )}
         </div>
       </footer>
 
@@ -5571,7 +5771,7 @@ function MembershipCta({
       </button>
       <div className="checkoutStatusMessage" role="status" aria-live="polite">
         {cta.statusMessage}
-        {checkoutError && !cta.busy ? checkoutError : ""}
+        {checkoutError && !cta.busy && cta.nextAction !== "workspace" ? checkoutError : ""}
       </div>
     </div>
   );
@@ -5586,10 +5786,6 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
     const nextPatch = { ...patch };
     if (options.clearExampleContext && workspaceDraft.exampleContext) {
       nextPatch.exampleContext = "";
-      nextPatch.audience = "";
-      nextPatch.style = "";
-      nextPatch.industry = "";
-      nextPatch.locationMarket = "";
     }
     setWorkspaceDraft({ ...workspaceDraft, ...nextPatch });
     setPreview(null);
@@ -5690,7 +5886,7 @@ function ToolGridSkeleton() {
   );
 }
 
-function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, autoSaveStatus }) {
+function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, autoSaveStatus, workspaceCreating = false }) {
   return (
     <div className="workspaceCard">
       <div className="tinyTag">START HERE</div>
@@ -5842,7 +6038,9 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
         </div>
       </details>
 
-      <button className="btn dark full" onClick={createWorkspace}>Create Brand Workspace</button>
+      <button className="btn dark full" type="button" onClick={createWorkspace} disabled={workspaceCreating} aria-busy={workspaceCreating}>
+        {workspaceCreating ? "Creating workspace..." : "Create Brand Workspace"}
+      </button>
     </div>
   );
 }
@@ -6808,6 +7006,7 @@ function SEOPage({
   generate,
   loading,
   result,
+  generationError = "",
   logoGenerationError,
   logoImage,
   setLogoImage,
@@ -6868,6 +7067,7 @@ function SEOPage({
           generate={generate}
           loading={loading}
           result={result}
+          generationError={generationError}
           logoGenerationError={logoGenerationError}
           logoImage={logoImage}
           setLogoImage={setLogoImage}
@@ -7511,6 +7711,7 @@ function GeneratorCard({
   generate,
   loading,
   result,
+  generationError = "",
   logoGenerationError = "",
   logoImage,
   setLogoImage = () => {},
@@ -7911,6 +8112,14 @@ Designer iteration rules:
         </div>
       )}
 
+      {activeTool.key !== "logo" && generationError && !loading && (
+        <div className="generatorErrorPanel" role="alert" aria-live="assertive">
+          <strong>Generation did not finish.</strong>
+          <span>{generationError}</span>
+          <button onClick={generate}>Retry</button>
+        </div>
+      )}
+
       {logoImage && (
         <>
           <div className="logoShowcase">
@@ -8058,7 +8267,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
         </details>
       )}
 
-      {result && activeTool.key === "hashtags" && (
+      {isSuccessfulGeneratorResult(activeTool.key, result) && activeTool.key === "hashtags" && (
         <div className="resultBox premiumResults simpleHashtagResult">
           <div className="resultTop">
             <span>50 COPY-READY HASHTAGS</span>
@@ -8077,7 +8286,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
       )}
 
 
-      {result && activeTool.key !== "hashtags" && activeTool.key !== "logo" && (
+      {isSuccessfulGeneratorResult(activeTool.key, result) && activeTool.key !== "hashtags" && activeTool.key !== "logo" && (
         <div className="resultBox premiumResults simpleCaptionResult">
           <div className="resultTop">
             <span>{getTenResultHeader(activeTool.key)}</span>
@@ -8706,6 +8915,24 @@ function getResultSchema(toolKey) {
     ]
   };
   return schemas[toolKey] || schemas.brand;
+}
+
+function isGenerationFailureText(value = "") {
+  const text = cleanGeneratedText(value).toLowerCase();
+  if (!text) return false;
+  return /^(generation failed|something went wrong|request failed|brandthat could not|the ai request could not complete|generation did not finish)/i.test(text);
+}
+
+function isSuccessfulGeneratorResult(toolKey, result) {
+  if (!result || isGenerationFailureText(result)) return false;
+  if (toolKey === "logo") return true;
+  if (toolKey === "hashtags") {
+    return cleanGeneratedText(result).split(/\s+/).filter((item) => item.startsWith("#")).length >= 5;
+  }
+  if (["captions", "hooks", "bios", "email", "strategy"].includes(toolKey)) {
+    return parseTenOptions(result).filter(Boolean).length >= 10;
+  }
+  return cleanGeneratedText(result).length > 40;
 }
 
 function parseTenOptions(result) {

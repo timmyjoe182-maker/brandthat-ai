@@ -1,4 +1,5 @@
 const OpenAI = require("openai");
+const crypto = require("node:crypto");
 const { requireVerifiedUser } = require("./lib/auth.js");
 
 const client = new OpenAI({
@@ -16,6 +17,40 @@ function json(statusCode, payload) {
   };
 }
 
+function getRequestId() {
+  return crypto?.randomUUID?.() || `generate_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function logGenerateFailure(fields = {}) {
+  console.error("BrandThat generation failed", {
+    functionName: "generate",
+    requestId: fields.requestId,
+    status: fields.status,
+    category: fields.category,
+    code: fields.code,
+    openaiRequestId: fields.openaiRequestId,
+    authentication: fields.authentication,
+    membership: fields.membership,
+    timeout: Boolean(fields.timeout),
+    message: fields.message,
+  });
+}
+
+function getPublicError(statusCode, code, message, requestId) {
+  return json(statusCode, {
+    ok: false,
+    code,
+    message,
+    error: message,
+    requestId,
+  });
+}
+
+function isTransientOpenAiError(error) {
+  const status = Number(error?.status || error?.statusCode || 0);
+  return status === 408 || status === 409 || status === 429 || status >= 500 || error?.name === "AbortError";
+}
+
 function getClientIp(event) {
   return event.headers?.["x-nf-client-connection-ip"] || event.headers?.["client-ip"] || event.headers?.["x-forwarded-for"]?.split(",")[0] || "unknown";
 }
@@ -30,29 +65,47 @@ function checkRateLimit(event, { limit = 35, windowMs = 60_000 } = {}) {
 }
 
 exports.handler = async (event) => {
+  const requestId = getRequestId();
   const auth = await requireVerifiedUser(event).catch(() => ({
     error: {
       statusCode: 401,
       message: "Please log in again to continue.",
+      code: "AUTH_REQUIRED",
     },
   }));
   if (auth.error) {
-    return json(auth.error.statusCode, { error: auth.error.message });
+    return getPublicError(auth.error.statusCode, auth.error.code || "AUTH_REQUIRED", auth.error.message, requestId);
   }
 
   try {
     if (!checkRateLimit(event)) {
-      return json(429, { error: "Too many requests. Please wait a minute and try again." });
+      return getPublicError(429, "RATE_LIMITED", "Too many requests. Please wait a minute and try again.", requestId);
     }
 
-    const { prompt } = JSON.parse(event.body || "{}");
+    let body = {};
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch {
+      return getPublicError(400, "INVALID_JSON", "The request could not be read. Please try again.", requestId);
+    }
+
+    const { prompt } = body;
 
     if (!process.env.OPENAI_API_KEY) {
-      return json(500, { error: "OpenAI API key is missing." });
+      logGenerateFailure({
+        requestId,
+        status: 500,
+        category: "configuration",
+        code: "OPENAI_API_KEY_MISSING",
+        authentication: "present",
+        membership: "client_checked",
+        message: "OPENAI_API_KEY is missing from the function runtime.",
+      });
+      return getPublicError(500, "OPENAI_API_KEY_MISSING", "Generation is not configured right now. Please contact BrandThat support.", requestId);
     }
 
     if (!String(prompt || "").trim()) {
-      return json(400, { error: "Please enter what you want Brandthat AI to create." });
+      return getPublicError(400, "INVALID_INPUT", "Please enter what you want BrandThat to create.", requestId);
     }
 
     const systemPrompt = `
@@ -125,26 +178,61 @@ Rules:
 - Avoid saying “as an AI.”
 `;
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.8,
-    });
+    const createCompletion = () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 18000);
+      return client.chat.completions.create({
+        model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.8,
+      }, { signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+    };
+
+    let completion;
+    try {
+      completion = await createCompletion();
+    } catch (error) {
+      if (!isTransientOpenAiError(error)) throw error;
+      completion = await createCompletion();
+    }
 
     const text = completion.choices?.[0]?.message?.content || "";
 
     if (!text.trim()) {
-      return json(502, { error: "BrandThat did not receive a usable response. Please try again." });
+      logGenerateFailure({
+        requestId,
+        status: 502,
+        category: "provider",
+        code: "OPENAI_EMPTY_RESPONSE",
+        openaiRequestId: completion?._request_id || completion?.response?.headers?.get?.("x-request-id"),
+        authentication: "present",
+        membership: "client_checked",
+        message: "OpenAI returned an empty response.",
+      });
+      return getPublicError(502, "OPENAI_EMPTY_RESPONSE", "We couldn't generate that right now. Please try again.", requestId);
     }
 
-    return json(200, { text });
+    return json(200, { ok: true, text, requestId });
   } catch (error) {
-    return json(500, {
-      error: error.message || "Something went wrong.",
-      text: error.message || "Something went wrong.",
+    const status = Number(error?.status || error?.statusCode || 500);
+    const safeStatus = status >= 400 && status < 600 ? status : 500;
+    const code = error?.code || error?.type || (error?.name === "AbortError" ? "OPENAI_TIMEOUT" : "OPENAI_REQUEST_FAILED");
+    const openaiRequestId = error?.request_id || error?.headers?.["x-request-id"];
+    logGenerateFailure({
+      requestId,
+      status: safeStatus,
+      category: safeStatus === 401 || safeStatus === 403 ? "authorization" : "provider",
+      code,
+      openaiRequestId,
+      authentication: "present",
+      membership: "client_checked",
+      timeout: error?.name === "AbortError",
+      message: error?.message,
     });
+    return getPublicError(safeStatus >= 500 ? 502 : safeStatus, "OPENAI_REQUEST_FAILED", "We couldn't generate that right now. Please try again.", requestId);
   }
 };

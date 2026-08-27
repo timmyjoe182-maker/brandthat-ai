@@ -118,13 +118,23 @@ export function buildPreviewFromDraft(draft = {}) {
   const voiceTraits = mergeStyle(draft.style || draft.desiredFeeling, profile);
   const stylePhrase = clean(draft.style || draft.desiredFeeling, voiceTraits.join(", ").toLowerCase());
   const promise = description.replace(/^a\s+/i, "").replace(/\.$/, "");
+  const thesisByProfile = {
+    houseplants: `${name} makes apartment greenery easy by pairing resilient houseplants with local delivery and straightforward care guidance.`,
+    "pet-service": `${name} brings gentle grooming to the customer's doorstep, making pet care easier for busy families and senior pet owners.`,
+    coffee: `${name} turns outdoor gatherings into a better coffee ritual with a mobile setup built for trails, events, and fresh-air energy.`,
+    interiors: `${name} helps first-time homeowners make rooms feel finished through affordable local interior styling and clear design decisions.`,
+    software: `${name} gives creators software for a calmer way to manage sponsorships, invoices, deliverables, and campaign follow-through.`,
+    apparel: `${name} turns useful everyday goods into a brand system people can recognize, wear, and carry.`,
+    service: `${name} makes the service feel easier to choose by clarifying the outcome, process, and customer proof from the first touchpoint.`,
+  };
+  const visualDirection = profile.visualDirection.replace(/\.$/, "");
 
   return {
-    thesis: `${name} turns ${promise} into a clear ${category} promise that customers can understand quickly and remember after the first impression.`,
+    thesis: thesisByProfile[profile.key] || `${name} turns ${promise} into a focused ${category} promise with a clear audience, practical value, and a reason to choose it.`,
     audience,
     traits: voiceTraits,
-    positioning: `${profile.positioning} Lead with the customer situation and the outcome they want, not only the product or service category.`,
-    visualDirection: `${profile.visualDirection} Keep the personality ${stylePhrase.toLowerCase()} while making the category easy to recognize at a glance.`,
+    positioning: profile.positioning,
+    visualDirection: `${visualDirection}. Let the ${stylePhrase.toLowerCase()} personality show through the palette, typography, and real-use imagery.`,
     colors: profile.colors,
   };
 }

@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "node scripts/check-undefined-helpers.mjs",
-    "test": "node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs"
+    "test": "node scripts/test-preview-generator.mjs && node scripts/test-brand-plan-quality.mjs && node scripts/test-membership-state.mjs && node scripts/test-checkout-handler.mjs && node scripts/test-generator-result-contract.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

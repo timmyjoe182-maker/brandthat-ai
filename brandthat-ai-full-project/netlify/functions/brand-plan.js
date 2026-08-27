@@ -9,6 +9,8 @@ function getClient() {
 }
 
 const INDUSTRY_KEYWORDS = [
+  ["houseplants / local plant delivery", ["houseplant", "houseplants", "plant care", "low-maintenance plant", "low maintenance plant", "apartment greenery", "plant subscription", "botanical", "greenery"]],
+  ["pet care / mobile grooming", ["dog grooming", "mobile grooming", "pet grooming", "senior pet", "senior pets", "pet care"]],
   ["restaurant", ["restaurant", "pizza", "food", "bar", "cafe", "bakery", "coffee", "burger", "taco", "diner", "hospitality"]],
   ["chocolate / confectionery", ["chocolate", "candy", "candies", "sweet", "sweets", "confection", "factory"]],
   ["ranch / western lifestyle", ["ranch", "horse", "alpaca", "cattle", "farm", "western", "cowboy", "barn"]],
@@ -87,7 +89,15 @@ function normalizeBrandName(value = "") {
 
 function inferIndustry(text = "") {
   const lower = String(text || "").toLowerCase();
-  const match = INDUSTRY_KEYWORDS.find(([, keywords]) => keywords.some((keyword) => lower.includes(keyword)));
+  const hasKeyword = (keywordValue) => {
+    const keyword = String(keywordValue || "").toLowerCase().trim();
+    if (!keyword) return false;
+    if (keyword.length <= 3 || /^[a-z0-9+#.-]+$/.test(keyword)) {
+      return new RegExp(`(^|[^a-z0-9])${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i").test(lower);
+    }
+    return lower.includes(keyword);
+  };
+  const match = INDUSTRY_KEYWORDS.find(([, keywords]) => keywords.some(hasKeyword));
   return match?.[0] || "new business / brand";
 }
 
@@ -344,6 +354,26 @@ function getIndustryVisualDefaults(industry) {
       colors: "Use charcoal, white, silver, and one controlled technical accent such as electric blue or cyan because it feels current while avoiding cheap neon gradients.",
       symbols: "Use a system mark, abstract node, monogram, signal path, or interface tile that implies intelligence without literal robot/circuit clichés.",
       voice: "Clear, fast, precise, and outcome-led. Avoid AI hype and explain what gets easier for the customer.",
+    },
+    "houseplants / local plant delivery": {
+      audience: "Apartment renters, busy beginners, and people with limited natural light who want greener homes without complicated maintenance or plant-store guesswork.",
+      positioning: "Position the brand as a beginner-friendly local plant subscription that delivers both resilient houseplants and the confidence to keep them thriving.",
+      offer: "Lead with apartment-ready plant delivery plus simple care cards, so the customer buys a calmer home and a manageable routine rather than just another plant.",
+      moodboard: "Use bright apartments, resilient greenery, delivery handoff moments, simple care cards, natural textures, window-light shelves, and calm entryway scenes because the brand needs to make plant care feel achievable.",
+      typography: "Use a warm botanical serif for the wordmark with a clean humanist sans for care instructions because the identity needs softness, trust, and beginner-friendly clarity.",
+      colors: "Use leaf green, stone gray, warm ivory, and soft terracotta because the palette connects apartment greenery, local delivery, and calm home rituals without looking like technology.",
+      symbols: "Use a restrained stone-and-leaf mark, sprout monogram, window-sill shape, or care-card seal instead of generic plant clipart.",
+      voice: "Friendly, encouraging, calm, and practical. Explain care in plain language and make first-time plant owners feel capable.",
+    },
+    "pet care / mobile grooming": {
+      audience: "Busy families, senior pet owners, and local households who want gentle grooming without stressful travel, long waits, or uncertainty about how their pet will be handled.",
+      positioning: "Position the brand as mobile pet care built around convenience and trust: a cleaner grooming experience that comes to the customer and keeps pets comfortable.",
+      offer: "Lead with at-home grooming appointments, gentle handling, clean equipment, and clear appointment communication.",
+      moodboard: "Use clean vans, soft towels, calm pets, friendly service handoffs, hygiene details, and neighborhood cues because trust comes from visible care and convenience.",
+      typography: "Use a rounded, readable sans with a warm supporting typeface because pet-service brands need friendliness without looking childish.",
+      colors: "Use warm white, soft charcoal, calming teal, and a gentle honey accent because the palette signals cleanliness, comfort, and approachability.",
+      symbols: "Use a simple paw/route mark, gentle grooming comb abstraction, or mobile-service monogram only if it stays clean at small sizes.",
+      voice: "Gentle, reliable, reassuring, and specific. Talk about comfort, cleanliness, timing, and owner peace of mind.",
     },
     "law firm": {
       audience: "Clients facing high-stakes decisions who need calm authority, plain-language confidence, and proof that the firm can handle sensitive details.",
