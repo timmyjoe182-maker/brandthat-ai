@@ -10,7 +10,7 @@ function assert(condition, message) {
 }
 
 assert(
-  app.includes(`completeLabel: "Primary logo set"`) && app.includes(`complete: Boolean(brand?.logoImage)`),
+  app.includes(`completeLabel: "Primary logo set"`) && app.includes(`complete: hasLogo`),
   "logo completion must depend on a persisted primary workspace logo, not only a saved concept"
 );
 

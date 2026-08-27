@@ -2428,6 +2428,7 @@ function getBrandCompletionChecklist(brand) {
   const plan = brand ? getWorkspacePlan(brand) : {};
   const hasSaved = (key) => Array.isArray(brand?.saved?.[key]) && brand.saved[key].length > 0;
   const hasContentAsset = ["captions", "hooks", "bios", "hashtags", "email", "campaign", "strategy", "growth"].some(hasSaved);
+  const hasLogo = hasPrimaryLogo(brand);
 
   return [
     { key: "basics", completeLabel: "Brand basics complete", missingLabel: "Brand basics missing", complete: Boolean(brand?.name), action: "Review basics", section: "settings" },
@@ -2437,9 +2438,55 @@ function getBrandCompletionChecklist(brand) {
     { key: "voice", completeLabel: "Voice complete", missingLabel: "Voice missing", complete: Boolean(plan.brandVoice || brand?.tone), action: "Open Strategy", section: "strategy" },
     { key: "colors", completeLabel: "Colors complete", missingLabel: "Colors missing", complete: Boolean(plan.colorSystem || brand?.style), action: "Open Identity", section: "identity" },
     { key: "typography", completeLabel: "Typography complete", missingLabel: "Typography missing", complete: Boolean(plan.typographySystem), action: "Open Identity", section: "identity" },
-    { key: "logo", completeLabel: "Primary logo set", missingLabel: "Logo missing", complete: Boolean(brand?.logoImage), action: "Generate Logo Concepts", tool: "logo" },
+    { key: "logo", completeLabel: "Primary logo set", missingLabel: "Logo missing", complete: hasLogo, action: "Generate Logo Concepts", tool: "logo" },
     { key: "content", completeLabel: "First content asset saved", missingLabel: "First content asset missing", complete: hasContentAsset, action: "Create Content", section: "tools" },
   ];
+}
+
+function getPrimaryLogoImage(brand) {
+  return cleanGeneratedText(
+    brand?.logoImage ||
+    brand?.logoImageUrl ||
+    brand?.logo_image_url ||
+    brand?.primaryLogoImage ||
+    brand?.brandLogo ||
+    ""
+  );
+}
+
+function getPrimaryLogoAssetId(brand) {
+  return cleanGeneratedText(
+    brand?.primaryLogoAssetId ||
+    brand?.primary_logo_asset_id ||
+    brand?.logoMetadata?.assetId ||
+    brand?.logo_metadata?.assetId ||
+    ""
+  );
+}
+
+function hasPrimaryLogo(brand) {
+  return Boolean(getPrimaryLogoImage(brand) && getPrimaryLogoAssetId(brand));
+}
+
+function mergePrimaryLogoIntoWorkspace(brand, primaryLogoResult = {}, fallbackMetadata = {}) {
+  const row = primaryLogoResult.workspace || primaryLogoResult;
+  const logoImageUrl = primaryLogoResult.logoImageUrl || row.logo_image_url || row.logoImageUrl || brand?.logoImage || "";
+  const primaryLogoAssetId = primaryLogoResult.primaryLogoAssetId || row.primary_logo_asset_id || row.primaryLogoAssetId || brand?.primaryLogoAssetId || "";
+  const primaryLogoUpdatedAt = primaryLogoResult.primaryLogoUpdatedAt || row.primary_logo_updated_at || row.primaryLogoUpdatedAt || new Date().toISOString();
+  const logoMetadata = primaryLogoResult.logoMetadata || row.logo_metadata || row.logoMetadata || fallbackMetadata || null;
+
+  return {
+    ...brand,
+    logoImage: logoImageUrl,
+    logoImageUrl,
+    logo_image_url: logoImageUrl,
+    primaryLogoAssetId,
+    primary_logo_asset_id: primaryLogoAssetId,
+    primaryLogoUpdatedAt,
+    primary_logo_updated_at: primaryLogoUpdatedAt,
+    logoMetadata,
+    logo_metadata: logoMetadata,
+  };
 }
 
 function getBrandCompletion(brand) {
@@ -2470,7 +2517,7 @@ function getWorkspaceGoalLine(brand) {
 
 function getWorkspaceNextStep(brand) {
   if (!brand) return "Create a workspace to keep your logos, content, and growth assets together.";
-  if (!brand.logoImage) return "Generate or set a logo so this workspace has a visual anchor.";
+  if (!hasPrimaryLogo(brand)) return "Generate or set a logo so this workspace has a visual anchor.";
   if (!String(brand.description || "").trim()) return "Add a one-sentence brand description so every tool understands the brand.";
   if (!String(brand.targetFollowers || brand.launchGoal || "").trim()) return "Add one clear growth goal so Brandthat can build better roadmaps.";
   if (countSavedAssets(brand) === 0) return "Save your first logo, caption, hook, hashtag set, or roadmap to start building the kit.";
@@ -2479,7 +2526,7 @@ function getWorkspaceNextStep(brand) {
 
 function getWorkspaceSnapshot(brand) {
   return [
-    ["Logo", brand?.logoImage ? "Set" : "Needed"],
+    ["Logo", hasPrimaryLogo(brand) ? "Set" : "Needed"],
     ["Saved", `${countSavedAssets(brand)} assets`],
     ["Goal", getWorkspaceGoalLine(brand)],
   ];
@@ -2524,7 +2571,7 @@ function getBrandNextActions(brand) {
   }
 
   const base = [];
-  if (!brand?.logoImage) base.push("Generate or set a logo concept as the brand mark.");
+  if (!hasPrimaryLogo(brand)) base.push("Generate or set a logo concept as the brand mark.");
   if (!countSavedAssets(brand)) base.push("Save the first strategy, roadmap, or logo asset to the workspace.");
   if (!String(brand?.channels || "").trim()) base.push("Choose primary launch channels for the first 30 days.");
   base.push("Review the roadmap tomorrow and create the next brand asset.");
@@ -2891,9 +2938,14 @@ export default function App() {
     targetFollowers: row.target_followers || "",
     weeklyTime: row.weekly_time || "",
     logoImage: row.logo_image_url || "",
+    logoImageUrl: row.logo_image_url || "",
+    logo_image_url: row.logo_image_url || "",
     primaryLogoAssetId: row.primary_logo_asset_id || "",
+    primary_logo_asset_id: row.primary_logo_asset_id || "",
     primaryLogoUpdatedAt: row.primary_logo_updated_at || "",
+    primary_logo_updated_at: row.primary_logo_updated_at || "",
     logoMetadata: row.logo_metadata || null,
+    logo_metadata: row.logo_metadata || null,
     tone: row.tone || "Modern",
     style: row.style || "",
     launchGoal: row.launch_goal || "",
@@ -4091,7 +4143,7 @@ export default function App() {
         revealServerError: true,
       });
 
-      if (!primaryLogoResult?.ok || !primaryLogoResult?.primaryLogoAssetId || !primaryLogoResult?.logoImageUrl) {
+      if (!(primaryLogoResult?.ok || primaryLogoResult?.success) || !getPrimaryLogoAssetId(primaryLogoResult.workspace || primaryLogoResult) || !getPrimaryLogoImage(primaryLogoResult.workspace || primaryLogoResult)) {
         throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
       }
     } catch (error) {
@@ -4113,13 +4165,7 @@ export default function App() {
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
         brand.id === activeBrand.id
-          ? {
-              ...brand,
-              logoImage: primaryLogoResult.logoImageUrl,
-              primaryLogoAssetId: primaryLogoResult.primaryLogoAssetId,
-              primaryLogoUpdatedAt: primaryLogoResult.primaryLogoUpdatedAt || new Date().toISOString(),
-              logoMetadata: primaryLogoResult.logoMetadata || getLogoProjectFromEntry(savedEntry),
-            }
+          ? mergePrimaryLogoIntoWorkspace(brand, primaryLogoResult, getLogoProjectFromEntry(savedEntry))
           : brand
       )
     );
@@ -4157,7 +4203,7 @@ export default function App() {
         revealServerError: true,
       });
 
-      if (!primaryLogoResult?.ok || !primaryLogoResult?.primaryLogoAssetId || !primaryLogoResult?.logoImageUrl) {
+      if (!(primaryLogoResult?.ok || primaryLogoResult?.success) || !getPrimaryLogoAssetId(primaryLogoResult.workspace || primaryLogoResult) || !getPrimaryLogoImage(primaryLogoResult.workspace || primaryLogoResult)) {
         throw new Error(primaryLogoResult?.message || "Primary logo was not updated.");
       }
     } catch (error) {
@@ -4179,13 +4225,7 @@ export default function App() {
     setBrandWorkspaces((prev) =>
       prev.map((brand) =>
         brand.id === activeBrand.id
-          ? {
-              ...brand,
-              logoImage: primaryLogoResult.logoImageUrl,
-              primaryLogoAssetId: primaryLogoResult.primaryLogoAssetId,
-              primaryLogoUpdatedAt: primaryLogoResult.primaryLogoUpdatedAt || new Date().toISOString(),
-              logoMetadata: primaryLogoResult.logoMetadata || getLogoProjectFromEntry(entry),
-            }
+          ? mergePrimaryLogoIntoWorkspace(brand, primaryLogoResult, getLogoProjectFromEntry(entry))
           : brand
       )
     );
@@ -6164,7 +6204,7 @@ ${promptValue}`;
           {activeBrand && (
             <div className="activeBrandBar">
               <strong>Active Brand:</strong> {activeBrand.name}
-              {activeBrand.logoImage && <img className="activeBrandLogo" src={activeBrand.logoImage} alt={`${activeBrand.name} logo`} />}
+              {getPrimaryLogoImage(activeBrand) && <img className="activeBrandLogo" src={getPrimaryLogoImage(activeBrand)} alt={`${activeBrand.name} logo`} />}
               <span>{getBrandReadinessScore(activeBrand)}% ready</span>
               <button onClick={() => openProtectedPage("workspace", "workspace")}>View Workspace</button>
             </div>
@@ -7015,6 +7055,7 @@ function CompletionPanel({ brand, navigateWorkspaceSection, selectTool }) {
 function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectTool }) {
   if (!brand) return <WorkspaceEmptyState navigateWorkspaceSection={navigateWorkspaceSection} />;
   const plan = getWorkspacePlan(brand);
+  const primaryLogoImage = getPrimaryLogoImage(brand);
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 6);
   const palette = getIdentityPalette(brand, plan);
   const typography = getIdentityTypography(brand, plan);
@@ -7027,7 +7068,7 @@ function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectToo
       <h1 className="pageTitle">{brand.name} identity direction.</h1>
       <p className="pageLead">Your logo, palette, typography, moodboard, and saved concepts all come from the active Brand Workspace context.</p>
       <div className="visualIdentityBoard">
-        <div className="identityBoardHero"><div className="identityPrimaryMark">{brand.logoImage ? <img src={brand.logoImage} alt={(brand.name || "Brand") + " primary logo"} /> : <span>{getInitialsFromBrandName(brand.name)}</span>}</div><div><span>Logo Direction</span><h2>{brand.logoImage ? "Primary logo selected" : "Ready for logo concepts"}</h2><p>{brand.logoDirection || plan.logoDirection || logoDefaults.symbolDirection}</p><button className="btn dark" onClick={() => selectTool("logo")}>Generate Logo Concepts</button></div></div>
+        <div className="identityBoardHero"><div className="identityPrimaryMark">{primaryLogoImage ? <img src={primaryLogoImage} alt={(brand.name || "Brand") + " primary logo"} /> : <span>{getInitialsFromBrandName(brand.name)}</span>}</div><div><span>Logo Direction</span><h2>{primaryLogoImage ? "Primary logo selected" : "Ready for logo concepts"}</h2><p>{brand.logoDirection || plan.logoDirection || logoDefaults.symbolDirection}</p><button className="btn dark" onClick={() => selectTool("logo")}>Generate Logo Concepts</button></div></div>
         <div className="identityPalettePanel"><div className="appCardHeader"><div><span>Color Palette</span><h2>Editable starting system.</h2></div></div><div className="identityPaletteGrid">{palette.map((color) => <div className="identitySwatchCard" key={color.name}><div className="identitySwatch" style={{ background: color.hex, color: getContrastTextColor(color.hex) }}><strong>{color.role}</strong></div><b>{color.name}</b><span>{color.hex}</span><small>{getRgbLabel(color.hex)}</small><button onClick={() => navigator.clipboard?.writeText(color.hex)}>Copy HEX</button></div>)}</div><p className="identityRationale">{plan.colorSystem || "Palette generated from the brand category, personality, and visual direction. Check contrast before final production use."}</p></div>
         <div className="identityTypePanel"><span>Typography</span><div className="typeSpecimen headlineSpecimen">{brand.name}</div><p className="bodySpecimen">{brand.description || plan.brandThesis}</p><div className="typePairingGrid"><div><strong>Headline / Wordmark</strong><span>{typography.headline}</span></div><div><strong>Body / UI</strong><span>{typography.supporting}</span></div><div><strong>Source</strong><span>{typography.source}</span></div></div><p>{plan.typographySystem || typography.note}</p></div>
         <div className="identityMoodboardPanel"><span>Moodboard Direction</span><div className="moodboardTileGrid">{moodboard.map(([title, copy]) => <article key={title}><strong>{title}</strong><p>{copy}</p></article>)}</div><p>{plan.moodboardDirection || brand.style || "Use these as honest direction tiles until custom photography or generated references are supplied."}</p></div>
@@ -7176,6 +7217,7 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
   const revenuePlan = getRevenuePlan(plan, brand);
   const directorNotes = getCreativeDirectorNotes(plan, brand);
   const improvementAudit = getBrandImprovementAudit(plan, brand);
+  const primaryLogoImage = getPrimaryLogoImage(brand);
   const identityCards = [
     ["Core Opportunity", plan.coreOpportunity || "Generate a core strategic opportunity."],
     ["Brand Thesis", plan.brandThesis || "Generate a brand thesis."],
@@ -7195,8 +7237,8 @@ function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToC
     <section className="brandDashboard">
       <div className="brandDashboardHero">
         <div className="brandDashboardMark">
-          {brand.logoImage ? (
-            <img src={brand.logoImage} alt={`${brand.name} brand mark`} />
+          {primaryLogoImage ? (
+            <img src={primaryLogoImage} alt={`${brand.name} brand mark`} />
           ) : (
             <span>{getInitialsFromBrandName(brand.name)}</span>
           )}
@@ -7491,7 +7533,7 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, workspaceLoading = fal
           {brandWorkspaces.map((brand) => (
             <div className={activeBrand?.id === brand.id ? "brandRow activeBrandRow" : "brandRow"} key={brand.id}>
               <button onClick={() => selectBrand(brand.id)}>
-                {brand.logoImage && <img className="brandRowLogo" src={brand.logoImage} alt={`${brand.name} logo`} />}
+                {getPrimaryLogoImage(brand) && <img className="brandRowLogo" src={getPrimaryLogoImage(brand)} alt={`${brand.name} logo`} />}
                 <strong>{brand.name}</strong>
                 <span>{getBrandReadinessScore(brand)}% ready • {brand.tone} • {getWorkspaceGoalLine(brand)}</span>
               </button>

@@ -159,12 +159,14 @@ export const handler = async (event) => {
 
     return json(200, {
       ok: true,
+      success: true,
       requestId,
       workspaceId: updatedWorkspace.id,
       logoImageUrl: updatedWorkspace.logo_image_url,
       primaryLogoAssetId: updatedWorkspace.primary_logo_asset_id,
       primaryLogoUpdatedAt: updatedWorkspace.primary_logo_updated_at,
       logoMetadata: updatedWorkspace.logo_metadata || {},
+      workspace: updatedWorkspace,
     });
   } catch (error) {
     const code = safeErrorCode(error);

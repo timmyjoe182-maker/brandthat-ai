@@ -26,9 +26,17 @@ assert(primaryLogoFunction.includes('.from("brand_workspaces")'), "Primary-logo 
 assert(primaryLogoFunction.includes('.from("saved_generations")'), "Primary-logo function must verify the saved logo asset.");
 assert(primaryLogoFunction.includes("PRIMARY_LOGO_SCHEMA_MISSING"), "Primary-logo function must expose a safe schema-missing code.");
 assert(primaryLogoFunction.includes("primary_logo_asset_id"), "Primary-logo function must persist the primary asset ID.");
+assert(primaryLogoFunction.includes("success: true"), "Primary-logo function must return an explicit success value.");
+assert(primaryLogoFunction.includes("workspace: updatedWorkspace"), "Primary-logo function must return the persisted workspace row.");
 
 assert(app.includes('/.netlify/functions/set-primary-logo'), "App must use the centralized primary-logo function.");
 assert(!/\.from\("brand_workspaces"\)\s*\.\s*update\(\{\s*logo_image_url/.test(app), "App must not directly write logo_image_url from the browser.");
+assert(app.includes("function hasPrimaryLogo"), "App must centralize primary-logo completion checks.");
+assert(app.includes("function mergePrimaryLogoIntoWorkspace"), "App must merge the persisted primary-logo response into workspace state.");
+assert(app.includes("primaryLogoResult.workspace"), "App must prefer the returned persisted workspace row after setting a primary logo.");
+assert(app.includes("primary_logo_asset_id"), "App must hydrate persisted primary-logo asset IDs.");
+assert(app.includes("logo_image_url"), "App must hydrate persisted primary-logo URLs.");
+assert(!app.includes('complete: Boolean(brand?.logoImage)'), "Completion must not depend only on the old logoImage field.");
 assert(app.includes("Save Logo Concept"), "Logo result must expose Save Logo Concept.");
 assert(app.includes("Set as Primary Logo"), "Logo result must expose Set as Primary Logo.");
 assert(!app.includes("Save Brand Project</button>"), "Logo result must not render the old Save Brand Project button.");
