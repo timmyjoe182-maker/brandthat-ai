@@ -12,9 +12,9 @@ export function getMembershipCtaState({
   if (isMember) {
     return {
       label: "Open Workspace",
-      disabled: isBusy,
-      busy: isBusy,
-      statusMessage: "",
+      disabled: false,
+      busy: false,
+      statusMessage: "Your complete Brand Workspace is unlocked.",
       nextAction: "workspace",
     };
   }
