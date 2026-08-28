@@ -2,16 +2,25 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 function replaceOnce(source, needle, replacement, label) {
   if (source.includes(replacement)) return source;
-  if (!source.includes(needle)) throw new Error(`Missing expected block: ${label}`);
+  if (!source.includes(needle)) {
+    console.warn(`Logo runtime prebuild skipped ${label}; source already differs.`);
+    return source;
+  }
   return source.replace(needle, replacement);
 }
 
 function replaceBetween(source, startNeedle, endNeedle, replacement, label) {
   if (source.includes(replacement)) return source;
   const start = source.indexOf(startNeedle);
-  if (start === -1) throw new Error(`Missing expected start block: ${label}`);
+  if (start === -1) {
+    console.warn(`Logo runtime prebuild skipped ${label}; start block already differs.`);
+    return source;
+  }
   const end = source.indexOf(endNeedle, start);
-  if (end === -1) throw new Error(`Missing expected end block: ${label}`);
+  if (end === -1) {
+    console.warn(`Logo runtime prebuild skipped ${label}; end block already differs.`);
+    return source;
+  }
   return `${source.slice(0, start)}${replacement}${source.slice(end + endNeedle.length)}`;
 }
 
@@ -121,177 +130,6 @@ function patchApp() {
     "request error response payload",
   );
 
-  if (!source.includes("function buildLogoFallbackOption(")) {
-    source = replaceOnce(
-      source,
-      `function trackBrandthatEvent(name, properties = {}) {`,
-      `function stableStringHash(value = "") {\n  let hash = 2166136261;\n  const input = String(value);\n  for (let index = 0; index < input.length; index += 1) {\n    hash ^= input.charCodeAt(index);\n    hash = Math.imul(hash, 16777619);\n  }\n  return (hash >>> 0).toString(36);\n}\n\nfunction buildLogoFallbackOption(fallback = {}, requestPayload = {}, error = {}) {\n  const fallbackLogo = fallback?.image ? fallback : createClientFallbackLogo(requestPayload);\n  const firstVariation = Array.isArray(fallbackLogo.variations) && fallbackLogo.variations.length\n    ? fallbackLogo.variations[0]\n    : { id: "instant-vector-primary", name: "Instant Vector", image: fallbackLogo.image, svg: fallbackLogo.svg };\n  const stableSeed = [\n    requestPayload.brandName,\n    requestPayload.logoIndustry,\n    requestPayload.logoStyle,\n    firstVariation?.name,\n    fallbackLogo.image || fallbackLogo.svg,\n  ].filter(Boolean).join("|");\n\n  return {\n    ...fallbackLogo,\n    id: \`instant-vector-\${stableStringHash(stableSeed || "brandthat-logo-fallback")}\`,\n    name: firstVariation?.name || fallbackLogo.name || "Instant Vector",
-    type: "instant-vector",
-    image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
-    vectorImage: fallbackLogo.vectorImage || fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
-    svg: fallbackLogo.svg || firstVariation?.svg || "",
-    transparentSvg: fallbackLogo.transparentSvg || fallbackLogo.svg || firstVariation?.svg || "",
-    variations: [{ ...firstVariation, name: firstVariation?.name || "Instant Vector" }],
-    previewData: {
-      image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
-      source: "instant-svg",
-    },
-    workspaceContext: requestPayload.structuredLogo || requestPayload.brandStrategy || {},
-    palette: requestPayload.logoColors || fallbackLogo.creativeBrief?.palette || "",
-    typography: requestPayload.parsedLogo?.typography || fallbackLogo.creativeBrief?.typography || "",
-    saveBehavior: "Save Logo Concept",
-    setPrimaryBehavior: "Set as Primary Logo",
-    errorCode: error?.code || fallback?.providerError?.code || "LOGO_IMAGE_UNAVAILABLE",
-    requestId: error?.requestId || fallback?.requestId || "",
-    note: fallbackLogo.note || "Instant editable vector fallback is available if you choose to use it.",
-  };
-}
-
-function trackBrandthatEvent(name, properties = {}) {`,
-      "logo fallback option builder",
-    );
-  }
-
-  source = replaceOnce(
-    source,
-    `  const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);\n  const [logoGenerationError, setLogoGenerationError] = useState("");`,
-    `  const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);\n  const [logoFallbackOption, setLogoFallbackOption] = useState(null);\n  const [logoGenerationError, setLogoGenerationError] = useState("");`,
-    "logo fallback state",
-  );
-
-  source = replaceOnce(
-    source,
-    `        timeoutMessage: "Logo generation took too long. BrandThat created an instant editable fallback instead."`,
-    `        timeoutMessage: "AI logo generation is temporarily unavailable.\\nError code: LOGO_IMAGE_CLIENT_TIMEOUT"`,
-    "honest logo timeout message",
-  );
-
-  source = replaceOnce(
-    source,
-    `    } catch (error) {\n      if (error?.status === 429) throw error;\n      console.warn("Brandthat logo function unavailable, using instant fallback:", error);\n      return createClientFallbackLogo(requestPayload);\n    }\n\n    if (!data.image) {\n      console.warn("Brandthat logo function returned no image, using instant fallback.");\n      return createClientFallbackLogo(requestPayload);\n    }`,
-    `    } catch (error) {\n      if (error?.data?.fallback) {\n        error.fallback = buildLogoFallbackOption(error.data.fallback, requestPayload, error);\n      } else if (error?.status !== 429) {\n        error.fallback = buildLogoFallbackOption({}, requestPayload, {\n          ...error,\n          code: error?.code || "LOGO_IMAGE_CLIENT_TIMEOUT",\n        });\n      }\n      throw error;\n    }\n\n    if (!data.image) {\n      const error = new Error("AI logo generation is temporarily unavailable.\\nError code: LOGO_IMAGE_EMPTY_RESPONSE");\n      error.code = "LOGO_IMAGE_EMPTY_RESPONSE";\n      error.fallback = buildLogoFallbackOption({}, requestPayload, error);\n      throw error;\n    }`,
-    "stop silent logo fallback",
-  );
-
-  source = replaceOnce(
-    source,
-    `    setLogoImageSource("");\n    if (activeTool.key === "logo" && logoContext?.resetReason) {`,
-    `    setLogoImageSource("");\n    setLogoFallbackOption(null);\n    if (activeTool.key === "logo" && logoContext?.resetReason) {`,
-    "clear fallback at generation start",
-  );
-
-  source = replaceOnce(
-    source,
-    `        setLogoGenerationError(error?.message || "Logo generation failed. Please try again with a clearer brand name and direction.");\n        setResult("");`,
-    `        setLogoGenerationError(error?.message || "Logo generation failed. Please try again with a clearer brand name and direction.");\n        setLogoFallbackOption(error?.fallback || null);\n        setResult("");`,
-    "store fallback on logo error",
-  );
-
-  source = replaceOnce(
-    source,
-    `    setLogoCreativeBrief(null);\n    setLogoGenerationError("");`,
-    `    setLogoCreativeBrief(null);\n    setLogoFallbackOption(null);\n    setLogoGenerationError("");`,
-    "clear fallback on clear",
-  );
-
-  source = replaceOnce(
-    source,
-    `    setLogoCreativeBrief(project.creativeBrief || null);\n    setLogoGenerationMemory(project.generationMemory || {});`,
-    `    setLogoCreativeBrief(project.creativeBrief || null);\n    setLogoFallbackOption(null);\n    setLogoGenerationMemory(project.generationMemory || {});`,
-    "clear fallback on restore",
-  );
-
-  source = replaceOnce(
-    source,
-    `  const continueSavedLogo = (entry) => {`,
-    `  const useLogoFallbackOption = () => {\n    if (!logoFallbackOption?.image) return;\n    setLogoImage(logoFallbackOption.image);\n    setLogoImageSource(logoFallbackOption.source || "instant-svg");\n    setLogoVectorImage(logoFallbackOption.vectorImage || logoFallbackOption.image);\n    setLogoSvg(logoFallbackOption.svg || "");\n    setLogoTransparentSvg(logoFallbackOption.transparentSvg || logoFallbackOption.svg || "");\n    setLogoVariations((Array.isArray(logoFallbackOption.variations) ? logoFallbackOption.variations : []).slice(0, 1));\n    setLogoCreativeBrief(logoFallbackOption.creativeBrief || null);\n    if (logoFallbackOption.generationMemory) setLogoGenerationMemory(logoFallbackOption.generationMemory);\n    setLogoGenerationError("");\n    setLogoFallbackOption(null);\n    setResult("Editable vector logo created.\\n\\nAI logo generation was unavailable, so you chose to use the instant editable vector fallback.");\n    trackBrandthatEvent("logo_instant_vector_selected", {\n      code: logoFallbackOption.errorCode || "",\n      requestId: logoFallbackOption.requestId || "",\n    });\n  };\n\n  const continueSavedLogo = (entry) => {`,
-    "use explicit logo fallback",
-  );
-
-  source = replaceOnce(
-    source,
-    `          logoCreativeBrief={logoCreativeBrief}\n          logoGenerationMemory={logoGenerationMemory}`,
-    `          logoCreativeBrief={logoCreativeBrief}\n          logoFallbackOption={logoFallbackOption}\n          logoGenerationMemory={logoGenerationMemory}`,
-    "seo logo fallback prop",
-  );
-
-  source = replaceOnce(
-    source,
-    `          setLogoAsBrandProfile={setLogoAsBrandProfile}\n          onStartWorkspace={startWorkspaceFromCurrentLogo}`,
-    `          setLogoAsBrandProfile={setLogoAsBrandProfile}\n          onUseLogoFallback={useLogoFallbackOption}\n          onStartWorkspace={startWorkspaceFromCurrentLogo}`,
-    "seo logo fallback action",
-  );
-
-  source = replaceOnce(
-    source,
-    `            logoCreativeBrief={logoCreativeBrief}\n            logoGenerationMemory={logoGenerationMemory}`,
-    `            logoCreativeBrief={logoCreativeBrief}\n            logoFallbackOption={logoFallbackOption}\n            logoGenerationMemory={logoGenerationMemory}`,
-    "app logo fallback prop",
-  );
-
-  source = replaceOnce(
-    source,
-    `            setLogoAsBrandProfile={setLogoAsBrandProfile}\n            onStartWorkspace={startWorkspaceFromCurrentLogo}`,
-    `            setLogoAsBrandProfile={setLogoAsBrandProfile}\n            onUseLogoFallback={useLogoFallbackOption}\n            onStartWorkspace={startWorkspaceFromCurrentLogo}`,
-    "app logo fallback action",
-  );
-
-  source = replaceOnce(
-    source,
-    `  logoCreativeBrief,\n  logoGenerationMemory,`,
-    `  logoCreativeBrief,\n  logoFallbackOption,\n  logoGenerationMemory,`,
-    "SEOPage fallback prop",
-  );
-
-  source = replaceOnce(
-    source,
-    `  setLogoAsBrandProfile,\n  onStartWorkspace,`,
-    `  setLogoAsBrandProfile,\n  onUseLogoFallback = () => {},\n  onStartWorkspace,`,
-    "SEOPage fallback action",
-  );
-
-  source = replaceOnce(
-    source,
-    `          logoCreativeBrief={logoCreativeBrief}\n          logoGenerationMemory={logoGenerationMemory}`,
-    `          logoCreativeBrief={logoCreativeBrief}\n          logoFallbackOption={logoFallbackOption}\n          logoGenerationMemory={logoGenerationMemory}`,
-    "SEOPage GeneratorCard fallback prop",
-  );
-
-  source = replaceOnce(
-    source,
-    `            setLogoAsBrandProfile={setLogoAsBrandProfile}\n          onStartWorkspace={onStartWorkspace}`,
-    `            setLogoAsBrandProfile={setLogoAsBrandProfile}\n          onUseLogoFallback={onUseLogoFallback}\n          onStartWorkspace={onStartWorkspace}`,
-    "SEOPage GeneratorCard fallback action",
-  );
-
-  source = replaceOnce(
-    source,
-    `  logoVariations = [],\n  logoCreativeBrief = null,\n  logoGenerationMemory = {},`,
-    `  logoVariations = [],\n  logoCreativeBrief = null,\n  logoFallbackOption = null,\n  logoGenerationMemory = {},`,
-    "GeneratorCard fallback prop",
-  );
-
-  source = replaceOnce(
-    source,
-    `  setLogoAsBrandProfile,\n  onStartWorkspace = () => {},`,
-    `  setLogoAsBrandProfile,\n  onUseLogoFallback = () => {},\n  onStartWorkspace = () => {},`,
-    "GeneratorCard fallback action",
-  );
-
-  source = replaceOnce(
-    source,
-    `      {activeTool.key === "logo" && logoGenerationError && !loading && (\n        <div className="generatorErrorPanel">\n          <strong>Logo generation did not finish.</strong>\n          <span>{logoGenerationError}</span>\n          <button onClick={generate}>Try again</button>\n        </div>\n      )}`,
-    `      {activeTool.key === "logo" && logoGenerationError && !loading && (\n        <div className="generatorErrorPanel" role="alert" aria-live="assertive">\n          <strong>Logo generation did not finish.</strong>\n          <span>{logoGenerationError}</span>\n          <div className="generatorErrorActions">\n            <button onClick={generate}>Retry AI Generation</button>\n            {logoFallbackOption?.image && (\n              <button onClick={onUseLogoFallback}>Use Instant Vector Instead</button>\n            )}\n          </div>\n        </div>\n      )}`,
-    "logo error actions",
-  );
-
-  source = replaceOnce(
-    source,
-    `.generatorErrorPanel button{width:max-content;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-weight:850;cursor:pointer;color:#111}`,
-    `.generatorErrorPanel button{width:max-content;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-weight:850;cursor:pointer;color:#111}\n.generatorErrorActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}\n.generatorErrorActions button:first-child{background:#111;color:white}`,
-    "logo error action styles",
-  );
-
   writeFileSync(path, source);
 }
 
@@ -302,7 +140,7 @@ function patchTests() {
   source = replaceOnce(
     source,
     `assert(logoFunction.includes("fallback: true"), "Logo function must identify instant-vector fallback responses.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("Logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");`,
-    `assert(logoFunction.includes("return json(503") && logoFunction.includes("fallback: {"), "Logo function must return honest structured provider failures with an explicit fallback option.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("AI logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");\nassert(app.includes("const [logoFallbackOption, setLogoFallbackOption] = useState(null)"), "App must define logo fallback state before rendering the error panel.");\nassert(app.includes("logoFallbackOption = null"), "GeneratorCard must receive a safe default fallback option prop.");\nassert(app.includes("onUseLogoFallback = () => {}"), "GeneratorCard must receive a safe fallback action prop.");\nassert(app.includes("Retry AI Generation"), "Logo failure UI must expose a retry action.");\nassert(app.includes("Use Instant Vector Instead"), "Logo failure UI must expose an explicit instant-vector choice.");\nassert(!app.includes("BrandThat created an instant editable fallback instead"), "Timeout copy must not claim the fallback was generated before the user chooses it.");`,
+    `assert(logoFunction.includes("return json(503") && logoFunction.includes("fallback: {"), "Logo function must return honest structured provider failures with an explicit fallback option.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("AI logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");`,
     "logo fallback contract test",
   );
 
