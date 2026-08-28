@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild:logo-runtime": "node scripts/prebuild-logo-runtime-fixes.mjs && node scripts/prebuild-logo-timeout-fixes.mjs && node scripts/prebuild-logo-quality-fixes.mjs",
+    "prebuild:logo-runtime": "node scripts/prebuild-logo-runtime-fixes.mjs && node scripts/prebuild-logo-timeout-fixes.mjs && node scripts/prebuild-logo-quality-fixes.mjs && node scripts/prebuild-logo-reliability-fixes.mjs",
     "build": "npm run prebuild:logo-runtime && vite build",
     "preview": "vite preview",
     "lint": "node scripts/check-undefined-helpers.mjs",
