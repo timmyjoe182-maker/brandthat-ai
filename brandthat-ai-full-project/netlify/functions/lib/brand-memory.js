@@ -341,10 +341,11 @@ export async function deactivateBrandMemory({ userId, workspaceId, memoryId }) {
   return { ok: true, memory: data };
 }
 
-export async function rebuildWorkspaceMemories({ userId, workspaceId, memories = [] }) {
+export async function rebuildWorkspaceMemories({ userId, workspaceId, memories = [], dryRun = false }) {
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, results: [] };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  if (dryRun) return { ok: true, workspaceId, results: [] };
   const payloads = memories.length ? memories : await getWorkspaceMemoryPayloads({ supabase, userId, workspaceId });
   const results = [];
   for (const memory of payloads.slice(0, 100)) {

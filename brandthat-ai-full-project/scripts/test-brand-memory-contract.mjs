@@ -56,6 +56,12 @@ assert.doesNotMatch(endpoint, /Authorization|access_token|service_role|OPENAI_AP
 assert.match(endpoint, /requireVerifiedUser/);
 assert.match(endpoint, /Cache-Control": "no-store"/);
 assert.match(endpoint, /action === "status"/);
+assert.match(endpoint, /BRAND_MEMORY_ENDPOINT_VERSION/);
+assert.match(endpoint, /getBrandMemoryTestUserIds/);
+assert.match(endpoint, /authenticatedUserIdMatchesAllowlist/);
+assert.match(endpoint, /selectedWorkspaceId/);
+assert.match(endpoint, /workspaceOwned/);
+assert.match(endpoint, /dryRun: true/);
 assert.match(endpoint, /case "refresh"/);
 assert.match(endpoint, /Brand memory is not enabled for this account/);
 assert.match(generate, /getCaptionMemoryContext/);
@@ -64,6 +70,8 @@ assert.doesNotMatch(generate, /BRAND_MEMORY_TEST_USER_IDS/);
 assert.doesNotMatch(app, /BRAND_MEMORY_TEST_USER_IDS|BRAND_MEMORY_ENABLED|brandthattesting@gmail\.com/);
 assert.match(app, /Brand memory active ·/);
 assert.match(app, /Refresh brand memory/);
+assert.match(app, /Brand memory unavailable/);
+assert.match(app, /Retry memory status/);
 
 const memoryModule = await import("../netlify/functions/lib/brand-memory.js");
 process.env.BRAND_MEMORY_ENABLED = "false";

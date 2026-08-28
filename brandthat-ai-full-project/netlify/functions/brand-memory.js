@@ -3,6 +3,7 @@ import {
   createBrandMemory,
   deactivateBrandMemory,
   isBrandMemoryEnabled,
+  getBrandMemoryTestUserIds,
   isBrandMemoryActiveForUser,
   rebuildWorkspaceMemories,
   searchBrandMemories,
@@ -10,6 +11,7 @@ import {
 } from "./lib/brand-memory.js";
 
 const { requireVerifiedUser } = authModule;
+const BRAND_MEMORY_ENDPOINT_VERSION = "private-pilot-status-v1";
 
 function json(statusCode, payload) {
   return {
@@ -41,16 +43,42 @@ export async function handler(event) {
       userId: authResult.user.id,
       workspaceId: String(body.workspaceId || ""),
     };
-    const memoryActive = isBrandMemoryActiveForUser(authResult.user.id);
+    const memoryEnabled = isBrandMemoryEnabled();
+    const allowlisted = getBrandMemoryTestUserIds().includes(String(authResult.user.id));
+    const activeForUser = isBrandMemoryActiveForUser(authResult.user.id);
 
     if (body.action === "status") {
+      let workspaceOwned = false;
+      let workspaceCheckCode = common.workspaceId ? null : "WORKSPACE_REQUIRED";
+      if (common.workspaceId && allowlisted) {
+        try {
+          const ownership = await rebuildWorkspaceMemories({
+            ...common,
+            dryRun: true,
+          });
+          workspaceOwned = Boolean(ownership?.ok);
+          workspaceCheckCode = ownership?.code || null;
+        } catch (error) {
+          workspaceOwned = false;
+          workspaceCheckCode = error?.code || "WORKSPACE_OWNERSHIP_CHECK_FAILED";
+        }
+      }
+
       return json(200, {
         ok: true,
-        enabled: isBrandMemoryEnabled(),
-        active: memoryActive,
-        workspaceId: common.workspaceId || null,
+        endpointVersion: BRAND_MEMORY_ENDPOINT_VERSION,
+        enabled: memoryEnabled,
+        allowlisted,
+        active: Boolean(memoryEnabled && allowlisted && workspaceOwned),
+        authenticatedUserId: authResult.user.id,
+        authenticatedUserIdMatchesAllowlist: allowlisted,
+        selectedWorkspaceId: common.workspaceId || null,
+        workspaceOwned,
+        workspaceCheckCode,
       });
     }
+
+    const memoryActive = activeForUser;
 
     if (!isBrandMemoryEnabled() || !memoryActive) {
       return json(200, { ok: false, disabled: true, error: "Brand memory is not enabled for this account." });
