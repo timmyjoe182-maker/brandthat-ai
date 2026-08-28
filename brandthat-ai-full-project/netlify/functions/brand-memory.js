@@ -3,6 +3,8 @@ import {
   createBrandMemory,
   deactivateBrandMemory,
   isBrandMemoryEnabled,
+  isBrandMemoryActiveForUser,
+  rebuildWorkspaceMemories,
   searchBrandMemories,
   updateBrandMemory,
 } from "./lib/brand-memory.js";
@@ -27,9 +29,6 @@ function parseBody(event) {
 
 export async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { ok: false, error: "Method not allowed." });
-  if (!isBrandMemoryEnabled()) {
-    return json(503, { ok: false, disabled: true, error: "Brand memory is not enabled." });
-  }
 
   const authResult = await requireVerifiedUser(event);
   if (authResult.error) {
@@ -42,10 +41,26 @@ export async function handler(event) {
       userId: authResult.user.id,
       workspaceId: String(body.workspaceId || ""),
     };
+    const memoryActive = isBrandMemoryActiveForUser(authResult.user.id);
+
+    if (body.action === "status") {
+      return json(200, {
+        ok: true,
+        enabled: isBrandMemoryEnabled(),
+        active: memoryActive,
+        workspaceId: common.workspaceId || null,
+      });
+    }
+
+    if (!isBrandMemoryEnabled() || !memoryActive) {
+      return json(200, { ok: false, disabled: true, error: "Brand memory is not enabled for this account." });
+    }
 
     if (!common.workspaceId) return json(400, { ok: false, error: "Workspace is required." });
 
     switch (body.action) {
+      case "refresh":
+        return json(200, await rebuildWorkspaceMemories(common));
       case "create":
         return json(200, await createBrandMemory({
           ...common,

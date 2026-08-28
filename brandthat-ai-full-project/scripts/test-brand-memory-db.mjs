@@ -191,6 +191,7 @@ try {
   assert.equal(deletedOwnMemory.data.length, 0, "Authenticated users should be able to delete their own memories.");
 
   process.env.BRAND_MEMORY_ENABLED = "false";
+  process.env.BRAND_MEMORY_TEST_USER_IDS = "";
   const memoryModule = await import("../netlify/functions/lib/brand-memory.js");
   const disabledResult = await memoryModule.createBrandMemory({
     userId: userA.id,
@@ -199,6 +200,16 @@ try {
     content: "Should not write while disabled",
   });
   assert.deepEqual(disabledResult, { ok: false, disabled: true }, "BRAND_MEMORY_ENABLED=false must preserve existing behavior.");
+
+  process.env.BRAND_MEMORY_ENABLED = "true";
+  process.env.BRAND_MEMORY_TEST_USER_IDS = userB.id;
+  const notAllowlistedResult = await memoryModule.createBrandMemory({
+    userId: userA.id,
+    workspaceId: workspaceA.id,
+    memoryType: "brand_fact",
+    content: "Should not write for users outside the pilot allowlist",
+  });
+  assert.deepEqual(notAllowlistedResult, { ok: false, disabled: true }, "BRAND_MEMORY_ENABLED=true must still require BRAND_MEMORY_TEST_USER_IDS allowlist membership.");
 
   console.log("Semantic brand memory DB integration passed.");
 } finally {

@@ -517,6 +517,47 @@
   text-transform: uppercase;
 }
 
+.brandMemoryPilotBar {
+  align-items: center;
+  background: #11110f;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 14px;
+  color: #f6f0e3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 12px 0;
+  padding: 10px 12px;
+}
+
+.brandMemoryPilotBar span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.brandMemoryPilotBar small {
+  color: rgba(246, 240, 227, .74);
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
+.brandMemoryPilotBar button {
+  background: #f6f0e3;
+  border: 0;
+  border-radius: 999px;
+  color: #11110f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 8px 11px;
+}
+
+.brandMemoryPilotBar button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 @media (max-width: 900px) {
   .builderContextGrid,
   .brandSummaryDashboard,

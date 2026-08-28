@@ -21,6 +21,19 @@ export function isBrandMemoryEnabled() {
   return String(process.env.BRAND_MEMORY_ENABLED || "false").toLowerCase() === "true";
 }
 
+export function getBrandMemoryTestUserIds() {
+  return String(process.env.BRAND_MEMORY_TEST_USER_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+export function isBrandMemoryActiveForUser(userId) {
+  if (!isBrandMemoryEnabled()) return false;
+  const allowedIds = getBrandMemoryTestUserIds();
+  return Boolean(userId && allowedIds.includes(String(userId)));
+}
+
 function getAdminClient() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -54,6 +67,121 @@ async function assertWorkspaceOwnership(supabase, userId, workspaceId) {
   }
 }
 
+function getWorkspaceText(row = {}, keys = []) {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (Array.isArray(value) && value.length) return value.join(", ");
+    if (value && typeof value === "object") {
+      const json = JSON.stringify(value);
+      if (json && json !== "{}") return json;
+    }
+    const text = normalizeContent(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function inferCategoryFromWorkspace(row = {}) {
+  const text = [
+    row.name,
+    row.description,
+    row.industry,
+    row.category,
+    row.style,
+    row.logo_direction,
+    row.launch_goal,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (/houseplant|plant delivery|botanical|greenery|apartment plant/.test(text)) return "Houseplants / local plant delivery";
+  if (/dog grooming|pet grooming|pet care|dog walking|pet sitting/.test(text)) return "Pet care / local mobile service";
+  if (/coffee|espresso|cafe|hiker|outdoor event/.test(text)) return "Coffee / mobile outdoor service";
+  if (/software|saas|invoice|sponsorship|creator platform|dashboard|app/.test(text)) return "Software / creator operations";
+  if (/interior|styling|homeowner|room|decor/.test(text)) return "Interior styling / local home service";
+  return getWorkspaceText(row, ["industry", "category"]) || "Category needs confirmation";
+}
+
+function buildMemoryMetadata({ userId, workspaceId, sourceKey, version = 1, extra = {} }) {
+  return {
+    ...extra,
+    workspace_id: workspaceId,
+    user_id: userId,
+    source: "brand_workspace",
+    source_key: sourceKey,
+    source_identity: `${workspaceId}:${sourceKey}:v${version}`,
+    version,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function buildWorkspaceMemoryPayloads(row = {}, { userId, workspaceId } = {}) {
+  const category = inferCategoryFromWorkspace(row);
+  const brandName = getWorkspaceText(row, ["name", "brand_name"]);
+  const description = getWorkspaceText(row, ["description", "business_description"]);
+  const audience = getWorkspaceText(row, ["audience", "target_audience", "target_audiences"]);
+  const thesis = getWorkspaceText(row, ["brand_thesis", "thesis", "offer"]);
+  const positioning = getWorkspaceText(row, ["positioning", "differentiator", "core_positioning"]);
+  const voice = getWorkspaceText(row, ["tone", "voice", "brand_voice", "voice_traits"]);
+  const style = getWorkspaceText(row, ["style", "personality", "personality_style"]);
+  const visualDirection = getWorkspaceText(row, ["visual_direction", "visual_identity_direction", "logo_direction", "moodboard_direction"]);
+  const colors = getWorkspaceText(row, ["color_system", "colors", "palette", "logo_metadata"]);
+  const products = getWorkspaceText(row, ["products", "services", "offer"]);
+  const problems = getWorkspaceText(row, ["customer_problems", "audience_pain", "desired_outcomes", "launch_goal"]);
+  const preferences = getWorkspaceText(row, ["exclusions", "avoid", "preferences"]);
+  const primaryLogo = getWorkspaceText(row, ["primary_logo_asset_id", "logo_image_url", "logo_metadata"]);
+
+  const items = [
+    {
+      key: "brand_basics",
+      memoryType: "brand_fact",
+      title: `${brandName || "Brand"} basics`,
+      content: [
+        brandName && `Brand name: ${brandName}`,
+        description && `Business description: ${description}`,
+        category && `Industry/category: ${category}`,
+      ].filter(Boolean).join("\n"),
+      importance: 5,
+    },
+    { key: "audience", memoryType: "audience", title: "Target audience", content: audience, importance: 5 },
+    {
+      key: "positioning",
+      memoryType: "positioning",
+      title: "Brand thesis and positioning",
+      content: [thesis && `Thesis: ${thesis}`, positioning && `Positioning: ${positioning}`].filter(Boolean).join("\n"),
+      importance: 5,
+    },
+    {
+      key: "voice",
+      memoryType: "voice",
+      title: "Voice and personality",
+      content: [voice && `Voice traits: ${voice}`, style && `Personality/style: ${style}`].filter(Boolean).join("\n"),
+      importance: 4,
+    },
+    {
+      key: "visual_identity",
+      memoryType: "visual_direction",
+      title: "Visual identity direction",
+      content: [visualDirection && `Visual direction: ${visualDirection}`, colors && `Color system: ${colors}`].filter(Boolean).join("\n"),
+      importance: 4,
+    },
+    { key: "products_services", memoryType: "product", title: "Products and services", content: products, importance: 4 },
+    { key: "customer_outcomes", memoryType: "brand_fact", title: "Customer problems and outcomes", content: problems, importance: 4 },
+    { key: "preferences_exclusions", memoryType: "user_preference", title: "User preferences and exclusions", content: preferences, importance: 3 },
+    { key: "primary_logo", memoryType: "visual_direction", title: "Approved primary logo", content: primaryLogo ? `Approved primary logo information: ${primaryLogo}` : "", importance: 3 },
+  ];
+
+  return items
+    .map((item) => ({
+      memoryType: item.memoryType,
+      title: item.title,
+      content: normalizeContent(item.content),
+      sourceType: "workspace_field",
+      sourceId: workspaceId,
+      importance: item.importance,
+      metadata: buildMemoryMetadata({ userId, workspaceId, sourceKey: item.key }),
+    }))
+    .filter((item) => item.content);
+}
+
 async function createEmbedding(content) {
   const apiKey = process.env.OPENAI_API_KEY || "";
   if (!apiKey) throw new Error("Embedding provider is not configured.");
@@ -83,7 +211,7 @@ export async function createBrandMemory({
   importance = 1,
   metadata = {},
 }) {
-  if (!isBrandMemoryEnabled()) return { ok: false, disabled: true };
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
   if (!userId || !workspaceId) throw new Error("User and workspace are required.");
   if (!ALLOWED_MEMORY_TYPES.has(memoryType)) throw new Error("Unsupported memory type.");
 
@@ -134,7 +262,7 @@ export async function createBrandMemory({
 }
 
 export async function updateBrandMemory({ userId, workspaceId, memoryId, content, title, importance, metadata }) {
-  if (!isBrandMemoryEnabled()) return { ok: false, disabled: true };
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
 
@@ -173,7 +301,7 @@ export async function searchBrandMemories({
   matchCount = 8,
   similarityThreshold = 0.35,
 }) {
-  if (!isBrandMemoryEnabled()) return { ok: false, disabled: true, memories: [] };
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, memories: [] };
   const normalized = normalizeContent(query);
   if (!normalized) return { ok: true, memories: [] };
 
@@ -198,7 +326,7 @@ export async function searchBrandMemories({
 }
 
 export async function deactivateBrandMemory({ userId, workspaceId, memoryId }) {
-  if (!isBrandMemoryEnabled()) return { ok: false, disabled: true };
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
   const { data, error } = await supabase
@@ -214,10 +342,163 @@ export async function deactivateBrandMemory({ userId, workspaceId, memoryId }) {
 }
 
 export async function rebuildWorkspaceMemories({ userId, workspaceId, memories = [] }) {
-  if (!isBrandMemoryEnabled()) return { ok: false, disabled: true, results: [] };
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, results: [] };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const payloads = memories.length ? memories : await getWorkspaceMemoryPayloads({ supabase, userId, workspaceId });
   const results = [];
-  for (const memory of memories.slice(0, 100)) {
-    results.push(await createBrandMemory({ userId, workspaceId, ...memory }));
+  for (const memory of payloads.slice(0, 100)) {
+    results.push(await upsertWorkspaceMemory({ supabase, userId, workspaceId, ...memory }));
   }
   return { ok: true, results };
+}
+
+async function getWorkspaceMemoryPayloads({ supabase, userId, workspaceId }) {
+  const { data: workspace, error } = await supabase
+    .from("brand_workspaces")
+    .select("*")
+    .eq("id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error("Workspace memories could not be loaded.");
+  if (!workspace) {
+    const denied = new Error("Workspace not found.");
+    denied.code = "WORKSPACE_NOT_FOUND";
+    throw denied;
+  }
+
+  let logoAsset = null;
+  const primaryLogoAssetId = workspace.primary_logo_asset_id || "";
+  if (primaryLogoAssetId) {
+    const { data } = await supabase
+      .from("saved_generations")
+      .select("id,title,tool,content,image_url,created_at")
+      .eq("id", primaryLogoAssetId)
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    logoAsset = data || null;
+  }
+
+  return buildWorkspaceMemoryPayloads({
+    ...workspace,
+    primary_logo_asset_id: primaryLogoAssetId,
+    logo_metadata: workspace.logo_metadata || logoAsset?.title || "",
+  }, { userId, workspaceId });
+}
+
+async function upsertWorkspaceMemory({
+  supabase,
+  userId,
+  workspaceId,
+  memoryType,
+  title = "",
+  content,
+  sourceType = "workspace_field",
+  sourceId = null,
+  importance = 1,
+  metadata = {},
+}) {
+  if (!ALLOWED_MEMORY_TYPES.has(memoryType)) throw new Error("Unsupported memory type.");
+  const normalized = normalizeContent(content);
+  if (!normalized) throw new Error("Memory content is required.");
+  const contentHash = hashContent(normalized);
+  const sourceIdentity = metadata?.source_identity || `${workspaceId}:${memoryType}:v1`;
+  const now = new Date().toISOString();
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("brand_memories")
+    .select("id,content_hash,status")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .eq("memory_type", memoryType)
+    .eq("source_type", sourceType)
+    .eq("source_id", sourceId || workspaceId)
+    .contains("metadata", { source_identity: sourceIdentity })
+    .limit(1);
+
+  if (existingError) throw new Error("Existing memory could not be checked.");
+  const existing = existingRows?.[0] || null;
+  if (existing?.content_hash === contentHash && existing.status === "active") {
+    return { ok: true, duplicate: true, memory: existing };
+  }
+
+  const { embedding, model } = await createEmbedding(normalized);
+  const row = {
+    user_id: userId,
+    workspace_id: workspaceId,
+    memory_type: memoryType,
+    title: normalizeContent(title).slice(0, 240) || null,
+    content: normalized,
+    content_hash: contentHash,
+    embedding,
+    embedding_model: model,
+    source_type: sourceType,
+    source_id: sourceId || workspaceId,
+    importance: Math.max(1, Math.min(5, Number(importance) || 1)),
+    metadata: { ...metadata, embedding_model: model, updated_at: now },
+    status: "active",
+    embedded_at: now,
+    updated_at: now,
+  };
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from("brand_memories")
+      .update(row)
+      .eq("id", existing.id)
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .select("id,memory_type,title,source_type,source_id,importance,status,updated_at")
+      .single();
+    if (error) throw new Error("Brand memory could not be updated.");
+    return { ok: true, updated: true, memory: data };
+  }
+
+  const { data, error } = await supabase
+    .from("brand_memories")
+    .insert(row)
+    .select("id,memory_type,title,source_type,source_id,importance,status,created_at")
+    .single();
+
+  if (error) throw new Error("Brand memory could not be saved.");
+  return { ok: true, duplicate: false, memory: data };
+}
+
+export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, memories: [], context: "" };
+  if (!workspaceId) {
+    return { ok: false, code: "BRAND_MEMORY_WORKSPACE_REQUIRED", memories: [], context: "" };
+  }
+
+  try {
+    const result = await searchBrandMemories({
+      userId,
+      workspaceId,
+      query,
+      memoryTypes: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      matchCount: 8,
+      similarityThreshold: 0.2,
+    });
+    const memories = (result.memories || []).slice(0, 8);
+    const context = memories
+      .map((memory, index) => {
+        const type = normalizeContent(memory.memory_type || "memory");
+        const title = normalizeContent(memory.title || type);
+        const content = normalizeContent(memory.content || "");
+        return content ? `${index + 1}. ${title} (${type}): ${content}` : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+    return { ok: true, memories, context };
+  } catch (error) {
+    console.warn("Brand memory caption retrieval failed", {
+      userId,
+      workspaceId,
+      code: error?.code || "BRAND_MEMORY_RETRIEVAL_FAILED",
+      message: error?.message || "Unknown memory retrieval error",
+    });
+    return { ok: false, code: "BRAND_MEMORY_RETRIEVAL_FAILED", memories: [], context: "" };
+  }
 }

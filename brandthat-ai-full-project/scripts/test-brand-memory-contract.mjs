@@ -13,6 +13,14 @@ const endpoint = fs.readFileSync(
   new URL("../netlify/functions/brand-memory.js", import.meta.url),
   "utf8",
 );
+const generate = fs.readFileSync(
+  new URL("../netlify/functions/generate.js", import.meta.url),
+  "utf8",
+);
+const app = fs.readFileSync(
+  new URL("../src/App.jsx", import.meta.url),
+  "utf8",
+);
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /public\.brand_workspaces\(id\) on delete cascade/i);
@@ -30,17 +38,55 @@ assert.match(migration, /revoke all[\s\S]+from authenticated/i);
 assert.match(migration, /brand_memories_active_content_unique/);
 assert.match(service, /BRAND_MEMORY_ENABLED/);
 assert.match(service, /String\(process\.env\.BRAND_MEMORY_ENABLED \|\| "false"\)/);
+assert.match(service, /BRAND_MEMORY_TEST_USER_IDS/);
+assert.match(service, /isBrandMemoryActiveForUser/);
 assert.match(service, /contentHash/);
 assert.match(service, /assertWorkspaceOwnership/);
 assert.match(service, /embedding\.length !== 1536/);
 assert.match(service, /\.eq\("workspace_id", workspaceId\)/);
 assert.match(service, /\.eq\("user_id", userId\)/);
 assert.match(service, /match_brand_memories_admin/);
+assert.match(service, /buildWorkspaceMemoryPayloads/);
+assert.match(service, /rebuildWorkspaceMemories/);
+assert.match(service, /getCaptionMemoryContext/);
+assert.match(service, /source_identity/);
 assert.doesNotMatch(service, /console\.log\([^)]*content/);
 assert.doesNotMatch(service, /console\.error\([^)]*content/);
 assert.doesNotMatch(endpoint, /Authorization|access_token|service_role|OPENAI_API_KEY/);
 assert.match(endpoint, /requireVerifiedUser/);
 assert.match(endpoint, /Cache-Control": "no-store"/);
-assert.match(endpoint, /Brand memory is not enabled/);
+assert.match(endpoint, /action === "status"/);
+assert.match(endpoint, /case "refresh"/);
+assert.match(endpoint, /Brand memory is not enabled for this account/);
+assert.match(generate, /getCaptionMemoryContext/);
+assert.match(generate, /generatorType === "captions"/);
+assert.doesNotMatch(generate, /BRAND_MEMORY_TEST_USER_IDS/);
+assert.doesNotMatch(app, /BRAND_MEMORY_TEST_USER_IDS|BRAND_MEMORY_ENABLED|brandthattesting@gmail\.com/);
+assert.match(app, /Brand memory active ·/);
+assert.match(app, /Refresh brand memory/);
+
+const memoryModule = await import("../netlify/functions/lib/brand-memory.js");
+process.env.BRAND_MEMORY_ENABLED = "false";
+process.env.BRAND_MEMORY_TEST_USER_IDS = "11111111-1111-1111-1111-111111111111";
+assert.equal(memoryModule.isBrandMemoryActiveForUser("11111111-1111-1111-1111-111111111111"), false, "global flag must be required.");
+process.env.BRAND_MEMORY_ENABLED = "true";
+assert.equal(memoryModule.isBrandMemoryActiveForUser("22222222-2222-2222-2222-222222222222"), false, "allowlist must be required.");
+assert.equal(memoryModule.isBrandMemoryActiveForUser("11111111-1111-1111-1111-111111111111"), true, "allowlisted UUID should activate only when the flag is enabled.");
+const payloads = memoryModule.buildWorkspaceMemoryPayloads({
+  id: "33333333-3333-3333-3333-333333333333",
+  user_id: "11111111-1111-1111-1111-111111111111",
+  name: "Stone & Stem",
+  description: "A local subscription service delivering low-maintenance houseplants to apartment renters.",
+  audience: "Apartment renters and first-time plant owners",
+  tone: "Friendly",
+  style: "Minimal botanical",
+  logo_direction: "Stone and leaf symbol",
+  launch_goal: "Reach local subscribers",
+}, {
+  userId: "11111111-1111-1111-1111-111111111111",
+  workspaceId: "33333333-3333-3333-3333-333333333333",
+});
+assert.ok(payloads.length >= 5, "workspace refresh should produce structured memory payloads.");
+assert.ok(payloads.every((item) => item.metadata.workspace_id && item.metadata.user_id && item.metadata.source_identity), "memory metadata must include user/workspace/source identity.");
 
 console.log("Semantic brand memory security contract passed.");

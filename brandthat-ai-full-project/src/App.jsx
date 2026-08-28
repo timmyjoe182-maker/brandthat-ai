@@ -2937,6 +2937,7 @@ export default function App() {
   const [appNotice, setAppNotice] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState("Draft ready");
   const [favoriteIds, setFavoriteIds] = useState(() => safeParse("brandthat_favorite_ids", {}));
+  const [brandMemoryPilot, setBrandMemoryPilot] = useState({ active: false, loading: false, refreshing: false, message: "" });
 
   const isMember = normalizePlan(userPlan) === MEMBER_PLAN;
   const isFree = !isMember;
@@ -2969,6 +2970,51 @@ export default function App() {
     setLogoVariations([]);
     setLogoCreativeBrief(null);
   }, [activeToolKey, activeBrand?.id]);
+
+  useEffect(() => {
+    let canceled = false;
+    const checkBrandMemoryPilot = async () => {
+      if (activeToolKey !== "captions" || !activeBrand?.id || !user?.id || !isMember) {
+        setBrandMemoryPilot({ active: false, loading: false, refreshing: false, message: "" });
+        return;
+      }
+
+      setBrandMemoryPilot((prev) => ({ ...prev, loading: true, message: "" }));
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token || "";
+        if (!token) throw new Error("No active session.");
+        const response = await fetchJsonWithTimeout("/.netlify/functions/brand-memory", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action: "status", workspaceId: activeBrand.id }),
+        }, {
+          timeoutMs: 8000,
+          errorMessage: "Brand memory status unavailable.",
+        });
+        if (!canceled) {
+          setBrandMemoryPilot({ active: Boolean(response?.active), loading: false, refreshing: false, message: "" });
+        }
+      } catch (error) {
+        if (!canceled) {
+          setBrandMemoryPilot({ active: false, loading: false, refreshing: false, message: "" });
+          console.warn("Brand memory status check failed", {
+            workspaceId: activeBrand?.id || "",
+            code: error?.code || "",
+            message: error?.message || "Unknown memory status error",
+          });
+        }
+      }
+    };
+
+    checkBrandMemoryPilot();
+    return () => {
+      canceled = true;
+    };
+  }, [activeToolKey, activeBrand?.id, user?.id, isMember]);
 
 
   useEffect(() => {
@@ -3567,6 +3613,50 @@ export default function App() {
       "Content-Type": "application/json",
       Authorization: `Bearer ${session.access_token}`,
     };
+  };
+
+  const refreshActiveBrandMemory = async () => {
+    if (!activeBrand?.id || !brandMemoryPilot.active) return;
+
+    setBrandMemoryPilot((prev) => ({ ...prev, refreshing: true, message: "" }));
+    try {
+      const headers = await getAuthorizedHeaders("brand_memory_refresh");
+      if (!headers) return;
+      const response = await fetchJsonWithTimeout("/.netlify/functions/brand-memory", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action: "refresh", workspaceId: activeBrand.id }),
+      }, {
+        timeoutMs: 25000,
+        errorMessage: "Brand memory could not be refreshed.",
+        revealServerError: true,
+      });
+
+      if (!response?.ok) {
+        throw new Error(response?.error || response?.message || "Brand memory could not be refreshed.");
+      }
+
+      const count = Array.isArray(response.results) ? response.results.length : 0;
+      setBrandMemoryPilot((prev) => ({
+        ...prev,
+        refreshing: false,
+        message: count ? `Memory refreshed from ${activeBrand.name}.` : "Brand memory is current.",
+      }));
+      notify("success", "Brand memory refreshed", `${activeBrand.name} context is ready for captions.`);
+    } catch (error) {
+      console.warn("Brand memory refresh failed", {
+        workspaceId: activeBrand?.id || "",
+        code: error?.code || "",
+        status: error?.status || "",
+        message: error?.message || "Unknown memory refresh error",
+      });
+      setBrandMemoryPilot((prev) => ({
+        ...prev,
+        refreshing: false,
+        message: "Memory refresh failed. Captions will use the normal brand context.",
+      }));
+      notify("warning", "Memory refresh failed", "Caption generation will keep using the normal brand context.");
+    }
   };
 
   const openProtectedPage = async (nextPage, action = null) => {
@@ -6391,6 +6481,8 @@ ${promptValue}`;
           onUseLogoFallback={useLogoFallbackOption}
           onStartWorkspace={startWorkspaceFromCurrentLogo}
           onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
+          brandMemoryPilot={brandMemoryPilot}
+          onRefreshBrandMemory={refreshActiveBrandMemory}
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
           openSeoPage={openSeoPage}
         />
@@ -6489,6 +6581,8 @@ ${promptValue}`;
             onUseLogoFallback={useLogoFallbackOption}
             onStartWorkspace={startWorkspaceFromCurrentLogo}
             onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
+            brandMemoryPilot={brandMemoryPilot}
+            onRefreshBrandMemory={refreshActiveBrandMemory}
             rememberRejectedLogoDirection={rememberRejectedLogoDirection}
             toggleFavorite={toggleFavorite}
             remixOutput={remixOutput}
@@ -9083,6 +9177,8 @@ function GeneratorCard({
   onUseLogoFallback = () => {},
   onStartWorkspace = () => {},
   onBuildGrowthRoadmap = () => {},
+  brandMemoryPilot = { active: false, loading: false, refreshing: false, message: "" },
+  onRefreshBrandMemory = () => {},
   rememberRejectedLogoDirection,
   toggleFavorite,
   remixOutput,
@@ -9476,6 +9572,16 @@ Designer iteration rules:
             <p><b>Goal:</b> {activeBrand.launchGoal || "Not set"}</p>
           </div>
         </details>
+      )}
+
+      {activeTool.key === "captions" && brandMemoryPilot.active && activeBrand && (
+        <div className="brandMemoryPilotBar" aria-live="polite">
+          <span>Brand memory active · {activeBrand.name}</span>
+          <button type="button" onClick={onRefreshBrandMemory} disabled={brandMemoryPilot.refreshing}>
+            {brandMemoryPilot.refreshing ? "Refreshing..." : "Refresh brand memory"}
+          </button>
+          {brandMemoryPilot.message && <small>{brandMemoryPilot.message}</small>}
+        </div>
       )}
 
       {activeTool.key === "logo" ? (

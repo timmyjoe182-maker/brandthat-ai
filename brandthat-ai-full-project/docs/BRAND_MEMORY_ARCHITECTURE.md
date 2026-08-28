@@ -2,9 +2,9 @@
 
 ## Status
 
-Foundation only. Production retrieval remains disabled unless the server-only environment variable `BRAND_MEMORY_ENABLED=true` is set.
+Foundation plus private pilot controls. Production retrieval remains disabled unless the server-only environment variable `BRAND_MEMORY_ENABLED=true` is set and the authenticated user's Supabase UUID is included in `BRAND_MEMORY_TEST_USER_IDS`.
 
-Do not enable the flag until the database migration, tenant-isolation tests, retrieval evaluation, and deletion behavior have been verified in a non-production environment.
+Do not enable the flag for all users. Keep the allowlist narrow until tenant-isolation tests, retrieval evaluation, and deletion behavior have been verified for the pilot.
 
 ## Existing context
 
@@ -14,13 +14,14 @@ Semantic memory supplements that data. It does not replace structured Brand DNA.
 
 ## Data flow
 
-1. A verified user explicitly saves, favorites, edits, or approves an output.
+1. A verified user opens a selected Brand Workspace.
 2. The server verifies that the authenticated user owns the workspace.
-3. Text is normalized, capped, hashed, and deduplicated.
-4. The server generates a 1,536-dimension embedding.
-5. Content and embedding are stored in `brand_memories`.
-6. A future generator can embed its request and retrieve only relevant memories from the same user and workspace.
-7. Retrieved memories are advisory context; structured workspace fields remain authoritative.
+3. The server verifies that `BRAND_MEMORY_ENABLED=true` and the user UUID is in `BRAND_MEMORY_TEST_USER_IDS`.
+4. The user can refresh memory for the selected workspace.
+5. Approved structured workspace facts are normalized, capped, hashed, deduplicated, and embedded.
+6. Content and embedding are stored in `brand_memories`.
+7. The Caption Generator can embed its request and retrieve only relevant memories from the same user and workspace.
+8. Retrieved memories are advisory context; current form inputs and structured workspace fields remain authoritative.
 
 ## Security
 
@@ -29,6 +30,7 @@ Semantic memory supplements that data. It does not replace structured Brand DNA.
 - The client RPC is security-invoker and repeats user/workspace filters.
 - The server-only RPC is executable only by `service_role` and requires an explicit matching user/workspace relationship.
 - The Netlify endpoint derives user identity from the bearer token.
+- Pilot access is checked server-side against Supabase UUIDs, never emails and never client-provided flags.
 - Service-role and OpenAI keys remain server-only.
 - Raw private brand content must not be written to logs.
 
@@ -36,12 +38,17 @@ Semantic memory supplements that data. It does not replace structured Brand DNA.
 
 Initial eligible memories:
 
-- Structured Brand DNA
-- Explicitly saved outputs
-- Favorited outputs
-- User edits and preferences
-- Primary-logo selection metadata
-- Explicit rejected directions
+- Brand name and business description
+- Industry/category
+- Target audiences
+- Brand thesis and positioning
+- Voice traits and personality/style
+- Visual direction and color system
+- Approved primary-logo metadata
+- Products/services
+- Customer problems and desired outcomes
+- Explicit user preferences and exclusions
+- Explicitly saved or favorited outputs in a later phase
 
 Transient unsaved generations are not memories.
 
@@ -54,10 +61,13 @@ Default: `text-embedding-3-small`, 1,536 dimensions.
 Server configuration:
 
 - `BRAND_MEMORY_ENABLED=false`
+- `BRAND_MEMORY_TEST_USER_IDS=` comma-separated Supabase user UUIDs for the private pilot
 - `BRAND_MEMORY_EMBEDDING_MODEL=text-embedding-3-small`
 - Existing `OPENAI_API_KEY`
 - Existing `SUPABASE_URL`
 - Existing `SUPABASE_SERVICE_ROLE_KEY`
+
+Do not expose `BRAND_MEMORY_ENABLED` or `BRAND_MEMORY_TEST_USER_IDS` through `VITE_*` variables or client code.
 
 Changing embedding models requires a controlled re-embedding migration. Vectors created by different models must not be compared silently.
 
@@ -67,9 +77,10 @@ Changing embedding models requires a controlled re-embedding migration. Vectors 
 2. Verify the existing `brand_workspaces` table contains `id` and `user_id` with the expected UUID types.
 3. Run RLS tests with two users and two workspaces.
 4. Deploy with `BRAND_MEMORY_ENABLED=false`.
-5. Verify existing workspace and generator flows are unchanged.
-6. Enable only in staging and evaluate retrieval quality.
-7. Enable production after explicit approval.
+5. Configure `BRAND_MEMORY_TEST_USER_IDS` only in the server/runtime environment for the approved tester UUIDs.
+6. Verify existing workspace and generator flows are unchanged.
+7. Enable the server-only flag for the private pilot only after explicit approval.
+8. Do not connect non-caption generators to memory until a separate rollout is approved.
 
 ## Test Environment
 
@@ -89,6 +100,7 @@ The integration assertions cover:
 - Duplicate active content is rejected.
 - Updating content replaces the hash and embedding.
 - `BRAND_MEMORY_ENABLED=false` short-circuits without writing memories.
+- `BRAND_MEMORY_ENABLED=true` still short-circuits for users outside `BRAND_MEMORY_TEST_USER_IDS`.
 
 ## Rollback
 
