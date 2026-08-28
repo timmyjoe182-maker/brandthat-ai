@@ -44,8 +44,20 @@ assert(!app.includes("Save Brand Project</button>"), "Logo result must not rende
 assert(app.includes("Generate three meaningfully different logo directions"), "Logo prompt must request three materially different logo directions.");
 assert(app.includes("saveLogoVariation"), "Logo result must expose per-direction save/set-primary actions.");
 
-assert(logoFunction.includes("fallback: true"), "Logo function must identify instant-vector fallback responses.");
+assert(logoFunction.includes("return json(503") && logoFunction.includes("fallback: {"), "Logo function must return honest structured provider failures with an explicit fallback option.");
 assert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");
-assert(logoFunction.includes("Logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");
+assert(logoFunction.includes("AI logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");
+assert(app.includes("const [logoFallbackOption, setLogoFallbackOption] = useState(null)"), "App must define logo fallback state before rendering the error panel.");
+assert(app.includes("logoFallbackOption = null"), "GeneratorCard must receive a safe default fallback option prop.");
+assert(app.includes("onUseLogoFallback = () => {}"), "GeneratorCard must receive a safe fallback action prop.");
+assert(app.includes("Retry AI Generation"), "Logo failure UI must expose a retry action.");
+assert(app.includes("Use Instant Vector Instead"), "Logo failure UI must expose an explicit instant-vector choice.");
+assert(!app.includes("BrandThat created an instant editable fallback instead"), "Timeout copy must not claim the fallback was generated before the user chooses it.");
 
+assert(app.includes("timeoutMs: 55000"), "Logo image client request must wait for the server OpenAI window instead of aborting at 22s.");
+assert(logoFunction.includes("logTiming(\"request_received\")"), "Logo function must log request_received timing.");
+assert(logoFunction.includes("logTiming(\"openai_request_started\""), "Logo function must log OpenAI request start timing.");
+assert(logoFunction.includes("logTiming(\"openai_response_received\""), "Logo function must log OpenAI response timing.");
+assert(logoFunction.includes("logTiming(\"response_returned\""), "Logo function must log response return timing.");
+assert(logoFunction.includes("logTiming(\"generation_failed\""), "Logo function must log sanitized generation failure timing.");
 console.log("Primary logo contract checks passed.");

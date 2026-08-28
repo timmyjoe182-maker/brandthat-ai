@@ -32,6 +32,14 @@ function isBrandthatTester(user) {
   return false;
 }
 
+function isMeaningfulDisplayText(value = "") {
+  const text = cleanGeneratedText(value).replace(/\s+/g, " ").trim();
+  if (!text) return false;
+  const semantic = text.replace(/[.\-_:;,\s]/g, "");
+  if (!semantic) return false;
+  return !/^(undefined|null|n\/a|none|placeholder)$/i.test(text);
+}
+
 const tools = [
   {
     key: "logo",
@@ -499,6 +507,7 @@ function createRequestError(response, data, config = {}) {
     requestId,
     contentType: response.headers.get("content-type") || "",
   };
+  error.data = data;
   return error;
 }
 
@@ -1878,6 +1887,16 @@ function getLogoTimelineNote(entry = {}) {
   return "Saved logo concept";
 }
 
+function stableStringHash(value = "") {
+  let hash = 2166136261;
+  const input = String(value);
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry = "", logoColors = "", userPrompt = "" }) {
   const displayName = escapeSvgText(brandName || "Brandthat");
   const initials = escapeSvgText(getInitialsFromBrandName(brandName || userPrompt || "Brandthat"));
@@ -1916,6 +1935,44 @@ function createClientFallbackLogo({ brandName = "", logoStyle = "", logoIndustry
     generationMemory: null,
     layers: [],
     note: "Brandthat created an instant editable vector logo because the hosted image service was unavailable.",
+  };
+}
+
+function buildLogoFallbackOption(fallback = {}, requestPayload = {}, error = {}) {
+  const fallbackLogo = fallback?.image ? fallback : createClientFallbackLogo(requestPayload);
+  const firstVariation = Array.isArray(fallbackLogo.variations) && fallbackLogo.variations.length
+    ? fallbackLogo.variations[0]
+    : { id: "instant-vector-primary", name: "Instant Vector", image: fallbackLogo.image, svg: fallbackLogo.svg };
+  const stableSeed = [
+    requestPayload.brandName,
+    requestPayload.logoIndustry,
+    requestPayload.logoStyle,
+    firstVariation?.name,
+    fallbackLogo.image || fallbackLogo.svg,
+  ].filter(Boolean).join("|");
+
+  return {
+    ...fallbackLogo,
+    id: `instant-vector-${stableStringHash(stableSeed || "brandthat-logo-fallback")}`,
+    name: firstVariation?.name || fallbackLogo.name || "Instant Vector",
+    type: "instant-vector",
+    image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+    vectorImage: fallbackLogo.vectorImage || fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+    svg: fallbackLogo.svg || firstVariation?.svg || "",
+    transparentSvg: fallbackLogo.transparentSvg || fallbackLogo.svg || firstVariation?.svg || "",
+    variations: [{ ...firstVariation, name: firstVariation?.name || "Instant Vector" }],
+    previewData: {
+      image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+      source: "instant-svg",
+    },
+    workspaceContext: requestPayload.structuredLogo || requestPayload.brandStrategy || {},
+    palette: requestPayload.logoColors || fallbackLogo.creativeBrief?.palette || "",
+    typography: requestPayload.parsedLogo?.typography || fallbackLogo.creativeBrief?.typography || "",
+    saveBehavior: "Save Logo Concept",
+    setPrimaryBehavior: "Set as Primary Logo",
+    errorCode: error?.code || fallback?.providerError?.code || "LOGO_IMAGE_UNAVAILABLE",
+    requestId: error?.requestId || fallback?.requestId || "",
+    note: fallbackLogo.note || "Instant editable vector fallback is available if you choose to use it.",
   };
 }
 
@@ -2757,6 +2814,7 @@ export default function App() {
   const [logoTransparentSvg, setLogoTransparentSvg] = useState("");
   const [logoVariations, setLogoVariations] = useState([]);
   const [logoCreativeBrief, setLogoCreativeBrief] = useState(null);
+  const [logoFallbackOption, setLogoFallbackOption] = useState(null);
   const [logoGenerationError, setLogoGenerationError] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
@@ -5577,19 +5635,27 @@ Requirements:
         headers: authorizedHeaders,
         body: JSON.stringify(requestPayload)
       }, {
-        timeoutMs: 22000,
+        timeoutMs: 55000,
         errorMessage: "Logo generation failed.",
-        timeoutMessage: "Logo generation took too long. BrandThat created an instant editable fallback instead."
+        timeoutMessage: "AI logo generation is temporarily unavailable.\nError code: LOGO_IMAGE_CLIENT_TIMEOUT"
       });
     } catch (error) {
-      if (error?.status === 429) throw error;
-      console.warn("Brandthat logo function unavailable, using instant fallback:", error);
-      return createClientFallbackLogo(requestPayload);
+      if (error?.data?.fallback) {
+        error.fallback = buildLogoFallbackOption(error.data.fallback, requestPayload, error);
+      } else if (error?.status !== 429) {
+        error.fallback = buildLogoFallbackOption({}, requestPayload, {
+          ...error,
+          code: error?.code || "LOGO_IMAGE_CLIENT_TIMEOUT",
+        });
+      }
+      throw error;
     }
 
     if (!data.image) {
-      console.warn("Brandthat logo function returned no image, using instant fallback.");
-      return createClientFallbackLogo(requestPayload);
+      const error = new Error("AI logo generation is temporarily unavailable.\nError code: LOGO_IMAGE_EMPTY_RESPONSE");
+      error.code = "LOGO_IMAGE_EMPTY_RESPONSE";
+      error.fallback = buildLogoFallbackOption({}, requestPayload, error);
+      throw error;
     }
 
     return {
@@ -5660,6 +5726,7 @@ Requirements:
     setLogoGenerationError("");
     setLogoImage("");
     setLogoImageSource("");
+    setLogoFallbackOption(null);
     if (activeTool.key === "logo" && logoContext?.resetReason) {
       setLogoGenerationMemory({});
     }
@@ -5820,6 +5887,7 @@ ${promptValue}`;
       handleAppError("Generation failed", error, "The AI request could not complete. Please adjust your prompt or try again.");
       if (activeTool.key === "logo") {
         setLogoGenerationError(error?.message || "Logo generation failed. Please try again with a clearer brand name and direction.");
+        setLogoFallbackOption(error?.fallback || null);
         setResult("");
         setLogoImage("");
         setLogoImageSource("");
@@ -5897,6 +5965,7 @@ ${promptValue}`;
     setLogoTransparentSvg("");
     setLogoVariations([]);
     setLogoCreativeBrief(null);
+    setLogoFallbackOption(null);
     setLogoGenerationError("");
     setGenerationError("");
   };
@@ -5919,10 +5988,30 @@ ${promptValue}`;
     setLogoTransparentSvg(project.transparentSvg || project.svg || "");
     setLogoVariations(project.variations || []);
     setLogoCreativeBrief(project.creativeBrief || null);
+    setLogoFallbackOption(null);
     setLogoGenerationMemory(project.generationMemory || {});
     setResult(
       `${project.source === "instant-svg" ? "Editable vector logo restored." : "AI logo image restored."}\n\nBrand direction used:\nBrand name: ${project.brandName || entry.title || "Not provided"}\nIndustry: ${project.industry || "Not provided"}\nStyle: ${project.style || "Not provided"}\nSymbol or mascot: ${project.symbol || "Not provided"}\nColors: ${project.colors || "Not provided"}\nAvoid: ${project.avoid || "Not provided"}\nNotes: ${project.prompt || "Not provided"}`
     );
+  };
+
+  const useLogoFallbackOption = () => {
+    if (!logoFallbackOption?.image) return;
+    setLogoImage(logoFallbackOption.image);
+    setLogoImageSource(logoFallbackOption.source || "instant-svg");
+    setLogoVectorImage(logoFallbackOption.vectorImage || logoFallbackOption.image);
+    setLogoSvg(logoFallbackOption.svg || "");
+    setLogoTransparentSvg(logoFallbackOption.transparentSvg || logoFallbackOption.svg || "");
+    setLogoVariations((Array.isArray(logoFallbackOption.variations) ? logoFallbackOption.variations : []).slice(0, 1));
+    setLogoCreativeBrief(logoFallbackOption.creativeBrief || null);
+    if (logoFallbackOption.generationMemory) setLogoGenerationMemory(logoFallbackOption.generationMemory);
+    setLogoGenerationError("");
+    setLogoFallbackOption(null);
+    setResult("Editable vector logo created.\n\nAI logo generation was unavailable, so you chose to use the instant editable vector fallback.");
+    trackBrandthatEvent("logo_instant_vector_selected", {
+      code: logoFallbackOption.errorCode || "",
+      requestId: logoFallbackOption.requestId || "",
+    });
   };
 
   const continueSavedLogo = (entry) => {
@@ -6148,6 +6237,7 @@ ${promptValue}`;
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
           logoCreativeBrief={logoCreativeBrief}
+          logoFallbackOption={logoFallbackOption}
           logoGenerationMemory={logoGenerationMemory}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
@@ -6165,6 +6255,7 @@ ${promptValue}`;
           saveGeneratedAsset={saveGeneratedAsset}
           saveCurrentLogoConcept={saveCurrentLogoConcept}
           setLogoAsBrandProfile={setLogoAsBrandProfile}
+          onUseLogoFallback={useLogoFallbackOption}
           onStartWorkspace={startWorkspaceFromCurrentLogo}
           onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
@@ -6242,6 +6333,7 @@ ${promptValue}`;
             logoTransparentSvg={logoTransparentSvg}
             logoVariations={logoVariations}
             logoCreativeBrief={logoCreativeBrief}
+            logoFallbackOption={logoFallbackOption}
             logoGenerationMemory={logoGenerationMemory}
             logoEditor={logoEditor}
             setLogoEditor={setLogoEditor}
@@ -6259,6 +6351,7 @@ ${promptValue}`;
             saveGeneratedAsset={saveGeneratedAsset}
             saveCurrentLogoConcept={saveCurrentLogoConcept}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
+            onUseLogoFallback={useLogoFallbackOption}
             onStartWorkspace={startWorkspaceFromCurrentLogo}
             onBuildGrowthRoadmap={buildGrowthRoadmapFromCurrentLogo}
             rememberRejectedLogoDirection={rememberRejectedLogoDirection}
@@ -8059,6 +8152,7 @@ function SEOPage({
   logoTransparentSvg,
   logoVariations,
   logoCreativeBrief,
+  logoFallbackOption,
   logoGenerationMemory,
   logoEditor,
   setLogoEditor,
@@ -8076,6 +8170,7 @@ function SEOPage({
   saveGeneratedAsset = () => {},
   saveCurrentLogoConcept = () => {},
   setLogoAsBrandProfile,
+  onUseLogoFallback = () => {},
   onStartWorkspace,
   onBuildGrowthRoadmap,
   rememberRejectedLogoDirection,
@@ -8122,6 +8217,7 @@ function SEOPage({
           logoTransparentSvg={logoTransparentSvg}
           logoVariations={logoVariations}
           logoCreativeBrief={logoCreativeBrief}
+          logoFallbackOption={logoFallbackOption}
           logoGenerationMemory={logoGenerationMemory}
           logoEditor={logoEditor}
           setLogoEditor={setLogoEditor}
@@ -8139,6 +8235,7 @@ function SEOPage({
             saveGeneratedAsset={saveGeneratedAsset}
             saveCurrentLogoConcept={saveCurrentLogoConcept}
             setLogoAsBrandProfile={setLogoAsBrandProfile}
+          onUseLogoFallback={onUseLogoFallback}
           onStartWorkspace={onStartWorkspace}
           onBuildGrowthRoadmap={onBuildGrowthRoadmap}
           rememberRejectedLogoDirection={rememberRejectedLogoDirection}
@@ -8768,6 +8865,7 @@ function GeneratorCard({
   logoTransparentSvg = "",
   logoVariations = [],
   logoCreativeBrief = null,
+  logoFallbackOption = null,
   logoGenerationMemory = {},
   logoEditor = {},
   setLogoEditor = () => {},
@@ -8786,6 +8884,7 @@ function GeneratorCard({
   saveGeneratedAsset = () => {},
   saveCurrentLogoConcept = () => {},
   setLogoAsBrandProfile,
+  onUseLogoFallback = () => {},
   onStartWorkspace = () => {},
   onBuildGrowthRoadmap = () => {},
   rememberRejectedLogoDirection,
@@ -9034,7 +9133,7 @@ function GeneratorCard({
     ].map(([label, copy]) => ({
       label,
       copy: String(copy || "").replace(/\s+/g, " ").replace(/; Creative Director:.*$/i, "").slice(0, 130),
-    }));
+    })).filter((note) => isMeaningfulDisplayText(note.copy));
   }, [logoCreativeBrief, parsedLogoPreview]);
   const lightweightBrandKit = useMemo(
     () => buildLightweightBrandKit({
@@ -9367,10 +9466,15 @@ Designer iteration rules:
       )}
 
       {activeTool.key === "logo" && logoGenerationError && !loading && (
-        <div className="generatorErrorPanel">
+        <div className="generatorErrorPanel" role="alert" aria-live="assertive">
           <strong>Logo generation did not finish.</strong>
           <span>{logoGenerationError}</span>
-          <button onClick={generate}>Try again</button>
+          <div className="generatorErrorActions">
+            <button onClick={generate}>Retry AI Generation</button>
+            {logoFallbackOption?.image && (
+              <button onClick={onUseLogoFallback}>Use Instant Vector Instead</button>
+            )}
+          </div>
         </div>
       )}
 
@@ -9835,7 +9939,17 @@ function LogoCreativeDirectorPanel({
     ["Brand", workspaceLogoContext?.brandName || creativeBrief?.brandName],
     ["Audience", workspaceLogoContext?.audience || creativeBrief?.targetAudience],
     ["Visual territory", workspaceLogoContext?.symbol || creativeBrief?.visualTerritory],
-  ].filter(([, value]) => String(value || "").trim());
+  ].filter(([, value]) => isMeaningfulDisplayText(value));
+  const strategyPositioning = creativeBrief?.brandStrategy?.positioning;
+  const strategyMessage = creativeBrief?.brandStrategy?.coreMessage;
+  const strategyCustomer = creativeBrief?.brandStrategy?.targetCustomer;
+  const strategyVisual = creativeBrief?.brandStrategy?.suggestedVisualDirection;
+  const showBrandStrategyStrip = [
+    strategyPositioning,
+    strategyMessage,
+    strategyCustomer,
+    strategyVisual,
+  ].some(isMeaningfulDisplayText);
 
   const refinements = [
     ["Clarify the symbol", "Regenerate this logo with a clearer symbol direction while preserving the active brand name, category, palette, and typography."],
@@ -9864,11 +9978,18 @@ function LogoCreativeDirectorPanel({
         </p>
       )}
 
-      {creativeBrief?.brandStrategy && (
+      {showBrandStrategyStrip && (
         <div className="brandStrategyStrip">
           <span>Brand Strategy</span>
-          <p>{creativeBrief.brandStrategy.positioning}. {creativeBrief.brandStrategy.coreMessage}</p>
-          <small>Customer: {creativeBrief.brandStrategy.targetCustomer}. Visual: {creativeBrief.brandStrategy.suggestedVisualDirection}.</small>
+          {[strategyPositioning, strategyMessage].some(isMeaningfulDisplayText) && (
+            <p>{[strategyPositioning, strategyMessage].filter(isMeaningfulDisplayText).join(". ")}</p>
+          )}
+          {[strategyCustomer, strategyVisual].some(isMeaningfulDisplayText) && (
+            <small>{[
+              isMeaningfulDisplayText(strategyCustomer) ? `Customer: ${strategyCustomer}` : "",
+              isMeaningfulDisplayText(strategyVisual) ? `Visual: ${strategyVisual}` : "",
+            ].filter(Boolean).join(". ")}</small>
+          )}
         </div>
       )}
 
@@ -10722,6 +10843,8 @@ textarea{height:170px;resize:none;line-height:1.6}
 .generatorErrorPanel strong{font-size:15px}
 .generatorErrorPanel span{color:#666;line-height:1.5}
 .generatorErrorPanel button{width:max-content;background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:9px 12px;font-weight:850;cursor:pointer;color:#111}
+.generatorErrorActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.generatorErrorActions button:first-child{background:#111;color:white}
 .whiteBtn{background:white;color:#111;border:none}
 .logoImageBox{margin-top:26px;background:#fafafa;border:1px solid rgba(0,0,0,.06);border-radius:28px;padding:22px;text-align:center}
 .logoImageBox img{width:100%;max-width:420px;border-radius:22px;display:block;margin:0 auto}

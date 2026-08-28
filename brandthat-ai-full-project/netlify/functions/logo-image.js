@@ -1,5 +1,10 @@
-const OpenAI = require("openai");
-const { requireVerifiedUser } = require("./lib/auth.js");
+import { readFileSync } from "node:fs";
+import OpenAI from "openai";
+import { getRequestId, json, requireVerifiedUser } from "./lib/membership.js";
+
+export const config = {
+  timeout: 60,
+};
 
 function getOpenAiClient() {
   if (!process.env.OPENAI_API_KEY) return null;
@@ -31,6 +36,9 @@ function buildLogoPrompt({ logoPrompt, brandName, logoStyle, logoIndustry, logoS
     .map((concept, index) => `${index + 1}. ${concept.name}: ${concept.symbol}. Typography: ${concept.typography}. Palette: ${concept.palette}. Layout: ${concept.layout}. Why: ${concept.whyFits}`)
     .join("\n");
   const strategy = director.brandStrategy || brandStrategy || {};
+  const pricePositioningLine = isMeaningfulLogoText(strategy.pricePositioning)
+    ? `- Price positioning: ${strategy.pricePositioning}`
+    : "";
 
   return `
 Create one finished, usable premium logo image.
@@ -70,7 +78,7 @@ Brand Strategist system:
 - Target customer: ${strategy.targetCustomer || director.targetAudience}
 - Brand personality: ${strategy.brandPersonality || director.personality}
 - Competitor category: ${strategy.competitorCategory || director.category}
-- Price positioning: ${strategy.pricePositioning || "market-appropriate"}
+${pricePositioningLine}
 - Core message: ${strategy.coreMessage || "Make the brand easy to understand and trust."}
 - Visual direction: ${strategy.suggestedVisualDirection || director.visualTerritory}
 - Color direction: ${strategy.suggestedColorDirection || logoColors || "category-appropriate professional palette"}
@@ -304,6 +312,103 @@ function titleCase(value = "") {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isMeaningfulLogoText(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return false;
+  const semantic = text.replace(/[.\-_:;,\s]/g, "");
+  if (!semantic) return false;
+  return !/^(undefined|null|n\/a|none|placeholder)$/i.test(text);
+}
+
+function cleanLogoNarrative(value = "", { maxSentences = 4 } = {}) {
+  const text = String(value || "")
+    .replace(/\b(luxury price|startup scale|premium market)\b/gi, "")
+    .replace(/\bPersonality fit:\s*/gi, "")
+    .replace(/\bTrend fit:\s*/gi, "")
+    .replace(/\bCreative Director refinement:\s*/gi, "")
+    .replace(/\s*;\s*/g, ". ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\./g, ".")
+    .trim();
+  if (!isMeaningfulLogoText(text)) return "";
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(isMeaningfulLogoText);
+  return (sentences.length ? sentences : [text]).slice(0, maxSentences).join(" ");
+}
+
+function getConceptSubjectLabel(subject = "", logoIndustry = "") {
+  const raw = String(logoIndustry || subject || "").toLowerCase();
+  if (/plant|botanical|houseplant|greenery|garden/.test(raw)) return "botanical";
+  if (/software|saas|app|platform|creator|sponsor|invoice|workflow|tech/.test(raw)) return "software";
+  if (/pet|dog|groom|animal/.test(raw)) return "pet care";
+  if (/coffee|cafe|espresso|drink|beverage/.test(raw)) return "coffee";
+  if (/home|interior|design|styling|room/.test(raw)) return "interior";
+  if (/law|legal/.test(raw)) return "professional";
+  if (/service|local|neighborhood|studio|care/.test(raw)) return "local service";
+  return String(subject || "brand").replace(/-/g, " ");
+}
+
+function buildCustomerFacingConceptBlueprints({ subject = "", logoIndustry = "", logoSymbol = "", typography = null, palette = "", brandStrategy = {}, personality = null } = {}) {
+  const label = getConceptSubjectLabel(subject, logoIndustry);
+  const visual = cleanLogoNarrative(brandStrategy?.suggestedVisualDirection || logoSymbol || "", { maxSentences: 1 });
+  const type = cleanLogoNarrative(brandStrategy?.suggestedTypographyDirection || typography?.label || "readable brand typography", { maxSentences: 1 });
+  const categoryPalette = cleanLogoNarrative(brandStrategy?.suggestedColorDirection || palette || "", { maxSentences: 1 });
+  const friendly = /friendly|warm|approachable|calm|beginner|local/i.test(`${brandStrategy?.brandPersonality || ""} ${brandStrategy?.coreMessage || ""} ${personality?.summary || ""}`);
+
+  if (label === "botanical") {
+    return [
+      ["Botanical Wordmark", "wordmark-led identity with a restrained plant detail integrated into the type", visual || "a small botanical detail that feels grown into the wordmark instead of pasted beside it", type || "warm botanical serif paired with a readable humanist sans", "website headers, packaging labels, and care cards", "This direction leads with calm recognition and keeps the name easy to read. It supports a warm, dependable plant brand without relying on a generic leaf icon.", "At small sizes, the wordmark remains primary and the plant detail reduces to a simple stroke or counterform.", categoryPalette || "leaf green carries the name, warm ivory gives the mark breathing room, and terracotta stays as a small accent."],
+      ["Stone & Leaf Symbol", "compact symbol plus wordmark with the natural object reduced into one clear silhouette", visual || "a grounded stone-and-leaf symbol with enough contrast to work as an avatar", type || "humanist sans support type with a softer serif wordmark", "Instagram avatar, plant labels, subscription inserts, and small packaging", "This option gives the brand a recognizable mark when the full name is not visible. It connects delivery, plant care, and calm apartment greenery through one compact symbol.", "The symbol should still read as one shape at favicon and profile-photo size.", categoryPalette || "leaf green defines the living cue, stone gray grounds the symbol, and ivory keeps the badge clean."],
+      [friendly ? "Friendly Delivery Badge" : "Local Delivery Badge", "badge/avatar system that frames the brand as a local service with a clear beginner-friendly promise", visual || "a simple badge combining plant delivery, care-card, or apartment-window cues", type || "friendly serif-and-sans pairing with practical label readability", "delivery stickers, social posts, care cards, and local launch materials", "This direction makes the service feel useful and approachable, not just decorative. It is strongest when the logo needs to reassure first-time plant owners quickly.", "The badge uses large shapes, few details, and a clear center mark for mobile use.", categoryPalette || "terracotta can mark delivery or care-card moments while green and ivory keep the system botanical."],
+    ].map(([name, composition, symbol, typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse]) => ({ name, composition, symbol, typography: typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse }));
+  }
+
+  if (label === "software") {
+    return [
+      ["Workflow Wordmark", "type-led product mark with a precise custom letter detail", visual || "a subtle signal, document, or workflow cue integrated into the wordmark", type || "clean product-grade sans with confident spacing", "app header, website nav, and product screenshots", "This direction keeps the product credible and easy to recognize in software environments. It avoids decorative tech symbols and focuses on clarity.", "The custom letter detail can reduce into a favicon without losing the brand name's rhythm.", categoryPalette || "the primary color organizes UI moments while neutrals carry the product surface."],
+      ["Signal System", "symbol plus wordmark built from organized movement or connected workflow states", visual || "a compact signal mark that suggests clarity, organization, and momentum", type || "geometric sans with a crisp support hierarchy", "app icon, favicon, dashboard, and social avatar", "This concept gives the brand a recognizable product symbol. The strategic focus is organized action rather than generic AI or abstract circuitry.", "The symbol uses one clear gesture so it remains legible in toolbar and favicon sizes.", categoryPalette || "accent color highlights the signal while dark and light neutrals keep it product-ready."],
+      ["Creator Toolkit Badge", "compact badge system that can label templates, workflows, and creator-facing tools", visual || "a simplified badge based on documents, sponsorship flow, or organized deliverables", type || "readable sans with friendly product polish", "social launch assets, onboarding cards, templates, and help docs", "This direction makes the brand feel practical and useful for creators. It is less corporate and more suited to repeated in-product touchpoints.", "The badge keeps a bold interior shape and removes fine detail below avatar size.", categoryPalette || "the accent can identify actions while the base palette keeps the system calm."],
+    ].map(([name, composition, symbol, typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse]) => ({ name, composition, symbol, typography: typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse }));
+  }
+
+  const localLike = label === "local service" || label === "pet care" || label === "interior";
+  const names = localLike ? ["Trusted Wordmark", "Service Symbol", "Neighborhood Badge"] : [`${titleCase(label)} Wordmark`, `${titleCase(label)} Symbol`, `${titleCase(label)} Badge`];
+  return [
+    [names[0], "wordmark-led identity with one ownable detail from the brand meaning", visual || `a restrained ${label} cue integrated into the typography`, type || "clean readable type matched to the brand personality", "website headers, social profile, and launch materials", "This direction makes the name the strongest asset and keeps the mark easy to use. It is designed for clarity before decoration.", "The custom type detail can simplify when the mark is used small.", categoryPalette || "the palette should support contrast, recognition, and practical use."],
+    [names[1], "compact symbol plus wordmark with a distinct silhouette", visual || `one reduced ${label} symbol tied to the brand promise`, type || "readable supporting wordmark with clear hierarchy", "avatar, favicon, product label, and social posts", "This route gives the brand a shorthand mark when the full name is not available. It should feel specific to the business rather than like a template icon.", "The symbol uses few parts and remains recognizable as a single shape.", categoryPalette || "the accent color should help the symbol stand apart from the wordmark."],
+    [names[2], "badge/avatar system for repeated launch and content touchpoints", visual || "a framed mark built from the clearest customer-facing moment", type || "simple type hierarchy suitable for small labels", "social assets, stickers, packaging, signage, and campaign graphics", "This direction creates a flexible mark for everyday brand applications. It is strongest when the brand needs a practical system, not only a single logo.", "The badge keeps a clear center shape and removes secondary detail at small sizes.", categoryPalette || "the palette should make the badge useful across light and dark contexts."],
+  ].map(([name, composition, symbol, typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse]) => ({ name, composition, symbol, typography: typographyText, primaryUseCase, rationale, smallSizeBehavior, paletteUse }));
+}
+
+export function polishLogoConcepts(concepts = [], context = {}) {
+  const blueprints = buildCustomerFacingConceptBlueprints(context);
+  const source = Array.isArray(concepts) ? concepts : [];
+  return blueprints.map((blueprint, index) => {
+    const concept = source[index] || source[0] || {};
+    const whyFits = cleanLogoNarrative([
+      blueprint.rationale,
+      `Composition: ${blueprint.composition}.`,
+      `Primary use: ${blueprint.primaryUseCase}.`,
+      `Small-size behavior: ${blueprint.smallSizeBehavior}.`,
+      `Palette use: ${blueprint.paletteUse}.`,
+    ].filter(isMeaningfulLogoText).join(" "), { maxSentences: 4 });
+    return {
+      ...concept,
+      id: concept.id || `direction-${index + 1}`,
+      name: blueprint.name,
+      symbol: cleanLogoNarrative(blueprint.symbol || concept.symbol, { maxSentences: 1 }),
+      typography: cleanLogoNarrative(blueprint.typography || concept.typography, { maxSentences: 1 }),
+      palette: cleanLogoNarrative(blueprint.paletteUse || concept.palette || context.palette, { maxSentences: 1 }),
+      layout: cleanLogoNarrative(blueprint.composition || concept.layout, { maxSentences: 1 }),
+      primaryUseCase: blueprint.primaryUseCase,
+      smallSizeBehavior: blueprint.smallSizeBehavior,
+      whyFits,
+    };
+  });
+}
+
 const BRAND_NAME_STOPPER_WORDS = "with|using|featuring|that|for|in|as|maybe|modern|blue|black|white|gold|silver|red|green|cream|navy|pink|brown|orange|yellow|teal|chrome|bold|luxury|minimal|professional|playful|vintage|serif|monogram|simple|calm|not|no|avoid|factory|restaurant|company|business|brand|logo|named|name|naed|naemd|nmaed|called|callled|calld|titled|style|colors|colour|color|icon|symbol|mascot|monogram|badge|emblem|please|thanks|thank";
 
 function formatRecoveredBrandName(value = "") {
@@ -379,7 +484,7 @@ const DEFAULT_STYLE_TAXONOMY = [
 
 let STYLE_SCHEMA = {};
 try {
-  STYLE_SCHEMA = require("./logo-style-schemas.json");
+  STYLE_SCHEMA = JSON.parse(readFileSync(new URL("./logo-style-schemas.json", import.meta.url), "utf8"));
 } catch {
   STYLE_SCHEMA = {};
 }
@@ -468,8 +573,6 @@ function detectLogoStyles({ subject, logoStyle = "", logoIndustry = "", logoSymb
 function inferPositioning({ subject, styles, source = "", personality = null }) {
   const text = source.toLowerCase();
   if (personality) {
-    if (personality.matrix.market.score >= 66 || personality.matrix.price.score >= 68) return "premium";
-    if (personality.matrix.price.score <= 34 || personality.matrix.market.score <= 34) return "accessible";
     if (personality.matrix.scale.score >= 66 || personality.matrix.tone.score <= 34) return "professional";
     if (personality.matrix.reach.score <= 32) return "neighborhood";
   }
@@ -733,7 +836,9 @@ function getPersonalityLean(matrix, axis, threshold = 12) {
 }
 
 function summarizePersonalityMatrix(matrix) {
+  const nonCustomerFacingAxes = new Set(["price", "scale", "market"]);
   return Object.entries(matrix)
+    .filter(([axis]) => !nonCustomerFacingAxes.has(axis))
     .map(([axis, item]) => {
       const distance = Math.abs(item.score - 50);
       const label = item.score >= 50 ? item.high : item.low;
@@ -1364,15 +1469,13 @@ function buildBrandStrategy({ brandName = "", subject = "abstract", positioning 
     type: "clean readable typography matched to the brand personality",
   };
 
-  const pricePositioning = premiumScore >= 68 || /luxury|premium|high.?end|exclusive/i.test(`${logoStyle} ${userPrompt}`)
+  const pricePositioning = /luxury|premium|high.?end|exclusive/i.test(`${logoStyle} ${userPrompt}`)
     ? "premium / high-trust"
-    : premiumScore <= 34 || /cheap|budget|affordable|discount/i.test(userPrompt)
+    : /cheap|budget|affordable|discount/i.test(userPrompt)
       ? "accessible / value-focused"
-      : positioning === "neighborhood"
-        ? "local-market approachable"
-        : "mid-market professional";
+      : "";
   const targetCustomer = audience || selectAudience({ subject, positioning });
-  const localGlobal = reachScore <= 38 ? "local presence" : reachScore >= 64 ? "scalable/global presence" : "regional or online-ready presence";
+  const localGlobal = reachScore <= 38 ? "local presence" : reachScore >= 64 ? "broader online presence" : "regional or online-ready presence";
   const craftTech = craftScore <= 42 ? "handcrafted credibility" : craftScore >= 62 ? "tech-enabled confidence" : "balanced professional trust";
   const energy = playfulScore >= 64 ? "warm and expressive" : playfulScore <= 36 ? "calm and authoritative" : "clear and approachable";
 
@@ -1926,7 +2029,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     if (!duplicateStyle && !duplicateLayout && !duplicateSymbol && !sourceCapReached && diversified.length < 4) diversified.push(concept);
   });
 
-  const concepts = (diversified.length >= 4 ? diversified : reviewedScored.slice(0, 4)).map((concept) => ({
+  const rawConcepts = (diversified.length >= 4 ? diversified : reviewedScored.slice(0, 4)).map((concept) => ({
     name: concept.name,
     style: concept.style,
     symbol: concept.symbol,
@@ -1939,6 +2042,15 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     score: concept.score,
     creativeDirectorReview: concept.creativeDirectorReview,
   }));
+  const concepts = polishLogoConcepts(rawConcepts, {
+    subject,
+    logoIndustry,
+    logoSymbol,
+    typography,
+    palette,
+    brandStrategy: strategy,
+    personality,
+  });
 
   return {
     brandName: inferredName,
@@ -3486,37 +3598,55 @@ async function generateOpenAiLogo({ finalPrompt, signal }) {
   return imageUrl || `data:image/png;base64,${base64Image}`;
 }
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;
+  const requestId = getRequestId("logo_image");
+  const requestStartedAt = Date.now();
+  const logTiming = (stage, fields = {}) => {
+    console.info("BrandThat logo-image timing", {
+      requestId,
+      stage,
+      durationMs: Date.now() - requestStartedAt,
+      ...fields,
+    });
+  };
+  logTiming("request_received");
 
   const auth = await requireVerifiedUser(event).catch(() => ({
     error: {
       statusCode: 401,
+      code: "AUTH_REQUIRED",
       message: "Please log in again to continue.",
     },
   }));
   if (auth.error) {
-    return {
-      statusCode: auth.error.statusCode,
-      body: JSON.stringify({ error: auth.error.message }),
-    };
+    return json(auth.error.statusCode || 401, {
+      ok: false,
+      code: auth.error.code || "AUTH_REQUIRED",
+      message: auth.error.message,
+      requestId,
+    });
   }
 
   try {
     if (!checkRateLimit(event)) {
-      return {
-        statusCode: 429,
-        body: JSON.stringify({ error: "Too many logo generations. Please wait a minute and try again." }),
-      };
+      return json(429, {
+        ok: false,
+        code: "LOGO_RATE_LIMITED",
+        message: "Too many logo generations. Please wait a minute and try again.",
+        requestId,
+      });
     }
 
     const { logoPrompt, brandName, logoStyle, logoIndustry, logoSymbol, logoColors, logoAvoid, userPrompt, generationMemory, parsedLogo, contextReset, brandStrategy: providedBrandStrategy } = JSON.parse(event.body || "{}");
 
     if (!logoPrompt) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Logo prompt is required." }),
-      };
+      return json(400, {
+        ok: false,
+        code: "LOGO_PROMPT_REQUIRED",
+        message: "Logo prompt is required.",
+        requestId,
+      });
     }
 
     const promptInterpreter = runPromptInterpreterAgent({
@@ -3562,13 +3692,19 @@ exports.handler = async (event, context) => {
     if (!qualityGate.accepted) {
       console.warn("Brandthat logo rejection agent warning:", qualityGate.summary);
     }
-    const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 8000);
+    const timeoutMs = Number(process.env.LOGO_IMAGE_TIMEOUT_MS || 50000);
+    const model = process.env.LOGO_IMAGE_MODEL || "gpt-image-1";
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      logTiming("openai_request_started", { model, timeoutMs });
       const image = await generateOpenAiLogo({ finalPrompt, signal: controller.signal });
       clearTimeout(timeout);
+      logTiming("openai_response_received", { model });
+
+      logTiming("response_serialization_started", { statusCode: 200, source: "brand-guarded-svg" });
+      logTiming("response_returned", { statusCode: 200, source: "brand-guarded-svg" });
 
       return {
         statusCode: 200,
@@ -3594,53 +3730,65 @@ exports.handler = async (event, context) => {
       };
     } catch (imageError) {
       clearTimeout(timeout);
-      console.warn("BrandThat logo image provider failed; returning instant vector fallback", {
+      const providerCode = imageError?.code || imageError?.type || imageError?.name || "LOGO_IMAGE_PROVIDER_FAILED";
+      logTiming("generation_failed", {
+        model,
+        code: providerCode,
+        statusCode: imageError?.status || imageError?.statusCode || null,
+        timedOut: imageError?.name === "AbortError",
+      });
+      console.warn("BrandThat logo image provider failed", {
+        requestId,
         type: imageError?.type || imageError?.name,
         code: imageError?.code,
         statusCode: imageError?.status || imageError?.statusCode,
         message: imageError?.message,
       });
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          ok: true,
-          fallback: true,
-          providerError: {
-            code: imageError?.code || imageError?.type || imageError?.name || "LOGO_IMAGE_PROVIDER_FAILED",
-            statusCode: imageError?.status || imageError?.statusCode || null,
-          },
+      return json(503, {
+        ok: false,
+        code: providerCode,
+        message: "AI logo generation is temporarily unavailable.",
+        requestId,
+        providerError: {
+          code: providerCode,
+          statusCode: imageError?.status || imageError?.statusCode || null,
+        },
+        fallback: {
           image: vectorLogo.image,
           source: "instant-svg",
           vectorImage: vectorLogo.image,
           svg: vectorLogo.svg,
           transparentSvg: vectorLogo.transparentSvg,
-          variations: vectorLogo.variations,
+          variations: (vectorLogo.variations || []).slice(0, 1),
           creativeBrief: vectorLogo.creativeBrief,
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,
           promptInterpreter,
           brandStrategy,
           qualityGate,
-          note: "AI logo generation is temporarily unavailable. BrandThat created an instant editable vector concept from your exact fields instead.",
-        }),
-      };
+          note: "AI logo generation is temporarily unavailable. Use the instant editable vector only if you choose that fallback.",
+        },
+      });
     }
   } catch (error) {
+    logTiming("generation_failed", {
+      code: error?.code || error?.type || "LOGO_IMAGE_FUNCTION_FAILED",
+      statusCode: error?.status || error?.statusCode || null,
+      timedOut: error?.name === "AbortError",
+    });
     console.error("BrandThat logo image function failed", {
+      requestId,
       type: error?.type || error?.name,
       code: error?.code,
       statusCode: error?.status || error?.statusCode,
       message: error?.message,
     });
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    return json(500, {
         ok: false,
         code: error?.code || error?.type || "LOGO_IMAGE_FUNCTION_FAILED",
         message: "Logo generation is temporarily unavailable.",
-      }),
-    };
+        requestId,
+      });
   }
 };
