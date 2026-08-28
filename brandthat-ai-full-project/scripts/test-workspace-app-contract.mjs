@@ -31,6 +31,9 @@ assert.ok(appSource.includes("if (!data?.id) throw new Error(\"Saved asset did n
 assert.ok(!appSource.includes(".insert({\n            user_id: session.user.id,\n            workspace_id: activeBrand.id,\n            tool: activeTool.key,\n            title: entry.title,\n            content: storageContent,\n            image_url: entry.image,\n            favorite,"), "Asset inserts should not depend on a newer favorite column.");
 assert.ok(appSource.includes(".update({ content: nextStoredContent })"), "Favorite toggles should persist through existing content column metadata.");
 assert.ok(appSource.includes("assetControls"), "Saved Assets should include search/filter controls.");
+assert.ok(appSource.includes("function CompactRecentAssetsPreview"), "Content Tools should show only a compact recent-assets preview.");
+assert.ok(appSource.includes("<CompactRecentAssetsPreview brand={activeBrand}"), "Content Tools must not embed the full Saved Assets library.");
+assert.ok(appSource.includes("navigateWorkspaceSection(\"assets\")"), "Compact assets preview should link to the full Saved Assets page.");
 assert.ok(appSource.includes("createMenuContext"), "Create menu should show the active brand context.");
 assert.ok(appSource.includes("Avoid unsupported health, scientific"), "Caption prompt should block unsupported claims.");
 assert.ok(appSource.includes("do not give an exact watering frequency"), "Caption prompt should block unsupported plant watering schedules.");

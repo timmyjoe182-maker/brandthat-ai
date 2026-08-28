@@ -455,6 +455,68 @@
   margin-bottom: 8px;
 }
 
+.compactAssetsPreview {
+  margin-top: 18px;
+}
+
+.compactAssetsPreview .appCardHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.compactAssetsPreview .appCardHeader button {
+  white-space: nowrap;
+}
+
+.compactAssetList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.compactAssetList button {
+  align-items: center;
+  background: #f8f5ef;
+  border: 1px solid rgba(17, 17, 15, .1);
+  border-radius: 16px;
+  color: #11110f;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.compactAssetList strong {
+  font-size: 15px;
+  letter-spacing: -.02em;
+}
+
+.compactAssetList span {
+  color: #6b625b;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.captionStyleLabel {
+  background: #fffdf8;
+  border: 1px solid rgba(17, 17, 15, .1);
+  border-radius: 999px;
+  color: #806546;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
 @media (max-width: 900px) {
   .builderContextGrid,
   .brandSummaryDashboard,
