@@ -111,12 +111,36 @@ function patchApp() {
     "request error response payload",
   );
 
-  source = replaceOnce(
-    source,
-    `function trackBrandthatEvent(name, properties = {}) {`,
-    `function stableStringHash(value = "") {\n  let hash = 2166136261;\n  const input = String(value);\n  for (let index = 0; index < input.length; index += 1) {\n    hash ^= input.charCodeAt(index);\n    hash = Math.imul(hash, 16777619);\n  }\n  return (hash >>> 0).toString(36);\n}\n\nfunction buildLogoFallbackOption(fallback = {}, requestPayload = {}, error = {}) {\n  const fallbackLogo = fallback?.image ? fallback : createClientFallbackLogo(requestPayload);\n  const firstVariation = Array.isArray(fallbackLogo.variations) && fallbackLogo.variations.length\n    ? fallbackLogo.variations[0]\n    : { id: "instant-vector-primary", name: "Instant Vector", image: fallbackLogo.image, svg: fallbackLogo.svg };\n  const stableSeed = [\n    requestPayload.brandName,\n    requestPayload.logoIndustry,\n    requestPayload.logoStyle,\n    firstVariation?.name,\n    fallbackLogo.image || fallbackLogo.svg,\n  ].filter(Boolean).join("|");\n\n  return {\n    ...fallbackLogo,\n    id: \`instant-vector-\${stableStringHash(stableSeed || "brandthat-logo-fallback")}\`,\n    name: firstVariation?.name || fallbackLogo.name || "Instant Vector",\n    type: "instant-vector",\n    image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",\n    vectorImage: fallbackLogo.vectorImage || fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",\n    svg: fallbackLogo.svg || firstVariation?.svg || "",\n    transparentSvg: fallbackLogo.transparentSvg || fallbackLogo.svg || firstVariation?.svg || "",\n    variations: [{ ...firstVariation, name: firstVariation?.name || "Instant Vector" }],\n    previewData: {\n      image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",\n      source: "instant-svg",\n    },\n    workspaceContext: requestPayload.structuredLogo || requestPayload.brandStrategy || {},\n    palette: requestPayload.logoColors || fallbackLogo.creativeBrief?.palette || "",\n    typography: requestPayload.parsedLogo?.typography || fallbackLogo.creativeBrief?.typography || "",\n    saveBehavior: "Save Logo Concept",\n    setPrimaryBehavior: "Set as Primary Logo",\n    errorCode: error?.code || fallback?.providerError?.code || "LOGO_IMAGE_UNAVAILABLE",\n    requestId: error?.requestId || fallback?.requestId || "",\n    note: fallbackLogo.note || "Instant editable vector fallback is available if you choose to use it.",\n  };\n}\n\nfunction trackBrandthatEvent(name, properties = {}) {`,
-    "logo fallback option builder",
-  );
+  if (!source.includes("function buildLogoFallbackOption(")) {
+    source = replaceOnce(
+      source,
+      `function trackBrandthatEvent(name, properties = {}) {`,
+      `function stableStringHash(value = "") {\n  let hash = 2166136261;\n  const input = String(value);\n  for (let index = 0; index < input.length; index += 1) {\n    hash ^= input.charCodeAt(index);\n    hash = Math.imul(hash, 16777619);\n  }\n  return (hash >>> 0).toString(36);\n}\n\nfunction buildLogoFallbackOption(fallback = {}, requestPayload = {}, error = {}) {\n  const fallbackLogo = fallback?.image ? fallback : createClientFallbackLogo(requestPayload);\n  const firstVariation = Array.isArray(fallbackLogo.variations) && fallbackLogo.variations.length\n    ? fallbackLogo.variations[0]\n    : { id: "instant-vector-primary", name: "Instant Vector", image: fallbackLogo.image, svg: fallbackLogo.svg };\n  const stableSeed = [\n    requestPayload.brandName,\n    requestPayload.logoIndustry,\n    requestPayload.logoStyle,\n    firstVariation?.name,\n    fallbackLogo.image || fallbackLogo.svg,\n  ].filter(Boolean).join("|");\n\n  return {\n    ...fallbackLogo,\n    id: \`instant-vector-\${stableStringHash(stableSeed || "brandthat-logo-fallback")}\`,\n    name: firstVariation?.name || fallbackLogo.name || "Instant Vector",
+    type: "instant-vector",
+    image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+    vectorImage: fallbackLogo.vectorImage || fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+    svg: fallbackLogo.svg || firstVariation?.svg || "",
+    transparentSvg: fallbackLogo.transparentSvg || fallbackLogo.svg || firstVariation?.svg || "",
+    variations: [{ ...firstVariation, name: firstVariation?.name || "Instant Vector" }],
+    previewData: {
+      image: fallbackLogo.image || firstVariation?.image || firstVariation?.svg || "",
+      source: "instant-svg",
+    },
+    workspaceContext: requestPayload.structuredLogo || requestPayload.brandStrategy || {},
+    palette: requestPayload.logoColors || fallbackLogo.creativeBrief?.palette || "",
+    typography: requestPayload.parsedLogo?.typography || fallbackLogo.creativeBrief?.typography || "",
+    saveBehavior: "Save Logo Concept",
+    setPrimaryBehavior: "Set as Primary Logo",
+    errorCode: error?.code || fallback?.providerError?.code || "LOGO_IMAGE_UNAVAILABLE",
+    requestId: error?.requestId || fallback?.requestId || "",
+    note: fallbackLogo.note || "Instant editable vector fallback is available if you choose to use it.",
+  };
+}
+
+function trackBrandthatEvent(name, properties = {}) {`,
+      "logo fallback option builder",
+    );
+  }
 
   source = replaceOnce(
     source,
@@ -268,7 +292,7 @@ function patchTests() {
   source = replaceOnce(
     source,
     `assert(logoFunction.includes("fallback: true"), "Logo function must identify instant-vector fallback responses.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("Logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");`,
-    `assert(logoFunction.includes("return json(503") && logoFunction.includes("fallback: {"), "Logo function must return honest structured provider failures with an explicit fallback option.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("AI logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");\nassert(app.includes("const [logoFallbackOption, setLogoFallbackOption] = useState(null)"), "App must define logo fallback state before rendering the error panel.");\nassert(app.includes("function stableStringHash(value = \\\"\\\")"), "App must define a deterministic client-safe logo fallback hash helper.");\nassert(app.includes("stableStringHash(stableSeed || \\\"brandthat-logo-fallback\\\")"), "Logo fallback IDs must use the client-safe hash helper.");\nassert(!app.includes("hashString(stableSeed"), "Logo fallback builder must not call the server-only hashString helper.");\nassert(app.includes("logoFallbackOption = null"), "GeneratorCard must receive a safe default fallback option prop.");\nassert(app.includes("onUseLogoFallback = () => {}"), "GeneratorCard must receive a safe fallback action prop.");\nassert(app.includes("Retry AI Generation"), "Logo failure UI must expose a retry action.");\nassert(app.includes("Use Instant Vector Instead"), "Logo failure UI must expose an explicit instant-vector choice.");\nassert(!app.includes("BrandThat created an instant editable fallback instead"), "Timeout copy must not claim the fallback was generated before the user chooses it.");`,
+    `assert(logoFunction.includes("return json(503") && logoFunction.includes("fallback: {"), "Logo function must return honest structured provider failures with an explicit fallback option.");\nassert(logoFunction.includes("providerError"), "Logo function must return safe provider diagnostics for fallback responses.");\nassert(logoFunction.includes("AI logo generation is temporarily unavailable."), "Logo function must return structured JSON failure messages.");\nassert(app.includes("const [logoFallbackOption, setLogoFallbackOption] = useState(null)"), "App must define logo fallback state before rendering the error panel.");\nassert(app.includes("logoFallbackOption = null"), "GeneratorCard must receive a safe default fallback option prop.");\nassert(app.includes("onUseLogoFallback = () => {}"), "GeneratorCard must receive a safe fallback action prop.");\nassert(app.includes("Retry AI Generation"), "Logo failure UI must expose a retry action.");\nassert(app.includes("Use Instant Vector Instead"), "Logo failure UI must expose an explicit instant-vector choice.");\nassert(!app.includes("BrandThat created an instant editable fallback instead"), "Timeout copy must not claim the fallback was generated before the user chooses it.");`,
     "logo fallback contract test",
   );
 
