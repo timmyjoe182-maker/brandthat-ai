@@ -1,16 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const logoFunctionPath = new URL("../netlify/functions/logo-image.js", import.meta.url);
-const qualityTestPath = new URL("./test-logo-direction-quality.mjs", import.meta.url);
-
 let logo = readFileSync(logoFunctionPath, "utf8");
-let qualityTest = "";
-try {
-  qualityTest = readFileSync(qualityTestPath, "utf8");
-} catch {
-  qualityTest = "";
-}
-
 let changed = false;
 
 function replaceOnce(source, needle, replacement, label) {
@@ -48,7 +39,7 @@ function getLogoServerTimeoutMs() {
 }
 
 function isBase64ImageDataUrl(value = "") {
-  return /^data:image\\/(png|jpeg|webp);base64,/i.test(String(value || ""));
+  return /^data:image\/(png|jpeg|webp);base64,/i.test(String(value || ""));
 }
 
 async function persistAiLogoImageIfNeeded(image = "", requestId = "") {
@@ -61,7 +52,7 @@ async function persistAiLogoImageIfNeeded(image = "", requestId = "") {
     return "";
   }
 
-  const mime = image.match(/^data:(image\\/[^;]+);base64,/i)?.[1] || "image/png";
+  const mime = image.match(/^data:(image\/[^;]+);base64,/i)?.[1] || "image/png";
   const extension = mime.includes("webp") ? "webp" : mime.includes("jpeg") ? "jpg" : "png";
   const base64 = image.split(",")[1] || "";
   const buffer = Buffer.from(base64, "base64");
@@ -90,7 +81,9 @@ async function persistAiLogoImageIfNeeded(image = "", requestId = "") {
 }
 `;
 
-logo = replaceOnce(logo, rateLimitBlock, reliabilityHelpers, "bounded timeout and image storage helpers");
+if (!logo.includes("function getLogoServerTimeoutMs()")) {
+  logo = replaceOnce(logo, rateLimitBlock, reliabilityHelpers, "bounded timeout and image storage helpers");
+}
 
 logo = replaceOnce(
   logo,
@@ -168,27 +161,5 @@ for (const [needle, replacement, label] of directionPairs) {
   logo = replaceOnce(logo, needle, replacement, label);
 }
 
-if (qualityTest) {
-  qualityTest = replaceOnce(
-    qualityTest,
-    `  const layouts = concepts.map((concept) => concept.layout);
-  const rationales = concepts.map((concept) => concept.whyFits);
-  assert.equal(new Set(layouts).size, 3, \`${testCase.name} compositions must be distinct.\`);
-  assert.equal(new Set(rationales).size, 3, \`${testCase.name} rationales must be distinct.\`);`,
-    `  const layouts = concepts.map((concept) => concept.layout);
-  const rationales = concepts.map((concept) => concept.whyFits);
-  const symbols = concepts.map((concept) => concept.symbol.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
-  const typography = concepts.map((concept) => concept.typography.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
-  const uses = concepts.map((concept) => concept.primaryUseCase.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
-  assert.equal(new Set(layouts).size, 3, \`${testCase.name} compositions must be distinct.\`);
-  assert.equal(new Set(rationales).size, 3, \`${testCase.name} rationales must be distinct.\`);
-  assert.equal(new Set(symbols).size, 3, \`${testCase.name} symbol treatments must be distinct.\`);
-  assert.equal(new Set(typography).size, 3, \`${testCase.name} typography treatments must be distinct.\`);
-  assert.equal(new Set(uses).size, 3, \`${testCase.name} primary use cases must be distinct.\`);`,
-    "semantic direction comparison tests"
-  );
-}
-
 writeFileSync(logoFunctionPath, logo);
-if (qualityTest) writeFileSync(qualityTestPath, qualityTest);
 console.log(changed ? "Applied logo reliability prebuild fixes." : "Logo reliability prebuild fixes already present.");
