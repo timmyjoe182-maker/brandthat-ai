@@ -96,18 +96,23 @@ export async function handler(event, _context = {}, meta = {}) {
   let action = "unknown";
 
   try {
+    logBrandMemory({ requestId, action, stage: "request_received", durationMs: Date.now() - startedAt });
     if (event.httpMethod !== "POST") return json(405, { ok: false, code: "METHOD_NOT_ALLOWED", error: "Method not allowed.", requestId });
 
     stage = "parse_body";
     body = parseBody(event);
     action = String(body.action || "unknown").slice(0, 80);
+    logBrandMemory({ requestId, action, stage: "configuration_checked", durationMs: Date.now() - startedAt });
 
     stage = "authentication";
+    logBrandMemory({ requestId, action, stage: "authentication_started", durationMs: Date.now() - startedAt });
     const authResult = await requireVerifiedUser(event);
     if (authResult.error) {
       logBrandMemory({ requestId, action, stage, code: "UNAUTHENTICATED", durationMs: Date.now() - startedAt });
       return json(authResult.error.statusCode, { ok: false, code: authResult.error.statusCode === 401 ? "UNAUTHENTICATED" : "EMAIL_VERIFICATION_REQUIRED", error: authResult.error.message, requestId });
     }
+
+    logBrandMemory({ requestId, action, userId: authResult.user.id, stage: "authentication_complete", durationMs: Date.now() - startedAt });
 
     stage = "eligibility";
     const common = {
@@ -117,11 +122,21 @@ export async function handler(event, _context = {}, meta = {}) {
     const memoryEnabled = isBrandMemoryEnabled();
     const allowlisted = getBrandMemoryTestUserIds().includes(String(authResult.user.id));
     const activeForUser = isBrandMemoryActiveForUser(authResult.user.id);
+    logBrandMemory({
+      requestId,
+      action,
+      userId: authResult.user.id,
+      workspaceId: common.workspaceId || null,
+      eligibility: memoryEnabled ? allowlisted ? "allowlisted" : "not_allowlisted" : "disabled",
+      stage: "allowlist_checked",
+      durationMs: Date.now() - startedAt,
+    });
 
     if (body.action === "status") {
       let workspaceOwned = false;
       let workspaceCheckCode = common.workspaceId ? null : "WORKSPACE_REQUIRED";
       if (common.workspaceId && allowlisted) {
+        logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, stage: "workspace_lookup_started", durationMs: Date.now() - startedAt });
         try {
           const ownership = await rebuildWorkspaceMemories({
             ...common,
@@ -129,9 +144,11 @@ export async function handler(event, _context = {}, meta = {}) {
           });
           workspaceOwned = Boolean(ownership?.ok);
           workspaceCheckCode = ownership?.code || null;
+          logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, eligibility: workspaceOwned ? "owned" : workspaceCheckCode || "not_owned", stage: "workspace_lookup_complete", durationMs: Date.now() - startedAt });
         } catch (error) {
           workspaceOwned = false;
           workspaceCheckCode = error?.code || "WORKSPACE_OWNERSHIP_CHECK_FAILED";
+          logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, eligibility: workspaceCheckCode, stage: "workspace_lookup_complete", code: workspaceCheckCode, durationMs: Date.now() - startedAt });
         }
       }
 
@@ -154,7 +171,7 @@ export async function handler(event, _context = {}, meta = {}) {
         userId: authResult.user.id,
         workspaceId: common.workspaceId || null,
         eligibility: statusPayload.active ? "eligible" : !memoryEnabled ? "disabled" : !allowlisted ? "not_allowlisted" : workspaceCheckCode || "not_active",
-        stage: "status",
+        stage: "response_created",
         durationMs: Date.now() - startedAt,
       });
       return json(200, statusPayload);
