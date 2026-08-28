@@ -107,6 +107,12 @@ try {
   const duplicate = await insertMemory(userA.client, workspaceA.id, userA.id, "User A private positioning", { content_hash: memoryA.content_hash, seed: 0 });
   assert.ok(duplicate.error, "duplicate active content should be rejected by the unique index");
 
+  const malformedEmbedding = await insertMemory(userA.client, workspaceA.id, userA.id, "Malformed embedding memory", {
+    content_hash: "malformed-embedding-memory",
+    embedding: [1, 0, 0],
+  });
+  assert.ok(malformedEmbedding.error, "malformed embeddings must fail instead of being stored.");
+
   const otherUserRead = await userA.client.from("brand_memories").select("id").eq("workspace_id", workspaceB.id);
   assertNoError(otherUserRead, "user A read user B memories");
   assert.equal(otherUserRead.data.length, 0, "User A must not read User B memories.");
@@ -142,6 +148,27 @@ try {
   await assertNoError(serverScopedSearch, "server scoped memory search");
   assert.ok(serverScopedSearch.data.every((item) => item.id === memoryA.id), "Server RPC must require exact user/workspace scope.");
 
+  const clientAdminSearch = await userA.client.rpc("match_brand_memories_admin", {
+    requested_user_id: userA.id,
+    requested_workspace_id: workspaceA.id,
+    query_embedding: vector(0),
+    requested_memory_types: null,
+    requested_match_count: 10,
+    requested_similarity_threshold: 0,
+  });
+  assert.ok(clientAdminSearch.error, "Authenticated clients must not execute the service-role memory RPC.");
+
+  const mismatchedServerSearch = await admin.rpc("match_brand_memories_admin", {
+    requested_user_id: userA.id,
+    requested_workspace_id: workspaceB.id,
+    query_embedding: vector(2),
+    requested_memory_types: null,
+    requested_match_count: 10,
+    requested_similarity_threshold: 0,
+  });
+  await assertNoError(mismatchedServerSearch, "server mismatched ownership memory search");
+  assert.equal(mismatchedServerSearch.data.length, 0, "Server RPC must not return memories when user/workspace ownership does not match.");
+
   const updated = await assertNoError(await userA.client
     .from("brand_memories")
     .update({
@@ -154,6 +181,14 @@ try {
     .select("id,content_hash")
     .single(), "update memory");
   assert.equal(updated.content_hash, "updated-private-positioning", "Updating content should replace the hash.");
+
+  await assertNoError(await userA.client
+    .from("brand_memories")
+    .delete()
+    .eq("id", memoryA.id), "delete own memory");
+  const deletedOwnMemory = await userA.client.from("brand_memories").select("id").eq("id", memoryA.id);
+  await assertNoError(deletedOwnMemory, "read after deleting own memory");
+  assert.equal(deletedOwnMemory.data.length, 0, "Authenticated users should be able to delete their own memories.");
 
   process.env.BRAND_MEMORY_ENABLED = "false";
   const memoryModule = await import("../netlify/functions/lib/brand-memory.js");
