@@ -322,7 +322,7 @@ function isMeaningfulLogoText(value = "") {
 
 function cleanLogoNarrative(value = "", { maxSentences = 4 } = {}) {
   const text = String(value || "")
-    .replace(/\b(luxury price|startup scale|premium market)\b/gi, "")
+    .replace(/\b(luxury price|startup scale|premium market|playful tone|feminine gender|tech-driven craft)\b/gi, "")
     .replace(/\bPersonality fit:\s*/gi, "")
     .replace(/\bTrend fit:\s*/gi, "")
     .replace(/\bCreative Director refinement:\s*/gi, "")
@@ -336,6 +336,38 @@ function cleanLogoNarrative(value = "", { maxSentences = 4 } = {}) {
     .map((sentence) => sentence.trim())
     .filter(isMeaningfulLogoText);
   return (sentences.length ? sentences : [text]).slice(0, maxSentences).join(" ");
+}
+
+export function sanitizeSupportedPersonalitySummary(summary = "", { logoStyle = "", logoSymbol = "", logoIndustry = "", logoPrompt = "", brandStrategy = {} } = {}) {
+  const evidence = [
+    logoStyle,
+    logoSymbol,
+    logoIndustry,
+    logoPrompt,
+    brandStrategy?.brandPersonality,
+    brandStrategy?.positioning,
+    brandStrategy?.suggestedVisualDirection,
+    brandStrategy?.suggestedMoodboardDirection,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const source = String(summary || "").toLowerCase();
+  const supported = [];
+  const addIfSupported = (label, pattern) => {
+    if ((pattern.test(evidence) || pattern.test(source)) && pattern.test(evidence)) supported.push(label);
+  };
+
+  addIfSupported("calm", /\b(calm|quiet|serene|grounded|gentle)\b/);
+  addIfSupported("minimal", /\b(minimal|simple|restrained|clean)\b/);
+  addIfSupported("friendly", /\b(friendly|warm|approachable|human|beginner)\b/);
+  addIfSupported("dependable", /\b(dependable|trusted|trustworthy|reliable|practical)\b/);
+  addIfSupported("local", /\b(local|neighborhood|community)\b/);
+  addIfSupported("botanical", /\b(botanical|plant|leaf|greenery|garden)\b/);
+  addIfSupported("organized", /\b(organized|workflow|system|clear|efficient)\b/);
+
+  if (/\b(software|saas|app|platform|workflow|creator|sponsorship|invoice)\b/.test(evidence) && /\b(software|product|digital|organized|efficient)\b/.test(source)) {
+    supported.push("product-grade");
+  }
+
+  return [...new Set(supported)].slice(0, 5).join(", ") || "brand-appropriate";
 }
 
 function getConceptSubjectLabel(subject = "", logoIndustry = "") {
@@ -836,7 +868,7 @@ function getPersonalityLean(matrix, axis, threshold = 12) {
 }
 
 function summarizePersonalityMatrix(matrix) {
-  const nonCustomerFacingAxes = new Set(["price", "scale", "market"]);
+  const nonCustomerFacingAxes = new Set(["price", "scale", "market", "gender", "craft"]);
   return Object.entries(matrix)
     .filter(([axis]) => !nonCustomerFacingAxes.has(axis))
     .map(([axis, item]) => {
@@ -1347,7 +1379,17 @@ function selectAudience({ subject, positioning }) {
 function buildBrandStrategy({ brandName = "", subject = "abstract", positioning = "modern", audience = "", personality = null, styles = [], logoStyle = "", logoIndustry = "", logoSymbol = "", logoColors = "", userPrompt = "" }) {
   const styleKeys = styles.map((style) => style.key).filter(Boolean);
   const primaryStyle = styleKeys[0] || logoStyle || "modern";
-  const personalitySummary = personality?.summary || `${positioning} ${primaryStyle}`;
+  const personalitySummary = sanitizeSupportedPersonalitySummary(personality?.summary || `${positioning} ${primaryStyle}`, {
+    logoStyle,
+    logoSymbol,
+    logoIndustry,
+    logoPrompt: userPrompt,
+    brandStrategy: {
+      brandPersonality: logoStyle,
+      positioning,
+      suggestedVisualDirection: logoSymbol,
+    },
+  });
   const premiumScore = personality?.matrix?.market?.score || 50;
   const playfulScore = personality?.matrix?.tone?.score || 50;
   const craftScore = personality?.matrix?.craft?.score || 50;
@@ -1476,13 +1518,17 @@ function buildBrandStrategy({ brandName = "", subject = "abstract", positioning 
       : "";
   const targetCustomer = audience || selectAudience({ subject, positioning });
   const localGlobal = reachScore <= 38 ? "local presence" : reachScore >= 64 ? "broader online presence" : "regional or online-ready presence";
-  const craftTech = craftScore <= 42 ? "handcrafted credibility" : craftScore >= 62 ? "tech-enabled confidence" : "balanced professional trust";
-  const energy = playfulScore >= 64 ? "warm and expressive" : playfulScore <= 36 ? "calm and authoritative" : "clear and approachable";
+  const personalityEvidence = `${logoStyle || ""} ${userPrompt || ""} ${logoSymbol || ""} ${logoIndustry || ""}`.toLowerCase();
+  const energy = /\b(friendly|warm|approachable|beginner)\b/.test(personalityEvidence)
+    ? "friendly"
+    : /\b(calm|quiet|gentle|grounded)\b/.test(personalityEvidence)
+      ? "calm"
+      : "";
 
   return {
     positioning: `${positioning} ${localGlobal}`,
     targetCustomer,
-    brandPersonality: `${personalitySummary}; ${energy}; ${craftTech}`,
+    brandPersonality: [personalitySummary, energy].filter(isMeaningfulLogoText).join("; "),
     competitorCategory: category.competitorCategory,
     pricePositioning,
     coreMessage: category.coreMessage,
@@ -2010,6 +2056,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
   const positioning = inferPositioning({ subject, styles, source: wordsResult.source, personality });
   const audience = selectAudience({ subject, positioning });
   const strategy = brandStrategy || buildBrandStrategy({ brandName: inferredName, subject, positioning, audience, personality, styles, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt: `${userPrompt || ""} ${logoPrompt || ""}` });
+  const supportedPersonalitySummary = sanitizeSupportedPersonalitySummary(personality.summary, { logoStyle, logoSymbol, logoIndustry, logoPrompt, brandStrategy: strategy });
   const typography = selectTypography({ subject, styles, personality, trend });
   const palette = logoColors ? selectPalette({ subject, styles, logoColors, personality, trend }) : (strategy.suggestedColorDirection || selectPalette({ subject, styles, logoColors, personality, trend }));
   const iconSystem = selectIconSystem({ subject, styles, logoSymbol, personality, trend });
@@ -2057,7 +2104,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
     category: subject,
     styles,
     personalityMatrix: personality.matrix,
-    personalitySummary: personality.summary,
+    personalitySummary: supportedPersonalitySummary,
     personalityDirectives: personality.directives,
     humanDesign,
     trendIntelligence: trend,
@@ -2083,7 +2130,7 @@ function runLogoGenerationPipeline({ logoPrompt, brandName, logoStyle, logoIndus
       brandAnalysis: { brandName: inferredName, rawWords: wordsResult.words, positioning, strategy },
       brandStrategist: strategy,
       brandPersonality: {
-        summary: personality.summary,
+        summary: supportedPersonalitySummary,
         matrix: personality.matrix,
         directives: personality.directives,
       },
@@ -3715,10 +3762,12 @@ export const handler = async (event, context) => {
           vectorImage: vectorLogo.image,
           svg: vectorLogo.svg,
           transparentSvg: vectorLogo.transparentSvg,
-          variations: [
-            { id: "ai-concept", name: "AI Concept", image, svg: "" },
-            ...vectorLogo.variations,
-          ],
+          variations: (vectorLogo.variations || []).slice(0, 3).map((variation, index) => ({
+            ...variation,
+            image: index === 0 ? image : variation.image,
+            aiImage: index === 0 ? image : "",
+            source: index === 0 ? "openai" : (variation.source || "brand-guarded-svg"),
+          })),
           creativeBrief: vectorLogo.creativeBrief,
           generationMemory: vectorLogo.generationMemory,
           layers: vectorLogo.layers,

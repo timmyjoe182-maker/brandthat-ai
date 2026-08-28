@@ -40,6 +40,68 @@ function isMeaningfulDisplayText(value = "") {
   return !/^(undefined|null|n\/a|none|placeholder)$/i.test(text);
 }
 
+function normalizeDirectionKey(value = "") {
+  return cleanGeneratedText(value)
+    .toLowerCase()
+    .replace(/\b(ai concept|direction|option|logo result|concept)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isGenericLogoDirectionTitle(value = "") {
+  return /^(ai concept|direction \d+|option [a-z]|logo result|concept|logo concept)$/i.test(cleanGeneratedText(value));
+}
+
+function buildCanonicalLogoDirections({ logoVariations = [], creativeBrief = null, logoImage = "" } = {}) {
+  const concepts = Array.isArray(creativeBrief?.concepts) ? creativeBrief.concepts : [];
+  const nonGenericVariations = (Array.isArray(logoVariations) ? logoVariations : [])
+    .filter((variation) => !isGenericLogoDirectionTitle(variation?.name || variation?.title));
+  const imageSources = (Array.isArray(logoVariations) ? logoVariations : []).filter((variation) => variation?.image || variation?.svg);
+  const base = concepts.length ? concepts : nonGenericVariations;
+  const seen = new Set();
+
+  return base.slice(0, 6).reduce((directions, concept, index) => {
+    if (directions.length >= 3) return directions;
+    const title = cleanGeneratedText(concept?.title || concept?.name || "");
+    if (!isMeaningfulDisplayText(title) || isGenericLogoDirectionTitle(title)) return directions;
+    const key = normalizeDirectionKey(title);
+    if (!key || seen.has(key)) return directions;
+    seen.add(key);
+    const matchingImage = imageSources.find((variation) => normalizeDirectionKey(variation?.name || variation?.title) === key) || imageSources[index] || {};
+    const imageUrl = matchingImage.image || matchingImage.svg || (index === 0 ? logoImage : "");
+    const rationale = cleanGeneratedText(concept?.rationale || concept?.whyFits || matchingImage.whyFits || "");
+    const composition = cleanGeneratedText(concept?.composition || concept?.layout || matchingImage.layout || "");
+    const paletteUsage = cleanGeneratedText(concept?.paletteUsage || concept?.palette || matchingImage.palette || "");
+    const primaryUseCases = cleanGeneratedText(
+      Array.isArray(concept?.primaryUseCases)
+        ? concept.primaryUseCases.join(", ")
+        : concept?.primaryUseCases || concept?.primaryUseCase || matchingImage.primaryUseCase || ""
+    );
+    directions.push({
+      ...matchingImage,
+      ...concept,
+      id: concept?.id || matchingImage.id || `logo-direction-${key}`,
+      title,
+      name: title,
+      type: concept?.type || (index === 0 ? "wordmark" : index === 1 ? "symbol" : "badge"),
+      rationale,
+      composition,
+      layout: composition || concept?.layout || matchingImage.layout,
+      symbol: cleanGeneratedText(concept?.symbol || matchingImage.symbol || ""),
+      typography: cleanGeneratedText(concept?.typography || matchingImage.typography || ""),
+      paletteUsage,
+      palette: paletteUsage || concept?.palette || matchingImage.palette,
+      primaryUseCases,
+      primaryUseCase: primaryUseCases,
+      imageUrl,
+      image: imageUrl,
+      source: matchingImage.source || concept?.source || "brand-strategy",
+      whyFits: rationale || concept?.whyFits || matchingImage.whyFits || "",
+    });
+    return directions;
+  }, []);
+}
+
 const tools = [
   {
     key: "logo",
@@ -9014,17 +9076,19 @@ function GeneratorCard({
     }
   };
   const saveLogoVariation = (variation, index, options = {}) => {
-    const directionLabel = ["Wordmark-led Concept", "Symbol Plus Wordmark", "Compact Avatar Badge"][index] || variation?.name || "Logo Concept";
+    const directionLabel = variation?.title || variation?.name || ["Wordmark-led Concept", "Symbol Plus Wordmark", "Compact Avatar Badge"][index] || "Logo Concept";
     return saveLogoConceptFromResult({
       ...options,
-      image: variation?.image || variation?.svg || logoImage,
+      image: variation?.imageUrl || variation?.image || variation?.svg || logoImage,
       content: [
         directionLabel,
-        variation?.name,
-        variation?.whyFits,
+        variation?.name !== directionLabel ? variation?.name : "",
+        variation?.rationale || variation?.whyFits,
+        variation?.composition && `Composition: ${variation.composition}`,
         variation?.symbol && `Symbol: ${variation.symbol}`,
         variation?.typography && `Typography: ${variation.typography}`,
-        variation?.palette && `Palette: ${variation.palette}`,
+        (variation?.paletteUsage || variation?.palette) && `Palette: ${variation.paletteUsage || variation.palette}`,
+        variation?.primaryUseCases && `Use cases: ${variation.primaryUseCases}`,
       ].filter(Boolean).join("\n"),
       title: `${directionLabel} • ${new Date().toLocaleDateString()}`,
     });
@@ -9120,11 +9184,19 @@ function GeneratorCard({
       instruction: intent,
       parsedLogo: parsedLogoPreview,
     });
+  const canonicalLogoDirections = useMemo(
+    () => buildCanonicalLogoDirections({
+      logoVariations,
+      creativeBrief: logoCreativeBrief,
+      logoImage,
+    }),
+    [logoVariations, logoCreativeBrief, logoImage]
+  );
   const directorNotes = useMemo(() => {
-    const primaryConcept = logoCreativeBrief?.concepts?.[0] || {};
+    const primaryConcept = canonicalLogoDirections[0] || logoCreativeBrief?.concepts?.[0] || {};
     const typography = primaryConcept.typography || logoCreativeBrief?.typography || parsedLogoPreview.typography;
     const symbol = primaryConcept.symbol || parsedLogoPreview.symbol;
-    const positioning = logoCreativeBrief?.personality || logoCreativeBrief?.personalitySummary || parsedLogoPreview.mood;
+    const positioning = parsedLogoPreview.mood || logoCreativeBrief?.personality || logoCreativeBrief?.personalitySummary;
 
     return [
       ["Typography", typography || "Clean readable type with spacing tuned for a premium brand mark."],
@@ -9134,7 +9206,7 @@ function GeneratorCard({
       label,
       copy: String(copy || "").replace(/\s+/g, " ").replace(/; Creative Director:.*$/i, "").slice(0, 130),
     })).filter((note) => isMeaningfulDisplayText(note.copy));
-  }, [logoCreativeBrief, parsedLogoPreview]);
+  }, [canonicalLogoDirections, logoCreativeBrief, parsedLogoPreview]);
   const lightweightBrandKit = useMemo(
     () => buildLightweightBrandKit({
       parsedLogo: parsedLogoPreview,
@@ -9551,31 +9623,32 @@ Generate another logo from the same creative direction. Preserve the strongest p
             </div>
           </div>
 
-          {logoVariations.length > 0 && (
+          {canonicalLogoDirections.length > 0 && (
             <section className="logoConceptDirections" aria-label="Logo concept directions">
               <div>
-                <div className="tinyTag">{logoVariations.length >= 3 ? "THREE DIRECTIONS" : "ONE DIRECTION"}</div>
-                <h3>{logoVariations.length >= 3 ? "Choose the direction to keep building." : "Keep building this direction."}</h3>
+                <div className="tinyTag">{canonicalLogoDirections.length >= 3 ? "THREE DIRECTIONS" : "ONE DIRECTION"}</div>
+                <h3>{canonicalLogoDirections.length >= 3 ? "Choose the direction to keep building." : "Keep building this direction."}</h3>
               </div>
               <div className="logoConceptGrid">
-                {logoVariations.slice(0, 3).map((variation, index) => {
-                  const conceptImage = variation?.image || variation?.svg || logoImage;
-                  const directionLabel = ["Wordmark-led concept", "Symbol plus wordmark", "Compact avatar/badge"][index] || variation?.name || "Logo concept";
+                {canonicalLogoDirections.slice(0, 3).map((variation, index) => {
+                  const conceptImage = variation?.imageUrl || variation?.image || variation?.svg || logoImage;
+                  const directionLabel = variation?.title || variation?.name || "Logo direction";
                   const savedVariation = getSavedAsset("", conceptImage);
-                  const conceptKey = `logo-variation-${index}`;
+                  const conceptKey = `logo-variation-${variation?.id || index}`;
                   const isSavingVariation = savingResultKey === conceptKey;
                   return (
-                    <article className="logoConceptCard" key={`${directionLabel}-${index}`}>
+                    <article className="logoConceptCard" key={variation?.id || `${directionLabel}-${index}`}>
                       <div className="logoConceptPreview">
                         {conceptImage && <img src={conceptImage} alt={`${directionLabel} preview`} />}
                       </div>
-                      <span>{directionLabel}</span>
-                      <h4>{variation?.name || directionLabel}</h4>
-                      <p>{variation?.whyFits || "Built from the active brand strategy, palette, typography, and logo brief."}</p>
+                      <span>{variation?.type || "Logo direction"}</span>
+                      <h4>{directionLabel}</h4>
+                      <p>{variation?.rationale || variation?.whyFits || "Built from the active brand strategy, palette, typography, and logo brief."}</p>
                       <dl>
                         {variation?.symbol && <><dt>Symbol</dt><dd>{variation.symbol}</dd></>}
                         {variation?.typography && <><dt>Type</dt><dd>{variation.typography}</dd></>}
-                        {variation?.palette && <><dt>Palette</dt><dd>{variation.palette}</dd></>}
+                        {(variation?.paletteUsage || variation?.palette) && <><dt>Palette</dt><dd>{variation.paletteUsage || variation.palette}</dd></>}
+                        {variation?.primaryUseCases && <><dt>Use</dt><dd>{variation.primaryUseCases}</dd></>}
                       </dl>
                       <div className="logoConceptActions">
                         <button onClick={async () => { setSavingResultKey(conceptKey); await saveLogoVariation(variation, index); setSavingResultKey(""); }} disabled={Boolean(savedVariation) || isSavingVariation}>
@@ -9629,7 +9702,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
           {editableLogo && (
             <LogoCreativeDirectorPanel
               creativeBrief={logoCreativeBrief}
-              logoVariations={logoVariations}
+              logoVariations={canonicalLogoDirections}
               prompt={prompt}
               setPrompt={setPrompt}
               setSelectedPlatform={setSelectedPlatform}
@@ -9895,9 +9968,16 @@ function LogoCreativeDirectorPanel({
   rememberRejectedLogoDirection,
   generate,
 }) {
+  const seenDirections = new Set();
   const directions = logoVariations
-    .filter((variation) => variation?.whyFits || variation?.symbol || variation?.typography)
-    .slice(0, 6);
+    .filter((variation) => variation?.whyFits || variation?.rationale || variation?.symbol || variation?.typography)
+    .filter((variation) => {
+      const key = normalizeDirectionKey(variation?.title || variation?.name || variation?.id);
+      if (!key || seenDirections.has(key)) return false;
+      seenDirections.add(key);
+      return true;
+    })
+    .slice(0, 3);
 
   if (!creativeBrief && directions.length === 0) return null;
 
@@ -10003,11 +10083,13 @@ function LogoCreativeDirectorPanel({
         <div className="directionReasonGrid">
           {directions.map((direction) => (
             <div className="directionReasonCard" key={direction.id || direction.name}>
-              <span>{direction.name || "Logo direction"}</span>
-              <p><strong>Icon:</strong> {direction.symbol || "Meaning-matched symbol"}</p>
-              <p><strong>Type:</strong> {direction.typography || "Clean readable wordmark"}</p>
-              <p><strong>Colors:</strong> {direction.palette || "Professional contrast palette"}</p>
-              <p>{direction.whyFits || "This option is designed around the meaning of the user request."}</p>
+              <span>{direction.title || direction.name || "Logo direction"}</span>
+              {isMeaningfulDisplayText(direction.composition || direction.layout) && <p><strong>Composition:</strong> {direction.composition || direction.layout}</p>}
+              {isMeaningfulDisplayText(direction.symbol) && <p><strong>Symbol:</strong> {direction.symbol}</p>}
+              {isMeaningfulDisplayText(direction.typography) && <p><strong>Type:</strong> {direction.typography}</p>}
+              {isMeaningfulDisplayText(direction.paletteUsage || direction.palette) && <p><strong>Colors:</strong> {direction.paletteUsage || direction.palette}</p>}
+              {isMeaningfulDisplayText(direction.primaryUseCases || direction.primaryUseCase) && <p><strong>Use:</strong> {direction.primaryUseCases || direction.primaryUseCase}</p>}
+              {isMeaningfulDisplayText(direction.rationale || direction.whyFits) && <p>{direction.rationale || direction.whyFits}</p>}
               <button onClick={() => regenerateWithInstruction("Regenerate using this selected logo direction.", direction)}>Regenerate this direction</button>
               <button onClick={() => rememberRejectedLogoDirection?.(direction, "manual reject")}>Do not repeat</button>
             </div>

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { polishLogoConcepts } from "../netlify/functions/logo-image.js";
+import { readFileSync } from "node:fs";
+import { polishLogoConcepts, sanitizeSupportedPersonalitySummary } from "../netlify/functions/logo-image.js";
 
-const forbidden = /\b(luxury price|startup scale|premium market|mascot or object-led|object-led mark|undefined|null|Brand Strategy:\s*\.|^\s*[.\-_:;,\s]+\s*$)\b/i;
+const forbidden = /\b(luxury price|startup scale|premium market|playful tone|feminine gender|tech-driven craft|mascot or object-led|object-led mark|AI Concept|Direction 1|Option A|Logo Result|undefined|null|Brand Strategy:\s*\.|^\s*[.\-_:;,\s]+\s*$)\b/i;
 
 const cases = [
   {
@@ -100,5 +101,29 @@ for (const testCase of cases) {
     );
   }
 }
+
+const stoneTraits = sanitizeSupportedPersonalitySummary(
+  "calm energy, minimal expression, playful tone, feminine gender, tech-driven craft",
+  {
+    logoStyle: "Calm minimal",
+    logoSymbol: "stone-and-leaf botanical mark",
+    logoIndustry: "Houseplants / local plant delivery",
+    brandStrategy: {
+      brandPersonality: "calm, minimal",
+      positioning: "Beginner-friendly local plant subscription",
+      suggestedVisualDirection: "botanical apartment greenery",
+    },
+  }
+);
+assert.match(stoneTraits, /calm/);
+assert.match(stoneTraits, /minimal/);
+assert.doesNotMatch(stoneTraits, /playful|feminine|gender|tech-driven|craft/i);
+
+const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+assert(appSource.includes("buildCanonicalLogoDirections"), "App must build one canonical logo direction array.");
+assert(appSource.includes("logoVariations={canonicalLogoDirections}"), "Creative Director must receive the canonical direction array.");
+assert(appSource.includes("canonicalLogoDirections.slice(0, 3).map"), "Rendered direction cards must use the canonical direction array.");
+assert(!appSource.includes(">AI Concept<"), "Rendered UI must not hardcode AI Concept as a direction title.");
+assert(appSource.includes("isGenericLogoDirectionTitle"), "Generic logo direction titles must be filtered.");
 
 console.log("Logo direction quality contract passed.");

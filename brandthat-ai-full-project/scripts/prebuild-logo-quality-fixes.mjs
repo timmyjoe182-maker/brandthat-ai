@@ -28,7 +28,7 @@ const logoHelpers = `function isMeaningfulLogoText(value = "") {
 
 function cleanLogoNarrative(value = "", { maxSentences = 4 } = {}) {
   const text = String(value || "")
-    .replace(/\\b(luxury price|startup scale|premium market)\\b/gi, "")
+    .replace(/\\b(luxury price|startup scale|premium market|playful tone|feminine gender|tech-driven craft)\\b/gi, "")
     .replace(/\\bPersonality fit:\\s*/gi, "")
     .replace(/\\bTrend fit:\\s*/gi, "")
     .replace(/\\bCreative Director refinement:\\s*/gi, "")
@@ -42,6 +42,38 @@ function cleanLogoNarrative(value = "", { maxSentences = 4 } = {}) {
     .map((sentence) => sentence.trim())
     .filter(isMeaningfulLogoText);
   return (sentences.length ? sentences : [text]).slice(0, maxSentences).join(" ");
+}
+
+export function sanitizeSupportedPersonalitySummary(summary = "", { logoStyle = "", logoSymbol = "", logoIndustry = "", logoPrompt = "", brandStrategy = {} } = {}) {
+  const evidence = [
+    logoStyle,
+    logoSymbol,
+    logoIndustry,
+    logoPrompt,
+    brandStrategy?.brandPersonality,
+    brandStrategy?.positioning,
+    brandStrategy?.suggestedVisualDirection,
+    brandStrategy?.suggestedMoodboardDirection,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const source = String(summary || "").toLowerCase();
+  const supported = [];
+  const addIfSupported = (label, pattern) => {
+    if ((pattern.test(evidence) || pattern.test(source)) && pattern.test(evidence)) supported.push(label);
+  };
+
+  addIfSupported("calm", /\\b(calm|quiet|serene|grounded|gentle)\\b/);
+  addIfSupported("minimal", /\\b(minimal|simple|restrained|clean)\\b/);
+  addIfSupported("friendly", /\\b(friendly|warm|approachable|human|beginner)\\b/);
+  addIfSupported("dependable", /\\b(dependable|trusted|trustworthy|reliable|practical)\\b/);
+  addIfSupported("local", /\\b(local|neighborhood|community)\\b/);
+  addIfSupported("botanical", /\\b(botanical|plant|leaf|greenery|garden)\\b/);
+  addIfSupported("organized", /\\b(organized|workflow|system|clear|efficient)\\b/);
+
+  if (/\\b(software|saas|app|platform|workflow|creator|sponsorship|invoice)\\b/.test(evidence) && /\\b(software|product|digital|organized|efficient)\\b/.test(source)) {
+    supported.push("product-grade");
+  }
+
+  return [...new Set(supported)].slice(0, 5).join(", ") || "brand-appropriate";
 }
 
 function getConceptSubjectLabel(subject = "", logoIndustry = "") {
@@ -184,10 +216,17 @@ logo = replaceOnce(
   `function summarizePersonalityMatrix(matrix) {
   return Object.entries(matrix)`,
   `function summarizePersonalityMatrix(matrix) {
-  const nonCustomerFacingAxes = new Set(["price", "scale", "market"]);
+  const nonCustomerFacingAxes = new Set(["price", "scale", "market", "gender", "craft"]);
   return Object.entries(matrix)
     .filter(([axis]) => !nonCustomerFacingAxes.has(axis))`,
   "customer-facing personality axes"
+);
+
+logo = replaceOnce(
+  logo,
+  `const nonCustomerFacingAxes = new Set(["price", "scale", "market"]);`,
+  `const nonCustomerFacingAxes = new Set(["price", "scale", "market", "gender", "craft"]);`,
+  "personality axis guard"
 );
 
 logo = replaceOnce(
@@ -197,6 +236,71 @@ logo = replaceOnce(
     if (personality.matrix.scale.score >= 66 || personality.matrix.tone.score <= 34) return "professional";`,
   `    if (personality.matrix.scale.score >= 66 || personality.matrix.tone.score <= 34) return "professional";`,
   "personality price inference"
+);
+
+logo = replaceOnce(
+  logo,
+  `  const energy = playfulScore >= 64 ? "warm and expressive" : playfulScore <= 36 ? "calm and authoritative" : "clear and approachable";`,
+  `  const personalityEvidence = \`\${logoStyle || ""} \${userPrompt || ""} \${logoSymbol || ""} \${logoIndustry || ""}\`.toLowerCase();
+  const energy = /\\b(friendly|warm|approachable|beginner)\\b/.test(personalityEvidence)
+    ? "friendly"
+    : /\\b(calm|quiet|gentle|grounded)\\b/.test(personalityEvidence)
+      ? "calm"
+      : "";`,
+  "supported brand energy"
+);
+
+logo = replaceOnce(
+  logo,
+  `  const styleKeys = styles.map((style) => style.key).filter(Boolean);
+  const primaryStyle = styleKeys[0] || logoStyle || "modern";
+  const premiumScore = personality?.matrix?.market?.score || 50;`,
+  `  const styleKeys = styles.map((style) => style.key).filter(Boolean);
+  const primaryStyle = styleKeys[0] || logoStyle || "modern";
+  const personalitySummary = sanitizeSupportedPersonalitySummary(personality?.summary || \`\${positioning} \${primaryStyle}\`, {
+    logoStyle,
+    logoSymbol,
+    logoIndustry,
+    logoPrompt: userPrompt,
+    brandStrategy: {
+      brandPersonality: logoStyle,
+      positioning,
+      suggestedVisualDirection: logoSymbol,
+    },
+  });
+  const premiumScore = personality?.matrix?.market?.score || 50;`,
+  "supported strategy personality summary"
+);
+
+logo = replaceOnce(
+  logo,
+  `    brandPersonality: \`\${summarizePersonalityMatrix(personality.matrix)}; \${energy}\`,`,
+  `    brandPersonality: [personalitySummary, energy].filter(isMeaningfulLogoText).join("; "),`,
+  "supported brand personality output"
+);
+
+logo = replaceOnce(
+  logo,
+  `  const strategy = brandStrategy || buildBrandStrategy({ brandName: inferredName, subject, positioning, audience, personality, styles, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt: \`\${userPrompt || ""} \${logoPrompt || ""}\` });
+  const typography = selectTypography({ subject, styles, personality, trend });`,
+  `  const strategy = brandStrategy || buildBrandStrategy({ brandName: inferredName, subject, positioning, audience, personality, styles, logoStyle, logoIndustry, logoSymbol, logoColors, userPrompt: \`\${userPrompt || ""} \${logoPrompt || ""}\` });
+  const supportedPersonalitySummary = sanitizeSupportedPersonalitySummary(personality.summary, { logoStyle, logoSymbol, logoIndustry, logoPrompt, brandStrategy: strategy });
+  const typography = selectTypography({ subject, styles, personality, trend });`,
+  "supported pipeline personality summary"
+);
+
+logo = replaceOnce(
+  logo,
+  `    personalitySummary: personality.summary,`,
+  `    personalitySummary: supportedPersonalitySummary,`,
+  "pipeline supported personality summary"
+);
+
+logo = replaceOnce(
+  logo,
+  `        summary: personality.summary,`,
+  `        summary: supportedPersonalitySummary,`,
+  "pipeline supported personality object"
 );
 
 if (!logo.includes("const rawConcepts = (diversified.length >= 4")) {
@@ -259,24 +363,72 @@ function isMeaningfulDisplayText(value = "") {
   if (!semantic) return false;
   return !/^(undefined|null|n\\/a|none|placeholder)$/i.test(text);
 }
+
+function normalizeDirectionKey(value = "") {
+  return cleanGeneratedText(value)
+    .toLowerCase()
+    .replace(/\\b(ai concept|direction|option|logo result|concept)\\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isGenericLogoDirectionTitle(value = "") {
+  return /^(ai concept|direction \\d+|option [a-z]|logo result|concept|logo concept)$/i.test(cleanGeneratedText(value));
+}
+
+function buildCanonicalLogoDirections({ logoVariations = [], creativeBrief = null, logoImage = "" } = {}) {
+  const concepts = Array.isArray(creativeBrief?.concepts) ? creativeBrief.concepts : [];
+  const nonGenericVariations = (Array.isArray(logoVariations) ? logoVariations : [])
+    .filter((variation) => !isGenericLogoDirectionTitle(variation?.name || variation?.title));
+  const imageSources = (Array.isArray(logoVariations) ? logoVariations : []).filter((variation) => variation?.image || variation?.svg);
+  const base = concepts.length ? concepts : nonGenericVariations;
+  const seen = new Set();
+
+  return base.slice(0, 6).reduce((directions, concept, index) => {
+    if (directions.length >= 3) return directions;
+    const title = cleanGeneratedText(concept?.title || concept?.name || "");
+    if (!isMeaningfulDisplayText(title) || isGenericLogoDirectionTitle(title)) return directions;
+    const key = normalizeDirectionKey(title);
+    if (!key || seen.has(key)) return directions;
+    seen.add(key);
+    const matchingImage = imageSources.find((variation) => normalizeDirectionKey(variation?.name || variation?.title) === key) || imageSources[index] || {};
+    const imageUrl = matchingImage.image || matchingImage.svg || (index === 0 ? logoImage : "");
+    const rationale = cleanGeneratedText(concept?.rationale || concept?.whyFits || matchingImage.whyFits || "");
+    const composition = cleanGeneratedText(concept?.composition || concept?.layout || matchingImage.layout || "");
+    const paletteUsage = cleanGeneratedText(concept?.paletteUsage || concept?.palette || matchingImage.palette || "");
+    const primaryUseCases = cleanGeneratedText(
+      Array.isArray(concept?.primaryUseCases)
+        ? concept.primaryUseCases.join(", ")
+        : concept?.primaryUseCases || concept?.primaryUseCase || matchingImage.primaryUseCase || ""
+    );
+    directions.push({
+      ...matchingImage,
+      ...concept,
+      id: concept?.id || matchingImage.id || \`logo-direction-\${key}\`,
+      title,
+      name: title,
+      type: concept?.type || (index === 0 ? "wordmark" : index === 1 ? "symbol" : "badge"),
+      rationale,
+      composition,
+      layout: composition || concept?.layout || matchingImage.layout,
+      symbol: cleanGeneratedText(concept?.symbol || matchingImage.symbol || ""),
+      typography: cleanGeneratedText(concept?.typography || matchingImage.typography || ""),
+      paletteUsage,
+      palette: paletteUsage || concept?.palette || matchingImage.palette,
+      primaryUseCases,
+      primaryUseCase: primaryUseCases,
+      imageUrl,
+      image: imageUrl,
+      source: matchingImage.source || concept?.source || "brand-strategy",
+      whyFits: rationale || concept?.whyFits || matchingImage.whyFits || "",
+    });
+    return directions;
+  }, []);
+}
 `,
     "display text helper"
   );
 }
-
-app = replaceOnce(
-  app,
-  `    })).filter((note) => isMeaningfulDisplayText(note.copy));`,
-  `    })).filter((note) => isMeaningfulDisplayText(note.copy));`,
-  "director note filtering noop"
-);
-
-app = replaceOnce(
-  app,
-  `    })).filter((note) => isMeaningfulDisplayText(note.copy));`,
-  `    })).filter((note) => isMeaningfulDisplayText(note.copy));`,
-  "director note filtering stable"
-);
 
 app = app.includes("isMeaningfulDisplayText(note.copy)")
   ? app
