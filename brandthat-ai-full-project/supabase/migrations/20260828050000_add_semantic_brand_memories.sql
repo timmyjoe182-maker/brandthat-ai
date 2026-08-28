@@ -185,7 +185,7 @@ language sql
 stable
 security definer
 set search_path = public, extensions
-as $
+as $$
   select
     memory.id,
     memory.memory_type,
@@ -213,7 +213,7 @@ as $
     memory.importance desc,
     memory.updated_at desc
   limit greatest(1, least(20, requested_match_count));
-$;
+$$;
 
 revoke all on function public.match_brand_memories_admin(uuid, uuid, extensions.vector, text[], integer, double precision) from public;
 revoke all on function public.match_brand_memories_admin(uuid, uuid, extensions.vector, text[], integer, double precision) from authenticated;

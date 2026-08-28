@@ -5451,19 +5451,25 @@ Rules:
 - Exactly 10 captions.
 - Every caption must relate directly to the user's post/topic and the active brand context when provided.
 - Make them platform-aware for ${selectedPlatform || "the selected platform"}.
-- Use these ten distinct formats in order:
-  1. Short punchy caption
-  2. Storytelling caption
-  3. Benefit-focused caption
-  4. Conversational caption
-  5. Educational caption
-  6. Product-focused caption
-  7. Community-focused caption
-  8. Problem/solution caption
-  9. Brand-voice caption
-  10. Direct call-to-action caption
+- Use these ten distinct formats in order. The UI labels the styles, so begin each line with the caption copy only:
+  1. Punchy: one short, specific line built around the scene.
+  2. Story: a small moment or before/after from the post context.
+  3. Benefit: one practical outcome the audience wants, without unsupported claims.
+  4. Conversational: natural, human, and specific to the audience.
+  5. Educational: teach one safe detail without inventing facts, schedules, or proof.
+  6. Product: make the actual offer or service tangible.
+  7. Community: connect to the local, niche, or audience community when relevant.
+  8. Direct CTA: ask for one clear next action.
+  9. Brand-building: reinforce the brand's thesis, positioning, or differentiator.
+  10. Platform-native: written like a strong native ${selectedPlatform || "social"} post, not a generic ad.
 - Tune all ten captions toward this selected goal: ${captionGoal || "Awareness"}.
 - Make the goal visible through the CTA, angle, or framing without repeating the word "${captionGoal || "Awareness"}".
+- If the goal is Conversion, at least 6 of 10 captions must include a concrete conversion action, with varied soft CTA, direct CTA, benefit CTA, urgency, objection-handling, and offer framing. Do not invent discounts, scarcity, guarantees, stock status, delivery promises, or product facts.
+- If the goal is Awareness, prioritize distinct brand memory, category clarity, and one concrete scene detail over direct selling.
+- If the goal is Education, make each teaching point safe, specific, and non-claimy; do not ask generic engagement questions.
+- If the goal is Engagement, use specific prompts tied to the scene or audience tension, not generic questions.
+- If the goal is Launch, make the newness clear without fake scarcity or false availability claims.
+- If the goal is Community, connect to the actual audience, place, niche, or shared ritual.
 - Use the exact post description as the scene. Include concrete nouns from the post when useful.
 - Use the brand thesis, audience, positioning, voice, primary platform, and goal from the active Brand Workspace.
 - Avoid repeating the same opening phrase or sentence structure.
@@ -5480,6 +5486,7 @@ Rules:
 - Avoid repetitive openings such as "Exciting news" and "New arrivals alert."
 - Avoid cheesy filler.
 - Keep each caption copy-ready.
+- Do not use phrases like "houseplant buddy", "plant journey", "green friend", or "no green thumb required" unless the user supplied those exact words.
 ${workspaceContext}
 `;
     }
@@ -7008,6 +7015,18 @@ const appSections = [
 
 const primaryToolKeys = ["captions", "hashtags", "hooks", "bios", "email", "logo"];
 const secondaryToolKeys = ["strategy", "brand", "audit", "campaign", "growth"];
+const captionStyleLabels = [
+  "Punchy",
+  "Story",
+  "Benefit",
+  "Conversational",
+  "Educational",
+  "Product",
+  "Community",
+  "Direct CTA",
+  "Brand-building",
+  "Platform-native",
+];
 
 function getAppToolTitle(tool = {}) {
   return String(tool.title || tool.shortTitle || "Tool").replace(/^Free\s+/i, "");
@@ -7177,6 +7196,35 @@ function WorkspaceToolGrid({ brand, selectTool, compact = false }) {
         </details>
       )}
     </div>
+  );
+}
+
+function CompactRecentAssetsPreview({ brand, recentGenerations = [], navigateWorkspaceSection }) {
+  if (!brand) return null;
+  const recent = (recentGenerations.length ? recentGenerations : getRecentBrandAssets(brand, 3)).slice(0, 3);
+
+  return (
+    <section className="appPanel compactAssetsPreview">
+      <div className="appCardHeader">
+        <div>
+          <span>Recent assets</span>
+          <h2>Latest saved work.</h2>
+        </div>
+        <button onClick={() => navigateWorkspaceSection("assets")}>View All Saved Assets</button>
+      </div>
+      {recent.length ? (
+        <div className="compactAssetList">
+          {recent.map((item) => (
+            <button key={item.id} onClick={() => navigateWorkspaceSection("assets")}>
+              <strong>{item.title || item.assetLabel || item.bucketLabel || "Saved asset"}</strong>
+              <span>{item.assetLabel || item.bucketLabel || item.bucket || brand.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p>No saved assets yet. Open a generator, save your best result, then manage the full library in Saved Assets.</p>
+      )}
+    </section>
   );
 }
 
@@ -7400,7 +7448,7 @@ function WorkspaceSectionView(props) {
         <h1 className="pageTitle">Create from one connected brand.</h1>
         <p className="pageLead">Every generator uses the active workspace context so captions, hashtags, bios, emails, roadmaps, and logo concepts stay aligned.</p>
         <WorkspaceToolGrid brand={activeBrand} selectTool={selectTool} />
-        {activeBrand && <SavedAssets brand={activeBrand} recentGenerations={recentGenerations} favoriteIds={favoriteIds} toggleFavorite={toggleFavorite} deleteSavedAsset={deleteSavedAsset} remixOutput={remixOutput} copyToClipboard={copyToClipboard} setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile} continueSavedLogo={continueSavedLogo} />}
+        <CompactRecentAssetsPreview brand={activeBrand} recentGenerations={recentGenerations} navigateWorkspaceSection={navigateWorkspaceSection} />
       </section>
     );
   }
@@ -9895,7 +9943,10 @@ Generate another logo from the same creative direction. Preserve the strongest p
               return (
               <div className="captionOptionRow" key={`${item}-${index}`}> 
                 <div className="captionNumber">{index + 1}</div>
-                <p>{item}</p>
+                <div>
+                  <span className="captionStyleLabel">{captionStyleLabels[index] || "Option"}</span>
+                  <p>{item}</p>
+                </div>
                 <div className="captionRowActions">
                   <button onClick={() => handleSaveResultItem(item, index)} disabled={Boolean(savedAsset) || isSaving}>
                     {isSaving ? "Saving..." : savedAsset ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save"}

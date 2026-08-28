@@ -71,6 +71,25 @@ Changing embedding models requires a controlled re-embedding migration. Vectors 
 6. Enable only in staging and evaluate retrieval quality.
 7. Enable production after explicit approval.
 
+## Test Environment
+
+Run `npm run test:brand-memory` before applying the migration to production. The command always runs the static migration/security contract. It also runs the database integration harness when these safe-project variables are present:
+
+- `BRAND_MEMORY_TEST_SUPABASE_URL`
+- `BRAND_MEMORY_TEST_SERVICE_ROLE_KEY`
+- `BRAND_MEMORY_TEST_ANON_KEY`
+
+The integration harness creates disposable verified users, workspaces, and memories in the configured project, then deletes them. It refuses to run against the known production Supabase project unless `BRAND_MEMORY_TEST_ALLOW_PRODUCTION=true` is explicitly set. Do not use that override for PR validation.
+
+The integration assertions cover:
+
+- User A cannot read User B's memories.
+- One User A workspace cannot retrieve another User A workspace's memories.
+- Inactive and deleted memories are excluded.
+- Duplicate active content is rejected.
+- Updating content replaces the hash and embedding.
+- `BRAND_MEMORY_ENABLED=false` short-circuits without writing memories.
+
 ## Rollback
 
 With the feature flag disabled, application behavior falls back to the existing structured-context flow. If schema rollback is necessary, first disable the flag and retain the table for investigation. Dropping the table destroys user memory and requires a separately approved destructive migration.
