@@ -3,6 +3,11 @@ import { getMembershipCtaState } from "../src/membershipState.js";
 
 const states = [
   {
+    name: "account loading",
+    input: { user: null, authStatus: "loading", userPlan: "free", membershipLoading: true },
+    expected: { label: "Checking membership...", disabled: true, nextAction: "wait" },
+  },
+  {
     name: "logged out",
     input: { user: null, authStatus: "logged_out", userPlan: "free" },
     expected: { label: "Create Account", disabled: false, nextAction: "signup" },
@@ -31,6 +36,11 @@ const states = [
     name: "active subscriber",
     input: { user: { email: "test@example.com" }, authStatus: "logged_in", userPlan: "member" },
     expected: { label: "Open Workspace", disabled: false, nextAction: "workspace" },
+  },
+  {
+    name: "subscription lookup failure",
+    input: { user: { email: "test@example.com" }, authStatus: "logged_in", userPlan: "free", membershipLookupFailed: true },
+    expected: { label: "Retry account check", disabled: false, nextAction: "recover" },
   },
   {
     name: "checkout canceled",

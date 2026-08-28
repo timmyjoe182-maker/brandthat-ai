@@ -392,6 +392,8 @@ function safeParse(key, fallback) {
 
 function getInitialPageFromPath() {
   const path = window.location.pathname;
+  if (path.startsWith("/workspace/content/")) return "studio";
+  if (path === "/workspace/identity/logos") return "logo";
   if (path === "/workspace" || path.startsWith("/workspace/")) return "workspace";
   if (path === "/tools" || path.startsWith("/tools/")) return path.includes("/logo") ? "logo" : "studio";
   if (path === "/examples") return "examples";
@@ -404,6 +406,9 @@ function getInitialPageFromPath() {
 
 function getInitialToolFromPath() {
   const path = window.location.pathname;
+  const appContentMatch = path.match(/^\/workspace\/content\/([^/]+)/);
+  if (appContentMatch && toolMap[appContentMatch[1]]) return appContentMatch[1];
+  if (path === "/workspace/identity/logos") return "logo";
   const toolMatch = path.match(/^\/tools\/([^/]+)/);
   if (toolMatch && toolMap[toolMatch[1]]) return toolMatch[1];
   const match = Object.values(seoPages).find((page) => page.path === path);
@@ -412,10 +417,30 @@ function getInitialToolFromPath() {
 
 function getInitialWorkspaceSectionFromPath() {
   const path = window.location.pathname;
+  if (path.startsWith("/workspace/content")) return "tools";
+  if (path === "/workspace/identity/logos") return "identity";
   if (path.startsWith("/tools")) return "tools";
   const section = path.match(/^\/workspace\/([^/]+)/)?.[1];
+  if (section === "content") return "tools";
   if (["strategy", "identity", "roadmap", "assets", "settings"].includes(section)) return section;
   return "overview";
+}
+
+function getWorkspaceSectionPath(section = "overview") {
+  const paths = {
+    overview: "/workspace",
+    strategy: "/workspace/strategy",
+    identity: "/workspace/identity",
+    tools: "/workspace/content",
+    roadmap: "/workspace/roadmap",
+    assets: "/workspace/assets",
+    settings: "/workspace/settings",
+  };
+  return paths[section] || paths.overview;
+}
+
+function getWorkspaceToolPath(toolKey = "") {
+  return toolKey === "logo" ? "/workspace/identity/logos" : `/workspace/content/${toolKey || "captions"}`;
 }
 
 
@@ -2867,6 +2892,7 @@ export default function App() {
   const [logoSymbol, setLogoSymbol] = useState("");
   const [logoColors, setLogoColors] = useState("");
   const [logoAvoid, setLogoAvoid] = useState("");
+  const [captionGoal, setCaptionGoal] = useState("Awareness");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [logoImage, setLogoImage] = useState("");
@@ -2891,6 +2917,8 @@ export default function App() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutResumePrompt, setCheckoutResumePrompt] = useState(false);
   const [checkoutReturnSessionId, setCheckoutReturnSessionId] = useState("");
+  const [membershipLookupFailed, setMembershipLookupFailed] = useState(false);
+  const [membershipLookupPending, setMembershipLookupPending] = useState(true);
   const isCheckoutBusy = checkoutStatus === "loading" || checkoutStatus === "redirecting";
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceCreating, setWorkspaceCreating] = useState(false);
@@ -2916,6 +2944,7 @@ export default function App() {
   const isLogoTestingUnlocked = isBrandthatTester(user);
   const emailVerified = isUserEmailVerified(user);
   const authStatus = authLoading ? "loading" : !user ? "logged_out" : !emailVerified ? "email_not_verified" : "logged_in";
+  const membershipLoading = authLoading || (authStatus === "logged_in" && (workspaceLoading || membershipLookupPending) && normalizePlan(userPlan) !== MEMBER_PLAN);
 
   useEffect(() => {
     if (!isMember) return;
@@ -3191,6 +3220,8 @@ export default function App() {
     if (!currentUser?.id) return;
 
     setWorkspaceLoading(true);
+    setMembershipLookupPending(true);
+    setMembershipLookupFailed(false);
     try {
       const { data: profile } = await supabase
         .from("user_profiles")
@@ -3258,9 +3289,11 @@ export default function App() {
       }
     } catch (error) {
       console.warn("Could not load saved Brandthat workspaces:", error.message);
+      setMembershipLookupFailed(true);
       notify("warning", "Workspace sync paused", "Your local workspace is still available. Refresh or try again if saved cloud projects do not appear.");
     } finally {
       setWorkspaceLoading(false);
+      setMembershipLookupPending(false);
     }
   };
 
@@ -3307,10 +3340,13 @@ export default function App() {
             setCheckoutResumePrompt(true);
             setCheckoutError("Your account is ready. Continue to secure checkout to start membership.");
           }
+        } else {
+          setMembershipLookupPending(false);
         }
       } catch (error) {
         console.warn("Could not load Supabase session:", error.message);
         setUser(null);
+        setMembershipLookupPending(false);
       } finally {
         setAuthLoading(false);
       }
@@ -3332,6 +3368,7 @@ export default function App() {
       setAuthLoading(false);
       trackBrandthatEvent("auth_state_resolved", { signed_in: Boolean(currentUser), source: "auth_listener" });
       if (currentUser && isUserEmailVerified(currentUser)) {
+        setMembershipLookupPending(true);
         loadSavedWorkspaceData(currentUser);
         const authParams = new URLSearchParams(window.location.search);
         const authReturnSessionId = authParams.get("session_id") || checkoutReturnSessionId;
@@ -3345,6 +3382,7 @@ export default function App() {
       } else {
         localStorage.setItem("brandthat_plan", "free");
         setUserPlan("free");
+        setMembershipLookupPending(false);
       }
     });
 
@@ -3458,7 +3496,7 @@ export default function App() {
       authStatus === "email_not_verified"
         ? "Check your email to verify your account before continuing."
         : "Create your BrandThat account to try the full product.",
-      "open_tool"
+      `path:${window.location.pathname}${window.location.search}${window.location.hash}`
     );
   }, [authLoading, authStatus, page]);
 
@@ -3535,6 +3573,10 @@ export default function App() {
     const session = await requireVerifiedAccount(action || nextPage);
     if (!session) return;
     setPage(nextPage);
+    if (nextPage === "workspace") {
+      setWorkspaceSection("overview");
+      window.history.pushState({}, "", "/workspace");
+    }
   };
 
   const finishAuthSuccess = (loggedInUser) => {
@@ -3566,6 +3608,13 @@ export default function App() {
       storePendingMembershipIntent("auth_success");
       setCheckoutResumePrompt(true);
       setCheckoutError("Your account is ready. Continue to secure checkout to start membership.");
+    } else if (typeof action === "string" && action.startsWith("path:")) {
+      const intendedPath = action.slice(5) || "/workspace";
+      window.history.pushState({}, "", intendedPath);
+      setPage(getInitialPageFromPath());
+      setWorkspaceSection(getInitialWorkspaceSectionFromPath());
+      setActiveToolKey(getInitialToolFromPath());
+      notify("success", "Logged in", "Opening your workspace.");
     } else {
       notify("success", "Logged in", "Welcome back to your Brandthat workspace.");
     }
@@ -4894,6 +4943,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setLogoSymbol(nextTool.key === "logo" && activeBrand ? logoDefaults.symbolDirection : "");
     setLogoColors(nextTool.key === "logo" && activeBrand ? logoPalette.map((item) => item.name + " " + item.hex).join(", ") : "");
     setLogoAvoid(nextTool.key === "logo" && activeBrand ? "generic wellness leaves, unrelated technology symbols, misspelled text, tiny decorative details" : "");
+    setCaptionGoal("Awareness");
     setPrompt(nextTool.key === "logo" && activeBrand ? buildWorkspaceLogoBrief(activeBrand, activePlanForLogo) : "");
     setResult("");
     setLogoImage("");
@@ -4901,7 +4951,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setLogoCreativeBrief(null);
     setWorkspaceSection("tools");
     setPage(nextTool.key === "logo" ? "logo" : "studio");
-    window.history.pushState({}, "", `/tools/${nextTool.key}`);
+    window.history.pushState({}, "", getWorkspaceToolPath(nextTool.key));
     setTimeout(() => document.getElementById("brandthat-generator")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
@@ -4913,8 +4963,7 @@ Brand readiness score: ${getBrandReadinessScore(brand)}%`;
     setPage("workspace");
     setAppMenuOpen(false);
     setCreateMenuOpen(false);
-    const path = normalizedSection === "overview" ? "/workspace" : normalizedSection === "tools" ? "/tools" : `/workspace/${normalizedSection}`;
-    window.history.pushState({}, "", path);
+    window.history.pushState({}, "", getWorkspaceSectionPath(normalizedSection));
     setTimeout(() => document.querySelector(".appMain")?.scrollTo?.({ top: 0, behavior: "smooth" }), 40);
   };
 
@@ -5386,6 +5435,9 @@ ${selectedPlatform || "General social media"}
 User post/topic description:
 ${prompt}
 
+Caption goal:
+${captionGoal || "Awareness"}
+
 Task:
 Generate exactly 10 genuinely different captions based on the active Brand Workspace and the user's post description.
 
@@ -5402,15 +5454,21 @@ Rules:
 - Use these ten distinct formats in order:
   1. Short punchy caption
   2. Storytelling caption
-  3. Educational caption
-  4. Promotional caption
-  5. Question-led caption
-  6. Lifestyle caption
-  7. Local-community caption
+  3. Benefit-focused caption
+  4. Conversational caption
+  5. Educational caption
+  6. Product-focused caption
+  7. Community-focused caption
   8. Problem/solution caption
-  9. Warm brand-voice caption
+  9. Brand-voice caption
   10. Direct call-to-action caption
+- Tune all ten captions toward this selected goal: ${captionGoal || "Awareness"}.
+- Make the goal visible through the CTA, angle, or framing without repeating the word "${captionGoal || "Awareness"}".
+- Use the exact post description as the scene. Include concrete nouns from the post when useful.
+- Use the brand thesis, audience, positioning, voice, primary platform, and goal from the active Brand Workspace.
 - Avoid repeating the same opening phrase or sentence structure.
+- Do not use clichés such as "green companion", "world where", "elevate your space", "bring the outdoors in", "exciting news", or "new arrivals alert".
+- Do not ask generic engagement questions unless the selected goal is Engagement or Community and the question is specific to the post.
 - If the brand is local, service-based, product-based, or subscription-based, make that visible where useful.
 - Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, or availability claims unless the user explicitly supplied that evidence.
 - For plant care, pet care, health, finance, legal, or technical setup, do not provide exact instructions, schedules, frequencies, diagnoses, claims, or guarantees unless the user supplied those details.
@@ -6203,6 +6261,8 @@ ${promptValue}`;
           authStatus={authStatus}
           checkoutStatus={checkoutStatus}
           checkoutError={checkoutError}
+          membershipLoading={membershipLoading}
+          membershipLookupFailed={membershipLookupFailed}
         />
       )}
 
@@ -6215,6 +6275,8 @@ ${promptValue}`;
           authStatus={authStatus}
           checkoutStatus={checkoutStatus}
           checkoutError={checkoutError}
+          membershipLoading={membershipLoading}
+          membershipLookupFailed={membershipLookupFailed}
           setPage={setPage}
         />
       )}
@@ -6284,6 +6346,8 @@ ${promptValue}`;
           setLogoColors={setLogoColors}
           logoAvoid={logoAvoid}
           setLogoAvoid={setLogoAvoid}
+          captionGoal={captionGoal}
+          setCaptionGoal={setCaptionGoal}
           generate={generate}
           loading={loading}
           result={result}
@@ -6352,7 +6416,7 @@ ${promptValue}`;
         <section className="appContentSection" id="brandthat-generator">
           <div className="tinyTag">{activeTool.label}</div>
           <h1 className="pageTitle">{activeTool.title}</h1>
-          <p className="pageLead">{activeTool.desc} Logo concepts work best after BrandThat has created the thesis, positioning, audience, moodboard, typography, colors, and voice in your Brand Workspace.</p>
+          <p className="pageLead">{getToolSubline(activeTool.key)}</p>
 
           {activeBrand && (
             <div className="activeBrandBar">
@@ -6380,6 +6444,8 @@ ${promptValue}`;
             setLogoColors={setLogoColors}
             logoAvoid={logoAvoid}
             setLogoAvoid={setLogoAvoid}
+            captionGoal={captionGoal}
+            setCaptionGoal={setCaptionGoal}
             generate={generate}
             loading={loading}
             result={result}
@@ -6432,7 +6498,7 @@ ${promptValue}`;
         <InfoPage page={page} setPage={setPage} />
       )}
 
-      <footer className="footerSubscribe completeFooter">
+      {!isLoggedInApplicationPage && <footer className="footerSubscribe completeFooter">
         <div>
           <div className="tinyTag">BRANDTHAT</div>
           <h2>Type the name. Tell us what it means. Build around it.</h2>
@@ -6469,7 +6535,7 @@ ${promptValue}`;
             </>
           )}
         </div>
-      </footer>
+      </footer>}
 
             {showAuth && (
         <div className="modal">
@@ -6571,15 +6637,24 @@ function MembershipCta({
   loggedOutLabel = "Create Account",
   verifiedLabel = "Start Membership",
   source = "membership_cta",
+  membershipLoading = false,
+  membershipLookupFailed = false,
 }) {
-  const cta = getMembershipCtaState({ user, userPlan, authStatus, checkoutStatus, loggedOutLabel, verifiedLabel });
+  const cta = getMembershipCtaState({ user, userPlan, authStatus, checkoutStatus, loggedOutLabel, verifiedLabel, membershipLoading, membershipLookupFailed });
+  const handleClick = () => {
+    if (cta.nextAction === "recover") {
+      window.location.reload();
+      return;
+    }
+    startCheckout?.({ source });
+  };
 
   return (
     <div className="membershipCtaWrap">
       <button
         className={className || "btn dark"}
         type="button"
-        onClick={() => startCheckout?.({ source })}
+        onClick={handleClick}
         disabled={cta.disabled}
         aria-busy={cta.busy}
       >
@@ -6593,7 +6668,7 @@ function MembershipCta({
   );
 }
 
-function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError }) {
+function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, membershipLoading = false, membershipLookupFailed = false }) {
   const [preview, setPreview] = useState(null);
   const [previewState, setPreviewState] = useState("idle");
   const canPreview = Boolean((workspaceDraft.name || "").trim() && (workspaceDraft.description || "").trim());
@@ -6637,10 +6712,10 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
           <label className="builderField full"><span>Industry or market</span><input placeholder="Carry goods, local service, software, hospitality" value={workspaceDraft.industry || workspaceDraft.locationMarket || ""} onChange={(e) => updatePreviewDraft({ industry: e.target.value, locationMarket: e.target.value, exampleContext: "" })} /></label>
         </div>
       </details>
-      <div className="builderActions previewActions"><button className="btn dark" onClick={generatePreview}>{previewState === "loading" ? "Creating preview..." : "Generate Free Preview"}</button><MembershipCta className="btn light" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Complete Workspace" verifiedLabel="Unlock Complete Workspace" source="preview_unlock_top" /></div>
+      <div className="builderActions previewActions"><button className="btn dark" onClick={generatePreview}>{previewState === "loading" ? "Creating preview..." : "Generate Free Preview"}</button><MembershipCta className="btn light" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Complete Workspace" verifiedLabel="Unlock Complete Workspace" source="preview_unlock_top" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div>
       {previewState === "missing" && <div className="friendlyState warning"><strong>Add a name and idea first.</strong><span>BrandThat needs both fields to create a useful preview.</span></div>}
       {previewState === "loading" && <div className="friendlyState"><strong>Preview generation in progress.</strong><span>Creating thesis, audience, voice, positioning, and visual direction.</span></div>}
-      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Workspace" verifiedLabel="Unlock Workspace" source="preview_unlock_result" /></div></div>}
+      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Workspace" verifiedLabel="Unlock Workspace" source="preview_unlock_result" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div></div>}
       <p className="builderFinePrint">The free preview avoids expensive generation and does not save a full workspace. Complete generation remains behind authentication, email verification, Stripe checkout, and existing server-side validation.</p>
     </section>
   );
@@ -7734,6 +7809,7 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
+  const currentLogoAssetId = getPrimaryLogoAssetId(brand);
   const bucketLabels = {
     logos: "Logos",
     captions: "Captions",
@@ -7810,7 +7886,11 @@ function SavedAssets({ brand, recentGenerations = [], favoriteIds = {}, toggleFa
       <div className="assetCardActions">
         <button onClick={() => toggleFavorite(item.id)}>{item.isFavorite ? "Favorited" : "Favorite"}</button>
         {item.content && <button onClick={() => copyToClipboard(item.content)}>Copy</button>}
-        {item.bucket === "logos" && item.image && <button onClick={() => setSavedLogoAsBrandProfile(item)}>Set Logo</button>}
+        {item.bucket === "logos" && item.image && (
+          <button onClick={() => setSavedLogoAsBrandProfile(item)} disabled={item.id === currentLogoAssetId}>
+            {item.id === currentLogoAssetId ? "Current Logo ✓" : "Set Logo"}
+          </button>
+        )}
         {item.bucket === "logos" && item.image && <button onClick={() => continueSavedLogo(item)}>Refine</button>}
         <button onClick={() => remixOutput(item)}>Remix</button>
         <button className="miniDanger" onClick={() => deleteSavedAsset?.(item.id)}>Delete</button>
@@ -7924,7 +8004,7 @@ function navigateToPage(setPage, page, path = "/") {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function BrandExamplesPage({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, setPage }) {
+function BrandExamplesPage({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, membershipLoading = false, membershipLookupFailed = false, setPage }) {
   const examples = [
     {
       id: "northline-example",
@@ -7981,7 +8061,7 @@ function BrandExamplesPage({ startCheckout, user, userPlan, authStatus, checkout
         <p>These are demo examples, not customer projects. They show how the same system can shape different kinds of early business ideas.</p>
         <div className="examplesActions">
           <button className="birthCta" onClick={() => navigateToPage(setPage, "home", "/")}>Preview My Brand</button>
-          <MembershipCta className="birthSecondary" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} loggedOutLabel="Unlock Workspace - $9.99/mo" verifiedLabel="Unlock Workspace - $9.99/mo" source="examples_unlock" />
+          <MembershipCta className="birthSecondary" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} loggedOutLabel="Unlock Workspace - $9.99/mo" verifiedLabel="Unlock Workspace - $9.99/mo" source="examples_unlock" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} />
         </div>
       </section>
       <section className="exampleBrandGrid" aria-label="BrandThat example categories">
@@ -8047,8 +8127,8 @@ function HowItWorksSection() {
   return <section className="howSection"><div className="sectionHeader compact"><span>How BrandThat works</span><h2>Fast enough for an idea. Structured enough for launch.</h2></div><div className="howGrid">{steps.map(([t,c], i)=><article key={t}><span>{String(i+1).padStart(2,"0")}</span><strong>{t}</strong><p>{c}</p></article>)}</div></section>;
 }
 
-function PricingSection({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError }) {
-  return <section className="pricingSection" id="brandthat-membership"><div><span>Membership and pricing</span><h2>$9.99/month — cancel anytime.</h2><p>Monthly access unlocks the complete BrandThat workspace and connected generators while your subscription is active.</p><p className="policyNote">You can create a free preview before checkout. The complete workspace requires an account, email verification, and active membership.</p></div><div className="priceStatement"><span>BrandThat Membership</span><strong>$9.99/mo</strong><ul><li>Complete strategy and expanded audience/positioning</li><li>Brand voice, identity direction, and logo concepts</li><li>Platform/content direction and 90-day launch roadmap</li><li>Saved workspace and connected generators</li></ul><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} source="pricing_membership" /><a href="/cancellation">Cancellation information</a></div></section>;
+function PricingSection({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, membershipLoading = false, membershipLookupFailed = false }) {
+  return <section className="pricingSection" id="brandthat-membership"><div><span>Membership and pricing</span><h2>$9.99/month — cancel anytime.</h2><p>Monthly access unlocks the complete BrandThat workspace and connected generators while your subscription is active.</p><p className="policyNote">You can create a free preview before checkout. The complete workspace requires an account, email verification, and active membership.</p></div><div className="priceStatement"><span>BrandThat Membership</span><strong>$9.99/mo</strong><ul><li>Complete strategy and expanded audience/positioning</li><li>Brand voice, identity direction, and logo concepts</li><li>Platform/content direction and 90-day launch roadmap</li><li>Saved workspace and connected generators</li></ul><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} source="pricing_membership" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /><a href="/cancellation">Cancellation information</a></div></section>;
 }
 
 function TrustSection() {
@@ -8060,14 +8140,14 @@ function FAQSection() {
   return <section className="faqSection"><div className="sectionHeader compact"><span>FAQ</span><h2>Clear answers before checkout.</h2></div><div className="faqList">{faqs.map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></section>;
 }
 
-function BrandBirthHomepage({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError }) {
+function BrandBirthHomepage({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, buildGuidedBrandPlan, loading, startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, membershipLoading = false, membershipLookupFailed = false }) {
   const scrollSection = (sectionId) => {
     window.history.replaceState({}, "", `/#${sectionId}`);
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const seedExampleBrand = () => { setWorkspaceDraft({ ...workspaceDraft, name: "Northline Goods", description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.", audience: "Creators, founders, photographers, designers, and operators", style: "Quietly premium, durable, useful", industry: "physical goods and apparel", exampleContext: "northline_goods" }); trackBrandthatEvent("example_selection", { example: "northline_goods" }); setTimeout(() => scrollSection("brandthat-builder"), 80); };
   const scrollToBuilder = () => { trackBrandthatEvent("hero_cta_click", { cta: "preview_my_brand" }); scrollSection("brandthat-builder"); };
-  return <div className="birthPage" id="brandthat-product"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => scrollSection("northline-demo")}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} /></section></div>;
+  return <div className="birthPage" id="brandthat-product"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => scrollSection("northline-demo")}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></section></div>;
 }
 
 function BirthHeroVisual() {
@@ -8154,7 +8234,7 @@ function BrandOperatingSection({ selectTool, openSeoPage }) {
   );
 }
 
-function MembershipBand({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError }) {
+function MembershipBand({ startCheckout, user, userPlan, authStatus, checkoutStatus, checkoutError, membershipLoading = false, membershipLookupFailed = false }) {
   return (
     <section className="membershipBand" id="brandthat-membership">
       <div>
@@ -8176,7 +8256,7 @@ function MembershipBand({ startCheckout, user, userPlan, authStatus, checkoutSta
           <li>90-day launch roadmap with next best actions</li>
           <li>Saved workspace and logo concepts generated from the completed strategy</li>
         </ul>
-        <MembershipCta className="btn dark full" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} verifiedLabel="Start Membership - $9.99/mo" source="membership_band" />
+        <MembershipCta className="btn dark full" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={startCheckout} verifiedLabel="Start Membership - $9.99/mo" source="membership_band" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} />
       </div>
     </section>
   );
@@ -8199,6 +8279,8 @@ function SEOPage({
   setLogoColors,
   logoAvoid,
   setLogoAvoid,
+  captionGoal = "Awareness",
+  setCaptionGoal = () => {},
   generate,
   loading,
   result,
@@ -8258,13 +8340,15 @@ function SEOPage({
           setCreativeTone={setCreativeTone}
           logoIndustry={logoIndustry}
           setLogoIndustry={setLogoIndustry}
-          logoSymbol={logoSymbol}
-          setLogoSymbol={setLogoSymbol}
-          logoColors={logoColors}
-          setLogoColors={setLogoColors}
-          logoAvoid={logoAvoid}
-          setLogoAvoid={setLogoAvoid}
-          generate={generate}
+            logoSymbol={logoSymbol}
+            setLogoSymbol={setLogoSymbol}
+            logoColors={logoColors}
+            setLogoColors={setLogoColors}
+            logoAvoid={logoAvoid}
+            setLogoAvoid={setLogoAvoid}
+            captionGoal={captionGoal}
+            setCaptionGoal={setCaptionGoal}
+            generate={generate}
           loading={loading}
           result={result}
           generationError={generationError}
@@ -8912,6 +8996,8 @@ function GeneratorCard({
   setLogoColors = () => {},
   logoAvoid = "",
   setLogoAvoid = () => {},
+  captionGoal = "Awareness",
+  setCaptionGoal = () => {},
   generate,
   loading,
   result,
@@ -8967,6 +9053,9 @@ function GeneratorCard({
   };
   const isAssetSaved = (content = "", image = "") => Boolean(getSavedAsset(content, image));
   const currentOutputSaved = activeTool.key === "logo" ? isAssetSaved("", logoImage) : isAssetSaved(stripLogoProjectMetadata(result));
+  const currentLogoAssetId = getPrimaryLogoAssetId(activeBrand);
+  const currentLogoSavedAsset = activeTool.key === "logo" ? getSavedAsset("", logoImage) : null;
+  const currentLogoIsPrimary = Boolean(currentLogoSavedAsset?.id && currentLogoSavedAsset.id === currentLogoAssetId);
   const logoSaveInProgress = savingResultKey === "logo-current";
   const logoPrimaryInProgress = savingResultKey === "logo-primary";
   const getIndividualResultTitle = (index) => {
@@ -9476,7 +9565,7 @@ Designer iteration rules:
         </>
       ) : (
         <>
-          <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" ? "singleControl" : ""}`}>
+          <div className={`generatorControls freeTypeControls ${activeTool.key !== "logo" && activeTool.key !== "captions" ? "singleControl" : ""}`}>
             <label>
               <span>{activeTool.platformLabel}</span>
               {(activeTool.key === "hashtags" || activeTool.key === "captions") ? (
@@ -9492,6 +9581,16 @@ Designer iteration rules:
                 />
               )}
             </label>
+            {activeTool.key === "captions" && (
+              <label>
+                <span>Goal</span>
+                <select value={captionGoal} onChange={(e) => setCaptionGoal(e.target.value)}>
+                  {["Awareness", "Engagement", "Launch", "Conversion", "Education", "Community"].map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <textarea
@@ -9591,8 +9690,8 @@ Designer iteration rules:
                 <button onClick={() => saveLogoConceptFromResult()} disabled={currentOutputSaved || logoSaveInProgress}>
                   {logoSaveInProgress ? "Saving..." : currentOutputSaved ? `Saved to ${activeBrand?.name || "Workspace"} ✓` : "Save Logo Concept"}
                 </button>
-                <button onClick={() => saveLogoConceptFromResult({ setPrimary: true })} disabled={logoPrimaryInProgress}>
-                  {logoPrimaryInProgress ? "Updating..." : "Set as Primary Logo"}
+                <button onClick={() => saveLogoConceptFromResult({ setPrimary: true })} disabled={logoPrimaryInProgress || currentLogoIsPrimary}>
+                  {currentLogoIsPrimary ? "Current Logo ✓" : logoPrimaryInProgress ? "Updating..." : "Set as Primary Logo"}
                 </button>
                 <button className="downloadLink" onClick={downloadLogoImage}>Download Preview</button>
                 <button onClick={() => document.querySelector(".logoRefinePanel textarea")?.focus()}>Refine</button>
@@ -10181,12 +10280,12 @@ function LogoEditorPanel({
 
 function getToolSubline(toolKey) {
   const lines = {
-    logo: "Describe the logo naturally. Brandthat extracts the brand name, style, colors, symbol, typography, and layout for you.",
-    captions: "Generate polished caption options formatted for social performance.",
-    hooks: "Create short hooks built for retention, curiosity, and scroll-stopping openings.",
-    bios: "Build clear bios for profiles, websites, founders, creators, and brands.",
-    hashtags: "Choose a platform, describe your post, and get 50 relevant copy-ready hashtags. No login required.",
-    email: "Write complete email copy with subject lines, preview text, and calls to action.",
+    logo: "Use the saved strategy, visual identity, palette, typography, and logo direction to create brand-fit concepts.",
+    captions: "Choose a platform, describe the post, set a goal, and generate captions in the active brand voice.",
+    hooks: "Describe the video format, audience tension, and opening angle to create short-form hooks.",
+    bios: "Choose the platform or placement, then generate bios from the brand positioning and character constraints.",
+    hashtags: "Choose a platform and describe the post so BrandThat can create discovery tags for the right industry and audience.",
+    email: "Define the campaign purpose, recipient, and call to action to create complete email options.",
     strategy: "Create a platform-specific content plan with pillars, cadence, and next steps.",
     brand: "Turn a rough idea into positioning, names, voice, audience, and launch direction.",
     audit: "Audit a brand, offer, profile, or website and get specific improvements.",
