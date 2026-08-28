@@ -9,12 +9,9 @@ const service = fs.readFileSync(
   new URL("../netlify/functions/lib/brand-memory.js", import.meta.url),
   "utf8",
 );
+assert.equal(fs.existsSync(new URL("../netlify/functions/brand-memory.js", import.meta.url)), false, "brand-memory must not use a CommonJS wrapper that can miss the ESM handler in production.");
 const endpoint = fs.readFileSync(
-  new URL("../netlify/functions/brand-memory.js", import.meta.url),
-  "utf8",
-);
-const endpointHandler = fs.readFileSync(
-  new URL("../netlify/functions/brand-memory-handler.mjs", import.meta.url),
+  new URL("../netlify/functions/brand-memory.mjs", import.meta.url),
   "utf8",
 );
 const generate = fs.readFileSync(
@@ -56,24 +53,20 @@ assert.match(service, /getCaptionMemoryContext/);
 assert.match(service, /source_identity/);
 assert.doesNotMatch(service, /console\.log\([^)]*content/);
 assert.doesNotMatch(service, /console\.error\([^)]*content/);
-assert.doesNotMatch(endpoint, /^import\s/m, "Netlify brand-memory .js entrypoint must be CommonJS-safe.");
-assert.doesNotMatch(endpoint, /from \"openai\"|require\(\"openai\"\)/, "Status entrypoint must not initialize OpenAI.");
-assert.match(endpoint, /exports\.handler/);
-assert.match(endpoint, /brand-memory-handler\.mjs/);
-assert.match(endpoint, /BRAND_MEMORY_RUNTIME_ERROR/);
+assert.doesNotMatch(endpoint, /from \"openai\"|require\(\"openai\"\)/, "Status entrypoint must not initialize OpenAI directly.");
+assert.doesNotMatch(endpoint, /brand-memory-handler\.mjs/, "Brand memory function must be self-contained for Netlify bundling.");
 assert.doesNotMatch(endpoint, /Authorization|access_token|service_role|OPENAI_API_KEY/);
-assert.doesNotMatch(endpointHandler, /Authorization|access_token|service_role|OPENAI_API_KEY/);
-assert.match(endpointHandler, /requireVerifiedUser/);
-assert.match(endpointHandler, /Cache-Control": "no-store"/);
-assert.match(endpointHandler, /action === "status"/);
-assert.match(endpointHandler, /BRAND_MEMORY_ENDPOINT_VERSION/);
-assert.match(endpointHandler, /getBrandMemoryTestUserIds/);
-assert.match(endpointHandler, /authenticatedUserIdMatchesAllowlist/);
-assert.match(endpointHandler, /selectedWorkspaceId/);
-assert.match(endpointHandler, /workspaceOwned/);
-assert.match(endpointHandler, /dryRun: true/);
-assert.match(endpointHandler, /case "refresh"/);
-assert.match(endpointHandler, /BRAND_MEMORY_NOT_ALLOWLISTED/);
+assert.match(endpoint, /requireVerifiedUser/);
+assert.match(endpoint, /Cache-Control": "no-store"/);
+assert.match(endpoint, /action === "status"/);
+assert.match(endpoint, /BRAND_MEMORY_ENDPOINT_VERSION/);
+assert.match(endpoint, /getBrandMemoryTestUserIds/);
+assert.match(endpoint, /authenticatedUserIdMatchesAllowlist/);
+assert.match(endpoint, /selectedWorkspaceId/);
+assert.match(endpoint, /workspaceOwned/);
+assert.match(endpoint, /dryRun: true/);
+assert.match(endpoint, /case "refresh"/);
+assert.match(endpoint, /BRAND_MEMORY_NOT_ALLOWLISTED/);
 assert.match(generate, /getCaptionMemoryContext/);
 assert.match(generate, /generatorType === "captions"/);
 assert.doesNotMatch(generate, /BRAND_MEMORY_TEST_USER_IDS/);
