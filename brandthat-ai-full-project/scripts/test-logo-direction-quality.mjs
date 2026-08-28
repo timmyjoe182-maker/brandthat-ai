@@ -78,8 +78,14 @@ for (const testCase of cases) {
 
   const layouts = concepts.map((concept) => concept.layout);
   const rationales = concepts.map((concept) => concept.whyFits);
+  const symbols = concepts.map((concept) => concept.symbol.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+  const typography = concepts.map((concept) => concept.typography.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+  const uses = concepts.map((concept) => concept.primaryUseCase.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
   assert.equal(new Set(layouts).size, 3, `${testCase.name} compositions must be distinct.`);
   assert.equal(new Set(rationales).size, 3, `${testCase.name} rationales must be distinct.`);
+  assert.equal(new Set(symbols).size, 3, `${testCase.name} symbol treatments must be distinct.`);
+  assert.equal(new Set(typography).size, 3, `${testCase.name} typography treatments must be distinct.`);
+  assert.equal(new Set(uses).size, 3, `${testCase.name} primary use cases must be distinct.`);
 
   for (const concept of concepts) {
     const joined = [

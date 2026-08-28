@@ -19,6 +19,16 @@ function patchLogoFunction() {
   const path = new URL("../netlify/functions/logo-image.js", import.meta.url);
   let source = readFileSync(path, "utf8");
 
+  if (
+    source.includes(`from "./lib/membership.js"`) &&
+    source.includes("export const handler = async") &&
+    source.includes("return json(503") &&
+    source.includes("fallback: {")
+  ) {
+    writeFileSync(path, source);
+    return;
+  }
+
   source = replaceOnce(
     source,
     `const OpenAI = require("openai");\nconst { requireVerifiedUser } = require("./lib/auth.js");`,

@@ -30,6 +30,15 @@ function patchLogoFunction() {
   const path = new URL("../netlify/functions/logo-image.js", import.meta.url);
   let source = readFileSync(path, "utf8");
 
+  if (
+    source.includes("function getLogoServerTimeoutMs()") &&
+    source.includes("persistAiLogoImageIfNeeded") &&
+    source.includes("LOGO_IMAGE_SERVER_TIMEOUT")
+  ) {
+    writeFileSync(path, source);
+    return;
+  }
+
   source = replaceOnce(
     source,
     `  const requestId = getRequestId("logo_image");`,
