@@ -188,6 +188,12 @@ assert.ok(
 );
 
 assert.ok(
+  appSource.includes("generationSlow={generationSlow}") &&
+    appSource.includes("generationSlow = false"),
+  "GeneratorCard must receive generationSlow from App state instead of reading an undefined outer variable."
+);
+
+assert.ok(
   appSource.includes("Still reviewing captions for quality") &&
     appSource.includes("CAPTION_REVIEW_CLIENT_TIMEOUT") &&
     appSource.includes("timeoutMs: activeTool.key === \"captions\" ? 45000 : 20000"),

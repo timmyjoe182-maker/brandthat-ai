@@ -6672,6 +6672,7 @@ ${promptValue}`;
             setCaptionGoal={setCaptionGoal}
             generate={generate}
             loading={loading}
+            generationSlow={generationSlow}
             result={result}
             generationError={generationError}
             logoGenerationError={logoGenerationError}
@@ -8781,8 +8782,9 @@ function SEOPage({
             setLogoAvoid={setLogoAvoid}
             captionGoal={captionGoal}
             setCaptionGoal={setCaptionGoal}
-            generate={generate}
+          generate={generate}
           loading={loading}
+          generationSlow={generationSlow}
           result={result}
           generationError={generationError}
           logoGenerationError={logoGenerationError}
@@ -9433,6 +9435,7 @@ function GeneratorCard({
   setCaptionGoal = () => {},
   generate,
   loading,
+  generationSlow = false,
   result,
   generationError = "",
   logoGenerationError = "",
