@@ -194,6 +194,400 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
   return safeText.replace(/\s+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
 }
 
+const GENERIC_COPY_PATTERNS = [
+  /\bdeserves?\s+the\s+best\b/i,
+  /\bgame[- ]changing\b/i,
+  /\btake\s+(it|your|their|this)\s+to\s+the\s+next\s+level\b/i,
+  /\bunleash\s+your\s+potential\b/i,
+  /\bunlock\s+your\s+potential\b/i,
+  /\bexperience\s+the\s+difference\b/i,
+];
+
+const PLACEHOLDER_PATTERNS = [
+  /\b(insert|add|write|replace)\s+(brand|caption|hashtag|hook|bio|email|details?)\s+(here|name|copy)?\b/i,
+  /\bplaceholder\b/i,
+  /\bundefined\b/i,
+  /\bnull\b/i,
+  /\b\[.+?\]/,
+  /\b\{.+?\}/,
+];
+
+const BROKEN_GRAMMAR_PATTERNS = [
+  /\bhelps?\s+with\s+(they|them|he|she|we|you|it)\b/i,
+  /\b(with|for|to|by)\s+(they|we|he|she|I)\b/i,
+  /\b(they|we|you|he|she)\s+(feel|feels|look|looks|sound|sounds)\s+(great|good|better)\s+every\s+time\b/i,
+  /\b[a-z]+\s+with\s+they\s+[a-z]+/i,
+  /\bhelps?\s+with\s+[^.!?\n]{0,28}\s+feel\b/i,
+];
+
+const UNSUPPORTED_GUARANTEE_PATTERNS = [
+  /\b(ensures?|guarantees?|guaranteed|will always|never fails|proven to|certified to)\b/i,
+  /\b(stress[- ]free|effortless|foolproof|fail[- ]proof)\b/i,
+  /\b(order|buy|shop|book|reserve)\s+[^.!?\n]{0,80}\s+today\b/i,
+];
+
+const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
+const PET_CONTEXT_PATTERN = /dog grooming|mobile grooming|pet grooming|pet care|senior pet|harbor hound|coastal families/i;
+const SOFTWARE_CONTEXT_PATTERN = /software|saas|sponsorship|invoice|creator workflow|signaldesk|platform/i;
+
+const PLANT_LEAK_PATTERNS = [
+  /\bhouseplants?\b/i,
+  /\bplants?\b/i,
+  /\bbotanical\b/i,
+  /\bpothos\b/i,
+  /\bsnake plants?\b/i,
+  /\bcare cards?\b/i,
+  /\bplant delivery\b/i,
+  /\bapartment greenery\b/i,
+];
+
+const PET_LEAK_PATTERNS = [
+  /\bdog\b/i,
+  /\bdogs\b/i,
+  /\bpet\b/i,
+  /\bpets\b/i,
+  /\bgrooming\b/i,
+  /\bgroomer\b/i,
+  /\bmobile grooming\b/i,
+  /\bsenior pets?\b/i,
+];
+
+const SOFTWARE_LEAK_PATTERNS = [
+  /\bsaas\b/i,
+  /\bsoftware\b/i,
+  /\bapp\b/i,
+  /\bplatform\b/i,
+  /\binvoices?\b/i,
+  /\bsponsorships?\b/i,
+];
+
+function normalizeForComparison(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[#@]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\b(the|a|an|and|or|to|for|of|in|on|with|your|our|this|that|it|is|are|be|can)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getOpeningKey(value = "") {
+  return normalizeForComparison(value).split(/\s+/).slice(0, 4).join(" ");
+}
+
+function getContextKind(supportedSource = "") {
+  const source = String(supportedSource || "");
+  if (PET_CONTEXT_PATTERN.test(source)) return "pet";
+  if (PLANT_CONTEXT_PATTERN.test(source)) return "plant";
+  if (SOFTWARE_CONTEXT_PATTERN.test(source)) return "software";
+  return "general";
+}
+
+function hasAnyPattern(value = "", patterns = []) {
+  return patterns.some((pattern) => pattern.test(String(value || "")));
+}
+
+function splitGeneratedItems(text = "") {
+  const normalized = String(text || "").replace(/\r/g, "").trim();
+  const matches = [...normalized.matchAll(/(?:^|\n)\s*(\d{1,2})[.)]\s+/g)];
+  if (matches.length >= 2) {
+    return matches.slice(0, 20).map((match, index) => {
+      const start = match.index + match[0].length;
+      const end = matches[index + 1]?.index ?? normalized.length;
+      return sanitizeUnsafeGeneratedClaims(normalized.slice(start, end)).trim();
+    }).filter(Boolean);
+  }
+
+  const lines = normalized
+    .split("\n")
+    .map((line) => sanitizeUnsafeGeneratedClaims(line.replace(/^[-•*\s]*(?:\d+[.)])?\s*/, "")).trim())
+    .filter(Boolean);
+
+  return lines.length >= 2 ? lines : [];
+}
+
+function formatGeneratedItems(items = []) {
+  return items.map((item, index) => `${index + 1}. ${item}`).join("\n");
+}
+
+function repairBrokenGrammar(value = "", contextKind = "general") {
+  let repaired = String(value || "");
+  repaired = repaired
+    .replace(/\bhelps?\s+with\s+they\s+feel\s+great\s+every\s+time\b/gi, "helps them feel comfortable throughout every appointment")
+    .replace(/\bhelps?\s+with\s+they\s+feel\s+comfortable\b/gi, "helps them feel comfortable")
+    .replace(/\bhelps?\s+with\s+they\s+feel\b/gi, "helps them feel")
+    .replace(/\bhelps?\s+with\s+them\s+feel\b/gi, "helps them feel")
+    .replace(/\bwith\s+they\b/gi, "with them")
+    .replace(/\bfor\s+they\b/gi, "for them")
+    .replace(/\bto\s+they\b/gi, "to them")
+    .replace(/\bby\s+they\b/gi, "by them");
+
+  if (contextKind === "pet") {
+    repaired = repaired
+      .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves dependable, gentle care")
+      .replace(/\bstress[- ]free\b/gi, "calmer")
+      .replace(/\beffortless(ly)?\b/gi, "simple");
+  } else if (contextKind === "plant") {
+    repaired = repaired
+      .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves clear, simple care guidance")
+      .replace(/\bstress[- ]free\b/gi, "easier to understand")
+      .replace(/\beffortless(ly)?\b/gi, "with simple guidance");
+  } else {
+    repaired = repaired
+      .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves a clearer next step")
+      .replace(/\bgame[- ]changing\b/gi, "useful")
+      .replace(/\btake\s+(it|your|their|this)\s+to\s+the\s+next\s+level\b/gi, "make the next step clearer");
+  }
+
+  return repaired.replace(/\s+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+function removeCrossWorkspaceLeakage(value = "", contextKind = "general") {
+  let repaired = String(value || "");
+  if (contextKind === "pet") {
+    repaired = repaired
+      .replace(/\b(apartment[- ]friendly\s+)?(houseplants?|plants?|plant delivery|apartment greenery|botanical)\b/gi, "pet care")
+      .replace(/\b(pothos|snake plants?)\b/gi, "pet")
+      .replace(/\bcare cards?\b/gi, "appointment guidance");
+  }
+  if (contextKind === "plant") {
+    repaired = repaired
+      .replace(/\b(dog|dogs|pet|pets|grooming|groomer|mobile grooming|senior pets?)\b/gi, "plant")
+      .replace(/\b(grooming vans?|appointment grooming|pet handling)\b/gi, "local delivery");
+  }
+  if (contextKind !== "software") {
+    repaired = repaired
+      .replace(/\b(SaaS|software platform|software|invoices?|sponsorships?|creator workflow)\b/gi, contextKind === "plant" ? "plant subscription" : contextKind === "pet" ? "mobile service" : "brand");
+  }
+  return repaired.replace(/[ \t]{2,}/g, " ").trim();
+}
+
+function sentenceLooksComplete(value = "") {
+  const text = String(value || "").trim();
+  if (text.length < 12) return false;
+  if (PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(text))) return false;
+  if (!/[a-z0-9)]["']?[.!?]?$/i.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 4) return false;
+  return true;
+}
+
+export function validateGeneratedItemQuality(item = "", { index = 0, allItems = [], supportedSource = "", generatorType = "unknown" } = {}) {
+  const text = String(item || "").trim();
+  const normalized = normalizeForComparison(text);
+  const contextKind = getContextKind(supportedSource);
+  const previousItems = allItems.slice(0, index);
+  const previousNormalized = previousItems.map(normalizeForComparison).filter(Boolean);
+  const previousOpenings = previousItems.map(getOpeningKey).filter(Boolean);
+  const reasons = [];
+
+  if (!sentenceLooksComplete(text) && generatorType !== "hashtags") reasons.push("incomplete_sentence");
+  if (hasAnyPattern(text, BROKEN_GRAMMAR_PATTERNS)) reasons.push("broken_grammar");
+  if (hasAnyPattern(text, PLACEHOLDER_PATTERNS)) reasons.push("placeholder_text");
+  if (hasAnyPattern(text, GENERIC_COPY_PATTERNS)) reasons.push("generic_phrase");
+  if (hasAnyPattern(text, UNSUPPORTED_GUARANTEE_PATTERNS)) reasons.push("unsupported_guarantee");
+  if (previousNormalized.includes(normalized)) reasons.push("duplicate_sentence");
+  if (previousOpenings.includes(getOpeningKey(text)) && getOpeningKey(text).split(" ").length >= 3) reasons.push("repeated_opening");
+
+  if (contextKind === "pet" && hasAnyPattern(text, PLANT_LEAK_PATTERNS)) reasons.push("cross_workspace_plant_leak");
+  if (contextKind === "plant" && hasAnyPattern(text, PET_LEAK_PATTERNS)) reasons.push("cross_workspace_pet_leak");
+  if (contextKind !== "software" && hasAnyPattern(text, SOFTWARE_LEAK_PATTERNS)) reasons.push("cross_workspace_software_leak");
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    contextKind,
+  };
+}
+
+function extractBrandNameFromSource(supportedSource = "") {
+  const match = String(supportedSource || "").match(/Brand name:\s*([^\n]+)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorType = "captions" } = {}) {
+  const contextKind = getContextKind(supportedSource);
+  const brandName = extractBrandNameFromSource(supportedSource);
+  const prefix = brandName ? `${brandName} ` : "";
+
+  if (generatorType === "hashtags") {
+    if (contextKind === "pet") return "#MobileDogGrooming #PetCare #CoastalFamilies #SeniorPets #GentleGrooming";
+    if (contextKind === "plant") return "#ApartmentPlants #HouseplantDelivery #BeginnerPlantCare #SmallSpaceLiving #LocalDelivery";
+    return "#BrandStrategy #SmallBusiness #LaunchContent #CustomerClarity #BrandVoice";
+  }
+
+  const plantCaptions = [
+    `${prefix}keeps apartment greenery approachable with local delivery and simple guidance.`,
+    "A little more green at home, without turning plant care into a guessing game.",
+    "For renters who want a calmer corner, start with guidance that is easy to follow.",
+    "Simple care guidance helps beginners feel more confident bringing greenery into small spaces.",
+    "This delivery moment is built for apartment living, practical care notes, and a friendlier first step.",
+    "Make the next shelf, windowsill, or entryway feel more alive with guidance included.",
+    "Local plant delivery, clear care notes, and a gentler way to start.",
+    "Explore a plant direction that fits small spaces and beginner confidence.",
+    `${prefix}turns the first plant decision into something clear, calm, and doable.`,
+    "Ready for greener apartment living? Learn more about the next local delivery.",
+  ];
+
+  const petCaptions = [
+    `${prefix}brings gentle mobile grooming closer to home for busy coastal families.`,
+    "A calmer appointment starts with familiar surroundings, dependable care, and a softer pace.",
+    "For senior pets and busy households, convenience should still feel personal.",
+    "Clean coats, calmer routines, and a grooming visit designed around comfort.",
+    "Skip the extra trip and keep care close to the neighborhood.",
+    "A mobile grooming visit can feel simpler when trust and cleanliness lead the experience.",
+    "For families juggling full days, dependable pet care at home makes the routine easier.",
+    "Book a grooming conversation that starts with your pet's comfort and your schedule.",
+    `${prefix}is built around gentle handling, clean details, and local reliability.`,
+    "Give your dog a calmer grooming option close to home.",
+  ];
+
+  const softwareCaptions = [
+    `${prefix}helps teams turn scattered work into a clearer workflow.`,
+    "Less chasing details, more visibility into what needs to move next.",
+    "For creators managing sponsors, clarity is the feature that keeps momentum moving.",
+    "Keep the workflow organized before the next deadline becomes urgent.",
+    "Turn approvals, invoices, and campaign steps into one cleaner operating rhythm.",
+    "A better system starts when every moving piece has a place.",
+    "For busy operators, the right workflow makes follow-through easier to see.",
+    "Review the process, tighten the handoff, and keep the next action visible.",
+    `${prefix}supports cleaner decisions across sponsorship work.`,
+    "Make the next campaign easier to manage from the first step.",
+  ];
+
+  const generalCaptions = [
+    `${prefix}makes the next step clearer for the people it serves.`,
+    "Show the moment, name the value, and make the action easy to understand.",
+    "A stronger brand message starts with one specific customer problem.",
+    "Use the scene to make the offer feel practical, human, and easy to remember.",
+    "Turn the brand promise into a simple next step.",
+    "Make the customer feel seen before asking them to act.",
+    "Specific context beats generic hype every time.",
+    "Invite people into the brand with a clear reason to care.",
+    `${prefix}keeps the message focused on what the audience actually needs.`,
+    "Start with clarity, then make the next action simple.",
+  ];
+
+  const bank = contextKind === "plant" ? plantCaptions : contextKind === "pet" ? petCaptions : contextKind === "software" ? softwareCaptions : generalCaptions;
+  return bank[index % bank.length];
+}
+
+export function repairGeneratedItemQuality(item = "", options = {}) {
+  const contextKind = getContextKind(options.supportedSource);
+  let repaired = sanitizeUnsafeGeneratedClaims(item, options.supportedSource);
+  repaired = repairBrokenGrammar(repaired, contextKind);
+  repaired = removeCrossWorkspaceLeakage(repaired, contextKind);
+  repaired = sanitizeUnsafeGeneratedClaims(repaired, options.supportedSource);
+  repaired = repaired.replace(/\s+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
+  return repaired;
+}
+
+async function regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId }) {
+  if (!openAiClient || generatorType !== "captions") return "";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6500);
+  try {
+    const contextKind = getContextKind(supportedSource);
+    const replacement = await openAiClient.chat.completions.create({
+      model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `${prompt}
+
+Repair caption ${index + 1} only.
+Return one complete caption sentence only.
+It must be grammatical, specific to the selected ${contextKind} workspace, and free of unsupported guarantees, invented facts, placeholder text, and cross-brand details.`,
+        },
+      ],
+      temperature: 0.55,
+    }, { signal: controller.signal });
+    return sanitizeUnsafeGeneratedClaims(replacement.choices?.[0]?.message?.content || "", supportedSource);
+  } catch (error) {
+    console.warn("BrandThat output repair regeneration failed", {
+      requestId,
+      generatorType,
+      itemIndex: index,
+      code: error?.code || error?.type || error?.name,
+      statusCode: error?.status || error?.statusCode || null,
+    });
+    return "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function applyOutputQualityStage({
+  text = "",
+  generatorType = "unknown",
+  supportedSource = "",
+  openAiClient = null,
+  systemPrompt = "",
+  prompt = "",
+  requestId = "",
+} = {}) {
+  const initialText = sanitizeUnsafeGeneratedClaims(text, supportedSource);
+  const items = splitGeneratedItems(initialText);
+  if (!items.length) {
+    const repaired = repairGeneratedItemQuality(initialText, { supportedSource, generatorType, index: 0 });
+    const validation = validateGeneratedItemQuality(repaired, { supportedSource, generatorType, index: 0, allItems: [] });
+    return {
+      text: validation.ok ? repaired : buildSafeReplacementItem({ index: 0, supportedSource, generatorType }),
+      repairedCount: validation.ok && repaired === initialText ? 0 : 1,
+      validationEvents: validation.ok ? [] : [{ index: 0, reasons: validation.reasons, rewritten: true }],
+    };
+  }
+
+  const repairedItems = [];
+  const validationEvents = [];
+  let repairedCount = 0;
+  let regenerationAttempts = 0;
+
+  for (let index = 0; index < items.length; index += 1) {
+    const original = items[index];
+    let candidate = repairGeneratedItemQuality(original, { supportedSource, generatorType, index });
+    let validation = validateGeneratedItemQuality(candidate, {
+      index,
+      allItems: repairedItems,
+      supportedSource,
+      generatorType,
+    });
+
+    if (!validation.ok && regenerationAttempts < 3) {
+      regenerationAttempts += 1;
+      const regenerated = await regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId });
+      if (regenerated) {
+        candidate = repairGeneratedItemQuality(regenerated, { supportedSource, generatorType, index });
+        validation = validateGeneratedItemQuality(candidate, {
+          index,
+          allItems: repairedItems,
+          supportedSource,
+          generatorType,
+        });
+      }
+    }
+
+    if (!validation.ok) {
+      candidate = buildSafeReplacementItem({ index, supportedSource, generatorType });
+      validationEvents.push({ index, reasons: validation.reasons, rewritten: true });
+      repairedCount += 1;
+    } else if (candidate !== original) {
+      validationEvents.push({ index, reasons: ["deterministic_repair"], rewritten: true });
+      repairedCount += 1;
+    }
+
+    repairedItems.push(candidate);
+  }
+
+  return {
+    text: formatGeneratedItems(repairedItems),
+    repairedCount,
+    validationEvents,
+  };
+}
+
 const supabaseAuthUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://vfnkmabnocbwawbdvxfo.supabase.co";
 const supabaseAuthKey =
   process.env.SUPABASE_ANON_KEY ||
@@ -616,6 +1010,11 @@ Rules:
 - Do not invent health, scientific, environmental, legal, financial, performance, discount, guarantee, scarcity, shipping, availability, exact-care, or safety claims unless the user supplied that verified information.
 - Use only products, species, features, prices, locations, inventory, guarantees, statistics, certifications, and claims supported by the current user request, selected Brand Workspace, or retrieved memory for this exact workspace.
 - If a product detail is unknown, stay general or use editable language instead of making the detail vivid.
+- Every generated item must be a complete grammatical sentence or clean finished item for its format.
+- Do not return broken phrases, missing words, duplicated sentences, placeholder text, instruction text, or copy that belongs to another workspace.
+- Avoid generic phrases such as "deserves the best", "game-changing", "take it to the next level", "unlock your potential", and "experience the difference" unless the user's exact context makes them true and specific.
+- Vary sentence structure, opening words, length, angle, and call to action across results.
+- Do not force the brand name into every item.
 - Current form input outranks workspace context; workspace facts outrank semantic memories; approved workspace memories outrank older generated outputs.
 - If retrieved memory conflicts with current form input or workspace facts, ignore the memory.
 - For plant care, do not provide exact watering frequencies, air purification claims, improved air quality claims, mood improvement claims, pet-safety claims, non-toxic claims, guaranteed-growth claims, or purification claims unless verified product information was supplied by the user.
@@ -648,7 +1047,30 @@ ${memoryPromptSection}
       completion = await createCompletion();
     }
 
-    const safeText = sanitizeUnsafeGeneratedClaims(completion.choices?.[0]?.message?.content || "", `${prompt}\n${memoryPromptSection}`);
+    const supportedSource = `${prompt}\n${memoryPromptSection}`;
+    const qualityResult = await applyOutputQualityStage({
+      text: completion.choices?.[0]?.message?.content || "",
+      generatorType,
+      supportedSource,
+      openAiClient,
+      systemPrompt,
+      prompt,
+      requestId,
+    });
+    const safeText = qualityResult.text;
+
+    if (qualityResult.validationEvents.length) {
+      console.info("BrandThat output quality stage", {
+        requestId,
+        generatorType,
+        repairedCount: qualityResult.repairedCount,
+        events: qualityResult.validationEvents.map((event) => ({
+          index: event.index,
+          reasons: event.reasons,
+          rewritten: event.rewritten,
+        })),
+      });
+    }
 
     if (!safeText.trim()) {
       logGenerateFailure({

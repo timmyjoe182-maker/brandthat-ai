@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { sanitizeUnsafeGeneratedClaims } from "../netlify/functions/generate.js";
+import {
+  applyOutputQualityStage,
+  repairGeneratedItemQuality,
+  sanitizeUnsafeGeneratedClaims,
+  validateGeneratedItemQuality,
+} from "../netlify/functions/generate.js";
 
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const generateSource = readFileSync(new URL("../netlify/functions/generate.js", import.meta.url), "utf8");
@@ -89,6 +94,20 @@ assert.ok(
 );
 
 assert.ok(
+  generateSource.includes("applyOutputQualityStage") &&
+  generateSource.includes("validateGeneratedItemQuality") &&
+  generateSource.includes("repairGeneratedItemQuality"),
+  "Shared generation backend must validate and repair output quality before returning text."
+);
+
+assert.ok(
+  generateSource.includes("Complete grammatical sentence") ||
+    generateSource.includes("complete grammatical sentence") ||
+    generateSource.includes("Every generated item must be a complete grammatical sentence"),
+  "Generator prompt must require complete grammatical output."
+);
+
+assert.ok(
   generateSource.includes("Current form input outranks workspace context; workspace facts outrank semantic memories; approved workspace memories outrank older generated outputs."),
   "Caption generator must define source precedence for the private memory pilot."
 );
@@ -144,6 +163,99 @@ assert.match(
   unsupportedFactualClaims,
   /fresh greenery|apartment living|care guidance|learn more/i,
   "Unsupported factual claims should become safe general copy.",
+);
+
+const harborSource = `
+Current Brand Workspace:
+Brand name: Harbor Hound
+Description: A mobile dog-grooming service for busy coastal families and senior pet owners, focused on convenience, gentle handling, cleanliness, trust, and pet comfort.
+Audience: Busy coastal families and senior pet owners
+Brand tone: Warm, reassuring, dependable
+`;
+
+const stoneSource = `
+Current Brand Workspace:
+Brand name: Stone & Stem
+Description: A local subscription service delivering low-maintenance houseplants to apartment renters, with simple care guidance.
+Audience: Apartment renters, busy beginners, and people with limited natural light
+Brand tone: Friendly
+`;
+
+const brokenHarborSentence = repairGeneratedItemQuality(
+  "Our gentle approach helps with they feel great every time.",
+  { supportedSource: harborSource, generatorType: "captions" },
+);
+assert.equal(
+  brokenHarborSentence,
+  "Our gentle approach helps them feel comfortable throughout every appointment.",
+  "Broken Harbor Hound grammar must be repaired into a complete sentence.",
+);
+
+const brokenValidation = validateGeneratedItemQuality(
+  "Our gentle approach helps with they feel great every time.",
+  { supportedSource: harborSource, generatorType: "captions" },
+);
+assert.equal(brokenValidation.ok, false, "Broken grammar must fail validation.");
+assert.ok(brokenValidation.reasons.includes("broken_grammar"), "Broken grammar reason should be recorded.");
+
+const repairedHarborOutput = await applyOutputQualityStage({
+  generatorType: "captions",
+  supportedSource: harborSource,
+  text: [
+    "1. Our gentle approach helps with they feel great every time.",
+    "2. Your dog deserves the best.",
+    "3. Pothos and plant care cards make grooming easy.",
+    "4. Game-changing grooming for every pet.",
+    "5. Mobile grooming without the stressful trip.",
+    "6. Mobile grooming without the stressful trip.",
+    "7. Book your appointment today for guaranteed comfort.",
+    "8. {caption here}",
+    "9. Clean pets, calmer routines, and care close to home.",
+    "10. A dependable visit built around comfort, cleanliness, and trust.",
+  ].join("\n"),
+});
+assert.doesNotMatch(
+  repairedHarborOutput.text,
+  /helps with they|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  "Quality stage must repair broken grammar, generic copy, cross-brand leakage, guarantees, and placeholders.",
+);
+assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);
+assert.equal(
+  new Set(repairedHarborOutput.text.split("\n").map((line) => line.replace(/^\d+[.)]\s*/, "").trim().toLowerCase())).size,
+  10,
+  "Quality stage must return ten distinct caption lines after duplicate repair.",
+);
+
+const repairedStoneOutput = await applyOutputQualityStage({
+  generatorType: "captions",
+  supportedSource: stoneSource,
+  text: [
+    "1. Senior pets deserve gentle grooming close to home.",
+    "2. Stone & Stem makes apartment greenery approachable with local delivery and simple guidance.",
+    "3. Stone & Stem makes apartment greenery approachable with local delivery and simple guidance.",
+    "4. Low-maintenance plants thrive even in limited light.",
+    "5. Order your apartment-friendly plant delivery today.",
+    "6. This month's plant delivery features easy-care options.",
+    "7. Transform your apartment into a green oasis.",
+    "8. Simple care ensures beginners feel confident.",
+    "9. Fresh air starts with a new houseplant.",
+    "10. Picture this: a fragrant pothos cascading over your shelf.",
+  ].join("\n"),
+});
+assert.doesNotMatch(
+  repairedStoneOutput.text,
+  /senior pets|grooming|thrive even in limited light|order your|this month'?s plant delivery features|green oasis|ensures|fresh air|fragrant|pothos/i,
+  "Stone & Stem output must remove pet leakage and unsupported plant claims.",
+);
+assert.match(repairedStoneOutput.text, /apartment|greenery|care guidance|local delivery|beginners/i);
+
+const generatedOpenings = repairedStoneOutput.text
+  .split("\n")
+  .map((line) => line.replace(/^\d+[.)]\s*/, "").trim().split(/\s+/).slice(0, 4).join(" ").toLowerCase());
+assert.equal(
+  new Set(generatedOpenings).size,
+  generatedOpenings.length,
+  "Quality stage must vary caption openings.",
 );
 
 assert.doesNotMatch(
