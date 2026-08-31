@@ -1499,7 +1499,7 @@ ${memoryPromptSection}
         durationMs: Date.now() - startedAt,
         message: "Caption editorial review returned zero approved captions.",
       });
-      return getPublicError(422, "CAPTION_REVIEW_NO_APPROVED_RESULTS", "BrandThat could not approve these captions. Try a more specific prompt.", requestId);
+      return getPublicError(422, "CAPTION_REVIEW_NO_APPROVED_RESULTS", "We couldn't approve these captions. Try adding more detail or generate again.", requestId);
     }
 
     if (!safeText.trim()) {
@@ -1518,9 +1518,15 @@ ${memoryPromptSection}
       return getPublicError(502, "OPENAI_EMPTY_RESPONSE", "We couldn't generate that right now. Please try again.", requestId);
     }
 
+    const approvedCaptions = generatorType === "captions" ? parseGeneratedItems(safeText).slice(0, 5) : undefined;
+
     return json(200, {
       ok: true,
       text: safeText,
+      captions: approvedCaptions,
+      results: approvedCaptions,
+      approvedCaptions,
+      actualCount: Array.isArray(approvedCaptions) ? approvedCaptions.length : undefined,
       requestId,
       notice: generatorType === "captions" && qualityResult.approvedCount < 5
         ? `BrandThat returned ${qualityResult.approvedCount} caption${qualityResult.approvedCount === 1 ? "" : "s"} that passed review.`

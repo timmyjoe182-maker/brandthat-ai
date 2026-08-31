@@ -167,9 +167,31 @@ assert.ok(
 );
 
 assert.ok(
+  appSource.includes("getTextGenerationResponseText(data, activeTool.key)") &&
+    appSource.includes("data.approvedCaptions") &&
+    appSource.includes("data.captions") &&
+    appSource.includes("data.results"),
+  "Caption UI must parse all supported reviewed-caption response shapes."
+);
+
+assert.ok(
+  appSource.includes('toolKey === "captions"') &&
+    appSource.includes("parseTenOptions(result).filter(Boolean).length >= 1") &&
+    appSource.includes("getResultCountHeader(activeTool.key, result)"),
+  "Caption success UI must render approved counts below five instead of requiring the old ten-caption format."
+);
+
+assert.ok(
   appSource.includes("Creating and reviewing captions") &&
     appSource.includes("approved count"),
   "Caption loading copy must explain generation and editorial review."
+);
+
+assert.ok(
+  appSource.includes("Still reviewing captions for quality") &&
+    appSource.includes("CAPTION_REVIEW_CLIENT_TIMEOUT") &&
+    appSource.includes("timeoutMs: activeTool.key === \"captions\" ? 45000 : 20000"),
+  "Caption UI must allow the two-call editorial pipeline to run and show long-review progress."
 );
 
 assert.doesNotMatch(
@@ -423,6 +445,14 @@ const zeroApprovedOutput = await applyOutputQualityStage({
 assert.equal(zeroApprovedOutput.text, "", "A failed editorial review must return zero captions, not fallback copy disguised as approved output.");
 assert.equal(zeroApprovedOutput.approvedCount, 0, "Zero approved captions must be explicit.");
 assert.ok(zeroApprovedOutput.rejectedCount > 0, "Rejected captions must be counted.");
+
+assert.ok(
+  generateSource.includes("CAPTION_REVIEW_NO_APPROVED_RESULTS") &&
+    generateSource.includes("We couldn't approve these captions. Try adding more detail or generate again.") &&
+    generateSource.includes("approvedCaptions") &&
+    generateSource.includes("actualCount"),
+  "Server must return explicit zero-approved errors and reviewed-caption schema aliases."
+);
 
 assert.doesNotMatch(
   `${appSource}\n${generateSource}`,

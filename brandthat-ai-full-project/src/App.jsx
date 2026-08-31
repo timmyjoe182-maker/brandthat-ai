@@ -621,7 +621,10 @@ async function fetchJsonWithTimeout(url, options = {}, config = {}) {
     return data;
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw new Error(config.timeoutMessage || "This request timed out. Please try again.");
+      const timeoutError = new Error(config.timeoutMessage || "This request timed out. Please try again.");
+      timeoutError.code = config.timeoutCode || "CLIENT_TIMEOUT";
+      timeoutError.diagnostic = { url, status: 0, code: timeoutError.code, requestId: "", contentType: "" };
+      throw timeoutError;
     }
     throw error;
   } finally {
@@ -2905,6 +2908,7 @@ export default function App() {
   const [logoFallbackOption, setLogoFallbackOption] = useState(null);
   const [logoGenerationError, setLogoGenerationError] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [generationSlow, setGenerationSlow] = useState(false);
   const [logoGenerationMemory, setLogoGenerationMemory] = useState(() => safeParse("brandthat_logo_generation_memory", {}));
   const [logoEditor, setLogoEditor] = useState({
     ink: "#111111",
@@ -5971,6 +5975,7 @@ Requirements:
     const trialLimitsBypassed = isMember;
 
     setLoading(true);
+    setGenerationSlow(false);
     setGenerationError("");
     setLogoGenerationError("");
     setLogoImage("");
@@ -5979,6 +5984,10 @@ Requirements:
     if (activeTool.key === "logo" && logoContext?.resetReason) {
       setLogoGenerationMemory({});
     }
+
+    const slowGenerationTimer = window.setTimeout(() => {
+      setGenerationSlow(true);
+    }, activeTool.key === "captions" ? 10000 : 16000);
 
     try {
       if (activeTool.key === "logo") {
@@ -6083,9 +6092,12 @@ ${promptValue}`;
             brandId: activeBrand?.id || ""
           })
         }, {
-          timeoutMs: 20000,
+          timeoutMs: activeTool.key === "captions" ? 45000 : 20000,
           errorMessage: "Generation failed.",
-          timeoutMessage: "Generation took too long. Please try again with a shorter request."
+          timeoutCode: activeTool.key === "captions" ? "CAPTION_REVIEW_CLIENT_TIMEOUT" : "GENERATION_CLIENT_TIMEOUT",
+          timeoutMessage: activeTool.key === "captions"
+            ? "Caption review took too long. Try again, or add a little more detail."
+            : "Generation took too long. Please try again with a shorter request."
         });
 
         if (data?.ok === false) {
@@ -6096,7 +6108,7 @@ ${promptValue}`;
         if (activeTool.key === "captions" && data.notice) {
           notify("info", "Caption review complete", data.notice);
         }
-        let cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
+        let cleanText = makeOutputMoreSpecific(getTextGenerationResponseText(data, activeTool.key), activeBrand || workspaceDraft);
         const qualityIssues = activeTool.key === "captions" ? [] : getOutputQualityIssues(cleanText, activeBrand || workspaceDraft);
         if (qualityIssues.length) {
           const retryPrompt = buildQualityRetryPrompt({
@@ -6124,7 +6136,7 @@ ${promptValue}`;
             error.code = data.code || "";
             throw error;
           }
-          cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
+          cleanText = makeOutputMoreSpecific(getTextGenerationResponseText(data, activeTool.key), activeBrand || workspaceDraft);
         }
         if (!cleanText) {
           throw new Error("BrandThat did not receive a usable response. Please try again.");
@@ -6154,11 +6166,13 @@ ${promptValue}`;
       }
     }
 
+    window.clearTimeout(slowGenerationTimer);
     const minimumLoadingMs = activeTool.key === "logo" ? 700 : 0;
     const remainingLoadingMs = Math.max(0, minimumLoadingMs - (Date.now() - generationStartedAt));
     if (remainingLoadingMs) {
       await new Promise((resolve) => setTimeout(resolve, remainingLoadingMs));
     }
+    setGenerationSlow(false);
     setLoading(false);
   };
 
@@ -9831,6 +9845,13 @@ Designer iteration rules:
                 <span>Finalizing brand system</span>
               </div>
             )}
+            {activeTool.key === "captions" && generationSlow && (
+              <div className="logoLoadingSteps brandLoadingSteps">
+                <span>Still reviewing captions for quality</span>
+                <span>Checking grammar, facts, and brand fit</span>
+                <span>Preparing the approved results</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -10074,7 +10095,7 @@ Generate another logo from the same creative direction. Preserve the strongest p
       {isSuccessfulGeneratorResult(activeTool.key, result) && activeTool.key !== "hashtags" && activeTool.key !== "logo" && (
         <div className="resultBox premiumResults simpleCaptionResult">
           <div className="resultTop">
-            <span>{getTenResultHeader(activeTool.key)}</span>
+            <span>{getResultCountHeader(activeTool.key, result)}</span>
             <div className="resultActions">
               {activeTool.key === "brand" && <button onClick={onStartWorkspace}>Save Brand Plan</button>}
               {activeTool.key === "brand" && <button onClick={onBuildGrowthRoadmap}>Build Roadmap</button>}
@@ -10576,6 +10597,14 @@ function getTenResultHeader(toolKey) {
   return headers[toolKey] || "10 GENERATED OPTIONS";
 }
 
+function getResultCountHeader(toolKey, result = "") {
+  if (toolKey === "captions") {
+    const count = parseTenOptions(result).filter(Boolean).length;
+    return `${count || 0} COPY-READY CAPTION${count === 1 ? "" : "S"}`;
+  }
+  return getTenResultHeader(toolKey);
+}
+
 function getLoadingText(toolKey) {
   const loading = {
     logo: "Designing your logo concept...",
@@ -10763,11 +10792,33 @@ function isGenerationFailureText(value = "") {
   return /^(generation failed|something went wrong|request failed|brandthat could not|the ai request could not complete|generation did not finish)/i.test(text);
 }
 
+function getTextGenerationResponseText(data, toolKey = "") {
+  if (!data) return "";
+  if (toolKey === "captions") {
+    const captionItems = [
+      ...(Array.isArray(data.approvedCaptions) ? data.approvedCaptions : []),
+      ...(Array.isArray(data.captions) ? data.captions : []),
+      ...(Array.isArray(data.results) ? data.results : []),
+    ]
+      .map((item) => typeof item === "string" ? item : item?.caption || item?.copy || item?.text || "")
+      .map(cleanGeneratedText)
+      .filter(Boolean);
+
+    if (captionItems.length) {
+      return captionItems.slice(0, 5).map((item, index) => `${index + 1}. ${item}`).join("\n");
+    }
+  }
+  return cleanGeneratedText(data.text || "");
+}
+
 function isSuccessfulGeneratorResult(toolKey, result) {
   if (!result || isGenerationFailureText(result)) return false;
   if (toolKey === "logo") return true;
   if (toolKey === "hashtags") {
     return cleanGeneratedText(result).split(/\s+/).filter((item) => item.startsWith("#")).length >= 5;
+  }
+  if (toolKey === "captions") {
+    return parseTenOptions(result).filter(Boolean).length >= 1;
   }
   if (["captions", "hooks", "bios", "email", "strategy"].includes(toolKey)) {
     return parseTenOptions(result).filter(Boolean).length >= 10;
