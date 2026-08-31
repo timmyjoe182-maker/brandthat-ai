@@ -818,18 +818,29 @@ async function upsertWorkspaceMemory({
   return { ok: true, duplicate: false, updated: Boolean(existing?.id), memory: data };
 }
 
-export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
+export async function getGeneratorMemoryContext({ userId, workspaceId, query, generatorType = "captions" }) {
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, memories: [], context: "" };
   if (!workspaceId) {
     return { ok: false, code: "BRAND_MEMORY_WORKSPACE_REQUIRED", memories: [], context: "" };
   }
 
   try {
+    const typeGroups = {
+      captions: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      hashtags: ["brand_fact", "audience", "positioning", "voice", "product", "user_preference"],
+      hooks: ["brand_fact", "audience", "positioning", "voice", "product", "user_preference"],
+      bios: ["brand_fact", "audience", "positioning", "voice", "product", "user_preference"],
+      email: ["brand_fact", "audience", "positioning", "voice", "product", "user_preference"],
+      strategy: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      audit: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      campaign: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      growth: ["brand_fact", "audience", "positioning", "voice", "product", "user_preference"],
+    };
     const result = await searchBrandMemories({
       userId,
       workspaceId,
       query,
-      memoryTypes: ["brand_fact", "audience", "positioning", "voice", "visual_direction", "product", "user_preference"],
+      memoryTypes: typeGroups[generatorType] || typeGroups.captions,
       matchCount: 8,
       similarityThreshold: 0.2,
     });
@@ -857,14 +868,19 @@ export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
       .join("\n");
     return { ok: true, memories, context };
   } catch (error) {
-    console.warn("Brand memory caption retrieval failed", {
+    console.warn("Brand memory retrieval failed", {
       userId,
       workspaceId,
+      generatorType,
       code: error?.code || "BRAND_MEMORY_RETRIEVAL_FAILED",
       message: error?.message || "Unknown memory retrieval error",
     });
     return { ok: false, code: "BRAND_MEMORY_RETRIEVAL_FAILED", memories: [], context: "" };
   }
+}
+
+export async function getCaptionMemoryContext(options) {
+  return getGeneratorMemoryContext({ ...options, generatorType: "captions" });
 }
 
 export function getBrandMemoryDiagnostics() {

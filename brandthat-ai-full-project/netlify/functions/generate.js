@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
-import { getCaptionMemoryContext, isBrandMemoryActiveForUser } from "./lib/brand-memory.js";
+import { getGeneratorMemoryContext, isBrandMemoryActiveForUser } from "./lib/brand-memory.js";
 
 const rateLimitStore = global.brandthatGenerateRateLimit || new Map();
 global.brandthatGenerateRateLimit = rateLimitStore;
@@ -522,6 +522,17 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
 const PET_CONTEXT_PATTERN = /dog grooming|mobile grooming|pet grooming|pet care|senior pet|harbor hound|coastal families/i;
 const SOFTWARE_CONTEXT_PATTERN = /software|saas|sponsorship|invoice|creator workflow|signaldesk|platform/i;
+const MEMORY_ENABLED_GENERATORS = new Set([
+  "captions",
+  "hashtags",
+  "hooks",
+  "bios",
+  "email",
+  "strategy",
+  "audit",
+  "campaign",
+  "growth",
+]);
 
 const PLANT_LEAK_PATTERNS = [
   /\bhouseplants?\b/i,
@@ -1712,7 +1723,8 @@ export const handler = async (event) => {
       return getPublicError(400, "INVALID_INPUT", "Please enter what you want BrandThat to create.", requestId);
     }
 
-    const verifiedWorkspaceContext = generatorType === "captions"
+    const shouldUseBrandMemory = MEMORY_ENABLED_GENERATORS.has(generatorType);
+    const verifiedWorkspaceContext = shouldUseBrandMemory
       ? await getVerifiedWorkspaceContext({
           userId: auth.user.id,
           workspaceId,
@@ -1722,19 +1734,20 @@ export const handler = async (event) => {
       : "";
 
     let memoryPromptSection = "";
-    if (generatorType === "captions" && isBrandMemoryActiveForUser(auth.user.id)) {
+    if (shouldUseBrandMemory && isBrandMemoryActiveForUser(auth.user.id)) {
       if (!workspaceId) {
         return getPublicError(400, "BRAND_MEMORY_WORKSPACE_REQUIRED", "Choose a Brand Workspace before using brand memory.", requestId);
       }
 
       const memoryStartedAt = Date.now();
-      const memoryResult = await getCaptionMemoryContext({
+      const memoryResult = await getGeneratorMemoryContext({
         userId: auth.user.id,
         workspaceId,
         query: `${verifiedWorkspaceContext}\n${prompt}`.trim(),
+        generatorType,
       });
 
-      console.info("Brand memory caption context", {
+      console.info("Brand memory generator context", {
         requestId,
         generatorType,
         userId: auth.user.id,
