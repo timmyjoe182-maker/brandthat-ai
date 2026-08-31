@@ -190,6 +190,22 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "gentle grooming",
     },
     {
+      pattern: /\bspa\s+experience\b/gi,
+      replacement: "gentle grooming visit",
+    },
+    {
+      pattern: /\bat\s+your\s+at\s+home\b/gi,
+      replacement: "at home",
+    },
+    {
+      pattern: /\btrust\s+us\s+to\b/gi,
+      replacement: "count on gentle mobile grooming to",
+    },
+    {
+      pattern: /\bto\s+gentle\s+grooming\b/gi,
+      replacement: "to bring gentle grooming",
+    },
+    {
       pattern: /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/gi,
       replacement: "dependable mobile dog grooming service",
     },
@@ -271,6 +287,10 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     },
     {
       pattern: /\bwith\s+love\s+and\s+care\b/gi,
+      replacement: "with gentle handling and clean details",
+    },
+    {
+      pattern: /\bwith\s+care\s+and\s+love\b/gi,
       replacement: "with gentle handling and clean details",
     },
     {
@@ -358,6 +378,10 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "mobile grooming",
     },
     {
+      pattern: /\bpet\s+care\s+professionals?\b/gi,
+      replacement: "pet care support",
+    },
+    {
       pattern: /\btailored\s+for\s+your\s+(pet|dog|pup)\b/gi,
       replacement: "built around gentle handling",
     },
@@ -427,6 +451,7 @@ const GENERIC_COPY_PATTERNS = [
   /\bunleash\s+your\s+potential\b/i,
   /\bunlock\s+your\s+potential\b/i,
   /\bexperience\s+the\s+difference\b/i,
+  /\btrust\s+us\b/i,
 ];
 
 const PLACEHOLDER_PATTERNS = [
@@ -505,6 +530,7 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\blocal\s+families\b/i,
   /\btrustworthy\b/i,
   /\bprofessional\s+(groom|grooming|service|care|status|credentials?)\b/i,
+  /\bpet\s+care\s+professionals?\b/i,
   /\btailored\s+for\s+your\s+(pet|dog|pup)\b/i,
   /\b(best\s+care|the\s+best\s+care)\b/i,
   /\b(wagging\s+(their\s+)?tail|keep\s+them\s+happy|happy\s+(and\s+)?clean|warm\s+bath|bath|shower|driveway|stressful\s+trips|say\s+goodbye\s+to\s+[^.!?\n]*trips|tailored\s+to\s+your\s+needs|coastal\s+community|pets?\s+deserve)\b/i,
@@ -517,7 +543,100 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\bproudly\s+serv(?:e|ing)\s+[^.!?\n]{0,60}\b/i,
   /\bjust\s+wrapped\s+up\b/i,
   /\bhappy\s+pup\b/i,
+  /\bhappy\s+dogs?\b/i,
+  /\bhappy\s+pet\s+owners?\b/i,
+  /\bpet\s+wellness\b/i,
+  /\bnear\s+me\b/i,
+  /\bon\s+demand\b/i,
+  /\bspa\s+experience\b/i,
+  /\bwith\s+love\b/i,
+  /\bcare\s+and\s+love\b/i,
 ];
+
+function buildSafeHashtagSet(supportedSource = "") {
+  const contextKind = getContextKind(supportedSource);
+  if (contextKind === "pet") {
+    return [
+      "#MobileDogGrooming",
+      "#DogGroomingAtHome",
+      "#GentleGrooming",
+      "#PetComfort",
+      "#CleanPetCare",
+      "#BusyFamilies",
+      "#SeniorPetOwners",
+      "#CoastalFamilies",
+      "#DependablePetCare",
+      "#ConvenientGrooming",
+      "#HarborHound",
+      "#DogCareRoutine",
+      "#PetGrooming",
+      "#HomeAppointment",
+      "#GentlePetHandling",
+      "#CleanDetails",
+      "#FamilyPetCare",
+      "#SeniorPetCare",
+      "#MobilePetService",
+      "#PetComfortFirst",
+    ].join(" ");
+  }
+  if (contextKind === "plant") {
+    return [
+      "#ApartmentPlants",
+      "#HouseplantDelivery",
+      "#BeginnerPlantCare",
+      "#SmallSpaceLiving",
+      "#LocalPlantDelivery",
+      "#SimpleCareGuidance",
+      "#ApartmentGreenery",
+      "#PlantSubscription",
+      "#StoneAndStem",
+      "#GreenerApartments",
+      "#EasyCarePlants",
+      "#CareGuidance",
+      "#UrbanGreenery",
+      "#PlantCareNotes",
+      "#HomeGreenery",
+      "#BeginnerFriendlyPlants",
+      "#SmallSpacePlants",
+      "#PlantDelivery",
+      "#CalmInteriors",
+      "#GreenLiving",
+    ].join(" ");
+  }
+  return buildSafeReplacementItem({ index: 0, supportedSource, generatorType: "hashtags" });
+}
+
+function normalizeHashtagOutput(text = "", supportedSource = "") {
+  const rawTags = String(text || "").match(/#[A-Za-z0-9_]+/g) || [];
+  const contextKind = getContextKind(supportedSource);
+  const blocked = [
+    ...UNSUPPORTED_GUARANTEE_PATTERNS,
+    ...(contextKind === "pet" ? PLANT_LEAK_PATTERNS : []),
+    ...(contextKind === "plant" ? PET_LEAK_PATTERNS : []),
+    ...(contextKind !== "software" ? SOFTWARE_LEAK_PATTERNS : []),
+  ];
+  const seen = new Set();
+  const safeTags = [];
+  for (const tag of rawTags) {
+    const normalized = tag.toLowerCase();
+    if (seen.has(normalized)) continue;
+    const readable = tag.replace(/^#/, "").replace(/([a-z])([A-Z])/g, "$1 $2");
+    if (blocked.some((pattern) => pattern.test(readable) || pattern.test(tag))) continue;
+    seen.add(normalized);
+    safeTags.push(tag);
+  }
+
+  const fallbackTags = buildSafeHashtagSet(supportedSource).split(/\s+/).filter(Boolean);
+  for (const tag of fallbackTags) {
+    const normalized = tag.toLowerCase();
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      safeTags.push(tag);
+    }
+  }
+
+  return safeTags.slice(0, 30).join(" ");
+}
 
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
 const PET_CONTEXT_PATTERN = /dog grooming|mobile grooming|pet grooming|pet care|senior pet|harbor hound|coastal families/i;
@@ -1000,9 +1119,27 @@ function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorTy
   const prefix = brandName ? `${brandName} ` : "";
 
   if (generatorType === "hashtags") {
-    if (contextKind === "pet") return "#MobileDogGrooming #PetCare #CoastalFamilies #SeniorPets #GentleGrooming";
-    if (contextKind === "plant") return "#ApartmentPlants #HouseplantDelivery #BeginnerPlantCare #SmallSpaceLiving #LocalDelivery";
+    if (contextKind === "pet" || contextKind === "plant") return buildSafeHashtagSet(supportedSource);
     return "#BrandStrategy #SmallBusiness #LaunchContent #CustomerClarity #BrandVoice";
+  }
+
+  if (generatorType === "bios") {
+    const plantBios = [
+      `${prefix}local plant delivery for apartment renters who want simple care guidance.`,
+      "Beginner-friendly houseplants, practical care notes, and calmer small-space greenery.",
+      "Apartment greenery made clearer with local delivery and guidance built for first-time plant owners.",
+      "Houseplant subscriptions for renters who want a greener home without complicated care.",
+      "Local plant delivery with simple guidance for confident, beginner-friendly greenery.",
+    ];
+    const petBios = [
+      `${prefix}mobile dog grooming for busy coastal families and senior pet owners.`,
+      "Gentle mobile grooming, clean details, and appointment convenience for pet households.",
+      "Dog grooming brought to the home with a focus on gentle handling and cleanliness.",
+      "Dependable mobile pet grooming for families balancing full days and care routines.",
+      "Home-based dog grooming appointments shaped around convenience, cleanliness, and pet comfort.",
+    ];
+    if (contextKind === "plant") return plantBios[index % plantBios.length];
+    if (contextKind === "pet") return petBios[index % petBios.length];
   }
 
   const plantCaptions = [
@@ -1137,6 +1274,17 @@ export async function applyOutputQualityStage({
   requestId = "",
 } = {}) {
   const initialText = sanitizeUnsafeGeneratedClaims(text, supportedSource);
+  if (generatorType === "hashtags") {
+    const safeHashtags = normalizeHashtagOutput(initialText, supportedSource);
+    return {
+      text: safeHashtags,
+      repairedCount: safeHashtags === initialText ? 0 : 1,
+      rejectedCount: 0,
+      approvedCount: safeHashtags.split(/\s+/).filter(Boolean).length,
+      validationEvents: safeHashtags === initialText ? [] : [{ index: 0, reasons: ["hashtag_safety_normalized"], rewritten: true }],
+    };
+  }
+
   const items = splitGeneratedItems(initialText);
   if (!items.length) {
     const repaired = repairGeneratedItemQuality(initialText, { supportedSource, generatorType, index: 0 });

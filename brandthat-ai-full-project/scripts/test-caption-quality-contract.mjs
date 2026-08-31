@@ -520,6 +520,42 @@ assert.equal(
   "Caption quality stage must return five approved captions.",
 );
 
+const safeHarborHashtags = await applyOutputQualityStage({
+  generatorType: "hashtags",
+  supportedSource: harborSource,
+  text: "#MobileDogGrooming #DogGroomingNearMe #HappyDogs #PetCareProfessionals #PetWellness #DogGroomingOnDemand #PetCareWithLove #Houseplants #GentleGrooming",
+});
+assert.doesNotMatch(
+  safeHarborHashtags.text,
+  /NearMe|HappyDogs|Professionals|Wellness|OnDemand|WithLove|Houseplants/i,
+  "Hashtag generator output must remove unsupported professional, wellness, availability, and cross-brand claims.",
+);
+assert.match(
+  safeHarborHashtags.text,
+  /#MobileDogGrooming|#DogGroomingAtHome|#GentleGrooming/,
+  "Hashtag generator should preserve or refill safe Harbor Hound tags.",
+);
+
+const safeHarborBios = await applyOutputQualityStage({
+  generatorType: "bios",
+  supportedSource: harborSource,
+  text: [
+    "1. Convenient dog grooming at your at home. Trust us to gentle grooming your pup with care and love.",
+    "2. Bringing a spa experience to your home. Reliable mobile dog grooming for busy families and pet lovers.",
+    "3. dependable dog grooming on wheels. Dedicated to cleanliness and your pet's comfort.",
+  ].join("\n"),
+});
+assert.doesNotMatch(
+  safeHarborBios.text,
+  /at your at home|Trust us|spa experience|care and love/i,
+  "Bio generator output must not return broken or misleading Harbor Hound copy.",
+);
+assert.match(
+  safeHarborBios.text,
+  /mobile dog grooming|gentle handling|cleanliness|pet comfort/i,
+  "Bio generator repairs should stay specific to Harbor Hound.",
+);
+
 const zeroApprovedOutput = await applyOutputQualityStage({
   generatorType: "captions",
   supportedSource: harborSource,
