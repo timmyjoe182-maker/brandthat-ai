@@ -10,6 +10,51 @@ import {
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const generateSource = readFileSync(new URL("../netlify/functions/generate.js", import.meta.url), "utf8");
 
+function createApprovalClient() {
+  return {
+    chat: {
+      completions: {
+        create: async ({ messages }) => {
+          const userText = messages?.at?.(-1)?.content || "";
+          if (!userText.includes("Captions to review:")) {
+            return {
+              choices: [{
+                message: {
+                  content: "A dependable mobile grooming visit built around comfort, cleanliness, and trust.",
+                },
+              }],
+            };
+          }
+
+          const captions = userText
+            .split("Captions to review:")[1]
+            .trim()
+            .split("\n")
+            .filter(Boolean);
+          return {
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  reviews: captions.map((_, index) => ({
+                    index,
+                    approved: true,
+                    grammatically_valid: true,
+                    factually_supported: true,
+                    consistent_with_request: true,
+                    distinct_from_other_results: true,
+                    problems: [],
+                    repaired_caption: null,
+                  })),
+                }),
+              },
+            }],
+          };
+        },
+      },
+    },
+  };
+}
+
 const requiredStyleLabels = [
   "Punchy",
   "Story",
@@ -201,9 +246,14 @@ assert.ok(brokenValidation.reasons.includes("broken_grammar"), "Broken grammar r
 const verifiedHarborFailures = [
   "your pets deserves dependable, gentle care",
   "cleanliness to helps with your pet feels safe",
+  "Our gentle approach helps with every grooming session feels like a treat.",
   "Imagine your dog coming home fresh and calm without you leaving the house",
   "Click the link in our bio",
   "serve our local coastal community",
+  "Just wrapped up with a happy pup.",
+  "Proudly serving our coastal community.",
+  "Mobile grooming can greatly reduce your pet's stress.",
+  "Ensuring dependable care for every visit.",
 ];
 
 for (const failure of verifiedHarborFailures) {
@@ -227,22 +277,23 @@ for (const failure of verifiedHarborFailures) {
 const repairedHarborOutput = await applyOutputQualityStage({
   generatorType: "captions",
   supportedSource: harborSource,
+  openAiClient: createApprovalClient(),
   text: [
     "1. Our gentle approach helps with they feel great every time.",
     "2. your pets deserves dependable, gentle care",
     "3. cleanliness to helps with your pet feels safe",
-    "4. Imagine your dog coming home fresh and calm without you leaving the house",
-    "5. Click the link in our bio",
-    "6. serve our local coastal community",
-    "7. Pothos and plant care cards make grooming easy.",
-    "8. Mobile grooming without the stressful trip.",
-    "9. Book your appointment today for guaranteed comfort.",
-    "10. {caption here}",
+    "4. Our gentle approach helps with every grooming session feels like a treat.",
+    "5. Imagine your dog coming home fresh and calm without you leaving the house",
+    "6. Click the link in our bio",
+    "7. serve our local coastal community",
+    "8. Just wrapped up with a happy pup.",
+    "9. Mobile grooming can greatly reduce your pet's stress.",
+    "10. Ensuring dependable care for every visit.",
   ].join("\n"),
 });
 assert.doesNotMatch(
   repairedHarborOutput.text,
-  /helps with they|pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  /helps with they|helps with every grooming session feels|pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
   "Quality stage must repair verified broken grammar, invented CTAs/local claims, cross-brand leakage, guarantees, and placeholders.",
 );
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);
@@ -255,6 +306,7 @@ assert.equal(
 const repairedStoneOutput = await applyOutputQualityStage({
   generatorType: "captions",
   supportedSource: stoneSource,
+  openAiClient: createApprovalClient(),
   text: [
     "1. Senior pets deserve gentle grooming close to home.",
     "2. Stone & Stem makes apartment greenery approachable with local delivery and simple guidance.",

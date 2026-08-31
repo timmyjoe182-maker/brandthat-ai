@@ -219,6 +219,7 @@ const BROKEN_GRAMMAR_PATTERNS = [
   /\byour\s+pets?\s+deserves\b/i,
   /\bto\s+helps?\s+with\b/i,
   /\bhelps?\s+with\s+your\s+pets?\s+feels?\b/i,
+  /\bhelps?\s+with\s+[^.!?\n]{0,80}\s+feels?\b/i,
   /\b(cleanliness|trust|comfort|care)\s+to\s+helps?\b/i,
   /\bdog\s+coming\s+home\b/i,
   /\bcoming\s+home\s+[^.!?\n]{0,80}without\s+you\s+leaving\s+the\s+house\b/i,
@@ -227,13 +228,18 @@ const BROKEN_GRAMMAR_PATTERNS = [
 ];
 
 const UNSUPPORTED_GUARANTEE_PATTERNS = [
-  /\b(ensures?|guarantees?|guaranteed|will always|never fails|proven to|certified to)\b/i,
+  /\b(ensures?|ensuring|guarantees?|guaranteed|will always|never fails|proven to|certified to)\b/i,
+  /\b(greatly|significantly|dramatically)\s+reduces?\b/i,
+  /\breduces?\s+[^.!?\n]{0,80}\s+(stress|anxiety|fear)\b/i,
   /\b(stress[- ]free|effortless|foolproof|fail[- ]proof)\b/i,
   /\b(order|buy|shop|book|reserve)\s+[^.!?\n]{0,80}\s+today\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
   /\bserve\s+our\s+local\b/i,
   /\blocal\s+coastal\s+community\b/i,
+  /\bproudly\s+serv(?:e|ing)\s+[^.!?\n]{0,60}\b/i,
+  /\bjust\s+wrapped\s+up\b/i,
+  /\bhappy\s+pup\b/i,
 ];
 
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
@@ -330,6 +336,7 @@ function repairBrokenGrammar(value = "", contextKind = "general") {
     .replace(/\bcleanliness\s+to\s+helps?\s+with\s+your\s+pets\s+feels?\s+safe\b/gi, "cleanliness helps your pets feel comfortable")
     .replace(/\bto\s+helps?\s+with\s+your\s+pet\s+feels?\b/gi, "to help your pet feel")
     .replace(/\bto\s+helps?\s+with\s+your\s+pets\s+feels?\b/gi, "to help your pets feel")
+    .replace(/\bhelps?\s+with\s+every\s+grooming\s+session\s+feels?\s+like\s+a\s+treat\b/gi, "helps each grooming session feel calmer and more comfortable")
     .replace(/\bhelps?\s+with\s+they\s+feel\s+great\s+every\s+time\b/gi, "helps them feel comfortable throughout every appointment")
     .replace(/\bhelps?\s+with\s+they\s+feel\s+comfortable\b/gi, "helps them feel comfortable")
     .replace(/\bhelps?\s+with\s+they\s+feel\b/gi, "helps them feel")
@@ -394,6 +401,7 @@ function normalizeEditorialReviewPayload(payload, count) {
       const index = Number.isInteger(review?.index) ? review.index : Number(review?.index);
       return {
         index,
+        approved: review?.approved === true,
         grammatically_valid: Boolean(review?.grammatically_valid),
         factually_supported: Boolean(review?.factually_supported),
         consistent_with_request: Boolean(review?.consistent_with_request),
@@ -420,9 +428,10 @@ async function reviewGeneratedItemsEditorially({ openAiClient, systemPrompt, pro
           content: `${systemPrompt}
 
 You are now the server-side editorial validator. Return only valid JSON with this schema:
-{"reviews":[{"index":0,"grammatically_valid":true,"factually_supported":true,"consistent_with_request":true,"distinct_from_other_results":true,"problems":[],"repaired_caption":null}]}
+{"reviews":[{"index":0,"approved":true,"grammatically_valid":true,"factually_supported":true,"consistent_with_request":true,"distinct_from_other_results":true,"problems":[],"repaired_caption":null}]}
 
 Review every caption independently. Mark invalid for subject/verb disagreement, missing words, broken constructions, repeated ideas, placeholders, instruction text, invented links, invented availability, invented locations, invented certifications, guarantees, contradictions with the requested service, and content from another workspace.
+Only set approved true when every validation field is true.
 If a caption can be repaired safely, provide repaired_caption. If not, set repaired_caption to null.
 Do not include private prompts, user IDs, secrets, or analysis outside the JSON.`,
         },
@@ -460,6 +469,42 @@ ${numberedItems}`,
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function reviewOneItemForApproval({ openAiClient, systemPrompt, prompt, item, supportedSource, generatorType, requestId, index }) {
+  const reviews = await reviewGeneratedItemsEditorially({
+    openAiClient,
+    systemPrompt,
+    prompt,
+    items: [item],
+    supportedSource,
+    generatorType,
+    requestId,
+  });
+  const review = reviews.find((entry) => entry.index === 0) || null;
+  const validation = validateGeneratedItemQuality(item, {
+    index,
+    allItems: [],
+    supportedSource,
+    generatorType,
+  });
+  const approved = Boolean(
+    review?.approved &&
+      review.grammatically_valid &&
+      review.factually_supported &&
+      review.consistent_with_request &&
+      review.distinct_from_other_results &&
+      validation.ok,
+  );
+  return {
+    approved,
+    review,
+    reasons: Array.from(new Set([
+      ...(validation.reasons || []),
+      ...(review?.problems || []),
+      ...(review ? [] : ["editorial_review_missing"]),
+    ])),
+  };
 }
 
 function removeCrossWorkspaceLeakage(value = "", contextKind = "general") {
@@ -670,17 +715,6 @@ export async function applyOutputQualityStage({
     itemCount: items.length,
   });
 
-  const editorialReviews = await reviewGeneratedItemsEditorially({
-    openAiClient,
-    systemPrompt,
-    prompt,
-    items,
-    supportedSource,
-    generatorType,
-    requestId,
-  });
-  const editorialByIndex = new Map(editorialReviews.map((review) => [review.index, review]));
-
   for (let index = 0; index < items.length; index += 1) {
     const original = items[index];
     let candidate = repairGeneratedItemQuality(original, { supportedSource, generatorType, index });
@@ -690,41 +724,6 @@ export async function applyOutputQualityStage({
       supportedSource,
       generatorType,
     });
-    const editorial = editorialByIndex.get(index);
-    const editorialFailed = Boolean(editorial) && (
-      !editorial.grammatically_valid ||
-      !editorial.factually_supported ||
-      !editorial.consistent_with_request ||
-      !editorial.distinct_from_other_results
-    );
-
-    if (editorialFailed) {
-      const editorialCandidate = repairGeneratedItemQuality(editorial.repaired_caption || "", { supportedSource, generatorType, index });
-      const editorialValidation = validateGeneratedItemQuality(editorialCandidate, {
-        index,
-        allItems: repairedItems,
-        supportedSource,
-        generatorType,
-      });
-
-      validationEvents.push({
-        index,
-        reasons: editorial.problems.length ? editorial.problems : ["editorial_review_failed"],
-        rewritten: Boolean(editorialCandidate && editorialValidation.ok),
-      });
-
-      if (editorialCandidate && editorialValidation.ok) {
-        candidate = editorialCandidate;
-        validation = editorialValidation;
-        repairedCount += 1;
-      } else {
-        validation = {
-          ...validation,
-          ok: false,
-          reasons: Array.from(new Set([...(validation.reasons || []), "editorial_review_failed"])),
-        };
-      }
-    }
 
     if (!validation.ok && regenerationAttempts < 3) {
       regenerationAttempts += 1;
@@ -765,18 +764,148 @@ export async function applyOutputQualityStage({
     repairedItems.push(candidate);
   }
 
+  const finalReviews = await reviewGeneratedItemsEditorially({
+    openAiClient,
+    systemPrompt,
+    prompt,
+    items: repairedItems,
+    supportedSource,
+    generatorType,
+    requestId,
+  });
+  const finalReviewByIndex = new Map(finalReviews.map((review) => [review.index, review]));
+  const approvedItems = [];
+  const finalValidationEvents = [];
+
+  for (let index = 0; index < repairedItems.length; index += 1) {
+    let candidate = repairedItems[index];
+    let review = finalReviewByIndex.get(index);
+    let validation = validateGeneratedItemQuality(candidate, {
+      index,
+      allItems: approvedItems,
+      supportedSource,
+      generatorType,
+    });
+    let approved = Boolean(
+      review?.approved &&
+        review.grammatically_valid &&
+        review.factually_supported &&
+        review.consistent_with_request &&
+        review.distinct_from_other_results &&
+        validation.ok,
+    );
+    let reasons = Array.from(new Set([
+      ...(validation.reasons || []),
+      ...(review?.problems || []),
+      ...(review ? [] : ["editorial_review_missing"]),
+    ]));
+
+    if (!approved) {
+      console.info("BrandThat final validation repair attempted", {
+        requestId,
+        generatorType,
+        itemIndex: index,
+        reasons,
+      });
+
+      const repairSource = review?.repaired_caption || candidate;
+      const repairedCandidate = repairGeneratedItemQuality(repairSource, { supportedSource, generatorType, index });
+      const repairedValidation = validateGeneratedItemQuality(repairedCandidate, {
+        index,
+        allItems: approvedItems,
+        supportedSource,
+        generatorType,
+      });
+
+      if (repairedCandidate && repairedValidation.ok) {
+        const repairApproval = await reviewOneItemForApproval({
+          openAiClient,
+          systemPrompt,
+          prompt,
+          item: repairedCandidate,
+          supportedSource,
+          generatorType,
+          requestId,
+          index,
+        });
+        if (repairApproval.approved) {
+          candidate = repairedCandidate;
+          review = repairApproval.review;
+          validation = repairedValidation;
+          approved = true;
+          reasons = [];
+          repairedCount += 1;
+        } else {
+          reasons = repairApproval.reasons;
+        }
+      }
+
+      if (!approved && regenerationAttempts < 6) {
+        regenerationAttempts += 1;
+        const regenerated = await regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId });
+        const regeneratedCandidate = repairGeneratedItemQuality(regenerated, { supportedSource, generatorType, index });
+        const regenerationValidation = validateGeneratedItemQuality(regeneratedCandidate, {
+          index,
+          allItems: approvedItems,
+          supportedSource,
+          generatorType,
+        });
+        if (regeneratedCandidate && regenerationValidation.ok) {
+          const regenerationApproval = await reviewOneItemForApproval({
+            openAiClient,
+            systemPrompt,
+            prompt,
+            item: regeneratedCandidate,
+            supportedSource,
+            generatorType,
+            requestId,
+            index,
+          });
+          if (regenerationApproval.approved) {
+            candidate = regeneratedCandidate;
+            review = regenerationApproval.review;
+            validation = regenerationValidation;
+            approved = true;
+            reasons = [];
+            repairedCount += 1;
+          } else {
+            reasons = regenerationApproval.reasons;
+          }
+        } else {
+          reasons = regenerationValidation.reasons || reasons;
+        }
+      }
+    }
+
+    if (approved) {
+      approvedItems.push(candidate);
+    } else {
+      finalValidationEvents.push({ index, reasons, approved: false });
+    }
+  }
+
+  console.info("BrandThat final validation gate", {
+    requestId,
+    generatorType,
+    generatedCount: repairedItems.length,
+    approvedCount: approvedItems.length,
+    rejectedCount: finalValidationEvents.length,
+    rejectedIndexes: finalValidationEvents.map((event) => event.index),
+  });
+
   console.info("BrandThat output validation completed", {
     requestId,
     generatorType,
-    itemCount: repairedItems.length,
+    itemCount: approvedItems.length,
     repairedCount,
-    failedIndexes: validationEvents.map((event) => event.index),
+    failedIndexes: [...validationEvents, ...finalValidationEvents].map((event) => event.index),
   });
 
   return {
-    text: formatGeneratedItems(repairedItems),
+    text: formatGeneratedItems(approvedItems),
     repairedCount,
-    validationEvents,
+    rejectedCount: finalValidationEvents.length,
+    validationEvents: [...validationEvents, ...finalValidationEvents],
   };
 }
 
