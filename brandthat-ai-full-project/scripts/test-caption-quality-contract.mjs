@@ -287,12 +287,15 @@ const unsupportedFactualClaims = sanitizeUnsafeGeneratedClaims(
     "Your plant delivery fits effortlessly into apartment life.",
     "This month's plant delivery features easy-care options.",
     "Transform your apartment into a green oasis.",
+    "Check out our latest delivery of low-maintenance plants designed specifically for apartment living.",
+    "Sign up for our fresh plant delivery today.",
+    "Keep your new green friend happy.",
   ].join("\n"),
   "Stone & Stem apartment-friendly houseplants with simple care cards.",
 );
 assert.doesNotMatch(
   unsupportedFactualClaims,
-  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth|effortless care|ensures|effortlessly|this month'?s plant delivery features|green oasis/i,
+  /fresh air|thrive in low light|thrive in indirect light|order your|order today|sign up today|latest delivery|green friend happy|water every|guaranteed growth|effortless care|ensures|effortlessly|this month'?s plant delivery features|green oasis/i,
   "Unsupported air-quality, light-care, availability, ordering, and watering claims must be removed.",
 );
 assert.match(
@@ -368,6 +371,10 @@ const verifiedHarborFailures = [
   "Proudly serving our coastal community.",
   "Mobile grooming can greatly reduce your pet's stress.",
   "Ensuring dependable care for every visit.",
+  "Imagine your furry friend getting pampered while you relax at home.",
+  "Harbor Hound brings the spa to you.",
+  "Discover Harbor Hound—your trusted mobile dog grooming service.",
+  "Ready to give your pet the grooming they deserve? Reach out today.",
 ];
 
 for (const failure of verifiedHarborFailures) {
@@ -383,7 +390,7 @@ for (const failure of verifiedHarborFailures) {
   assert.equal(validation.ok, false, `Verified production failure must fail validation: ${failure}`);
   assert.doesNotMatch(
     repaired,
-    /pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community/i,
+    /pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|pampered|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve/i,
     `Verified production failure must be repaired safely: ${failure}`,
   );
 }
@@ -407,7 +414,7 @@ const repairedHarborOutput = await applyOutputQualityStage({
 });
 assert.doesNotMatch(
   repairedHarborOutput.text,
-  /helps with they|helps with every grooming session feels|pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  /helps with they|helps with every grooming session feels|pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pampered|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
   "Quality stage must repair verified broken grammar, invented CTAs/local claims, cross-brand leakage, guarantees, and placeholders.",
 );
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);

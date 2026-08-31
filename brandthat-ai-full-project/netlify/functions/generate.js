@@ -174,6 +174,26 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "this month's plant direction is easy to explore",
     },
     {
+      pattern: /\b(latest|current)\s+(plant\s+)?delivery\b/gi,
+      replacement: "fresh plant delivery",
+    },
+    {
+      pattern: /\b(new|green|leafy)\s+friend\s+(happy|thriving|healthy)\b/gi,
+      replacement: "new greenery supported with simple guidance",
+    },
+    {
+      pattern: /\b(pampered|spa day|pet spa|brings the spa to you|spa to you)\b/gi,
+      replacement: "cared for with gentle grooming",
+    },
+    {
+      pattern: /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/gi,
+      replacement: "dependable mobile dog grooming service",
+    },
+    {
+      pattern: /\b(grooming|care|service)\s+(they|you|your pet|your pets)\s+deserve\b/gi,
+      replacement: "grooming that fits the routine",
+    },
+    {
       pattern: /\b(features|includes|comes with|brings)\s+(easy[- ]care|low[- ]maintenance|limited[- ]light|low[- ]light)\s+(options|plants?|houseplants?|varieties|inventory)\b/gi,
       replacement: "includes simple care guidance",
     },
@@ -194,7 +214,11 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "learn more about $3",
     },
     {
-      pattern: /\b(order today|buy today|shop today|reserve today|book today)\b/gi,
+      pattern: /\b(sign up|subscribe|reach out|contact us|get started|schedule)\s+([^.!?\n]{0,80}?)\s*today\b/gi,
+      replacement: "learn more$2",
+    },
+    {
+      pattern: /\b(order today|buy today|shop today|reserve today|book today|sign up today|subscribe today|reach out today|contact us today|get started today|schedule today)\b/gi,
       replacement: "learn more",
     },
     {
@@ -251,6 +275,12 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\breduces?\s+[^.!?\n]{0,80}\s+(stress|anxiety|fear)\b/i,
   /\b(stress[- ]free|effortless|foolproof|fail[- ]proof)\b/i,
   /\b(order|buy|shop|book|reserve)\s+[^.!?\n]{0,80}\s+today\b/i,
+  /\b(sign up|subscribe|reach out|contact us|get started|schedule)\s+[^.!?\n]{0,80}\s+today\b/i,
+  /\b(latest|current)\s+(plant\s+)?delivery\b/i,
+  /\b(new|green|leafy)\s+friend\s+(happy|thriving|healthy)\b/i,
+  /\b(pampered|spa day|pet spa|brings the spa to you|spa to you)\b/i,
+  /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/i,
+  /\b(grooming|care|service)\s+(they|you|your pet|your pets)\s+deserve\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
   /\bserve\s+our\s+local\b/i,
