@@ -482,12 +482,21 @@ export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
       matchCount: 8,
       similarityThreshold: 0.2,
     });
-    const memories = (result.memories || []).slice(0, 8);
+    const memories = (result.memories || [])
+      .filter((memory) => normalizeContent(memory.content || ""))
+      .sort((a, b) => {
+        const sourceRank = (memory) => memory.source_type === "workspace_field" ? 0 : 1;
+        const importanceRank = (memory) => Number(b.importance || 0) - Number(a.importance || 0);
+        return sourceRank(a) - sourceRank(b) || importanceRank;
+      })
+      .slice(0, 8);
     const context = memories
       .map((memory, index) => {
         const type = normalizeContent(memory.memory_type || "memory");
         const title = normalizeContent(memory.title || type);
-        const content = normalizeContent(memory.content || "");
+        const content = normalizeContent(memory.content || "")
+          .replace(/\b(fragrant|scented|aromatic|perfumed)\s+(houseplants?|plants?|pothos|snake plants?|peace lilies?|spider plants?|succulents?|ferns?)\b/gi, "$2")
+          .replace(/\b(air purification|purifies the air|improves? indoor air quality|cleaner air|guaranteed growth|pet[- ]safe|non[- ]toxic)\b/gi, "");
         return content ? `${index + 1}. ${title} (${type}): ${content}` : "";
       })
       .filter(Boolean)
