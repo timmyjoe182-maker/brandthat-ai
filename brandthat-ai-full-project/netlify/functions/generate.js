@@ -206,6 +206,26 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "gentler grooming visit",
     },
     {
+      pattern: /\bjust\s+a\s+(call|click|tap)\s+away\b/gi,
+      replacement: "easy to learn about",
+    },
+    {
+      pattern: /\btop\s+priority\b/gi,
+      replacement: "central to the service",
+    },
+    {
+      pattern: /\b(part\s+of|proud\s+to\s+be\s+part\s+of)\s+(the\s+)?(local\s+|coastal\s+)?community\b/gi,
+      replacement: "built for busy coastal families and senior pet owners",
+    },
+    {
+      pattern: /\blocal\s+families\b/gi,
+      replacement: "coastal families",
+    },
+    {
+      pattern: /\btrustworthy\b/gi,
+      replacement: "dependable",
+    },
+    {
       pattern: /\b(features|includes|comes with|brings)\s+(easy[- ]care|low[- ]maintenance|limited[- ]light|low[- ]light)\s+(options|plants?|houseplants?|varieties|inventory)\b/gi,
       replacement: "includes simple care guidance",
     },
@@ -296,6 +316,11 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(your|every|each|a)\s+(pup|pet|dog)\s+deserves?\b/i,
   /\b(proud(?:ly)?\s+to\s+serve|serv(?:e|ing))\s+(our\s+)?(local\s+)?coastal\s+community\b/i,
   /\bcalmer\s+grooming\s+experience\b/i,
+  /\bjust\s+a\s+(call|click|tap)\s+away\b/i,
+  /\btop\s+priority\b/i,
+  /\b(part\s+of|proud\s+to\s+be\s+part\s+of)\s+(the\s+)?(local\s+|coastal\s+)?community\b/i,
+  /\blocal\s+families\b/i,
+  /\btrustworthy\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
   /\bserve\s+our\s+local\b/i,
