@@ -3,6 +3,17 @@ import { buildPreviewFromDraft } from "../src/previewGenerator.js";
 
 const cases = [
   {
+    key: "guided-journaling",
+    draft: {
+      name: "Quiet Current",
+      description: "A guided journaling app for overwhelmed first-time managers.",
+      audience: "overwhelmed first-time managers",
+      style: "calm, supportive, practical",
+    },
+    expected: ["first-time managers", "journaling", "reflection", "leadership", "calm"],
+    blocked: ["creators", "talent managers", "sponsorship", "invoices", "deliverables", "campaign notes", "calm business layer", "workflow summaries", "status labels", "dog grooming", "pet owners", "outdoor coffee", "carry goods"],
+  },
+  {
     key: "houseplants",
     draft: {
       name: "Stone & Stem",
@@ -60,7 +71,7 @@ const cases = [
       style: "clear, composed, operator-minded",
     },
     expected: ["creators", "sponsorship", "software", "invoices", "deliverables"],
-    blocked: ["dog grooming", "senior pets", "mobile grooming", "physical carry goods"],
+    blocked: ["dog grooming", "senior pets", "mobile grooming", "physical carry goods", "guided journaling", "first-time managers"],
   },
 ];
 

@@ -1,5 +1,15 @@
 const CATEGORY_PROFILES = [
   {
+    key: "guided-journaling",
+    match: /\b(journal|journaling|reflection|reflective|manager|managers|leadership|overwhelmed|clarity|difficult conversation|weekly planning|guided prompt|private writing)\b/i,
+    category: "guided journaling and leadership support app",
+    audience: "overwhelmed first-time managers who need calm, private structure for reflection, weekly planning, and difficult conversations",
+    voiceTraits: ["Calm", "Supportive", "Practical"],
+    positioning: "Position as a quiet leadership companion: guided reflection that helps new managers organize thoughts, build confidence, and prepare for the moments they usually carry alone.",
+    visualDirection: "Use soft contrast, warm paper tones, deep ink, muted blue-green, simple editorial layouts, private writing cues, and calm product moments that feel supportive without becoming clinical or corporate.",
+    colors: ["#141512", "#f7f0e4", "#6f8a83", "#b9a27b"],
+  },
+  {
     key: "houseplants",
     match: /\b(plant|plants|houseplant|houseplants|botanical|greenery|subscription|low-maintenance|natural light|apartment renter|plant care)\b/i,
     category: "houseplant subscription and care service",
@@ -41,7 +51,7 @@ const CATEGORY_PROFILES = [
   },
   {
     key: "software",
-    match: /\b(software|app|saas|platform|dashboard|workspace|invoice|invoices|sponsorship|sponsorships|deliverable|deliverables|campaign|tool)\b/i,
+    match: /\b(software|saas|invoice|invoices|sponsorship|sponsorships|deliverable|deliverables|campaign management|creator operations|workflow software|creator platform)\b/i,
     category: "sponsorship workflow software",
     audience: "independent creators, small talent managers, and sponsorship-driven teams who need cleaner control over deals, invoices, deliverables, and campaign notes",
     voiceTraits: ["Clear", "Composed", "Operator-minded"],
@@ -83,8 +93,13 @@ function sentenceCase(value) {
 function inferProfile(draft) {
   const primaryText = [draft.name, draft.description].map(clean).join(" ");
   const optionalText = [draft.industry, draft.audience, draft.style, draft.desiredFeeling, draft.locationMarket].map(clean).join(" ");
-  return CATEGORY_PROFILES.find((profile) => profile.match.test(primaryText)) ||
-  CATEGORY_PROFILES.find((profile) => profile.match.test(optionalText)) || {
+  const primaryProfile = CATEGORY_PROFILES.find((profile) => profile.match.test(primaryText));
+  if (primaryProfile) return primaryProfile;
+
+  const optionalProfile = CATEGORY_PROFILES.find((profile) => profile.match.test(optionalText));
+  if (optionalProfile) return optionalProfile;
+
+  return {
     key: "general",
     category: clean(draft.industry, "early-stage brand"),
     audience: "customers whose daily routine, taste, or work would clearly improve if this idea delivered on its promise",
@@ -119,6 +134,7 @@ export function buildPreviewFromDraft(draft = {}) {
   const stylePhrase = clean(draft.style || draft.desiredFeeling, voiceTraits.join(", ").toLowerCase());
   const promise = description.replace(/^a\s+/i, "").replace(/\.$/, "");
   const thesisByProfile = {
+    "guided-journaling": `${name} gives first-time managers a calmer way to reflect, plan, and prepare for leadership moments through guided journaling.`,
     houseplants: `${name} makes apartment greenery easy by pairing resilient houseplants with local delivery and straightforward care guidance.`,
     "pet-service": `${name} brings gentle grooming to the customer's doorstep, making pet care easier for busy families and senior pet owners.`,
     coffee: `${name} turns outdoor gatherings into a better coffee ritual with a mobile setup built for trails, events, and fresh-air energy.`,
