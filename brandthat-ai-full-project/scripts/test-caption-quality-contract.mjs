@@ -454,6 +454,17 @@ assert.ok(
   "Server must return explicit zero-approved errors and reviewed-caption schema aliases."
 );
 
+assert.doesNotMatch(
+  generateSource,
+  /\bparseGeneratedItems\b/,
+  "Netlify generate function must not call the frontend-only parseGeneratedItems helper."
+);
+
+assert.ok(
+  generateSource.includes("splitGeneratedItems(safeText).slice(0, 5)"),
+  "Netlify generate function must build caption response aliases with its in-scope splitGeneratedItems helper."
+);
+
 for (const code of [
   "CAPTION_CANDIDATE_GENERATION_FAILED",
   "CAPTION_EDITORIAL_REVIEW_FAILED",

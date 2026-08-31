@@ -1596,7 +1596,7 @@ ${memoryPromptSection}
       return getPublicError(502, "OPENAI_EMPTY_RESPONSE", "We couldn't generate that right now. Please try again.", requestId);
     }
 
-    const approvedCaptions = generatorType === "captions" ? parseGeneratedItems(safeText).slice(0, 5) : undefined;
+    const approvedCaptions = generatorType === "captions" ? splitGeneratedItems(safeText).slice(0, 5) : undefined;
 
     return json(200, {
       ok: true,
