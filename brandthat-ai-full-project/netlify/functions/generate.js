@@ -128,6 +128,14 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "simple care guidance",
     },
     {
+      pattern: /\b(effortlessly)\b/gi,
+      replacement: "with simple guidance",
+    },
+    {
+      pattern: /\b(ensures?|guarantees?)\s+([^.!?\n]{0,100})\b/gi,
+      replacement: "helps with $2",
+    },
+    {
       pattern: /\b(plants?|houseplants?)\s+that\s+(thrive|grow well|do well|flourish)\s+(even\s+)?in\s+(low|indirect|bright|limited)\s+light\b/gi,
       replacement: "$1 designed with apartment living in mind",
     },
