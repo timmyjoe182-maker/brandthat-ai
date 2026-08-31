@@ -77,11 +77,19 @@ async function insertMemory(client, workspaceId, userId, content, overrides = {}
       content_hash: overrides.content_hash || content.toLowerCase().replace(/\W+/g, "-"),
       embedding: overrides.embedding || vector(overrides.seed || 0),
       embedding_model: "test-vector",
+      source_type: overrides.source_type || "confirmed_brand_dna",
+      source_id: overrides.source_id || workspaceId,
+      source_asset_id: overrides.source_asset_id || null,
+      source_generator: overrides.source_generator || "db_integration",
+      original_created_at: overrides.original_created_at || new Date().toISOString(),
+      last_confirmed_at: overrides.last_confirmed_at || new Date().toISOString(),
+      content_version: overrides.content_version || 1,
+      confidence: overrides.confidence ?? 0.9,
       status: overrides.status || "active",
-      metadata: { fixture: true },
+      metadata: { fixture: true, source_identity: overrides.source_identity || `${workspaceId}:${overrides.memory_type || "brand_fact"}:confirmed_brand_dna:db:v1` },
       embedded_at: new Date().toISOString(),
     })
-    .select("id,workspace_id,user_id,status,content_hash")
+    .select("id,workspace_id,user_id,status,content_hash,source_type,source_generator,content_version,confidence,last_confirmed_at")
     .single();
 }
 
@@ -99,10 +107,14 @@ try {
   cleanupWorkspaceIds.push(workspaceA.id, workspaceA2.id, workspaceB.id);
 
   const memoryA = await assertNoError(await insertMemory(userA.client, workspaceA.id, userA.id, "User A private positioning", { seed: 0 }), "insert user A memory");
+  assert.equal(memoryA.source_type, "confirmed_brand_dna", "Memory provenance should identify confirmed Brand DNA.");
+  assert.equal(memoryA.content_version, 1, "Memory version should be persisted.");
+  assert.ok(Number(memoryA.confidence) > 0, "Memory confidence should be persisted.");
   await assertNoError(await insertMemory(userA.client, workspaceA2.id, userA.id, "User A second brand memory", { seed: 1 }), "insert user A second workspace memory");
   await assertNoError(await insertMemory(userB.client, workspaceB.id, userB.id, "User B private positioning", { seed: 2 }), "insert user B memory");
   await assertNoError(await insertMemory(userA.client, workspaceA.id, userA.id, "Inactive memory", { status: "inactive", content_hash: "inactive-memory", seed: 3 }), "insert inactive memory");
   await assertNoError(await insertMemory(userA.client, workspaceA.id, userA.id, "Deleted memory", { status: "deleted", content_hash: "deleted-memory", seed: 4 }), "insert deleted memory");
+  await assertNoError(await insertMemory(userA.client, workspaceA.id, userA.id, "Superseded memory", { status: "superseded", content_hash: "superseded-memory", seed: 6 }), "insert superseded memory");
 
   const duplicate = await insertMemory(userA.client, workspaceA.id, userA.id, "User A private positioning", { content_hash: memoryA.content_hash, seed: 0 });
   assert.ok(duplicate.error, "duplicate active content should be rejected by the unique index");
@@ -168,6 +180,35 @@ try {
   });
   await assertNoError(mismatchedServerSearch, "server mismatched ownership memory search");
   assert.equal(mismatchedServerSearch.data.length, 0, "Server RPC must not return memories when user/workspace ownership does not match.");
+
+  await assertNoError(await admin
+    .from("brand_memory_workspace_settings")
+    .upsert({
+      user_id: userA.id,
+      workspace_id: workspaceA.id,
+      memory_disabled: true,
+      disabled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,workspace_id" }), "disable workspace memory");
+  const disabledSearch = await admin.rpc("match_brand_memories_admin", {
+    requested_user_id: userA.id,
+    requested_workspace_id: workspaceA.id,
+    query_embedding: vector(0),
+    requested_memory_types: null,
+    requested_match_count: 10,
+    requested_similarity_threshold: 0,
+  });
+  await assertNoError(disabledSearch, "disabled workspace memory search");
+  assert.equal(disabledSearch.data.length, 0, "Disabled workspace memory must not be retrieved.");
+  await assertNoError(await admin
+    .from("brand_memory_workspace_settings")
+    .update({
+      memory_disabled: false,
+      disabled_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userA.id)
+    .eq("workspace_id", workspaceA.id), "reenable workspace memory");
 
   const updated = await assertNoError(await userA.client
     .from("brand_memories")

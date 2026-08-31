@@ -3024,7 +3024,8 @@ export default function App() {
   useEffect(() => {
     let canceled = false;
     const checkBrandMemoryPilot = async () => {
-      if (activeToolKey !== "captions" || !activeBrand?.id || !user?.id || !isMember) {
+      const shouldCheckMemoryPilot = activeToolKey === "captions" || (page === "workspace" && workspaceSection === "settings");
+      if (!shouldCheckMemoryPilot || !activeBrand?.id || !user?.id || !isMember) {
         setBrandMemoryPilot({ active: false, unavailable: false, loading: false, refreshing: false, message: "", status: null });
         return;
       }
@@ -3093,7 +3094,7 @@ export default function App() {
     return () => {
       canceled = true;
     };
-  }, [activeToolKey, activeBrand?.id, user?.id, isMember, brandMemoryStatusNonce]);
+  }, [activeToolKey, activeBrand?.id, user?.id, isMember, brandMemoryStatusNonce, page, workspaceSection]);
 
 
   useEffect(() => {
@@ -3738,6 +3739,21 @@ export default function App() {
       notify("warning", "Memory refresh failed", "Caption generation will keep using the normal brand context.");
     }
   };
+
+  const runBrandMemoryAction = useCallback(async (action, payload = {}, options = {}) => {
+    if (!activeBrand?.id) throw new Error("Choose a Brand Workspace first.");
+    const headers = await getAuthorizedHeaders(options.authAction || "brand_memory");
+    if (!headers) throw new Error("Sign in required.");
+    return fetchJsonWithTimeout("/.netlify/functions/brand-memory", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ action, workspaceId: activeBrand.id, ...payload }),
+    }, {
+      timeoutMs: options.timeoutMs || 25000,
+      errorMessage: options.errorMessage || "Brand memory is temporarily unavailable.",
+      revealServerError: true,
+    });
+  }, [activeBrand?.id]);
 
   const openProtectedPage = async (nextPage, action = null) => {
     const session = await requireVerifiedAccount(action || nextPage);
@@ -6520,6 +6536,10 @@ ${promptValue}`;
             deleteSavedAsset={deleteSavedAsset}
             setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
             continueSavedLogo={continueSavedLogo}
+            brandMemoryPilot={brandMemoryPilot}
+            runBrandMemoryAction={runBrandMemoryAction}
+            refreshActiveBrandMemory={refreshActiveBrandMemory}
+            retryBrandMemoryStatus={() => setBrandMemoryStatusNonce((value) => value + 1)}
             workspaceTourDismissed={workspaceTourDismissed}
             dismissWorkspaceTour={() => {
               localStorage.setItem(WORKSPACE_TOUR_DISMISSED_KEY, "true");
@@ -7627,6 +7647,10 @@ function WorkspaceSectionView(props) {
     deleteSavedAsset,
     setSavedLogoAsBrandProfile,
     continueSavedLogo,
+    brandMemoryPilot,
+    runBrandMemoryAction,
+    refreshActiveBrandMemory,
+    retryBrandMemoryStatus,
     workspaceTourDismissed,
     dismissWorkspaceTour,
   } = props;
@@ -7675,6 +7699,13 @@ function WorkspaceSectionView(props) {
           <WorkspaceCreator workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} createWorkspace={createWorkspace} autoSaveStatus={autoSaveStatus} workspaceCreating={workspaceCreating} />
         </details>
         <WorkspaceLibrary brandWorkspaces={brandWorkspaces} activeBrand={activeBrand} workspaceLoading={workspaceLoading} selectBrand={selectBrand} deleteBrand={deleteBrand} duplicateBrand={duplicateBrand} downloadBrandKit={downloadBrandKit} setPage={setPage} />
+        <BrandMemorySettings
+          activeBrand={activeBrand}
+          brandMemoryPilot={brandMemoryPilot}
+          runBrandMemoryAction={runBrandMemoryAction}
+          refreshActiveBrandMemory={refreshActiveBrandMemory}
+          retryBrandMemoryStatus={retryBrandMemoryStatus}
+        />
       </section>
     );
   }
@@ -8058,6 +8089,152 @@ function WorkspaceLibrary({ brandWorkspaces, activeBrand, workspaceLoading = fal
         <button className="btn dark" onClick={downloadBrandKit}>Export Brand Book PDF</button>
       </div>
     </div>
+  );
+}
+
+function BrandMemorySettings({ activeBrand, brandMemoryPilot, runBrandMemoryAction, refreshActiveBrandMemory, retryBrandMemoryStatus }) {
+  const [memoryState, setMemoryState] = useState({ loading: false, error: "", data: null });
+  const [editingId, setEditingId] = useState("");
+  const [editingText, setEditingText] = useState("");
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+
+  const loadMemoryControls = useCallback(async () => {
+    if (!activeBrand?.id || !brandMemoryPilot?.active || !runBrandMemoryAction) return;
+    setMemoryState((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      const data = await runBrandMemoryAction("list", {}, { errorMessage: "Brand memory controls could not be loaded." });
+      setMemoryState({ loading: false, error: "", data });
+    } catch (error) {
+      setMemoryState({ loading: false, error: error?.message || "Brand memory controls could not be loaded.", data: null });
+    }
+  }, [activeBrand?.id, brandMemoryPilot?.active, runBrandMemoryAction]);
+
+  useEffect(() => {
+    loadMemoryControls();
+  }, [loadMemoryControls]);
+
+  if (!activeBrand) return null;
+
+  const activeMemories = (memoryState.data?.memories || []).filter((memory) => memory.status === "active");
+  const categories = memoryState.data?.categories || {};
+  const statusLabel = brandMemoryPilot?.loading
+    ? "Checking brand memory..."
+    : brandMemoryPilot?.active
+      ? memoryState.data?.disabled
+        ? "Memory disabled for this workspace"
+        : "Brand memory active"
+      : brandMemoryPilot?.unavailable
+        ? "Brand memory unavailable"
+        : "Private pilot unavailable";
+
+  const runAndReload = async (action, payload = {}, options = {}) => {
+    await runBrandMemoryAction(action, payload, options);
+    await loadMemoryControls();
+  };
+
+  const startEdit = (memory) => {
+    setEditingId(memory.id);
+    setEditingText(memory.fact || "");
+  };
+
+  const saveEdit = async (memory) => {
+    await runAndReload("update", {
+      memoryId: memory.id,
+      title: memory.title,
+      content: editingText,
+      importance: 4,
+      metadata: { source: "user_correction", corrected_at: new Date().toISOString() },
+    }, { errorMessage: "Brand memory could not be corrected." });
+    setEditingId("");
+    setEditingText("");
+  };
+
+  return (
+    <section className="brandMemorySettings">
+      <div className="memorySettingsHeader">
+        <div>
+          <div className="tinyTag">BRAND MEMORY</div>
+          <h2>Memory for {activeBrand.name}</h2>
+          <p>Brand DNA stays the source of truth. Memory adds approved facts from saved work and corrections, but never overrides confirmed workspace fields.</p>
+        </div>
+        <strong>{statusLabel}</strong>
+      </div>
+
+      {brandMemoryPilot?.loading ? (
+        <div className="emptyState">Checking brand memory...</div>
+      ) : !brandMemoryPilot?.active ? (
+        <div className="memoryUnavailablePanel">
+          <p>{brandMemoryPilot?.message || "Brand memory controls are available only for approved private pilot accounts."}</p>
+          {brandMemoryPilot?.unavailable && <button onClick={retryBrandMemoryStatus}>Retry memory status</button>}
+        </div>
+      ) : (
+        <>
+          <div className="memoryControlGrid">
+            <div>
+              <span>Active memories</span>
+              <strong>{memoryState.data?.activeCount || 0}</strong>
+              <small>{memoryState.data?.lastRefreshedAt ? `Last refreshed ${new Date(memoryState.data.lastRefreshedAt).toLocaleString()}` : "No refresh recorded yet"}</small>
+            </div>
+            <div>
+              <span>Categories</span>
+              <strong>{Object.keys(categories).length || 0}</strong>
+              <small>{Object.entries(categories).map(([key, count]) => `${key.replace(/_/g, " ")} (${count})`).join(", ") || "No active categories yet"}</small>
+            </div>
+          </div>
+          <div className="memorySettingsActions">
+            <button onClick={async () => { await refreshActiveBrandMemory?.(); await loadMemoryControls(); }}>Rebuild memory</button>
+            <button onClick={() => runAndReload(memoryState.data?.disabled ? "enable_workspace" : "disable_workspace")}>{memoryState.data?.disabled ? "Enable memory for this workspace" : "Disable memory for this workspace"}</button>
+            <button className="miniDanger" onClick={() => setBulkConfirm(true)}>Forget all workspace memory</button>
+          </div>
+          {bulkConfirm && (
+            <div className="memoryDeleteConfirm" role="alert">
+              <p>This forgets active semantic memories for {activeBrand.name}. Your workspace, saved assets, and Brand DNA stay intact.</p>
+              <button className="miniDanger" onClick={async () => { await runAndReload("delete_workspace", { confirm: "DELETE_WORKSPACE_MEMORY" }); setBulkConfirm(false); }}>Confirm forget all</button>
+              <button onClick={() => setBulkConfirm(false)}>Cancel</button>
+            </div>
+          )}
+          {memoryState.error && <div className="memoryUnavailablePanel" role="alert">{memoryState.error}</div>}
+          {memoryState.loading ? <div className="emptyState">Loading remembered facts...</div> : null}
+          <div className="memoryFactList">
+            {activeMemories.length ? activeMemories.map((memory) => (
+              <article className="memoryFactCard" key={memory.id}>
+                <div>
+                  <span>{String(memory.memoryType || "memory").replace(/_/g, " ")}</span>
+                  <strong>{memory.title}</strong>
+                  <small>Source: {String(memory.sourceType || "unknown").replace(/_/g, " ")}{memory.sourceGenerator ? ` · ${memory.sourceGenerator}` : ""}</small>
+                </div>
+                {editingId === memory.id ? (
+                  <label>
+                    <span>Remembered fact</span>
+                    <textarea value={editingText} onChange={(event) => setEditingText(event.target.value)} />
+                  </label>
+                ) : (
+                  <p>{memory.fact}</p>
+                )}
+                <div className="memoryFactMeta">
+                  <small>Confidence {Math.round(Number(memory.confidence || 0) * 100)}%</small>
+                  <small>Version {memory.contentVersion}</small>
+                  <small>{memory.lastConfirmedAt ? `Confirmed ${new Date(memory.lastConfirmedAt).toLocaleDateString()}` : "Not confirmed yet"}</small>
+                </div>
+                <div className="assetCardActions">
+                  {editingId === memory.id ? (
+                    <>
+                      <button onClick={() => saveEdit(memory)}>Save correction</button>
+                      <button onClick={() => { setEditingId(""); setEditingText(""); }}>Cancel</button>
+                    </>
+                  ) : (
+                    <button onClick={() => startEdit(memory)}>Edit or correct</button>
+                  )}
+                  <button className="miniDanger" onClick={() => runAndReload("forget", { memoryId: memory.id }, { errorMessage: "Brand memory could not be forgotten." })}>Forget</button>
+                </div>
+              </article>
+            )) : (
+              <div className="emptyState">No active memories yet. Saved and approved work helps BrandThat learn this workspace after you refresh memory.</div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

@@ -19,9 +19,10 @@ Semantic memory supplements that data. It does not replace structured Brand DNA.
 3. The server verifies that `BRAND_MEMORY_ENABLED=true` and the user UUID is in `BRAND_MEMORY_TEST_USER_IDS`.
 4. The user can refresh memory for the selected workspace.
 5. Approved structured workspace facts are normalized, capped, hashed, deduplicated, and embedded.
-6. Content and embedding are stored in `brand_memories`.
-7. The Caption Generator can embed its request and retrieve only relevant memories from the same user and workspace.
-8. Retrieved memories are advisory context; current form inputs and structured workspace fields remain authoritative.
+6. Content, embedding, confidence, source provenance, model, version, and confirmation timestamps are stored in `brand_memories`.
+7. Workspace-level memory preferences are stored in `brand_memory_workspace_settings`.
+8. The Caption Generator can embed its request and retrieve only relevant active memories from the same user and workspace.
+9. Retrieved memories are advisory context; current form inputs and structured workspace fields remain authoritative.
 
 ## Security
 
@@ -33,6 +34,7 @@ Semantic memory supplements that data. It does not replace structured Brand DNA.
 - Pilot access is checked server-side against Supabase UUIDs, never emails and never client-provided flags.
 - Service-role and OpenAI keys remain server-only.
 - Raw private brand content must not be written to logs.
+- Raw embeddings are never returned to the client. Settings returns human-readable remembered facts only.
 
 ## Memory lifecycle
 
@@ -52,7 +54,36 @@ Initial eligible memories:
 
 Transient unsaved generations are not memories.
 
-Updated facts should deactivate or replace stale memories. User-facing controls in a later phase must support viewing, deactivating, deleting, and rebuilding memory.
+Each memory records provenance:
+
+- `user_id`
+- `workspace_id`
+- `memory_type`
+- `source_type`
+- `source_asset_id` when the source is a saved/favorited asset
+- `source_generator`
+- `original_created_at`
+- `last_confirmed_at`
+- `embedding_model`
+- `content_version`
+- `status`
+- `confidence`
+- `metadata`
+
+Supported source types are `confirmed_brand_dna`, `user_edit`, `saved_generation`, `favorited_generation`, `selected_primary_logo_metadata`, `explicit_user_approval`, and legacy `workspace_field`.
+
+Updated facts mark the previous active source version `superseded` and create a new active version. Duplicate refreshes of unchanged facts update `last_confirmed_at` instead of creating duplicates. Deleted memories are content-scrubbed and excluded from retrieval.
+
+User-facing controls in Settings support viewing human-readable memories, editing/correcting facts, forgetting a fact, disabling memory for a workspace, rebuilding memory, and confirmed workspace-memory deletion.
+
+Conflict rules:
+
+- Structured confirmed Brand DNA wins over semantic memory.
+- Current form input wins over both memory and generated assets.
+- Recent explicit user edits beat older generated assets.
+- Primary selections beat unselected concepts.
+- Rejected, deleted, disabled, and superseded memories are excluded.
+- Ambiguous conflicts should be flagged for user review rather than silently resolved.
 
 ## Embeddings
 
@@ -101,19 +132,24 @@ The integration assertions cover:
 - Updating content replaces the hash and embedding.
 - `BRAND_MEMORY_ENABLED=false` short-circuits without writing memories.
 - `BRAND_MEMORY_ENABLED=true` still short-circuits for users outside `BRAND_MEMORY_TEST_USER_IDS`.
+- Workspace memory disablement prevents retrieval.
+- Superseded and deleted memories are excluded.
+- Provenance fields are present and use compatible UUID ownership types.
+- Duplicate refreshes do not create duplicate active source memories.
 
 ## Rollback
 
 With the feature flag disabled, application behavior falls back to the existing structured-context flow. If schema rollback is necessary, first disable the flag and retain the table for investigation. Dropping the table destroys user memory and requires a separately approved destructive migration.
 
-## Phase 2
+## Current Private Pilot Layer
 
-- Seed memories from approved structured Brand DNA and saved/favorited assets.
+- Seed memories from approved structured Brand DNA.
 - Add a private Brand Memory settings screen.
-- Inject top relevant memories into generator prompts.
-- Show which memories influenced an output.
-- Record explicit rejections as negative preferences.
-- Add evaluation fixtures and retrieval telemetry without storing raw prompts.
+- Inject a small number of relevant memories into caption prompts only.
+- Keep non-caption generators on structured Brand DNA without memory retrieval.
+- Add retrieval telemetry without storing raw prompts.
+
+Future work may add saved/favorited output memory after separate approval.
 
 ## Evaluation
 

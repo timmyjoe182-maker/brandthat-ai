@@ -17,6 +17,26 @@ const ALLOWED_MEMORY_TYPES = new Set([
   "rejected_direction",
 ]);
 
+const ALLOWED_SOURCE_TYPES = new Set([
+  "confirmed_brand_dna",
+  "user_edit",
+  "saved_generation",
+  "favorited_generation",
+  "selected_primary_logo_metadata",
+  "explicit_user_approval",
+  "workspace_field",
+]);
+
+const SOURCE_RANK = {
+  explicit_user_approval: 0,
+  user_edit: 1,
+  confirmed_brand_dna: 2,
+  selected_primary_logo_metadata: 3,
+  favorited_generation: 4,
+  saved_generation: 5,
+  workspace_field: 6,
+};
+
 export function isBrandMemoryEnabled() {
   return String(process.env.BRAND_MEMORY_ENABLED || "false").toLowerCase() === "true";
 }
@@ -51,6 +71,68 @@ function hashContent(content) {
   return crypto.createHash("sha256").update(content, "utf8").digest("hex");
 }
 
+function clampConfidence(value, fallback = 0.75) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(0, Math.min(1, number));
+}
+
+function normalizeSourceType(sourceType = "confirmed_brand_dna") {
+  const normalized = String(sourceType || "confirmed_brand_dna").trim().toLowerCase().replace(/\s+/g, "_");
+  return ALLOWED_SOURCE_TYPES.has(normalized) ? normalized : "confirmed_brand_dna";
+}
+
+function buildSourceIdentity({ workspaceId, memoryType, sourceType, sourceId, sourceAssetId, sourceGenerator, sourceKey, version = 1 }) {
+  return [
+    workspaceId,
+    memoryType,
+    sourceType,
+    sourceAssetId || sourceId || "workspace",
+    sourceGenerator || "brand",
+    sourceKey || "field",
+    `v${version}`,
+  ].filter(Boolean).join(":");
+}
+
+function memoryLog(event, fields = {}) {
+  console.info("Brand memory metric", {
+    event,
+    requestId: fields.requestId,
+    userId: fields.userId,
+    workspaceId: fields.workspaceId,
+    memoryType: fields.memoryType,
+    sourceType: fields.sourceType,
+    status: fields.status,
+    count: fields.count,
+    code: fields.code,
+    durationMs: fields.durationMs,
+  });
+}
+
+function sanitizeMemoryForClient(memory = {}) {
+  return {
+    id: memory.id,
+    memoryType: memory.memory_type,
+    title: memory.title || memory.memory_type || "Memory",
+    fact: normalizeContent(memory.content || "").slice(0, 420),
+    sourceType: memory.source_type || "",
+    sourceAssetId: memory.source_asset_id || memory.source_id || "",
+    sourceGenerator: memory.source_generator || "",
+    originalCreatedAt: memory.original_created_at || memory.created_at || "",
+    lastConfirmedAt: memory.last_confirmed_at || memory.updated_at || "",
+    embeddingModel: memory.embedding_model || "",
+    contentVersion: memory.content_version || 1,
+    status: memory.status || "active",
+    confidence: Number(memory.confidence ?? 0),
+    metadata: {
+      label: memory.metadata?.label || memory.metadata?.source_key || "",
+      source: memory.metadata?.source || "",
+      conflict: memory.metadata?.conflict || null,
+      disabled: Boolean(memory.metadata?.disabled),
+    },
+  };
+}
+
 async function assertWorkspaceOwnership(supabase, userId, workspaceId) {
   const { data, error } = await supabase
     .from("brand_workspaces")
@@ -65,6 +147,32 @@ async function assertWorkspaceOwnership(supabase, userId, workspaceId) {
     denied.code = "WORKSPACE_NOT_FOUND";
     throw denied;
   }
+}
+
+async function getWorkspaceMemorySettings(supabase, userId, workspaceId) {
+  const { data, error } = await supabase
+    .from("brand_memory_workspace_settings")
+    .select("memory_disabled,disabled_at,rebuilt_at,updated_at")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const missingSettingsTable =
+    error &&
+    (error.code === "42P01" ||
+      error.code === "PGRST205" ||
+      /brand_memory_workspace_settings|schema cache|does not exist/i.test(`${error.message || ""} ${error.details || ""}`));
+  if (error && !missingSettingsTable) throw new Error("Brand memory settings could not be loaded.");
+  return data || { memory_disabled: false, disabled_at: null, rebuilt_at: null, updated_at: null };
+}
+
+async function assertWorkspaceMemoryEnabled(supabase, userId, workspaceId) {
+  const settings = await getWorkspaceMemorySettings(supabase, userId, workspaceId);
+  if (settings.memory_disabled) {
+    const error = new Error("Brand memory is disabled for this workspace.");
+    error.code = "BRAND_MEMORY_WORKSPACE_DISABLED";
+    throw error;
+  }
+  return settings;
 }
 
 function getWorkspaceText(row = {}, keys = []) {
@@ -100,14 +208,20 @@ function inferCategoryFromWorkspace(row = {}) {
   return getWorkspaceText(row, ["industry", "category"]) || "Category needs confirmation";
 }
 
-function buildMemoryMetadata({ userId, workspaceId, sourceKey, version = 1, extra = {} }) {
+function buildMemoryMetadata({ userId, workspaceId, sourceKey, sourceType = "confirmed_brand_dna", version = 1, extra = {} }) {
   return {
     ...extra,
     workspace_id: workspaceId,
     user_id: userId,
-    source: "brand_workspace",
+    source: sourceType,
     source_key: sourceKey,
-    source_identity: `${workspaceId}:${sourceKey}:v${version}`,
+    source_identity: buildSourceIdentity({
+      workspaceId,
+      memoryType: extra.memory_type || "memory",
+      sourceType,
+      sourceKey,
+      version,
+    }),
     version,
     updated_at: new Date().toISOString(),
   };
@@ -174,10 +288,13 @@ export function buildWorkspaceMemoryPayloads(row = {}, { userId, workspaceId } =
       memoryType: item.memoryType,
       title: item.title,
       content: normalizeContent(item.content),
-      sourceType: "workspace_field",
+      sourceType: "confirmed_brand_dna",
+      sourceGenerator: "brand_workspace",
+      sourceAssetId: null,
       sourceId: workspaceId,
       importance: item.importance,
-      metadata: buildMemoryMetadata({ userId, workspaceId, sourceKey: item.key }),
+      confidence: 0.95,
+      metadata: buildMemoryMetadata({ userId, workspaceId, sourceKey: item.key, sourceType: "confirmed_brand_dna", extra: { memory_type: item.memoryType } }),
     }))
     .filter((item) => item.content);
 }
@@ -208,7 +325,10 @@ export async function createBrandMemory({
   content,
   sourceType = null,
   sourceId = null,
+  sourceAssetId = null,
+  sourceGenerator = null,
   importance = 1,
+  confidence = 0.75,
   metadata = {},
 }) {
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
@@ -220,11 +340,13 @@ export async function createBrandMemory({
 
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  await assertWorkspaceMemoryEnabled(supabase, userId, workspaceId);
 
   const contentHash = hashContent(normalized);
   const { data: existing, error: existingError } = await supabase
     .from("brand_memories")
     .select("id,status,content_hash")
+    .eq("user_id", userId)
     .eq("workspace_id", workspaceId)
     .eq("memory_type", memoryType)
     .eq("content_hash", contentHash)
@@ -247,14 +369,19 @@ export async function createBrandMemory({
       content_hash: contentHash,
       embedding,
       embedding_model: model,
-      source_type: sourceType,
+      source_type: normalizeSourceType(sourceType),
       source_id: sourceId,
+      source_asset_id: sourceAssetId,
+      source_generator: normalizeContent(sourceGenerator).slice(0, 80) || null,
       importance: Math.max(1, Math.min(5, Number(importance) || 1)),
+      confidence: clampConfidence(confidence),
       metadata: { ...metadata, embedding_model: model },
       embedded_at: now,
+      original_created_at: now,
+      last_confirmed_at: now,
       updated_at: now,
     })
-    .select("id,memory_type,title,source_type,source_id,importance,status,created_at")
+    .select("id,memory_type,title,source_type,source_id,source_asset_id,source_generator,importance,status,confidence,content_version,created_at,last_confirmed_at")
     .single();
 
   if (error) throw new Error("Brand memory could not be saved.");
@@ -265,11 +392,21 @@ export async function updateBrandMemory({ userId, workspaceId, memoryId, content
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  await assertWorkspaceMemoryEnabled(supabase, userId, workspaceId);
 
   const normalized = normalizeContent(content);
   if (!normalized) throw new Error("Memory content is required.");
   const { embedding, model } = await createEmbedding(normalized);
 
+  const { data: existing } = await supabase
+    .from("brand_memories")
+    .select("content_version,metadata")
+    .eq("id", memoryId)
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const nextVersion = Math.max(1, Number(existing?.content_version || 1) + 1);
   const { data, error } = await supabase
     .from("brand_memories")
     .update({
@@ -277,10 +414,12 @@ export async function updateBrandMemory({ userId, workspaceId, memoryId, content
       content_hash: hashContent(normalized),
       title: normalizeContent(title).slice(0, 240) || null,
       importance: Math.max(1, Math.min(5, Number(importance) || 1)),
-      metadata: { ...(metadata || {}), embedding_model: model },
+      content_version: nextVersion,
+      metadata: { ...(existing?.metadata || {}), ...(metadata || {}), embedding_model: model, content_version: nextVersion },
       embedding,
       embedding_model: model,
       embedded_at: new Date().toISOString(),
+      last_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", memoryId)
@@ -307,6 +446,7 @@ export async function searchBrandMemories({
 
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  await assertWorkspaceMemoryEnabled(supabase, userId, workspaceId);
   const { embedding } = await createEmbedding(normalized);
 
   // The RPC also checks auth.uid() for direct authenticated calls. Because this
@@ -329,6 +469,7 @@ export async function deactivateBrandMemory({ userId, workspaceId, memoryId }) {
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  await assertWorkspaceMemoryEnabled(supabase, userId, workspaceId);
   const { data, error } = await supabase
     .from("brand_memories")
     .update({ status: "inactive", updated_at: new Date().toISOString() })
@@ -341,16 +482,153 @@ export async function deactivateBrandMemory({ userId, workspaceId, memoryId }) {
   return { ok: true, memory: data };
 }
 
+export async function listWorkspaceMemoryControls({ userId, workspaceId }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, memories: [], categories: {} };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const settings = await getWorkspaceMemorySettings(supabase, userId, workspaceId);
+  const { data, error } = await supabase
+    .from("brand_memories")
+    .select("id,memory_type,title,content,source_type,source_id,source_asset_id,source_generator,embedding_model,content_version,status,confidence,metadata,created_at,original_created_at,last_confirmed_at,updated_at")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .in("status", ["active", "superseded"])
+    .order("status", { ascending: true })
+    .order("memory_type", { ascending: true })
+    .order("last_confirmed_at", { ascending: false });
+  if (error) throw new Error("Brand memory list could not be loaded.");
+  const memories = (data || []).map(sanitizeMemoryForClient);
+  const activeMemories = memories.filter((memory) => memory.status === "active");
+  const categories = activeMemories.reduce((acc, memory) => {
+    acc[memory.memoryType] = (acc[memory.memoryType] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    ok: true,
+    workspaceId,
+    disabled: Boolean(settings.memory_disabled),
+    lastRefreshedAt: settings.rebuilt_at || activeMemories.map((memory) => memory.lastConfirmedAt).filter(Boolean).sort().at(-1) || null,
+    activeCount: activeMemories.length,
+    categories,
+    memories,
+  };
+}
+
+export async function getWorkspaceMemoryStatus({ userId, workspaceId }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, workspaceOwned: false, memoryDisabled: false };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const settings = await getWorkspaceMemorySettings(supabase, userId, workspaceId);
+  return {
+    ok: true,
+    workspaceId,
+    workspaceOwned: true,
+    memoryDisabled: Boolean(settings.memory_disabled),
+    lastRefreshedAt: settings.rebuilt_at || null,
+  };
+}
+
+export async function forgetBrandMemory({ userId, workspaceId, memoryId }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  await assertWorkspaceMemoryEnabled(supabase, userId, workspaceId);
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("brand_memories")
+    .update({
+      status: "deleted",
+      content: "[forgotten by user]",
+      content_hash: hashContent(`[forgotten:${memoryId}:${now}]`),
+      embedding: null,
+      deleted_at: now,
+      updated_at: now,
+      metadata: { deletion_event: true, deleted_at: now },
+    })
+    .eq("id", memoryId)
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .select("id,status,deleted_at")
+    .single();
+  if (error) throw new Error("Brand memory could not be forgotten.");
+  return { ok: true, memory: data };
+}
+
+export async function setWorkspaceMemoryDisabled({ userId, workspaceId, disabled = true }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("brand_memory_workspace_settings")
+    .upsert({
+      user_id: userId,
+      workspace_id: workspaceId,
+      memory_disabled: Boolean(disabled),
+      disabled_at: disabled ? now : null,
+      updated_at: now,
+      metadata: { source: "settings_control" },
+    }, { onConflict: "user_id,workspace_id" })
+    .select("memory_disabled,disabled_at,rebuilt_at,updated_at")
+    .single();
+  if (error) throw new Error("Brand memory workspace setting could not be updated.");
+  memoryLog(disabled ? "workspace_memory_disabled" : "workspace_memory_enabled", { userId, workspaceId, durationMs: 0 });
+  return { ok: true, workspaceId, disabled: Boolean(data.memory_disabled), settings: data };
+}
+
+export async function deleteWorkspaceMemories({ userId, workspaceId }) {
+  if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true };
+  const supabase = getAdminClient();
+  await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("brand_memories")
+    .update({
+      status: "deleted",
+      content: "[workspace memory deleted by user]",
+      content_hash: hashContent(`[workspace-forgotten:${workspaceId}:${now}]`),
+      embedding: null,
+      deleted_at: now,
+      updated_at: now,
+      metadata: { deletion_event: true, workspace_memory_deleted_at: now },
+    })
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .neq("status", "deleted")
+    .select("id,status");
+  if (error) throw new Error("Workspace memories could not be deleted.");
+  memoryLog("workspace_memories_deleted", { userId, workspaceId, count: data?.length || 0, durationMs: 0 });
+  return { ok: true, workspaceId, deletedCount: data?.length || 0 };
+}
+
 export async function rebuildWorkspaceMemories({ userId, workspaceId, memories = [], dryRun = false }) {
   if (!isBrandMemoryActiveForUser(userId)) return { ok: false, disabled: true, results: [] };
   const supabase = getAdminClient();
   await assertWorkspaceOwnership(supabase, userId, workspaceId);
+  const settings = await getWorkspaceMemorySettings(supabase, userId, workspaceId);
+  if (settings.memory_disabled && !dryRun) return { ok: false, disabled: true, code: "BRAND_MEMORY_WORKSPACE_DISABLED", results: [] };
   if (dryRun) return { ok: true, workspaceId, results: [] };
   const payloads = memories.length ? memories : await getWorkspaceMemoryPayloads({ supabase, userId, workspaceId });
   const results = [];
+  const startedAt = Date.now();
   for (const memory of payloads.slice(0, 100)) {
     results.push(await upsertWorkspaceMemory({ supabase, userId, workspaceId, ...memory }));
   }
+  await supabase
+    .from("brand_memory_workspace_settings")
+    .upsert({
+      user_id: userId,
+      workspace_id: workspaceId,
+      memory_disabled: false,
+      rebuilt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,workspace_id" });
+  memoryLog("refresh_complete", {
+    userId,
+    workspaceId,
+    count: results.length,
+    durationMs: Date.now() - startedAt,
+  });
   return { ok: true, results };
 }
 
@@ -398,34 +676,59 @@ async function upsertWorkspaceMemory({
   content,
   sourceType = "workspace_field",
   sourceId = null,
+  sourceAssetId = null,
+  sourceGenerator = null,
   importance = 1,
+  confidence = 0.75,
   metadata = {},
 }) {
   if (!ALLOWED_MEMORY_TYPES.has(memoryType)) throw new Error("Unsupported memory type.");
   const normalized = normalizeContent(content);
   if (!normalized) throw new Error("Memory content is required.");
   const contentHash = hashContent(normalized);
-  const sourceIdentity = metadata?.source_identity || `${workspaceId}:${memoryType}:v1`;
+  const normalizedSourceType = normalizeSourceType(sourceType);
+  const sourceIdentity = metadata?.source_identity || buildSourceIdentity({
+    workspaceId,
+    memoryType,
+    sourceType: normalizedSourceType,
+    sourceId: sourceId || workspaceId,
+    sourceAssetId,
+    sourceGenerator,
+    sourceKey: metadata?.source_key || memoryType,
+    version: metadata?.version || 1,
+  });
   const now = new Date().toISOString();
 
-  const { data: existingRows, error: existingError } = await supabase
+  let existingQuery = supabase
     .from("brand_memories")
-    .select("id,content_hash,status")
+    .select("id,content_hash,status,content_version,original_created_at,metadata")
     .eq("workspace_id", workspaceId)
     .eq("user_id", userId)
     .eq("memory_type", memoryType)
-    .eq("source_type", sourceType)
+    .eq("source_type", normalizedSourceType)
     .eq("source_id", sourceId || workspaceId)
     .contains("metadata", { source_identity: sourceIdentity })
     .limit(1);
+  existingQuery = sourceAssetId ? existingQuery.eq("source_asset_id", sourceAssetId) : existingQuery.is("source_asset_id", null);
+  const { data: existingRows, error: existingError } = await existingQuery;
 
   if (existingError) throw new Error("Existing memory could not be checked.");
   const existing = existingRows?.[0] || null;
   if (existing?.content_hash === contentHash && existing.status === "active") {
-    return { ok: true, duplicate: true, memory: existing };
+    const { data, error } = await supabase
+      .from("brand_memories")
+      .update({ last_confirmed_at: now, updated_at: now })
+      .eq("id", existing.id)
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .select("id,memory_type,title,source_type,source_id,source_asset_id,source_generator,importance,status,confidence,content_version,updated_at,last_confirmed_at")
+      .single();
+    if (error) throw new Error("Brand memory confirmation could not be saved.");
+    return { ok: true, duplicate: true, memory: data };
   }
 
   const { embedding, model } = await createEmbedding(normalized);
+  const nextVersion = Math.max(1, Number(existing?.content_version || 0) + 1);
   const row = {
     user_id: userId,
     workspace_id: workspaceId,
@@ -435,36 +738,40 @@ async function upsertWorkspaceMemory({
     content_hash: contentHash,
     embedding,
     embedding_model: model,
-    source_type: sourceType,
+    source_type: normalizedSourceType,
     source_id: sourceId || workspaceId,
+    source_asset_id: sourceAssetId || null,
+    source_generator: normalizeContent(sourceGenerator).slice(0, 80) || null,
     importance: Math.max(1, Math.min(5, Number(importance) || 1)),
-    metadata: { ...metadata, embedding_model: model, updated_at: now },
+    confidence: clampConfidence(confidence),
+    content_version: nextVersion,
+    original_created_at: existing?.original_created_at || now,
+    last_confirmed_at: now,
+    supersedes_memory_id: existing?.id || null,
+    metadata: { ...metadata, source_identity: sourceIdentity, embedding_model: model, content_version: nextVersion, updated_at: now },
     status: "active",
     embedded_at: now,
     updated_at: now,
   };
 
   if (existing?.id) {
-    const { data, error } = await supabase
+    const { error: supersedeError } = await supabase
       .from("brand_memories")
-      .update(row)
+      .update({ status: "superseded", updated_at: now, last_confirmed_at: now })
       .eq("id", existing.id)
       .eq("workspace_id", workspaceId)
-      .eq("user_id", userId)
-      .select("id,memory_type,title,source_type,source_id,importance,status,updated_at")
-      .single();
-    if (error) throw new Error("Brand memory could not be updated.");
-    return { ok: true, updated: true, memory: data };
+      .eq("user_id", userId);
+    if (supersedeError) throw new Error("Prior memory version could not be superseded.");
   }
 
   const { data, error } = await supabase
     .from("brand_memories")
     .insert(row)
-    .select("id,memory_type,title,source_type,source_id,importance,status,created_at")
+    .select("id,memory_type,title,source_type,source_id,source_asset_id,source_generator,importance,status,confidence,content_version,created_at,last_confirmed_at")
     .single();
 
   if (error) throw new Error("Brand memory could not be saved.");
-  return { ok: true, duplicate: false, memory: data };
+  return { ok: true, duplicate: false, updated: Boolean(existing?.id), memory: data };
 }
 
 export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
@@ -484,12 +791,15 @@ export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
     });
     const memories = (result.memories || [])
       .filter((memory) => normalizeContent(memory.content || ""))
+      .filter((memory) => memory.status !== "superseded" && memory.status !== "deleted")
+      .filter((memory) => !memory.metadata?.conflict && !memory.metadata?.disabled)
       .sort((a, b) => {
-        const sourceRank = (memory) => memory.source_type === "workspace_field" ? 0 : 1;
+        const sourceRank = (memory) => SOURCE_RANK[memory.source_type] ?? 9;
         const importanceRank = (memory) => Number(b.importance || 0) - Number(a.importance || 0);
-        return sourceRank(a) - sourceRank(b) || importanceRank;
+        const confirmedRank = new Date(b.last_confirmed_at || b.updated_at || 0).getTime() - new Date(a.last_confirmed_at || a.updated_at || 0).getTime();
+        return sourceRank(a) - sourceRank(b) || importanceRank || confirmedRank;
       })
-      .slice(0, 8);
+      .slice(0, 6);
     const context = memories
       .map((memory, index) => {
         const type = normalizeContent(memory.memory_type || "memory");
@@ -511,4 +821,13 @@ export async function getCaptionMemoryContext({ userId, workspaceId, query }) {
     });
     return { ok: false, code: "BRAND_MEMORY_RETRIEVAL_FAILED", memories: [], context: "" };
   }
+}
+
+export function getBrandMemoryDiagnostics() {
+  return {
+    enabled: isBrandMemoryEnabled(),
+    allowlistCount: getBrandMemoryTestUserIds().length,
+    embeddingModel: process.env.BRAND_MEMORY_EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL,
+    allowedSourceTypes: Array.from(ALLOWED_SOURCE_TYPES),
+  };
 }

@@ -2,11 +2,16 @@ import { createClient } from "@supabase/supabase-js";
 import {
   createBrandMemory,
   deactivateBrandMemory,
+  deleteWorkspaceMemories,
+  forgetBrandMemory,
   isBrandMemoryEnabled,
   getBrandMemoryTestUserIds,
   isBrandMemoryActiveForUser,
+  getWorkspaceMemoryStatus,
+  listWorkspaceMemoryControls,
   rebuildWorkspaceMemories,
   searchBrandMemories,
+  setWorkspaceMemoryDisabled,
   updateBrandMemory,
 } from "./lib/brand-memory.js";
 
@@ -138,12 +143,9 @@ export async function handler(event, _context = {}, meta = {}) {
       if (common.workspaceId && allowlisted) {
         logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, stage: "workspace_lookup_started", durationMs: Date.now() - startedAt });
         try {
-          const ownership = await rebuildWorkspaceMemories({
-            ...common,
-            dryRun: true,
-          });
+          const ownership = await getWorkspaceMemoryStatus(common);
           workspaceOwned = Boolean(ownership?.ok);
-          workspaceCheckCode = ownership?.code || null;
+          workspaceCheckCode = ownership?.memoryDisabled ? "WORKSPACE_MEMORY_DISABLED" : ownership?.code || null;
           logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, eligibility: workspaceOwned ? "owned" : workspaceCheckCode || "not_owned", stage: "workspace_lookup_complete", durationMs: Date.now() - startedAt });
         } catch (error) {
           workspaceOwned = false;
@@ -157,7 +159,7 @@ export async function handler(event, _context = {}, meta = {}) {
         endpointVersion: BRAND_MEMORY_ENDPOINT_VERSION,
         enabled: memoryEnabled,
         allowlisted,
-        active: Boolean(memoryEnabled && allowlisted && workspaceOwned),
+        active: Boolean(memoryEnabled && allowlisted && workspaceOwned && !workspaceCheckCode),
         authenticatedUserId: authResult.user.id,
         authenticatedUserIdMatchesAllowlist: allowlisted,
         selectedWorkspaceId: common.workspaceId || null,
@@ -191,6 +193,8 @@ export async function handler(event, _context = {}, meta = {}) {
     switch (body.action) {
       case "refresh":
         return json(200, await rebuildWorkspaceMemories(common));
+      case "list":
+        return json(200, await listWorkspaceMemoryControls(common));
       case "create":
         return json(200, await createBrandMemory({
           ...common,
@@ -199,7 +203,10 @@ export async function handler(event, _context = {}, meta = {}) {
           content: body.content,
           sourceType: body.sourceType,
           sourceId: body.sourceId,
+          sourceAssetId: body.sourceAssetId,
+          sourceGenerator: body.sourceGenerator,
           importance: body.importance,
+          confidence: body.confidence,
           metadata: body.metadata,
         }));
       case "update":
@@ -210,6 +217,26 @@ export async function handler(event, _context = {}, meta = {}) {
           content: body.content,
           importance: body.importance,
           metadata: body.metadata,
+        }));
+      case "forget":
+        return json(200, await forgetBrandMemory({
+          ...common,
+          memoryId: body.memoryId,
+        }));
+      case "delete_workspace":
+        if (body.confirm !== "DELETE_WORKSPACE_MEMORY") {
+          return json(400, { ok: false, code: "CONFIRMATION_REQUIRED", error: "Confirm workspace memory deletion.", requestId });
+        }
+        return json(200, await deleteWorkspaceMemories(common));
+      case "disable_workspace":
+        return json(200, await setWorkspaceMemoryDisabled({
+          ...common,
+          disabled: true,
+        }));
+      case "enable_workspace":
+        return json(200, await setWorkspaceMemoryDisabled({
+          ...common,
+          disabled: false,
         }));
       case "search":
         return json(200, await searchBrandMemories({
