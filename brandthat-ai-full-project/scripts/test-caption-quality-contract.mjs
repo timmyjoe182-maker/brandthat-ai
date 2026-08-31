@@ -311,6 +311,29 @@ Audience: Apartment renters, busy beginners, and people with limited natural lig
 Brand tone: Friendly
 `;
 
+const stoneWithStaleHarborMemory = `
+Server verified workspace context:
+Brand name: Stone & Stem
+Description: A local subscription service delivering low-maintenance houseplants to apartment renters, with simple care guidance.
+Audience: Apartment renters, busy beginners, and people with limited natural light
+Brand tone: Friendly
+
+Private semantic brand memory for this selected workspace:
+Brand name: Harbor Hound
+Description: A mobile dog-grooming service for busy coastal families and senior pet owners.
+`;
+
+const staleMemoryLeakValidation = validateGeneratedItemQuality(
+  "Our pet care deliveries include all the care tips you need.",
+  { supportedSource: stoneWithStaleHarborMemory, generatorType: "captions" },
+);
+assert.equal(staleMemoryLeakValidation.contextKind, "plant", "Server-verified workspace context must outrank semantic-memory snippets.");
+assert.equal(staleMemoryLeakValidation.ok, false, "Stone & Stem captions must reject stale Harbor Hound pet-care language.");
+assert.ok(
+  staleMemoryLeakValidation.reasons.includes("cross_workspace_pet_leak"),
+  "Stale pet-care language must be recorded as cross-workspace leakage.",
+);
+
 const brokenHarborSentence = repairGeneratedItemQuality(
   "Our gentle approach helps with they feel great every time.",
   { supportedSource: harborSource, generatorType: "captions" },
@@ -480,6 +503,14 @@ assert.ok(
     generateSource.includes("stage: providerError.stage") &&
     generateSource.includes("BrandThat editorial selection failed"),
   "Caption pipeline failures must be logged and returned with stage-specific diagnostics."
+);
+
+assert.ok(
+  generateSource.includes("Server verified workspace context:") &&
+    generateSource.includes("getVerifiedWorkspaceContext") &&
+    generateSource.includes("query: `${verifiedWorkspaceContext}\\n${prompt}`.trim()") &&
+    generateSource.includes("const supportedSource = `${verifiedWorkspaceContext}\\n${prompt}\\n${memoryPromptSection}`"),
+  "Caption generation must use the authenticated workspace row as the authoritative context before semantic memory."
 );
 
 assert.doesNotMatch(

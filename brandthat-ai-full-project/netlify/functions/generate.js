@@ -312,6 +312,10 @@ function getOpeningKey(value = "") {
 
 function getContextKind(supportedSource = "") {
   const source = String(supportedSource || "");
+  const authoritativeSource = source.split("Private semantic brand memory for this selected workspace:")[0].slice(0, 4000);
+  if (PLANT_CONTEXT_PATTERN.test(authoritativeSource)) return "plant";
+  if (PET_CONTEXT_PATTERN.test(authoritativeSource)) return "pet";
+  if (SOFTWARE_CONTEXT_PATTERN.test(authoritativeSource)) return "software";
   if (PET_CONTEXT_PATTERN.test(source)) return "pet";
   if (PLANT_CONTEXT_PATTERN.test(source)) return "plant";
   if (SOFTWARE_CONTEXT_PATTERN.test(source)) return "software";
@@ -1124,6 +1128,59 @@ function getSupabaseAdminClient() {
   });
 }
 
+function compactContextValue(value = "") {
+  if (Array.isArray(value)) return value.map(compactContextValue).filter(Boolean).join(", ");
+  if (value && typeof value === "object") return JSON.stringify(value).slice(0, 900);
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 900);
+}
+
+function pickWorkspaceValue(row = {}, keys = []) {
+  for (const key of keys) {
+    const value = compactContextValue(row?.[key]);
+    if (value && value !== "{}") return value;
+  }
+  return "";
+}
+
+async function getVerifiedWorkspaceContext({ userId, workspaceId, requestId, generatorType }) {
+  if (!workspaceId) return "";
+  const supabase = getSupabaseAdminClient();
+  if (!supabase) return "";
+
+  const { data, error } = await supabase
+    .from("brand_workspaces")
+    .select("*")
+    .eq("id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.warn("BrandThat workspace context unavailable", {
+      requestId,
+      generatorType,
+      workspaceId,
+      code: error?.code || "WORKSPACE_NOT_FOUND",
+      message: error?.message || "Workspace not found for authenticated user.",
+    });
+    return "";
+  }
+
+  const fields = [
+    ["Brand name", pickWorkspaceValue(data, ["name", "brand_name"])],
+    ["Description", pickWorkspaceValue(data, ["description", "business_description"])],
+    ["Audience", pickWorkspaceValue(data, ["audience", "target_audience", "target_audiences"])],
+    ["Positioning", pickWorkspaceValue(data, ["positioning", "differentiator", "offer", "core_positioning"])],
+    ["Brand tone", pickWorkspaceValue(data, ["tone", "voice", "brand_voice", "voice_traits"])],
+    ["Visual direction", pickWorkspaceValue(data, ["visual_direction", "style", "logo_direction"])],
+    ["Primary channels", pickWorkspaceValue(data, ["channels", "growth_platform"])],
+    ["Launch goal", pickWorkspaceValue(data, ["launch_goal"])],
+  ].filter(([, value]) => value);
+
+  return fields.length
+    ? `Server verified workspace context:\n${fields.map(([label, value]) => `${label}: ${value}`).join("\n")}`
+    : "";
+}
+
 async function getMembershipResult(userId) {
   const supabase = getSupabaseAdminClient();
   if (!supabase) {
@@ -1369,6 +1426,15 @@ export const handler = async (event) => {
       return getPublicError(400, "INVALID_INPUT", "Please enter what you want BrandThat to create.", requestId);
     }
 
+    const verifiedWorkspaceContext = generatorType === "captions"
+      ? await getVerifiedWorkspaceContext({
+          userId: auth.user.id,
+          workspaceId,
+          requestId,
+          generatorType,
+        })
+      : "";
+
     let memoryPromptSection = "";
     if (generatorType === "captions" && isBrandMemoryActiveForUser(auth.user.id)) {
       if (!workspaceId) {
@@ -1379,7 +1445,7 @@ export const handler = async (event) => {
       const memoryResult = await getCaptionMemoryContext({
         userId: auth.user.id,
         workspaceId,
-        query: prompt,
+        query: `${verifiedWorkspaceContext}\n${prompt}`.trim(),
       });
 
       console.info("Brand memory caption context", {
@@ -1492,6 +1558,7 @@ Rules:
 - Safe plant phrasing example: "Snake plants are a popular low-maintenance choice for apartment greenery."
 - Avoid fluff.
 - Avoid saying “as an AI.”
+${verifiedWorkspaceContext}
 ${memoryPromptSection}
 `;
 
@@ -1539,7 +1606,7 @@ ${memoryPromptSection}
       durationMs: Date.now() - startedAt,
     });
 
-    const supportedSource = `${prompt}\n${memoryPromptSection}`;
+    const supportedSource = `${verifiedWorkspaceContext}\n${prompt}\n${memoryPromptSection}`;
     const qualityResult = await applyOutputQualityStage({
       text: completion.choices?.[0]?.message?.content || "",
       generatorType,
