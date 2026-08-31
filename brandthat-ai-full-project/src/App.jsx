@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient.js";
 import { buildPreviewFromDraft } from "./previewGenerator.js";
 import { getMembershipCtaState } from "./membershipState.js";
