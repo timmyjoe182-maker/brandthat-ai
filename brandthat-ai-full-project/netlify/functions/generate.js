@@ -238,6 +238,18 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "dependable",
     },
     {
+      pattern: /\btailored\s+for\s+your\s+(pet|dog|pup)\b/gi,
+      replacement: "built around gentle handling",
+    },
+    {
+      pattern: /\b(best\s+care|the\s+best\s+care)\b/gi,
+      replacement: "dependable care",
+    },
+    {
+      pattern: /\bjoining\s+the\s+[^.!?\n]{0,60}\s+community\s+means\b/gi,
+      replacement: "With mobile grooming,",
+    },
+    {
       pattern: /\b(features|includes|comes with|brings)\s+(easy[- ]care|low[- ]maintenance|limited[- ]light|low[- ]light)\s+(options|plants?|houseplants?|varieties|inventory)\b/gi,
       replacement: "includes simple care guidance",
     },
@@ -336,6 +348,9 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(part\s+of|proud\s+to\s+be\s+part\s+of)\s+(the\s+)?(local\s+|coastal\s+)?community\b/i,
   /\blocal\s+families\b/i,
   /\btrustworthy\b/i,
+  /\btailored\s+for\s+your\s+(pet|dog|pup)\b/i,
+  /\b(best\s+care|the\s+best\s+care)\b/i,
+  /\bjoining\s+the\s+[^.!?\n]{0,60}\s+community\s+means\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
   /\bserve\s+our\s+local\b/i,

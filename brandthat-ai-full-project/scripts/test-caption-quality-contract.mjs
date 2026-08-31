@@ -387,6 +387,9 @@ const verifiedHarborFailures = [
   "Our mobile grooming service brings the salon to you.",
   "After a long day at the beach, grooming is easy.",
   "Experience grooming like never before.",
+  "Grooming tailored for your pet.",
+  "Your furry family member gets the best care.",
+  "Joining the Harbor Hound community means your pet gets dependable care.",
 ];
 
 for (const failure of verifiedHarborFailures) {
@@ -402,7 +405,7 @@ for (const failure of verifiedHarborFailures) {
   assert.equal(validation.ok, false, `Verified production failure must fail validation: ${failure}`);
   assert.doesNotMatch(
     repaired,
-    /pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|part of the coastal community|local families|trustworthy|pamper|happier dog|salon|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience/i,
+    /pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|part of the coastal community|local families|trustworthy|tailored for your pet|best care|joining the harbor hound community means|pamper|happier dog|salon|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience/i,
     `Verified production failure must be repaired safely: ${failure}`,
   );
 }
@@ -426,7 +429,7 @@ const repairedHarborOutput = await applyOutputQualityStage({
 });
 assert.doesNotMatch(
   repairedHarborOutput.text,
-  /helps with they|helps with every grooming session feels|pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|part of the coastal community|local families|trustworthy|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pamper|happier dog|salon|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  /helps with they|helps with every grooming session feels|pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|part of the coastal community|local families|trustworthy|tailored for your pet|best care|joining the harbor hound community means|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pamper|happier dog|salon|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
   "Quality stage must repair verified broken grammar, invented CTAs/local claims, cross-brand leakage, guarantees, and placeholders.",
 );
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);
