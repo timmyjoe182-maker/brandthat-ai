@@ -250,6 +250,10 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "gentle grooming visit",
     },
     {
+      pattern: /\bexperience\s+the\s+comfort\s+of\s+[^.!?\n]{0,100}\b/gi,
+      replacement: "Mobile grooming can happen in the familiar space of home",
+    },
+    {
       pattern: /\b(looking|look|feeling|feels)\s+(fresh|comfortable|safe|secure|great|happy|calm)\b/gi,
       replacement: "connected to gentle handling and clean details",
     },
@@ -268,6 +272,22 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     {
       pattern: /\bwith\s+love\s+and\s+care\b/gi,
       replacement: "with gentle handling and clean details",
+    },
+    {
+      pattern: /\btrusted,\s*dependable\b/gi,
+      replacement: "dependable",
+    },
+    {
+      pattern: /\btrusted\b/gi,
+      replacement: "dependable",
+    },
+    {
+      pattern: /\bsolution\b/gi,
+      replacement: "option",
+    },
+    {
+      pattern: /\bfits\s+your\s+lifestyle\b/gi,
+      replacement: "fits the home routine",
     },
     {
       pattern: /\btake\s+care\s+of\s+your\s+pet'?s?\s+grooming\s+needs\b/gi,
@@ -460,6 +480,7 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\bsunny\s+day\s+at\s+the\s+beach\b/i,
   /\bstress\s+of\s+travel\b/i,
   /\bpositive\s+grooming\s+experience\b/i,
+  /\bexperience\s+the\s+comfort\b/i,
   /\bjoin\s+the\s+[^.!?\n]{0,80}\s+community\b/i,
   /\bwhat\s+matters\s+most\b/i,
   /\bdeserves?\b/i,
@@ -468,6 +489,9 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(looking|look|feeling|feels)\s+(fresh|comfortable|safe|secure|great|happy|calm)\b/i,
   /\bdoorstep\b/i,
   /\blove\s+and\s+care\b/i,
+  /\btrusted\b/i,
+  /\bsolution\b/i,
+  /\bfits\s+your\s+lifestyle\b/i,
   /\btake\s+care\s+of\s+your\s+pet'?s?\s+grooming\s+needs\b/i,
   /\bdid\s+you\s+know\b/i,
   /\bprioriti[sz]es?\b/i,
