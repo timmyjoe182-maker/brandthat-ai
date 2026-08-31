@@ -713,11 +713,42 @@ async function upsertWorkspaceMemory({
   const { data: existingRows, error: existingError } = await existingQuery;
 
   if (existingError) throw new Error("Existing memory could not be checked.");
-  const existing = existingRows?.[0] || null;
+  let existing = existingRows?.[0] || null;
+  if (!existing) {
+    const { data: legacyRows, error: legacyError } = await supabase
+      .from("brand_memories")
+      .select("id,content_hash,status,content_version,original_created_at,metadata")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .eq("memory_type", memoryType)
+      .eq("content_hash", contentHash)
+      .eq("status", "active")
+      .limit(1);
+    if (legacyError) {
+      console.warn("Brand memory legacy lookup failed", {
+        userId,
+        workspaceId,
+        memoryType,
+        code: legacyError.code,
+        message: legacyError.message,
+      });
+      throw new Error("Existing memory could not be checked.");
+    }
+    existing = legacyRows?.[0] || null;
+  }
   if (existing?.content_hash === contentHash && existing.status === "active") {
     const { data, error } = await supabase
       .from("brand_memories")
-      .update({ last_confirmed_at: now, updated_at: now })
+      .update({
+        source_type: normalizedSourceType,
+        source_id: sourceId || workspaceId,
+        source_asset_id: sourceAssetId || null,
+        source_generator: normalizeContent(sourceGenerator).slice(0, 80) || null,
+        confidence: clampConfidence(confidence),
+        metadata: { ...(existing.metadata || {}), ...metadata, source_identity: sourceIdentity, updated_at: now },
+        last_confirmed_at: now,
+        updated_at: now,
+      })
       .eq("id", existing.id)
       .eq("workspace_id", workspaceId)
       .eq("user_id", userId)
@@ -770,7 +801,20 @@ async function upsertWorkspaceMemory({
     .select("id,memory_type,title,source_type,source_id,source_asset_id,source_generator,importance,status,confidence,content_version,created_at,last_confirmed_at")
     .single();
 
-  if (error) throw new Error("Brand memory could not be saved.");
+  if (error) {
+    console.warn("Brand memory upsert insert failed", {
+      userId,
+      workspaceId,
+      memoryType,
+      sourceType: normalizedSourceType,
+      sourceAssetPresent: Boolean(sourceAssetId),
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error("Brand memory could not be saved.");
+  }
   return { ok: true, duplicate: false, updated: Boolean(existing?.id), memory: data };
 }
 
