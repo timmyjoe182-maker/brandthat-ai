@@ -194,6 +194,18 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "grooming that fits the routine",
     },
     {
+      pattern: /\b(your|every|each|a)\s+(pup|pet|dog)\s+deserves?\s+[^.!?\n]*/gi,
+      replacement: "Mobile grooming can stay focused on gentle handling, cleanliness, and convenience",
+    },
+    {
+      pattern: /\b(proud(?:ly)?\s+to\s+serve|serv(?:e|ing))\s+(our\s+)?(local\s+)?coastal\s+community\b/gi,
+      replacement: "support busy coastal families and senior pet owners",
+    },
+    {
+      pattern: /\bcalmer\s+grooming\s+experience\b/gi,
+      replacement: "gentler grooming visit",
+    },
+    {
       pattern: /\b(features|includes|comes with|brings)\s+(easy[- ]care|low[- ]maintenance|limited[- ]light|low[- ]light)\s+(options|plants?|houseplants?|varieties|inventory)\b/gi,
       replacement: "includes simple care guidance",
     },
@@ -281,6 +293,9 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(pampered|spa day|pet spa|brings the spa to you|spa to you)\b/i,
   /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/i,
   /\b(grooming|care|service)\s+(they|you|your pet|your pets)\s+deserve\b/i,
+  /\b(your|every|each|a)\s+(pup|pet|dog)\s+deserves?\b/i,
+  /\b(proud(?:ly)?\s+to\s+serve|serv(?:e|ing))\s+(our\s+)?(local\s+)?coastal\s+community\b/i,
+  /\bcalmer\s+grooming\s+experience\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
   /\bserve\s+our\s+local\b/i,
