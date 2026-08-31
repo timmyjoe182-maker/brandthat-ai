@@ -899,6 +899,13 @@ export async function applyOutputQualityStage({
   });
   const approvedItems = [];
   const finalValidationEvents = [];
+  if (firstPassApproved.length < 5) {
+    finalValidationEvents.push({
+      index: -1,
+      reasons: [`editorial_selection_approved_${firstPassApproved.length}`],
+      approved: false,
+    });
+  }
 
   for (let index = 0; index < firstPassApproved.length; index += 1) {
     const candidate = firstPassApproved[index];
@@ -937,6 +944,13 @@ export async function applyOutputQualityStage({
       requestId,
       pass: 2,
     });
+    if (secondPassApproved.length < 5) {
+      finalValidationEvents.push({
+        index: -1,
+        reasons: [`editorial_second_pass_approved_${secondPassApproved.length}`],
+        approved: false,
+      });
+    }
 
     for (let index = 0; index < secondPassApproved.length && approvedItems.length < 5; index += 1) {
       const candidate = secondPassApproved[index];
@@ -1470,6 +1484,22 @@ ${memoryPromptSection}
           rewritten: event.rewritten,
         })),
       });
+    }
+
+    if (generatorType === "captions" && !safeText.trim()) {
+      logGenerateFailure({
+        requestId,
+        generatorType,
+        status: 422,
+        category: "validation",
+        code: "CAPTION_REVIEW_NO_APPROVED_RESULTS",
+        openaiRequestId: completion?._request_id || completion?.response?.headers?.get?.("x-request-id"),
+        authentication: "present",
+        membership: membership.membership,
+        durationMs: Date.now() - startedAt,
+        message: "Caption editorial review returned zero approved captions.",
+      });
+      return getPublicError(422, "CAPTION_REVIEW_NO_APPROVED_RESULTS", "BrandThat could not approve these captions. Try a more specific prompt.", requestId);
     }
 
     if (!safeText.trim()) {

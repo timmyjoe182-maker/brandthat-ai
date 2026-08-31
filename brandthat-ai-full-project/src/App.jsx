@@ -4147,8 +4147,8 @@ export default function App() {
     const next = [brand, ...brandWorkspaces.filter((item) => item.id !== brand.id)];
     setBrandWorkspaces(next);
     setActiveBrandId(brand.id);
-    setPrompt(buildBrandPrompt(brand));
     setActiveToolKey("logo");
+    setPrompt(buildWorkspaceLogoBrief(brand, getWorkspacePlan(brand)));
     setSelectedPlatform(brand.style || "");
     setCreativeTone(brand.name || "");
     setLogoIndustry(brand.description || "");
@@ -4174,7 +4174,7 @@ export default function App() {
     const brand = brandWorkspaces.find((item) => item.id === brandId);
     if (!brand) return;
     setActiveBrandId(brand.id);
-    setPrompt(buildBrandPrompt(brand));
+    setPrompt(activeToolKey === "logo" ? buildWorkspaceLogoBrief(brand, getWorkspacePlan(brand)) : "");
     setSelectedPlatform(brand.style || "");
     setCreativeTone(brand.name || "");
     setLogoIndustry(brand.description || "");
@@ -4802,7 +4802,7 @@ Generated with Brandthat.ai`;
 
     setBrandWorkspaces((prev) => [finalBrand, ...prev]);
     setActiveBrandId(finalBrand.id);
-    setPrompt(buildBrandPrompt(finalBrand));
+    setPrompt(activeToolKey === "logo" ? buildWorkspaceLogoBrief(finalBrand, getWorkspacePlan(finalBrand)) : "");
     notify("success", "Workspace duplicated", `${finalBrand.name} is ready to edit.`);
   };
 
@@ -10596,7 +10596,7 @@ function getLoadingText(toolKey) {
 function getLoadingSubtext(toolKey) {
   const subtext = {
     logo: "Balancing style, clarity, scalability, and brand memorability.",
-    captions: "Creating ten clean options for your selected platform.",
+    captions: "Creating and reviewing captions. If fewer than five pass, BrandThat will show the approved count.",
     hooks: "Creating ten quick, platform-aware hook options.",
     bios: "Creating ten polished profile-ready bio options.",
     hashtags: "Creating one clean copy-ready hashtag block.",

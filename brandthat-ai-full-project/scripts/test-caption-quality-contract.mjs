@@ -74,6 +74,31 @@ function createApprovalClient() {
   };
 }
 
+function createRejectingClient() {
+  return {
+    chat: {
+      completions: {
+        create: async ({ messages }) => {
+          const userText = messages?.at?.(-1)?.content || "";
+          if (userText.trim().startsWith("{")) {
+            return {
+              choices: [{
+                message: {
+                  content: JSON.stringify({
+                    approved_captions: [],
+                    rejected: [{ index: 0, problems: ["unsupported claim"] }],
+                  }),
+                },
+              }],
+            };
+          }
+          return { choices: [{ message: { content: "A generic replacement that still needs review." } }] };
+        },
+      },
+    },
+  };
+}
+
 const requiredStyleLabels = [
   "Punchy",
   "Story",
@@ -139,6 +164,18 @@ assert.ok(
   appSource.includes("Generate 5 Captions") &&
     appSource.includes("5 COPY-READY CAPTIONS"),
   "Caption UI must promise five reviewed captions."
+);
+
+assert.ok(
+  appSource.includes("Creating and reviewing captions") &&
+    appSource.includes("approved count"),
+  "Caption loading copy must explain generation and editorial review."
+);
+
+assert.doesNotMatch(
+  appSource,
+  /setPrompt\(buildBrandPrompt\((brand|finalBrand)\)\)/,
+  "Brand switching and workspace creation must not place internal Brand DNA into the visible caption textbox."
 );
 
 assert.ok(
@@ -367,6 +404,25 @@ assert.equal(
   5,
   "Caption quality stage must return five approved captions.",
 );
+
+const zeroApprovedOutput = await applyOutputQualityStage({
+  generatorType: "captions",
+  supportedSource: harborSource,
+  openAiClient: createRejectingClient(),
+  text: [
+    "1. Your pet will love it.",
+    "2. No more stressful trips.",
+    "3. Trust us to care for your furry companions.",
+    "4. Proudly serving our coastal community.",
+    "5. Our gentle approach helps with every grooming session feels like a treat.",
+    "6. Click the link in our bio.",
+    "7. Just wrapped up with a happy pup.",
+    "8. Professional grooming at home.",
+  ].join("\n"),
+});
+assert.equal(zeroApprovedOutput.text, "", "A failed editorial review must return zero captions, not fallback copy disguised as approved output.");
+assert.equal(zeroApprovedOutput.approvedCount, 0, "Zero approved captions must be explicit.");
+assert.ok(zeroApprovedOutput.rejectedCount > 0, "Rejected captions must be counted.");
 
 assert.doesNotMatch(
   `${appSource}\n${generateSource}`,
