@@ -454,6 +454,23 @@ assert.ok(
   "Server must return explicit zero-approved errors and reviewed-caption schema aliases."
 );
 
+for (const code of [
+  "CAPTION_CANDIDATE_GENERATION_FAILED",
+  "CAPTION_EDITORIAL_REVIEW_FAILED",
+  "CAPTION_REVIEW_PARSE_FAILED",
+  "CAPTION_PIPELINE_TIMEOUT",
+  "CAPTION_REVIEW_NO_APPROVED_RESULTS",
+]) {
+  assert.ok(generateSource.includes(code), `Caption pipeline must expose safe code: ${code}`);
+}
+
+assert.ok(
+  generateSource.includes("createPipelineError") &&
+    generateSource.includes("stage: providerError.stage") &&
+    generateSource.includes("BrandThat editorial selection failed"),
+  "Caption pipeline failures must be logged and returned with stage-specific diagnostics."
+);
+
 assert.doesNotMatch(
   `${appSource}\n${generateSource}`,
   /Northline Goods[\s\S]{0,140}(Caption goal|Current Brand Workspace|captionStyleLabels)/i,

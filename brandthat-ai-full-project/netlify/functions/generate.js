@@ -25,6 +25,7 @@ function logGenerateFailure(fields = {}) {
     generatorType: fields.generatorType,
     status: fields.status,
     category: fields.category,
+    stage: fields.stage,
     code: fields.code,
     providerStatus: fields.providerStatus,
     providerCode: fields.providerCode,
@@ -35,6 +36,23 @@ function logGenerateFailure(fields = {}) {
     durationMs: fields.durationMs,
     message: fields.message,
   });
+}
+
+function getOpenAiRequestId(error) {
+  return error?._request_id || error?.request_id || error?.headers?.["x-request-id"] || error?.response?.headers?.get?.("x-request-id") || null;
+}
+
+function createPipelineError(code, stage, error, message) {
+  const wrapped = new Error(message || error?.message || "Generation failed.");
+  wrapped.code = code;
+  wrapped.stage = stage;
+  wrapped.cause = error;
+  wrapped.status = error?.name === "AbortError" ? 504 : error?.status || error?.statusCode || 502;
+  wrapped.providerStatus = error?.status || error?.statusCode || 0;
+  wrapped.providerCode = error?.code || error?.type || error?.name || "";
+  wrapped.openaiRequestId = getOpenAiRequestId(error);
+  wrapped.timeout = error?.name === "AbortError";
+  return wrapped;
 }
 
 function getPublicError(statusCode, code, message, requestId) {
@@ -465,6 +483,7 @@ async function selectApprovedCaptionsEditorially({ openAiClient, systemPrompt, p
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   const approvedFacts = buildApprovedFactsObject({ prompt, supportedSource, generatorType: "captions" });
+  const startedAt = Date.now();
   try {
     const numberedItems = items.map((item, index) => `${index + 1}. ${item}`).join("\n");
     const review = await openAiClient.chat.completions.create({
@@ -496,25 +515,49 @@ If fewer than five captions can be approved, return only the approved captions.`
       temperature: 0,
     }, { signal: controller.signal });
     const parsed = parseEditorialJson(review.choices?.[0]?.message?.content || "");
+    if (!parsed) {
+      throw createPipelineError(
+        "CAPTION_REVIEW_PARSE_FAILED",
+        "editorial_review_parse",
+        { message: "Editorial review returned malformed JSON.", status: 502, code: "MALFORMED_JSON", _request_id: getOpenAiRequestId(review) },
+        "Caption review returned an unreadable response.",
+      );
+    }
     const approved = normalizeApprovedCaptionPayload(parsed, supportedSource);
     console.info("BrandThat editorial selection executed", {
       requestId,
       generatorType: "captions",
+      stage: "editorial_review",
       pass,
       candidateCount: items.length,
       approvedCount: approved.length,
       rejectedCount: Array.isArray(parsed?.rejected) ? parsed.rejected.length : null,
+      model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+      durationMs: Date.now() - startedAt,
     });
     return approved;
   } catch (error) {
-    console.warn("BrandThat editorial selection unavailable", {
+    const pipelineError = error?.stage
+      ? error
+      : createPipelineError(
+          error?.name === "AbortError" ? "CAPTION_PIPELINE_TIMEOUT" : "CAPTION_EDITORIAL_REVIEW_FAILED",
+          "editorial_review",
+          error,
+          error?.name === "AbortError" ? "Caption review timed out." : "Caption editorial review failed.",
+        );
+    console.error("BrandThat editorial selection failed", {
       requestId,
       generatorType: "captions",
+      stage: pipelineError.stage,
       pass,
-      code: error?.code || error?.type || error?.name,
-      statusCode: error?.status || error?.statusCode || null,
+      code: pipelineError.code,
+      providerStatus: pipelineError.providerStatus || null,
+      providerCode: pipelineError.providerCode || null,
+      openaiRequestId: pipelineError.openaiRequestId || null,
+      model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+      durationMs: Date.now() - startedAt,
     });
-    return [];
+    throw pipelineError;
   } finally {
     clearTimeout(timer);
   }
@@ -1129,10 +1172,30 @@ async function getMembershipResult(userId) {
 }
 
 function normalizeOpenAiError(error) {
+  if (String(error?.code || "").startsWith("CAPTION_")) {
+    const isTimeout = error?.code === "CAPTION_PIPELINE_TIMEOUT";
+    return {
+      httpStatus: isTimeout ? 504 : Number(error?.status || 502),
+      code: error.code,
+      message: isTimeout
+        ? "Caption review took too long. Please try again."
+        : error.code === "CAPTION_EDITORIAL_REVIEW_FAILED"
+          ? "Caption review failed. Please try again."
+          : error.code === "CAPTION_REVIEW_PARSE_FAILED"
+            ? "Caption review returned an unreadable response. Please try again."
+            : "Caption generation failed. Please try again.",
+      providerStatus: Number(error?.providerStatus || error?.status || 0),
+      providerCode: String(error?.providerCode || error?.cause?.code || error?.cause?.type || "").toUpperCase(),
+      openaiRequestId: error?.openaiRequestId || getOpenAiRequestId(error?.cause),
+      timeout: Boolean(error?.timeout || isTimeout),
+      stage: error?.stage || "caption_pipeline",
+    };
+  }
+
   const providerStatus = Number(error?.status || error?.statusCode || 0);
   const message = String(error?.message || "");
   const rawCode = String(error?.code || error?.type || "").toUpperCase();
-  const openaiRequestId = error?.request_id || error?.headers?.["x-request-id"];
+  const openaiRequestId = getOpenAiRequestId(error);
 
   if (error?.name === "AbortError") {
     return {
@@ -1450,8 +1513,23 @@ ${memoryPromptSection}
     try {
       completion = await createCompletion();
     } catch (error) {
-      if (!isTransientOpenAiError(error)) throw error;
-      completion = await createCompletion();
+      if (!isTransientOpenAiError(error)) {
+        throw generatorType === "captions"
+          ? createPipelineError("CAPTION_CANDIDATE_GENERATION_FAILED", "candidate_generation", error, "Caption candidate generation failed.")
+          : error;
+      }
+      try {
+        completion = await createCompletion();
+      } catch (retryError) {
+        throw generatorType === "captions"
+          ? createPipelineError(
+              retryError?.name === "AbortError" ? "CAPTION_PIPELINE_TIMEOUT" : "CAPTION_CANDIDATE_GENERATION_FAILED",
+              "candidate_generation",
+              retryError,
+              retryError?.name === "AbortError" ? "Caption candidate generation timed out." : "Caption candidate generation failed.",
+            )
+          : retryError;
+      }
     }
 
     console.info("BrandThat generation completed", {
@@ -1541,6 +1619,7 @@ ${memoryPromptSection}
       generatorType,
       status: providerError.httpStatus,
       category: "provider",
+      stage: providerError.stage || "openai_request",
       code: providerError.code,
       providerStatus: providerError.providerStatus,
       providerCode: providerError.providerCode,
