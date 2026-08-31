@@ -1050,6 +1050,64 @@ function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorTy
   return bank[index % bank.length];
 }
 
+const STRICT_PET_FINAL_REJECTION_PATTERNS = [
+  /\b(deserves?|promise|needs?|lifestyle|proud|happy|relaxed|freshly groomed|designed for|experience the convenience|experience the comfort)\b/i,
+  /\b(day at the beach|beach|doorstep|while you enjoy|what matters most|love and care|less stressful|stress of travel)\b/i,
+  /\b(looking|look|feeling|feels)\s+(fresh|comfortable|safe|secure|great|happy|calm)\b/i,
+  /\b(join|joining)\s+the\s+[^.!?\n]{0,80}\s+community\b/i,
+  /\b(trusted|solution|top priority|watch them shine|nothing beats|did you know)\b/i,
+];
+
+function applyStrictPetFinalGate(items = [], { supportedSource = "", generatorType = "captions" } = {}) {
+  if (generatorType !== "captions" || getContextKind(supportedSource) !== "pet") {
+    return { items, replacedCount: 0 };
+  }
+
+  const finalItems = [];
+  let replacedCount = 0;
+  const desiredCount = Math.min(5, Math.max(items.length, 5));
+
+  for (let index = 0; index < desiredCount; index += 1) {
+    const original = items[index] || "";
+    let candidate = repairGeneratedItemQuality(original, { supportedSource, generatorType, index });
+    let validation = validateGeneratedItemQuality(candidate, {
+      index,
+      allItems: finalItems,
+      supportedSource,
+      generatorType,
+    });
+
+    if (!candidate || hasAnyPattern(candidate, STRICT_PET_FINAL_REJECTION_PATTERNS) || !validation.ok) {
+      candidate = buildSafeReplacementItem({ index, supportedSource, generatorType });
+      validation = validateGeneratedItemQuality(candidate, {
+        index,
+        allItems: finalItems,
+        supportedSource,
+        generatorType,
+      });
+      replacedCount += 1;
+    }
+
+    if (!validation.ok || hasAnyPattern(candidate, STRICT_PET_FINAL_REJECTION_PATTERNS)) {
+      candidate = buildSafeReplacementItem({ index: index + 5, supportedSource, generatorType });
+      replacedCount += 1;
+    }
+
+    const duplicate = finalItems.some((item) => normalizeForComparison(item) === normalizeForComparison(candidate));
+    if (!duplicate) finalItems.push(candidate);
+  }
+
+  for (let index = finalItems.length; index < 5; index += 1) {
+    const candidate = buildSafeReplacementItem({ index, supportedSource, generatorType });
+    if (!finalItems.some((item) => normalizeForComparison(item) === normalizeForComparison(candidate))) {
+      finalItems.push(candidate);
+      replacedCount += 1;
+    }
+  }
+
+  return { items: finalItems.slice(0, 5), replacedCount };
+}
+
 export function repairGeneratedItemQuality(item = "", options = {}) {
   const contextKind = getContextKind(options.supportedSource);
   let repaired = sanitizeUnsafeGeneratedClaims(item, options.supportedSource);
@@ -1275,28 +1333,35 @@ export async function applyOutputQualityStage({
     }
   }
 
+  const strictFinalGate = approvedItems.length
+    ? applyStrictPetFinalGate(approvedItems, { supportedSource, generatorType })
+    : { items: approvedItems, replacedCount: 0 };
+  const finalApprovedItems = strictFinalGate.items;
+  repairedCount += strictFinalGate.replacedCount;
+
   console.info("BrandThat final validation gate", {
     requestId,
     generatorType,
     generatedCount: repairedItems.length,
-    approvedCount: approvedItems.length,
-    rejectedCount: finalValidationEvents.length,
+    approvedCount: finalApprovedItems.length,
+    rejectedCount: finalValidationEvents.length + strictFinalGate.replacedCount,
     rejectedIndexes: finalValidationEvents.map((event) => event.index),
+    strictReplacedCount: strictFinalGate.replacedCount,
   });
 
   console.info("BrandThat output validation completed", {
     requestId,
     generatorType,
-    itemCount: approvedItems.length,
+    itemCount: finalApprovedItems.length,
     repairedCount,
     failedIndexes: [...validationEvents, ...finalValidationEvents].map((event) => event.index),
   });
 
   return {
-    text: formatGeneratedItems(approvedItems),
+    text: formatGeneratedItems(finalApprovedItems),
     repairedCount,
-    approvedCount: approvedItems.length,
-    rejectedCount: finalValidationEvents.length,
+    approvedCount: finalApprovedItems.length,
+    rejectedCount: finalValidationEvents.length + strictFinalGate.replacedCount,
     validationEvents: [...validationEvents, ...finalValidationEvents],
   };
 }
