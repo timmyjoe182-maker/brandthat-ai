@@ -28,7 +28,7 @@ class BrandThatErrorBoundary extends React.Component {
   };
 
   returnToWorkspace = () => {
-    window.history.pushState({}, "", "/#workspace");
+    window.history.pushState({}, "", "/workspace");
     window.location.reload();
   };
 

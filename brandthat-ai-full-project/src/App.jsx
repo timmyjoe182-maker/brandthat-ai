@@ -22,6 +22,8 @@ const BRAND_PLAN_PRICE = "$9.99/mo";
 const TRIAL_GENERATION_LIMIT = 0;
 const PUBLIC_SUPPORT_EMAIL = import.meta.env.VITE_PUBLIC_SUPPORT_EMAIL || "support@brandthat.ai";
 const PENDING_MEMBERSHIP_INTENT_KEY = "brandthat_pending_membership_intent";
+const CUSTOMER_INTENT_DRAFT_KEY = "brandthat_customer_intent_draft";
+const WORKSPACE_TOUR_DISMISSED_KEY = "brandthat_workspace_tour_dismissed";
 
 function normalizePlan(plan = "free") {
   if (plan === "member" || plan === "starter" || plan === "pro") return MEMBER_PLAN;
@@ -118,12 +120,12 @@ const tools = [
     key: "captions",
     title: "Caption Generator",
     shortTitle: "Captions",
-    desc: "Choose a platform, describe the post, and get 10 clean caption options instantly.",
+    desc: "Choose a platform, describe the post, and get 5 reviewed caption options.",
     label: "CAPTION GENERATOR",
     platformLabel: "Social platform",
     platforms: ["Instagram", "TikTok", "Facebook", "LinkedIn", "X / Twitter", "YouTube Shorts", "Pinterest"],
     placeholder: "Example: A sunset ranch dinner with miniature cows, alpacas, and a calm luxury countryside feel.",
-    promptGuide: "Generate exactly 10 useful social captions. The user chooses a social platform and describes the post. Return captions only, no long explanation. Make the captions copy-ready and relevant to what the user typed."
+    promptGuide: "Generate exactly 5 reviewed social captions. The user chooses a social platform, goal, and post context. Return captions only, no long explanation. Make the captions copy-ready and relevant to what the user typed."
   },
   {
     key: "hooks",
@@ -2559,6 +2561,50 @@ function getDefaultWorkspaceDraft() {
   };
 }
 
+function getVisibleCustomerDraft(draft = {}) {
+  const visibleKeys = [
+    "name",
+    "description",
+    "audience",
+    "tone",
+    "style",
+    "industry",
+    "locationMarket",
+    "growthPlatform",
+    "targetFollowers",
+    "launchGoal",
+    "logoDirection",
+  ];
+  return visibleKeys.reduce((next, key) => {
+    const value = key === "tone" ? draft[key] || "Modern" : cleanGeneratedText(draft[key] || "");
+    if (value) next[key] = value;
+    return next;
+  }, { updatedAt: new Date().toISOString() });
+}
+
+function hasVisibleCustomerDraft(draft = {}) {
+  return Boolean(cleanGeneratedText(draft.name || "") || cleanGeneratedText(draft.description || ""));
+}
+
+function persistVisibleCustomerDraft(draft = {}) {
+  if (!hasVisibleCustomerDraft(draft)) return;
+  try {
+    localStorage.setItem(CUSTOMER_INTENT_DRAFT_KEY, JSON.stringify(getVisibleCustomerDraft(draft)));
+  } catch {
+    localStorage.removeItem(CUSTOMER_INTENT_DRAFT_KEY);
+  }
+}
+
+function getInitialWorkspaceDraft() {
+  const workspaceDraft = safeParse("brandthat_workspace_draft", null);
+  const intentDraft = safeParse(CUSTOMER_INTENT_DRAFT_KEY, null);
+  return {
+    ...getDefaultWorkspaceDraft(),
+    ...(intentDraft && typeof intentDraft === "object" ? intentDraft : {}),
+    ...(workspaceDraft && typeof workspaceDraft === "object" ? workspaceDraft : {}),
+  };
+}
+
 function getBrandReadinessScore(brand) {
   return getBrandCompletion(brand).percent;
 }
@@ -2932,9 +2978,7 @@ export default function App() {
   const [activeBrandId, setActiveBrandId] = useState(localStorage.getItem("brandthat_active_brand_id") || "");
   const activeBrand = brandWorkspaces.find((brand) => brand.id === activeBrandId) || brandWorkspaces[0] || null;
 
-  const [workspaceDraft, setWorkspaceDraft] = useState(() =>
-    safeParse("brandthat_workspace_draft", getDefaultWorkspaceDraft())
-  );
+  const [workspaceDraft, setWorkspaceDraft] = useState(getInitialWorkspaceDraft);
 
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [subscribeMessage, setSubscribeMessage] = useState("");
@@ -2943,6 +2987,7 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState(() => safeParse("brandthat_favorite_ids", {}));
   const [brandMemoryPilot, setBrandMemoryPilot] = useState({ active: false, unavailable: false, loading: false, refreshing: false, message: "", status: null });
   const [brandMemoryStatusNonce, setBrandMemoryStatusNonce] = useState(0);
+  const [workspaceTourDismissed, setWorkspaceTourDismissed] = useState(() => localStorage.getItem(WORKSPACE_TOUR_DISMISSED_KEY) === "true");
 
   const isMember = normalizePlan(userPlan) === MEMBER_PLAN;
   const isFree = !isMember;
@@ -3249,7 +3294,7 @@ export default function App() {
         setCheckoutError("");
         setCheckoutReturnSessionId("");
         setPage("workspace");
-        window.history.replaceState({}, "", "/#workspace");
+        window.history.replaceState({}, "", "/workspace");
         notify("success", "Membership active", "Your BrandThat workspace is unlocked.");
         return true;
       }
@@ -3554,6 +3599,7 @@ export default function App() {
     setAutoSaveStatus("Saving draft...");
     const timer = setTimeout(() => {
       localStorage.setItem("brandthat_workspace_draft", JSON.stringify(workspaceDraft));
+      persistVisibleCustomerDraft(workspaceDraft);
       setAutoSaveStatus("Draft autosaved");
     }, 450);
 
@@ -3746,6 +3792,7 @@ export default function App() {
 
   const signUp = async () => {
     const email = authEmail.trim().toLowerCase();
+    persistVisibleCustomerDraft(workspaceDraft);
 
     if (!email || !authPassword) {
       setAuthMessage("Enter your email and create a password to make your free Brandthat account.");
@@ -3809,6 +3856,7 @@ export default function App() {
 
   const logIn = async () => {
     const email = authEmail.trim().toLowerCase();
+    persistVisibleCustomerDraft(workspaceDraft);
 
     if (!email || !authPassword) {
       setAuthMessage("Enter your email and password to log in.");
@@ -3935,6 +3983,7 @@ export default function App() {
   const startMembershipCheckout = async ({ source = "membership_cta" } = {}) => {
     const checkoutPlan = MEMBER_PLAN;
     const eventSource = String(source || "membership_cta").slice(0, 80);
+    persistVisibleCustomerDraft(workspaceDraft);
     trackBrandthatEvent("membership_cta_clicked", { plan: checkoutPlan, source: eventSource });
     setCheckoutError("");
     setCheckoutResumePrompt(false);
@@ -3950,7 +3999,7 @@ export default function App() {
       setCheckoutError("");
       setCheckoutResumePrompt(false);
       setPage("workspace");
-      window.history.pushState({}, "", "/#workspace");
+      window.history.pushState({}, "", "/workspace");
       notify("success", "Membership active", "Opening your BrandThat workspace.");
       return;
     }
@@ -4029,7 +4078,7 @@ export default function App() {
         setCheckoutError("");
         setCheckoutResumePrompt(false);
         setPage("workspace");
-        window.history.pushState({}, "", "/#workspace");
+        window.history.pushState({}, "", "/workspace");
         notify("success", "Membership active", "Opening your BrandThat workspace.");
         return;
       }
@@ -4043,7 +4092,7 @@ export default function App() {
         setCheckoutError("");
         setCheckoutResumePrompt(false);
         setPage("workspace");
-        window.history.pushState({}, "", "/#workspace");
+        window.history.pushState({}, "", "/workspace");
         notify("success", "Membership active", "Opening your BrandThat workspace.");
         return;
       }
@@ -4168,6 +4217,7 @@ export default function App() {
     window.history.pushState({}, "", "/workspace");
     setWorkspaceDraft(getDefaultWorkspaceDraft());
     localStorage.removeItem("brandthat_workspace_draft");
+    localStorage.removeItem(CUSTOMER_INTENT_DRAFT_KEY);
     trackBrandthatEvent("workspace_created", { hasLogoDirection: Boolean(baseBrand.logoDirection), goal: baseBrand.targetFollowers || baseBrand.launchGoal || "" });
     notify("success", "Workspace created", `${brand.name} is saved to your BrandThat account.`);
     setWorkspaceCreating(false);
@@ -6376,7 +6426,7 @@ ${promptValue}`;
         </div>
       )}
 
-      {checkoutResumePrompt && authStatus === "logged_in" && normalizePlan(userPlan) !== MEMBER_PLAN && (
+      {checkoutResumePrompt && authStatus === "logged_in" && !membershipLoading && normalizePlan(userPlan) !== MEMBER_PLAN && (
         <div className="checkoutResumeBanner" role="status" aria-live="polite">
           <div>
             <strong>Ready for membership checkout</strong>
@@ -6470,6 +6520,11 @@ ${promptValue}`;
             deleteSavedAsset={deleteSavedAsset}
             setSavedLogoAsBrandProfile={setSavedLogoAsBrandProfile}
             continueSavedLogo={continueSavedLogo}
+            workspaceTourDismissed={workspaceTourDismissed}
+            dismissWorkspaceTour={() => {
+              localStorage.setItem(WORKSPACE_TOUR_DISMISSED_KEY, "true");
+              setWorkspaceTourDismissed(true);
+            }}
           />
         </LoggedInAppShell>
       )}
@@ -6867,7 +6922,19 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
       <div className="builderActions previewActions"><button className="btn dark" onClick={generatePreview}>{previewState === "loading" ? "Creating preview..." : "Generate Free Preview"}</button><MembershipCta className="btn light" user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Complete Workspace" verifiedLabel="Unlock Complete Workspace" source="preview_unlock_top" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div>
       {previewState === "missing" && <div className="friendlyState warning"><strong>Add a name and idea first.</strong><span>BrandThat needs both fields to create a useful preview.</span></div>}
       {previewState === "loading" && <div className="friendlyState"><strong>Preview generation in progress.</strong><span>Creating thesis, audience, voice, positioning, and visual direction.</span></div>}
-      {preview && <div className="previewResult" aria-live="polite"><div><span>Brand thesis</span><p>{preview.thesis}</p></div><div><span>Audience summary</span><p>{preview.audience}</p></div><div><span>Voice traits</span><p>{preview.traits.join(" · ")}</p></div><div><span>Positioning direction</span><p>{preview.positioning}</p></div><div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div><div className="unlockCallout"><strong>Unlock the complete Brand Workspace</strong><p>Complete strategy, expanded audience and positioning, brand voice, identity direction, logo concepts, platform and content direction, 90-day launch roadmap, saved workspace, and connected generators.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock Workspace" verifiedLabel="Unlock Workspace" source="preview_unlock_result" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div></div>}
+      {preview && <div className="previewResult" aria-live="polite">
+        <div className="previewIntro">
+          <span>Free Preview</span>
+          <strong>A focused snapshot, not the complete workspace.</strong>
+          <p>This preview shows the first strategic direction BrandThat can build from your visible draft. Membership unlocks the saved workspace, connected generators, logo concepts, roadmap, exports, and saved assets.</p>
+        </div>
+        <div><span>Brand thesis</span><p>{preview.thesis}</p></div>
+        <div><span>Audience</span><p>{preview.audience}</p></div>
+        <div><span>Three voice traits</span><p>{preview.traits.slice(0, 3).join(" · ")}</p></div>
+        <div><span>Positioning direction</span><p>{preview.positioning}</p></div>
+        <div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div>
+        <div className="unlockCallout"><strong>Unlock the Complete Workspace</strong><p>After membership, your draft becomes a saved Brand Workspace with expanded strategy, brand voice, visual identity, Content Tools, logo generation, 90-day roadmap, Brand Book export, and persistent saved assets.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock the Complete Workspace" verifiedLabel="Unlock the Complete Workspace" source="preview_unlock_result" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div>
+      </div>}
       <p className="builderFinePrint">The free preview avoids expensive generation and does not save a full workspace. Complete generation remains behind authentication, email verification, Stripe checkout, and existing server-side validation.</p>
     </section>
   );
@@ -6930,6 +6997,10 @@ function ToolGridSkeleton() {
 }
 
 function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, autoSaveStatus, workspaceCreating = false }) {
+  const nameMissing = !cleanGeneratedText(workspaceDraft.name || "");
+  const descriptionMissing = !cleanGeneratedText(workspaceDraft.description || "");
+  const goalMissing = !cleanGeneratedText(workspaceDraft.targetFollowers || workspaceDraft.launchGoal || "");
+
   return (
     <div className="workspaceCard">
       <div className="tinyTag">START HERE</div>
@@ -6937,11 +7008,18 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
       <p>Save the basics once, then every tool can reuse the same brand name, voice, logo, and growth goal.</p>
       <span className="autoSavePill">{autoSaveStatus}</span>
       <div className="workspaceGrid">
-        <input
-          placeholder="Brand name"
-          value={workspaceDraft.name}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
-        />
+        <label className="workspaceFieldLabel" htmlFor="workspace-brand-name">
+          <span>Brand name</span>
+          <input
+            id="workspace-brand-name"
+            placeholder="Stone & Stem"
+            value={workspaceDraft.name}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, name: e.target.value })}
+            aria-invalid={nameMissing}
+            aria-describedby="workspace-brand-name-help"
+          />
+          <small id="workspace-brand-name-help">{nameMissing ? "Required to create a workspace." : "This name appears in your strategy, generators, and saved assets."}</small>
+        </label>
         <label className="workspaceFieldLabel">
           <span>Brand voice</span>
           <select
@@ -6953,131 +7031,97 @@ function WorkspaceCreator({ workspaceDraft, setWorkspaceDraft, createWorkspace, 
         </label>
       </div>
 
-      <textarea
-        placeholder="Brand description. Example: A premium AI creative studio helping creators and businesses build logos, captions, and brand systems fast."
-        value={workspaceDraft.description}
-        onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })}
-      />
+      <label className="workspaceFieldLabel full" htmlFor="workspace-brand-description">
+        <span>Business description</span>
+        <textarea
+          id="workspace-brand-description"
+          placeholder="A local subscription service delivering beginner-friendly houseplants to apartment renters."
+          value={workspaceDraft.description}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, description: e.target.value })}
+          aria-invalid={descriptionMissing}
+          aria-describedby="workspace-brand-description-help"
+        />
+        <small id="workspace-brand-description-help">{descriptionMissing ? "Required so BrandThat can build useful strategy and tools." : "Use your own visible business description. Internal prompts are never saved here."}</small>
+      </label>
 
       <div className="workspaceGrid">
-        <select
-          value={workspaceDraft.growthPlatform || ""}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, growthPlatform: e.target.value })}
-        >
-          <option value="">Primary growth platform</option>
-          <option value="Instagram">Instagram</option>
-          <option value="TikTok">TikTok</option>
-          <option value="YouTube Shorts">YouTube Shorts</option>
-          <option value="LinkedIn">LinkedIn</option>
-          <option value="Facebook">Facebook</option>
-          <option value="Pinterest">Pinterest</option>
-          <option value="Multi-platform">Multi-platform</option>
-        </select>
-        <input
-          placeholder="Main goal. Example: Reach 100K followers"
-          value={workspaceDraft.targetFollowers || workspaceDraft.launchGoal}
-          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, targetFollowers: e.target.value, launchGoal: e.target.value })}
-        />
+        <label className="workspaceFieldLabel" htmlFor="workspace-growth-platform">
+          <span>Primary growth platform</span>
+          <select
+            id="workspace-growth-platform"
+            value={workspaceDraft.growthPlatform || ""}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, growthPlatform: e.target.value })}
+          >
+            <option value="">Select a platform</option>
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="YouTube Shorts">YouTube Shorts</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Pinterest">Pinterest</option>
+            <option value="Multi-platform">Multi-platform</option>
+          </select>
+        </label>
+        <label className="workspaceFieldLabel" htmlFor="workspace-main-goal">
+          <span>Main goal</span>
+          <input
+            id="workspace-main-goal"
+            placeholder="Reach 1,000 local subscribers"
+            value={workspaceDraft.targetFollowers || workspaceDraft.launchGoal}
+            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, targetFollowers: e.target.value, launchGoal: e.target.value })}
+            aria-invalid={goalMissing}
+            aria-describedby="workspace-main-goal-help"
+          />
+          <small id="workspace-main-goal-help">{goalMissing ? "Add a goal when you know it. You can still create the workspace." : "This guides roadmap and generator recommendations."}</small>
+        </label>
       </div>
 
-      <textarea
-        placeholder="Logo direction. Example: Black-and-white, modern B monogram, clean premium technology feel, works as favicon and social profile image."
-        value={workspaceDraft.logoDirection}
-        onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, logoDirection: e.target.value })}
-      />
+      <label className="workspaceFieldLabel full" htmlFor="workspace-logo-direction">
+        <span>Logo direction</span>
+        <textarea
+          id="workspace-logo-direction"
+          placeholder="Simple botanical wordmark with a subtle stone-and-leaf symbol, calm green palette, readable at small sizes."
+          value={workspaceDraft.logoDirection}
+          onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, logoDirection: e.target.value })}
+        />
+      </label>
 
       <details className="advancedWorkspaceFields">
         <summary>Advanced context</summary>
 
         <div className="workspaceGrid">
-          <textarea
-            placeholder="Audience or ideal customer. Optional, but useful for sharper output."
-            value={workspaceDraft.audience}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })}
-          />
-          <textarea
-            placeholder="Audience pain/desire. Example: Small businesses need better branding but do not have time or budget for a full agency."
-            value={workspaceDraft.audiencePain || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audiencePain: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Audience or ideal customer</span><textarea placeholder="Apartment renters and first-time plant owners." value={workspaceDraft.audience} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audience: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Audience pain or desire</span><textarea placeholder="They want a greener home without complicated plant maintenance." value={workspaceDraft.audiencePain || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, audiencePain: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <textarea
-            placeholder="Core offer. Example: AI tools that create logos, captions, hooks, bios, campaigns, and brand kits."
-            value={workspaceDraft.offer || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, offer: e.target.value })}
-          />
-          <textarea
-            placeholder="Differentiator. Example: guided brand plans with saved workspaces and launch-ready content."
-            value={workspaceDraft.differentiator || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, differentiator: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Core offer</span><textarea placeholder="Beginner-friendly houseplant subscriptions with simple care guidance." value={workspaceDraft.offer || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, offer: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Differentiator</span><textarea placeholder="Local delivery paired with confidence-building care cards." value={workspaceDraft.differentiator || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, differentiator: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <input
-            placeholder="Current followers. Example: 1,250"
-            value={workspaceDraft.currentFollowers || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, currentFollowers: e.target.value })}
-          />
-          <input
-            placeholder="Weekly time available. Example: 5 hours/week"
-            value={workspaceDraft.weeklyTime || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, weeklyTime: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Current followers</span><input placeholder="1,250" value={workspaceDraft.currentFollowers || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, currentFollowers: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Weekly time available</span><input placeholder="5 hours/week" value={workspaceDraft.weeklyTime || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, weeklyTime: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <input
-            placeholder="Competitors or references. Example: Canva, Looka, Jasper, Tailor Brands."
-            value={workspaceDraft.competitors || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })}
-          />
-          <input
-            placeholder="Primary channels. Example: Instagram, TikTok, website, email."
-            value={workspaceDraft.channels || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, channels: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Competitors or references</span><input placeholder="Local nurseries, plant shops, apartment lifestyle brands" value={workspaceDraft.competitors || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, competitors: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Primary channels</span><input placeholder="Instagram, website, email" value={workspaceDraft.channels || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, channels: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <input
-            placeholder="Price positioning. Example: Premium but approachable."
-            value={workspaceDraft.pricePositioning || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, pricePositioning: e.target.value })}
-          />
-          <input
-            placeholder="Desired feeling. Example: Calm confidence and quiet status."
-            value={workspaceDraft.desiredFeeling || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, desiredFeeling: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Price positioning</span><input placeholder="Approachable, premium, value-led, or undecided" value={workspaceDraft.pricePositioning || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, pricePositioning: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Desired feeling</span><input placeholder="Calm confidence and friendly support" value={workspaceDraft.desiredFeeling || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, desiredFeeling: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <input
-            placeholder="Location or market. Example: LA, online-first, national DTC."
-            value={workspaceDraft.locationMarket || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, locationMarket: e.target.value })}
-          />
-          <input
-            placeholder="Business goal. Example: Sell first 100 boxes in 90 days."
-            value={workspaceDraft.businessGoal || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, businessGoal: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Location or market</span><input placeholder="Local city, online-first, regional, or national" value={workspaceDraft.locationMarket || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, locationMarket: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Business goal</span><input placeholder="Reach 1,000 local subscribers in the first year" value={workspaceDraft.businessGoal || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, businessGoal: e.target.value })} /></label>
         </div>
 
         <div className="workspaceGrid">
-          <input
-            placeholder="Monthly revenue goal. Example: 10000"
-            value={workspaceDraft.monthlyRevenueGoal || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, monthlyRevenueGoal: e.target.value })}
-          />
-          <input
-            placeholder="Average price. Example: 49"
-            value={workspaceDraft.averagePrice || ""}
-            onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, averagePrice: e.target.value })}
-          />
+          <label className="workspaceFieldLabel"><span>Monthly revenue goal</span><input placeholder="10000" value={workspaceDraft.monthlyRevenueGoal || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, monthlyRevenueGoal: e.target.value })} /></label>
+          <label className="workspaceFieldLabel"><span>Average price</span><input placeholder="49" value={workspaceDraft.averagePrice || ""} onChange={(e) => setWorkspaceDraft({ ...workspaceDraft, averagePrice: e.target.value })} /></label>
         </div>
       </details>
 
@@ -7362,13 +7406,34 @@ function CompactRecentAssetsPreview({ brand, recentGenerations = [], navigateWor
           ))}
         </div>
       ) : (
-        <p>No saved assets yet. Open a generator, save your best result, then manage the full library in Saved Assets.</p>
+        <div className="emptyActionState">
+          <p>No saved assets yet. Create your first asset from the active brand context, then manage the full library in Saved Assets.</p>
+          <button onClick={() => navigateWorkspaceSection("tools")}>Create Your First Asset</button>
+        </div>
       )}
     </section>
   );
 }
 
-function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recentGenerations = [] }) {
+function WorkspaceWelcomePanel({ brand, navigateWorkspaceSection, selectTool, dismissWorkspaceTour }) {
+  if (!brand) return null;
+  return (
+    <section className="appPanel workspaceWelcomePanel" aria-label="Welcome to your Brand Workspace">
+      <div>
+        <span>Welcome to your Brand Workspace</span>
+        <h2>Your strategy, identity, content tools, and roadmap all share {brand.name} context.</h2>
+        <p>Use the left navigation to move between Overview, Brand Strategy, Visual Identity, Content Tools, Launch Roadmap, Saved Assets, and Settings. Start with Content Tools when you want captions, hashtags, hooks, bios, emails, campaigns, or social strategy from the active brand.</p>
+      </div>
+      <div className="welcomeActions">
+        <button className="btn dark" onClick={() => navigateWorkspaceSection("tools")}>Open Content Tools</button>
+        <button className="btn light" onClick={() => selectTool("logo")}>Generate Logo Concepts</button>
+        <button className="textLinkButton" onClick={dismissWorkspaceTour}>Dismiss tour</button>
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recentGenerations = [], workspaceTourDismissed = true, dismissWorkspaceTour = () => {} }) {
   if (!brand) {
     return (
       <section className="appContentSection">
@@ -7407,6 +7472,7 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
         </div>
       </div>
 
+      {!workspaceTourDismissed && <WorkspaceWelcomePanel brand={brand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} dismissWorkspaceTour={dismissWorkspaceTour} />}
       <CompletionPanel brand={brand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} />
       <WorkspaceToolGrid brand={brand} selectTool={selectTool} compact />
 
@@ -7418,17 +7484,17 @@ function WorkspaceOverview({ brand, navigateWorkspaceSection, selectTool, recent
               <strong>{item.title || item.bucket}</strong>
               <small>{item.bucket || item.brandName}</small>
             </button>
-          )) : <p>No saved generations yet. Start with captions or hashtags.</p>}
+          )) : <div className="emptyActionState"><p>No saved content yet. Create your first asset from the active brand and it will appear here.</p><button onClick={() => navigateWorkspaceSection("tools")}>Create Your First Asset</button></div>}
         </div>
         <div className="appPanel">
           <span>Roadmap Progress</span>
-          {roadmapItems.slice(0, 3).map((item) => (
+          {roadmapItems.length ? roadmapItems.slice(0, 3).map((item) => (
             <div className="roadmapMiniRow" key={item.phase}>
               <strong>{item.phase}</strong>
               <p>{item.priority}</p>
             </div>
-          ))}
-          <button onClick={() => navigateWorkspaceSection("roadmap")}>Open Roadmap</button>
+          )) : <p>No roadmap activity yet. Open your first 30 days to start the launch checklist.</p>}
+          <button onClick={() => navigateWorkspaceSection("roadmap")}>{roadmapItems.length ? "Open Roadmap" : "Open Your First 30 Days"}</button>
         </div>
         <div className="appPanel">
           <span>Missing Brand Elements</span>
@@ -7461,7 +7527,7 @@ function CompletionPanel({ brand, navigateWorkspaceSection, selectTool }) {
             <button key={item.key} className={item.complete ? "complete" : ""} onClick={() => item.tool ? selectTool(item.tool) : navigateWorkspaceSection(item.section)}>
               <span>{item.complete ? "Done" : "Missing"}</span>
               <strong>{item.complete ? item.completeLabel : item.missingLabel}</strong>
-              <small>{item.action}</small>
+              <small>{item.key === "logo" && !item.complete ? "A saved logo concept counts after you set it as the primary logo." : item.action}</small>
             </button>
           ))}
         </div>
@@ -7561,6 +7627,8 @@ function WorkspaceSectionView(props) {
     deleteSavedAsset,
     setSavedLogoAsBrandProfile,
     continueSavedLogo,
+    workspaceTourDismissed,
+    dismissWorkspaceTour,
   } = props;
 
   if (workspaceLoading && !activeBrand) return <WorkspaceSkeleton />;
@@ -7611,7 +7679,7 @@ function WorkspaceSectionView(props) {
     );
   }
 
-  return <WorkspaceOverview brand={activeBrand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} recentGenerations={recentGenerations} />;
+  return <WorkspaceOverview brand={activeBrand} navigateWorkspaceSection={navigateWorkspaceSection} selectTool={selectTool} recentGenerations={recentGenerations} workspaceTourDismissed={workspaceTourDismissed} dismissWorkspaceTour={dismissWorkspaceTour} />;
 }
 
 function BrandDashboard({ brand, setPage, downloadBrandKit, remixOutput, copyToClipboard, updateActiveBrand, regenerateWorkspaceSection, autoSaveStatus = "Saved" }) {
@@ -9640,6 +9708,7 @@ Designer iteration rules:
             </button>
           )}
           {brandMemoryPilot.message && <small>{brandMemoryPilot.message}</small>}
+          {brandMemoryPilot.active && !brandMemoryPilot.message && <small>Saved and approved work helps BrandThat learn this brand over time.</small>}
         </div>
       )}
 

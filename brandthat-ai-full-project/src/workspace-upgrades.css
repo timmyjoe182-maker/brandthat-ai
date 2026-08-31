@@ -558,6 +558,107 @@
   opacity: .65;
 }
 
+.previewIntro {
+  grid-column: 1 / -1;
+}
+
+.previewIntro strong {
+  color: #11110f;
+  display: block;
+  font-size: 22px;
+  letter-spacing: -.04em;
+  line-height: 1.08;
+}
+
+.workspaceWelcomePanel {
+  align-items: start;
+  background: #11110f;
+  color: #fffdf8;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.workspaceWelcomePanel span {
+  color: #d7c5ad;
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.workspaceWelcomePanel h2 {
+  color: #fffdf8;
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -.06em;
+  line-height: .98;
+  margin: 8px 0 10px;
+}
+
+.workspaceWelcomePanel p {
+  color: rgba(255, 253, 248, .74);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 760px;
+}
+
+.welcomeActions {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 210px;
+}
+
+.workspaceWelcomePanel .textLinkButton {
+  color: #fffdf8;
+}
+
+.emptyActionState {
+  display: grid;
+  gap: 10px;
+}
+
+.emptyActionState button {
+  justify-self: start;
+}
+
+.workspaceFieldLabel {
+  display: grid;
+  gap: 7px;
+}
+
+.workspaceFieldLabel.full {
+  display: grid;
+}
+
+.workspaceFieldLabel small {
+  color: #806546;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workspaceFieldLabel input[aria-invalid="true"],
+.workspaceFieldLabel textarea[aria-invalid="true"] {
+  border-color: rgba(128, 80, 54, .5);
+}
+
+.workspaceCard input:focus-visible,
+.workspaceCard textarea:focus-visible,
+.workspaceCard select:focus-visible,
+.brandBuilderCard input:focus-visible,
+.brandBuilderCard textarea:focus-visible,
+.brandBuilderCard select:focus-visible,
+.appSidebar button:focus-visible,
+.appHeader button:focus-visible,
+.completionTop:focus-visible,
+.completionChecklist button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(128, 101, 70, .25);
+  outline: 2px solid #806546;
+  outline-offset: 2px;
+}
+
 @media (max-width: 900px) {
   .builderContextGrid,
   .brandSummaryDashboard,
@@ -596,5 +697,13 @@
 
   .regenerationControls button {
     flex: 1 1 auto;
+  }
+
+  .workspaceWelcomePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .welcomeActions {
+    min-width: 0;
   }
 }
