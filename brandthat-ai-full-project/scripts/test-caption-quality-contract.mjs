@@ -52,6 +52,20 @@ assert.ok(
 );
 
 assert.ok(
+  appSource.includes("Checking brand memory...") &&
+  appSource.includes("Brand memory unavailable") &&
+  appSource.includes("Brand memory active ·"),
+  "Brand memory pilot UI must separate loading, failed, and active states."
+);
+
+assert.ok(
+  appSource.includes("Do not say plants thrive in low light") &&
+  appSource.includes("Do not describe the monthly delivery as featuring specific plant types") &&
+  appSource.includes("Avoid \"effortless\", \"stress-free\", \"foolproof\", \"green oasis\", \"fresh air\", and \"order today\""),
+  "Caption prompt must block verified unsupported care, inventory, availability, and cliché claims."
+);
+
+assert.ok(
   appSource.includes("captionStyleLabels[index]"),
   "Caption rows must visibly label each result style."
 );
@@ -113,12 +127,15 @@ const unsupportedFactualClaims = sanitizeUnsafeGeneratedClaims(
     "Many houseplants thrive in indirect light, so they are perfect for every apartment.",
     "Order your apartment-friendly plant delivery today.",
     "Water every two weeks for guaranteed growth.",
+    "Our plants are designed for effortless care.",
+    "This month's plant delivery features easy-care options.",
+    "Transform your apartment into a green oasis.",
   ].join("\n"),
   "Stone & Stem apartment-friendly houseplants with simple care cards.",
 );
 assert.doesNotMatch(
   unsupportedFactualClaims,
-  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth/i,
+  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth|effortless care|this month'?s plant delivery features|green oasis/i,
   "Unsupported air-quality, light-care, availability, ordering, and watering claims must be removed.",
 );
 assert.match(

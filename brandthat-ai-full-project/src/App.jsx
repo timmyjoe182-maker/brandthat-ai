@@ -5598,6 +5598,10 @@ Rules:
 - If the brand is local, service-based, product-based, or subscription-based, make that visible where useful.
 - Avoid unsupported health, scientific, financial, legal, performance, discount, guarantee, scarcity, shipping, or availability claims unless the user explicitly supplied that evidence.
 - For plant care, pet care, health, finance, legal, or technical setup, do not provide exact instructions, schedules, frequencies, diagnoses, claims, or guarantees unless the user supplied those details.
+- Do not say plants thrive in low light, limited light, indirect light, or any specific care condition unless the user's current input or saved workspace gives that verified inventory/care detail.
+- Do not describe the monthly delivery as featuring specific plant types, easy-care options, current inventory, availability, or ordering status unless the user's current input explicitly says that.
+- Avoid "effortless", "stress-free", "foolproof", "green oasis", "fresh air", and "order today" unless the current input supplies evidence for that exact claim.
+- Use safer alternatives such as "designed with apartment living in mind", "simple guidance included", "explore this month's plant direction", and "learn more".
 - For plant watering, do not give an exact watering frequency unless the plant species, lighting, soil, pot, season, or explicit care instructions are provided. Say watering needs vary and point to the included care card instead.
 - Even when a plant species is supplied, do not claim air purification, improved air quality, mood improvement, pet safety, non-toxicity, guaranteed growth, or health benefits as fact unless verified product information was supplied by the user.
 - Safe plant phrasing example: "Snake plants are a popular low-maintenance choice for apartment greenery."
@@ -9609,13 +9613,19 @@ Designer iteration rules:
 
       {activeTool.key === "captions" && activeBrand && (brandMemoryPilot.active || brandMemoryPilot.unavailable || brandMemoryPilot.loading) && (
         <div className="brandMemoryPilotBar" aria-live="polite">
-          {brandMemoryPilot.active ? <span>Brand memory active · {activeBrand.name}</span> : <span>Brand memory unavailable</span>}
-          {brandMemoryPilot.active ? (
+          {brandMemoryPilot.loading ? (
+            <span>Checking brand memory...</span>
+          ) : brandMemoryPilot.active ? (
+            <span>Brand memory active · {activeBrand.name}</span>
+          ) : (
+            <span>Brand memory unavailable</span>
+          )}
+          {brandMemoryPilot.loading ? null : brandMemoryPilot.active ? (
             <button type="button" onClick={onRefreshBrandMemory} disabled={brandMemoryPilot.refreshing}>
               {brandMemoryPilot.refreshing ? "Refreshing..." : "Refresh brand memory"}
             </button>
           ) : (
-            <button type="button" onClick={onRetryBrandMemoryStatus} disabled={brandMemoryPilot.loading}>
+            <button type="button" onClick={onRetryBrandMemoryStatus}>
               Retry memory status
             </button>
           )}

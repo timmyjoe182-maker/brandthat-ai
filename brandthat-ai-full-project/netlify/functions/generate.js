@@ -120,20 +120,36 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "make the space feel calmer",
     },
     {
-      pattern: /\b(plants?|houseplants?)\s+that\s+(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      pattern: /\b(our|these|the|your)?\s*(plants?|houseplants?)\s+are\s+designed\s+for\s+(effortless|stress[- ]free|foolproof|fail[- ]proof)\s+care\b/gi,
+      replacement: "simple guidance is included",
+    },
+    {
+      pattern: /\b(effortless|stress[- ]free|foolproof|fail[- ]proof)\s+(plant\s+)?care\b/gi,
+      replacement: "simple care guidance",
+    },
+    {
+      pattern: /\b(plants?|houseplants?)\s+that\s+(thrive|grow well|do well|flourish)\s+(even\s+)?in\s+(low|indirect|bright|limited)\s+light\b/gi,
       replacement: "$1 designed with apartment living in mind",
     },
     {
-      pattern: /\b(many|most|all)\s+(plants?|houseplants?)\s+(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      pattern: /\b(many|most|all)\s+(plants?|houseplants?)\s+(thrive|grow well|do well|flourish)\s+(even\s+)?in\s+(low|indirect|bright|limited)\s+light\b/gi,
       replacement: "Each plant's light needs can be checked with its included care guidance",
     },
     {
-      pattern: /\b(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      pattern: /\b(thrive|grow well|do well|flourish)\s+(even\s+)?in\s+(low|indirect|bright|limited)\s+light\b/gi,
       replacement: "come with simple care guidance",
     },
     {
       pattern: /\b(water|watering|light|lighting|soil|humidity)\s+(every|once|twice|daily|weekly|monthly|biweekly|each)\s+[^.!?\n]*/gi,
       replacement: "follow the included care guidance",
+    },
+    {
+      pattern: /\b(this month'?s|monthly|current)\s+(plant\s+)?delivery\s+(features|includes|comes with|brings)\s+[^.!?\n]*/gi,
+      replacement: "this month's plant direction is easy to explore",
+    },
+    {
+      pattern: /\b(features|includes|comes with|brings)\s+(easy[- ]care|low[- ]maintenance|limited[- ]light|low[- ]light)\s+(options|plants?|houseplants?|varieties|inventory)\b/gi,
+      replacement: "includes simple care guidance",
     },
     {
       pattern: /\b(pet[- ]safe|pet\s+safe|non[- ]toxic|non\s+toxic|safe for pets|safe for dogs|safe for cats)\b/gi,
@@ -154,6 +170,10 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     {
       pattern: /\b(order today|buy today|shop today|reserve today|book today)\b/gi,
       replacement: "learn more",
+    },
+    {
+      pattern: /\b(transform|turn)\s+(your\s+)?(apartment|home|space)\s+into\s+(a\s+)?green oasis\b/gi,
+      replacement: "make $2$3 feel a little greener",
     },
   ];
 
