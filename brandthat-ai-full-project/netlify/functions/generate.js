@@ -108,8 +108,32 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "bring more greenery into the space",
     },
     {
+      pattern: /\b(enjoy|breathe|bring in|welcome)\s+(the\s+)?fresh air\b/gi,
+      replacement: "enjoy fresh greenery",
+    },
+    {
+      pattern: /\b(fresh air)\b/gi,
+      replacement: "fresh greenery",
+    },
+    {
       pattern: /\b(boost|improve|lift|support)\s+(your\s+)?mood\b/gi,
       replacement: "make the space feel calmer",
+    },
+    {
+      pattern: /\b(plants?|houseplants?)\s+that\s+(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      replacement: "$1 designed with apartment living in mind",
+    },
+    {
+      pattern: /\b(many|most|all)\s+(plants?|houseplants?)\s+(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      replacement: "Each plant's light needs can be checked with its included care guidance",
+    },
+    {
+      pattern: /\b(thrive|grow well|do well|flourish)\s+in\s+(low|indirect|bright|limited)\s+light\b/gi,
+      replacement: "come with simple care guidance",
+    },
+    {
+      pattern: /\b(water|watering|light|lighting|soil|humidity)\s+(every|once|twice|daily|weekly|monthly|biweekly|each)\s+[^.!?\n]*/gi,
+      replacement: "follow the included care guidance",
     },
     {
       pattern: /\b(pet[- ]safe|pet\s+safe|non[- ]toxic|non\s+toxic|safe for pets|safe for dogs|safe for cats)\b/gi,
@@ -122,6 +146,14 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     {
       pattern: /\b(removes toxins|toxins from the air|air purification|purifies the air|cleaner air)\b/gi,
       replacement: "fresh visual greenery",
+    },
+    {
+      pattern: /\b(order|buy|shop|reserve|book)\s+(your\s+)?([^.!?\n]{0,80}?)\s*today\b/gi,
+      replacement: "learn more about $3",
+    },
+    {
+      pattern: /\b(order today|buy today|shop today|reserve today|book today)\b/gi,
+      replacement: "learn more",
     },
   ];
 
