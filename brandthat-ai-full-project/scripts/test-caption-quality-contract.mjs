@@ -128,6 +128,8 @@ const unsupportedFactualClaims = sanitizeUnsafeGeneratedClaims(
     "Order your apartment-friendly plant delivery today.",
     "Water every two weeks for guaranteed growth.",
     "Our plants are designed for effortless care.",
+    "Simple care ensures beginners feel confident.",
+    "Your plant delivery fits effortlessly into apartment life.",
     "This month's plant delivery features easy-care options.",
     "Transform your apartment into a green oasis.",
   ].join("\n"),
@@ -135,7 +137,7 @@ const unsupportedFactualClaims = sanitizeUnsafeGeneratedClaims(
 );
 assert.doesNotMatch(
   unsupportedFactualClaims,
-  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth|effortless care|this month'?s plant delivery features|green oasis/i,
+  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth|effortless care|ensures|effortlessly|this month'?s plant delivery features|green oasis/i,
   "Unsupported air-quality, light-care, availability, ordering, and watering claims must be removed.",
 );
 assert.match(
