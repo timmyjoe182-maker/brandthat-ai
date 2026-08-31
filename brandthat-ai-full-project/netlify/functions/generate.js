@@ -182,8 +182,8 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "new greenery supported with simple guidance",
     },
     {
-      pattern: /\b(pampered|spa day|pet spa|brings the spa to you|spa to you)\b/gi,
-      replacement: "cared for with gentle grooming",
+      pattern: /\b(pamper(?:ed|ing)?|spa day|pet spa|brings the spa to you|spa to you|salon)\b/gi,
+      replacement: "gentle grooming",
     },
     {
       pattern: /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/gi,
@@ -204,6 +204,18 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     {
       pattern: /\bcalmer\s+grooming\s+experience\b/gi,
       replacement: "gentler grooming visit",
+    },
+    {
+      pattern: /\bhappier\s+(dog|pet|pup)\b/gi,
+      replacement: "freshly groomed $1",
+    },
+    {
+      pattern: /\bafter\s+a\s+long\s+day\s+at\s+the\s+beach\b/gi,
+      replacement: "during a busy day",
+    },
+    {
+      pattern: /\blike\s+never\s+before\b/gi,
+      replacement: "with a gentler routine",
     },
     {
       pattern: /\bjust\s+a\s+(call|click|tap)\s+away\b/gi,
@@ -310,12 +322,15 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(sign up|subscribe|reach out|contact us|get started|schedule)\s+[^.!?\n]{0,80}\s+today\b/i,
   /\b(latest|current)\s+(plant\s+)?delivery\b/i,
   /\b(new|green|leafy)\s+friend\s+(happy|thriving|healthy)\b/i,
-  /\b(pampered|spa day|pet spa|brings the spa to you|spa to you)\b/i,
+  /\b(pamper(?:ed|ing)?|spa day|pet spa|brings the spa to you|spa to you|salon)\b/i,
   /\btrusted\s+(mobile\s+)?(dog\s+)?grooming\s+service\b/i,
   /\b(grooming|care|service)\s+(they|you|your pet|your pets)\s+deserve\b/i,
   /\b(your|every|each|a)\s+(pup|pet|dog)\s+deserves?\b/i,
   /\b(proud(?:ly)?\s+to\s+serve|serv(?:e|ing))\s+(our\s+)?(local\s+)?coastal\s+community\b/i,
   /\bcalmer\s+grooming\s+experience\b/i,
+  /\bhappier\s+(dog|pet|pup)\b/i,
+  /\bafter\s+a\s+long\s+day\s+at\s+the\s+beach\b/i,
+  /\blike\s+never\s+before\b/i,
   /\bjust\s+a\s+(call|click|tap)\s+away\b/i,
   /\btop\s+priority\b/i,
   /\b(part\s+of|proud\s+to\s+be\s+part\s+of)\s+(the\s+)?(local\s+|coastal\s+)?community\b/i,
