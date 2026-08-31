@@ -218,6 +218,18 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "feel more prepared",
     },
     {
+      pattern: /\benjoy\s+feel\s+more\s+prepared\s+knowing\b/gi,
+      replacement: "Feel more prepared knowing",
+    },
+    {
+      pattern: /\bnothing\s+beats\s+[^.!?\n]{0,120}\b/gi,
+      replacement: "A mobile grooming visit can fit the home routine with gentle handling and clean details",
+    },
+    {
+      pattern: /\bwatch\s+them\s+shine\b/gi,
+      replacement: "keep the routine simple",
+    },
+    {
       pattern: /\bprioritizes?\s+your\s+(pet|dog|pup)'?s?\s+comfort\b/gi,
       replacement: "keeps pet comfort in view",
     },
@@ -359,6 +371,7 @@ const BROKEN_GRAMMAR_PATTERNS = [
   /\bcoming\s+home\s+[^.!?\n]{0,80}without\s+you\s+leaving\s+the\s+house\b/i,
   /\b[a-z]+\s+with\s+they\s+[a-z]+/i,
   /\bhelps?\s+with\s+[^.!?\n]{0,28}\s+feel\b/i,
+  /\benjoy\s+feel\s+more\s+prepared\b/i,
 ];
 
 const UNSUPPORTED_GUARANTEE_PATTERNS = [
@@ -381,6 +394,8 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\blike\s+never\s+before\b/i,
   /\bjust\s+a\s+(call|click|tap)\s+away\b/i,
   /\btop\s+priority\b/i,
+  /\bnothing\s+beats\b/i,
+  /\bwatch\s+them\s+shine\b/i,
   /\btransform\s+your\s+(pup|pet|dog)'?s?\s+grooming\s+experience\b/i,
   /\bcalmer\s+grooming\s+session\b/i,
   /\bpeace\s+of\s+mind\b/i,
