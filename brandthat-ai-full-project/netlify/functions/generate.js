@@ -1051,7 +1051,8 @@ function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorTy
 }
 
 function applyStrictPetFinalGate(items = [], { supportedSource = "", generatorType = "captions" } = {}) {
-  if (generatorType !== "captions" || getContextKind(supportedSource) !== "pet") {
+  const contextKind = getContextKind(supportedSource);
+  if (generatorType !== "captions" || !["pet", "plant"].includes(contextKind)) {
     return { items, replacedCount: 0 };
   }
 
