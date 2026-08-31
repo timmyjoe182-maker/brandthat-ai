@@ -110,6 +110,10 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
   let safeText = String(text || "");
   const replacements = [
     {
+      pattern: /\bcleanliness\s+to\s+helps?\s+with\s+your\s+pets?\s+feels?\s+safe\b/gi,
+      replacement: "gentle handling, cleanliness, and pet comfort guide the mobile grooming experience",
+    },
+    {
       pattern: /\b(fragrant|scented|aromatic|perfumed)\s+(houseplants?|plants?|pothos|snake plants?|peace lilies?|spider plants?|succulents?|ferns?)\b/gi,
       replacement: "$2",
     },
@@ -230,12 +234,24 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "busy day",
     },
     {
+      pattern: /\b(day\s+at\s+the\s+beach|beach)\b/gi,
+      replacement: "busy day",
+    },
+    {
       pattern: /\bstress\s+of\s+travel\b/gi,
       replacement: "extra trip",
     },
     {
+      pattern: /\b(can\s+be\s+)?less\s+stressful\b/gi,
+      replacement: "simpler to plan",
+    },
+    {
       pattern: /\bpositive\s+grooming\s+experience\b/gi,
       replacement: "gentle grooming visit",
+    },
+    {
+      pattern: /\b(looking|look|feeling|feels)\s+(fresh|comfortable|safe|secure|great|happy|calm)\b/gi,
+      replacement: "connected to gentle handling and clean details",
     },
     {
       pattern: /\bjoin\s+the\s+[^.!?\n]{0,80}\s+community\b/gi,
@@ -244,6 +260,26 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
     {
       pattern: /\bhandle\s+the\s+grooming\s+while\s+you\s+focus\s+on\s+what\s+matters\s+most\b/gi,
       replacement: "keep grooming closer to home with a simpler mobile appointment",
+    },
+    {
+      pattern: /\b(right\s+at\s+your\s+)?doorstep\b/gi,
+      replacement: "at home",
+    },
+    {
+      pattern: /\bwith\s+love\s+and\s+care\b/gi,
+      replacement: "with gentle handling and clean details",
+    },
+    {
+      pattern: /\btake\s+care\s+of\s+your\s+pet'?s?\s+grooming\s+needs\b/gi,
+      replacement: "make grooming easier to plan",
+    },
+    {
+      pattern: /\b(your\s+)?(furry\s+friends?|pet|pets?|pup|dog|dogs?)\s+deserves?\b/gi,
+      replacement: "Mobile grooming",
+    },
+    {
+      pattern: /\bdid\s+you\s+know(?:\s+that)?\b/gi,
+      replacement: "For busy pet owners,",
     },
     {
       pattern: /\bnothing\s+beats\s+[^.!?\n]{0,120}\b/gi,
@@ -426,6 +462,15 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\bpositive\s+grooming\s+experience\b/i,
   /\bjoin\s+the\s+[^.!?\n]{0,80}\s+community\b/i,
   /\bwhat\s+matters\s+most\b/i,
+  /\bdeserves?\b/i,
+  /\bbeach\b/i,
+  /\b(can\s+be\s+)?less\s+stressful\b/i,
+  /\b(looking|look|feeling|feels)\s+(fresh|comfortable|safe|secure|great|happy|calm)\b/i,
+  /\bdoorstep\b/i,
+  /\blove\s+and\s+care\b/i,
+  /\btake\s+care\s+of\s+your\s+pet'?s?\s+grooming\s+needs\b/i,
+  /\bdid\s+you\s+know\b/i,
+  /\bprioriti[sz]es?\b/i,
   /\btransform\s+your\s+(pup|pet|dog)'?s?\s+grooming\s+experience\b/i,
   /\bcalmer\s+grooming\s+session\b/i,
   /\bpeace\s+of\s+mind\b/i,
