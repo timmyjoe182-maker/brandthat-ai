@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { sanitizeUnsafeGeneratedClaims } from "../netlify/functions/generate.js";
 
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const generateSource = readFileSync(new URL("../netlify/functions/generate.js", import.meta.url), "utf8");
@@ -72,6 +73,39 @@ assert.ok(
   generateSource.includes("Safe plant phrasing example"),
   "Shared generation backend must retain the claim-safety pass."
 );
+
+assert.ok(
+  generateSource.includes("Current form input outranks workspace context; workspace facts outrank semantic memories; approved workspace memories outrank older generated outputs."),
+  "Caption generator must define source precedence for the private memory pilot."
+);
+
+assert.ok(
+  generateSource.includes("Never use memory to invent products, plant species, prices, locations, inventory, guarantees, statistics, certifications, scent/fragrance, care schedules, safety, health, sustainability, performance, shipping, or availability claims."),
+  "Memory context rules must prevent unsupported product/species/fragrance claims."
+);
+
+assert.ok(
+  generateSource.includes("Do not invent plant species, fragrance, monthly inventory, exact plant varieties, or care-card contents"),
+  "Caption prompt must explicitly block invented plant species and fragrance details."
+);
+
+assert.ok(
+  generateSource.includes("removeUnsupportedPlantSpecies") && generateSource.includes("PLANT_SPECIES_TERMS"),
+  "Shared generation backend must scrub unsupported species details after generation."
+);
+
+const unsupportedPlantCopy = sanitizeUnsafeGeneratedClaims(
+  "1. Picture this: a fragrant pothos cascading over your shelf with cleaner air and guaranteed growth.",
+  "Stone & Stem apartment-friendly houseplants with simple care cards.",
+);
+assert.doesNotMatch(unsupportedPlantCopy, /fragrant|pothos|cleaner air|guaranteed growth/i, "Unsupported species, scent, air-quality, and guarantee claims must be removed.");
+assert.match(unsupportedPlantCopy, /houseplant|greenery|care/i, "Unsafe plant claims should be revised into safe general plant language.");
+
+const supportedSpeciesCopy = sanitizeUnsafeGeneratedClaims(
+  "Snake plants are a popular low-maintenance choice for apartment greenery.",
+  "Post description: Snake plants for apartment greenery.",
+);
+assert.match(supportedSpeciesCopy, /Snake plants/i, "A species explicitly supplied by the user can remain when no unsupported claim is attached.");
 
 assert.doesNotMatch(
   `${appSource}\n${generateSource}`,
