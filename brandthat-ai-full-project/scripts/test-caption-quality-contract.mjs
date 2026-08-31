@@ -107,6 +107,26 @@ const supportedSpeciesCopy = sanitizeUnsafeGeneratedClaims(
 );
 assert.match(supportedSpeciesCopy, /Snake plants/i, "A species explicitly supplied by the user can remain when no unsupported claim is attached.");
 
+const unsupportedFactualClaims = sanitizeUnsafeGeneratedClaims(
+  [
+    "Enjoy fresh air with plants that thrive in low light.",
+    "Many houseplants thrive in indirect light, so they are perfect for every apartment.",
+    "Order your apartment-friendly plant delivery today.",
+    "Water every two weeks for guaranteed growth.",
+  ].join("\n"),
+  "Stone & Stem apartment-friendly houseplants with simple care cards.",
+);
+assert.doesNotMatch(
+  unsupportedFactualClaims,
+  /fresh air|thrive in low light|thrive in indirect light|order your|order today|water every|guaranteed growth/i,
+  "Unsupported air-quality, light-care, availability, ordering, and watering claims must be removed.",
+);
+assert.match(
+  unsupportedFactualClaims,
+  /fresh greenery|apartment living|care guidance|learn more/i,
+  "Unsupported factual claims should become safe general copy.",
+);
+
 assert.doesNotMatch(
   `${appSource}\n${generateSource}`,
   /Northline Goods[\s\S]{0,140}(Caption goal|Current Brand Workspace|captionStyleLabels)/i,
