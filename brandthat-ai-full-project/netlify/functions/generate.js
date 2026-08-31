@@ -274,6 +274,14 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "dependable care",
     },
     {
+      pattern: /\b(wagging\s+(their\s+)?tail|keep\s+them\s+happy|happy\s+(and\s+)?clean|warm\s+bath|bath|shower|driveway|stressful\s+trips|say\s+goodbye\s+to\s+[^.!?\n]*trips|tailored\s+to\s+your\s+needs|coastal\s+community|pets?\s+deserve)\b/gi,
+      replacement: "mobile grooming built around gentle handling, cleanliness, and pet comfort",
+    },
+    {
+      pattern: /\bto\s+the\s+grooming\b/gi,
+      replacement: "to the groomer",
+    },
+    {
       pattern: /\bjoining\s+the\s+[^.!?\n]{0,60}\s+community\s+means\b/gi,
       replacement: "With mobile grooming,",
     },
@@ -385,6 +393,8 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\bprofessional\s+(groom|grooming|service|care|status|credentials?)\b/i,
   /\btailored\s+for\s+your\s+(pet|dog|pup)\b/i,
   /\b(best\s+care|the\s+best\s+care)\b/i,
+  /\b(wagging\s+(their\s+)?tail|keep\s+them\s+happy|happy\s+(and\s+)?clean|warm\s+bath|bath|shower|driveway|stressful\s+trips|say\s+goodbye\s+to\s+[^.!?\n]*trips|tailored\s+to\s+your\s+needs|coastal\s+community|pets?\s+deserve)\b/i,
+  /\bto\s+the\s+grooming\b/i,
   /\bjoining\s+the\s+[^.!?\n]{0,60}\s+community\s+means\b/i,
   /\blink\s+in\s+(our|your|the)\s+bio\b/i,
   /\bclick\s+the\s+link\b/i,
@@ -886,14 +896,14 @@ function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorTy
   const petCaptions = [
     `${prefix}brings gentle mobile grooming closer to home for busy coastal families.`,
     "A mobile grooming visit can fit the home routine with gentle handling and clean details.",
-    "For senior pets and busy households, convenience should still feel personal.",
-    "Clean coats, calmer routines, and a grooming visit designed around comfort.",
-    "Skip the extra trip and keep care close to the neighborhood.",
-    "A mobile grooming visit can feel simpler when trust and cleanliness lead the experience.",
-    "For families juggling full days, dependable pet care at home makes the routine easier.",
+    "For senior pet owners and busy households, convenience can still feel personal.",
+    "Gentle handling, cleanliness, and pet comfort guide the mobile grooming experience.",
+    "Skip the extra trip with dog grooming brought to the home.",
+    "A mobile grooming visit can keep the routine simpler for busy pet owners.",
+    "For families juggling full days, dependable pet care at home keeps the next step clearer.",
     "Start with mobile grooming that considers your pet's comfort and your schedule.",
     `${prefix}is built around gentle handling, clean details, and dependable mobile care.`,
-    "Give your dog a grooming option that fits the home routine.",
+    "Dog grooming can be easier to plan when it comes to the home.",
   ];
 
   const softwareCaptions = [
