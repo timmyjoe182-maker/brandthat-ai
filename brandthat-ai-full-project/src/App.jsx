@@ -5559,19 +5559,19 @@ Caption goal:
 ${captionGoal || "Awareness"}
 
 Task:
-Generate exactly 10 genuinely different captions based on the active Brand Workspace and the user's post description.
+Generate exactly 8 candidate captions based on the active Brand Workspace and the user's post description. The server will editorially select or rewrite the best 5 approved captions before returning results.
 
 Format:
-Return ONLY a numbered list from 1 to 10.
+Return ONLY a numbered list from 1 to 8.
 Do not add headings.
 Do not explain anything.
 Do not mention Brandthat.ai unless the user specifically asks for that brand.
 
 Rules:
-- Exactly 10 captions.
+- Exactly 8 candidate captions.
 - Every caption must relate directly to the user's post/topic and the active brand context when provided.
 - Make them platform-aware for ${selectedPlatform || "the selected platform"}.
-- Use these ten distinct formats in order. The UI labels the styles, so begin each line with the caption copy only:
+- Use these distinct candidate formats in order. Begin each line with the caption copy only:
   1. Punchy: one short, specific line built around the scene.
   2. Story: a small moment or before/after from the post context.
   3. Benefit: one practical outcome the audience wants, without unsupported claims.
@@ -5580,11 +5580,9 @@ Rules:
   6. Product: make the actual offer or service tangible.
   7. Community: connect to the local, niche, or audience community when relevant.
   8. Direct CTA: ask for one clear next action.
-  9. Brand-building: reinforce the brand's thesis, positioning, or differentiator.
-  10. Platform-native: written like a strong native ${selectedPlatform || "social"} post, not a generic ad.
-- Tune all ten captions toward this selected goal: ${captionGoal || "Awareness"}.
+- Tune all candidates toward this selected goal: ${captionGoal || "Awareness"}.
 - Make the goal visible through the CTA, angle, or framing without repeating the word "${captionGoal || "Awareness"}".
-- If the goal is Conversion, at least 6 of 10 captions must include a concrete conversion action, with varied soft CTA, direct CTA, benefit CTA, urgency, objection-handling, and offer framing. Do not invent discounts, scarcity, guarantees, stock status, delivery promises, or product facts.
+- If the goal is Conversion, at least 4 of 8 candidates must include a concrete conversion action, with varied soft CTA, direct CTA, benefit CTA, objection-handling, and offer framing. Do not invent discounts, scarcity, guarantees, stock status, delivery promises, or product facts.
 - If the goal is Awareness, prioritize distinct brand memory, category clarity, and one concrete scene detail over direct selling.
 - If the goal is Education, make each teaching point safe, specific, and non-claimy; do not ask generic engagement questions.
 - If the goal is Engagement, use specific prompts tied to the scene or audience tension, not generic questions.
@@ -6095,8 +6093,11 @@ ${promptValue}`;
           error.code = data.code || "";
           throw error;
         }
+        if (activeTool.key === "captions" && data.notice) {
+          notify("info", "Caption review complete", data.notice);
+        }
         let cleanText = makeOutputMoreSpecific(data.text || "", activeBrand || workspaceDraft);
-        const qualityIssues = getOutputQualityIssues(cleanText, activeBrand || workspaceDraft);
+        const qualityIssues = activeTool.key === "captions" ? [] : getOutputQualityIssues(cleanText, activeBrand || workspaceDraft);
         if (qualityIssues.length) {
           const retryPrompt = buildQualityRetryPrompt({
             basePrompt: generationPrompt,
@@ -7151,11 +7152,6 @@ const captionStyleLabels = [
   "Benefit",
   "Conversational",
   "Educational",
-  "Product",
-  "Community",
-  "Direct CTA",
-  "Brand-building",
-  "Platform-native",
 ];
 
 function getAppToolTitle(tool = {}) {
@@ -10551,7 +10547,7 @@ function getMainPromptPlaceholder(activeTool) {
 function getGenerateButtonText(toolKey, shortTitle) {
   const labels = {
     logo: "Generate Logo Image",
-    captions: "Generate 10 Captions",
+    captions: "Generate 5 Captions",
     hooks: "Generate 10 Hooks",
     bios: "Generate 10 Bios",
     hashtags: "Generate 50 Hashtags",
@@ -10567,7 +10563,7 @@ function getGenerateButtonText(toolKey, shortTitle) {
 
 function getTenResultHeader(toolKey) {
   const headers = {
-    captions: "10 COPY-READY CAPTIONS",
+    captions: "5 COPY-READY CAPTIONS",
     hooks: "10 HOOK OPTIONS",
     bios: "10 BIO OPTIONS",
     email: "10 EMAIL OPTIONS",
@@ -10583,7 +10579,7 @@ function getTenResultHeader(toolKey) {
 function getLoadingText(toolKey) {
   const loading = {
     logo: "Designing your logo concept...",
-    captions: "Generating 10 captions...",
+    captions: "Reviewing 5 captions...",
     hooks: "Generating 10 hooks...",
     bios: "Generating 10 bios...",
     hashtags: "Generating 50 hashtags...",
@@ -10811,7 +10807,7 @@ function parseTenOptions(result) {
 function getResultHeader(toolKey) {
   const headers = {
     logo: "LOGO + BRAND DIRECTION",
-    captions: "10 COPY-READY CAPTIONS",
+    captions: "5 COPY-READY CAPTIONS",
     hooks: "HOOK OPTIONS",
     bios: "BIO OPTIONS",
     hashtags: "50 COPY-READY HASHTAGS",

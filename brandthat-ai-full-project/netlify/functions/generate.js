@@ -413,6 +413,113 @@ function normalizeEditorialReviewPayload(payload, count) {
     .filter((review) => review.index >= 0 && review.index < count);
 }
 
+function getSectionValue(source = "", label = "") {
+  const match = String(source || "").match(new RegExp(`${escapeRegExp(label)}:\\s*([^\\n]+)`, "i"));
+  return match?.[1]?.trim() || "";
+}
+
+function extractCurrentUserRequest(source = "") {
+  const text = String(source || "");
+  const match = text.match(/User (?:post\/topic description|topic\/post description|request):\s*([\s\S]*?)(?:\n\n[A-Z][A-Za-z /\-]+:|\nCurrent Brand Workspace:|\nBrand DNA:|$)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function buildApprovedFactsObject({ prompt = "", supportedSource = "", generatorType = "captions" } = {}) {
+  const source = `${prompt}\n${supportedSource}`;
+  return {
+    generatorType,
+    brandName: getSectionValue(source, "Brand name"),
+    description: getSectionValue(source, "Description"),
+    audience: getSectionValue(source, "Audience"),
+    positioning: getSectionValue(source, "Positioning"),
+    tone: getSectionValue(source, "Brand tone") || getSectionValue(source, "Tone"),
+    platform: getSectionValue(source, "User platform"),
+    goal: getSectionValue(source, "Caption goal"),
+    currentRequest: extractCurrentUserRequest(source) || getSectionValue(source, "User post/topic description"),
+  };
+}
+
+function normalizeCaptionFromReview(value = "", supportedSource = "") {
+  return repairGeneratedItemQuality(
+    String(value || "")
+      .replace(/^\s*\d+[.)]\s*/, "")
+      .replace(/^["']|["']$/g, "")
+      .trim(),
+    { supportedSource, generatorType: "captions" },
+  );
+}
+
+function normalizeApprovedCaptionPayload(payload, supportedSource = "") {
+  const captions = Array.isArray(payload?.approved_captions) ? payload.approved_captions : [];
+  return captions
+    .map((item) => {
+      if (typeof item === "string") return normalizeCaptionFromReview(item, supportedSource);
+      return normalizeCaptionFromReview(item?.caption || item?.copy || "", supportedSource);
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+async function selectApprovedCaptionsEditorially({ openAiClient, systemPrompt, prompt, items, supportedSource, requestId, pass = 1 }) {
+  if (!openAiClient || !Array.isArray(items) || !items.length) return [];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  const approvedFacts = buildApprovedFactsObject({ prompt, supportedSource, generatorType: "captions" });
+  try {
+    const numberedItems = items.map((item, index) => `${index + 1}. ${item}`).join("\n");
+    const review = await openAiClient.chat.completions.create({
+      model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `${systemPrompt}
+
+You are the mandatory final editorial reviewer for BrandThat captions. You are a separate review step from the generator.
+Return only valid JSON with this schema:
+{"approved_captions":["caption one","caption two","caption three","caption four","caption five"],"rejected":[{"index":1,"problems":["reason"]}]}
+
+Select or rewrite the best 5 captions from the candidate set. Every approved caption must be grammatical, specific, natural, meaningfully distinct, and traceable to the approved_facts object.
+Reject or rewrite any caption with professional status or credentials, guaranteed customer or pet reactions, guaranteed emotional/health/behavior outcomes, absolute phrases such as "no more", "always", "will love", "ensures", or "stress-free", past customers or completed appointments, locations, links, prices, service areas, or availability not present in approved_facts.
+Reject awkward writing even when technically grammatical. Reject generic filler that could belong to any company.
+Use five different strategic angles and sentence openings.
+If fewer than five captions can be approved, return only the approved captions.`,
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            approved_facts: approvedFacts,
+            candidate_captions: items.slice(0, 12),
+          }),
+        },
+      ],
+      temperature: 0,
+    }, { signal: controller.signal });
+    const parsed = parseEditorialJson(review.choices?.[0]?.message?.content || "");
+    const approved = normalizeApprovedCaptionPayload(parsed, supportedSource);
+    console.info("BrandThat editorial selection executed", {
+      requestId,
+      generatorType: "captions",
+      pass,
+      candidateCount: items.length,
+      approvedCount: approved.length,
+      rejectedCount: Array.isArray(parsed?.rejected) ? parsed.rejected.length : null,
+    });
+    return approved;
+  } catch (error) {
+    console.warn("BrandThat editorial selection unavailable", {
+      requestId,
+      generatorType: "captions",
+      pass,
+      code: error?.code || error?.type || error?.name,
+      statusCode: error?.status || error?.statusCode || null,
+    });
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function reviewGeneratedItemsEditorially({ openAiClient, systemPrompt, prompt, items, supportedSource, generatorType, requestId }) {
   if (!openAiClient || generatorType !== "captions" || !Array.isArray(items) || !items.length) return [];
   const controller = new AbortController();
@@ -764,123 +871,87 @@ export async function applyOutputQualityStage({
     repairedItems.push(candidate);
   }
 
-  const finalReviews = await reviewGeneratedItemsEditorially({
+  if (generatorType !== "captions") {
+    console.info("BrandThat output validation completed", {
+      requestId,
+      generatorType,
+      itemCount: repairedItems.length,
+      repairedCount,
+      failedIndexes: validationEvents.map((event) => event.index),
+    });
+
+    return {
+      text: formatGeneratedItems(repairedItems),
+      repairedCount,
+      rejectedCount: 0,
+      validationEvents,
+    };
+  }
+
+  const firstPassApproved = await selectApprovedCaptionsEditorially({
     openAiClient,
     systemPrompt,
     prompt,
-    items: repairedItems,
+    items: repairedItems.slice(0, 8),
     supportedSource,
-    generatorType,
     requestId,
+    pass: 1,
   });
-  const finalReviewByIndex = new Map(finalReviews.map((review) => [review.index, review]));
   const approvedItems = [];
   const finalValidationEvents = [];
 
-  for (let index = 0; index < repairedItems.length; index += 1) {
-    let candidate = repairedItems[index];
-    let review = finalReviewByIndex.get(index);
-    let validation = validateGeneratedItemQuality(candidate, {
+  for (let index = 0; index < firstPassApproved.length; index += 1) {
+    const candidate = firstPassApproved[index];
+    const validation = validateGeneratedItemQuality(candidate, {
       index,
       allItems: approvedItems,
       supportedSource,
       generatorType,
     });
-    let approved = Boolean(
-      review?.approved &&
-        review.grammatically_valid &&
-        review.factually_supported &&
-        review.consistent_with_request &&
-        review.distinct_from_other_results &&
-        validation.ok,
-    );
-    let reasons = Array.from(new Set([
-      ...(validation.reasons || []),
-      ...(review?.problems || []),
-      ...(review ? [] : ["editorial_review_missing"]),
-    ]));
+    if (validation.ok) {
+      approvedItems.push(candidate);
+    } else {
+      finalValidationEvents.push({ index, reasons: validation.reasons, approved: false });
+    }
+  }
 
-    if (!approved) {
-      console.info("BrandThat final validation repair attempted", {
-        requestId,
-        generatorType,
-        itemIndex: index,
-        reasons,
-      });
+  if (approvedItems.length < 5) {
+    const refillCandidates = [...approvedItems];
+    for (let index = 0; index < repairedItems.length && refillCandidates.length < 8; index += 1) {
+      const candidate = repairedItems[index];
+      const duplicate = refillCandidates.some((item) => normalizeForComparison(item) === normalizeForComparison(candidate));
+      if (!duplicate) refillCandidates.push(candidate);
+    }
+    for (let index = refillCandidates.length; index < 8; index += 1) {
+      const regenerated = await regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId });
+      const candidate = repairGeneratedItemQuality(regenerated || buildSafeReplacementItem({ index, supportedSource, generatorType }), { supportedSource, generatorType, index });
+      refillCandidates.push(candidate);
+    }
 
-      const repairSource = review?.repaired_caption || candidate;
-      const repairedCandidate = repairGeneratedItemQuality(repairSource, { supportedSource, generatorType, index });
-      const repairedValidation = validateGeneratedItemQuality(repairedCandidate, {
+    const secondPassApproved = await selectApprovedCaptionsEditorially({
+      openAiClient,
+      systemPrompt,
+      prompt,
+      items: refillCandidates.slice(0, 8),
+      supportedSource,
+      requestId,
+      pass: 2,
+    });
+
+    for (let index = 0; index < secondPassApproved.length && approvedItems.length < 5; index += 1) {
+      const candidate = secondPassApproved[index];
+      const validation = validateGeneratedItemQuality(candidate, {
         index,
         allItems: approvedItems,
         supportedSource,
         generatorType,
       });
-
-      if (repairedCandidate && repairedValidation.ok) {
-        const repairApproval = await reviewOneItemForApproval({
-          openAiClient,
-          systemPrompt,
-          prompt,
-          item: repairedCandidate,
-          supportedSource,
-          generatorType,
-          requestId,
-          index,
-        });
-        if (repairApproval.approved) {
-          candidate = repairedCandidate;
-          review = repairApproval.review;
-          validation = repairedValidation;
-          approved = true;
-          reasons = [];
-          repairedCount += 1;
-        } else {
-          reasons = repairApproval.reasons;
-        }
+      const duplicate = approvedItems.some((item) => normalizeForComparison(item) === normalizeForComparison(candidate));
+      if (validation.ok && !duplicate) {
+        approvedItems.push(candidate);
+      } else {
+        finalValidationEvents.push({ index, reasons: duplicate ? ["duplicate_sentence"] : validation.reasons, approved: false });
       }
-
-      if (!approved && regenerationAttempts < 6) {
-        regenerationAttempts += 1;
-        const regenerated = await regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId });
-        const regeneratedCandidate = repairGeneratedItemQuality(regenerated, { supportedSource, generatorType, index });
-        const regenerationValidation = validateGeneratedItemQuality(regeneratedCandidate, {
-          index,
-          allItems: approvedItems,
-          supportedSource,
-          generatorType,
-        });
-        if (regeneratedCandidate && regenerationValidation.ok) {
-          const regenerationApproval = await reviewOneItemForApproval({
-            openAiClient,
-            systemPrompt,
-            prompt,
-            item: regeneratedCandidate,
-            supportedSource,
-            generatorType,
-            requestId,
-            index,
-          });
-          if (regenerationApproval.approved) {
-            candidate = regeneratedCandidate;
-            review = regenerationApproval.review;
-            validation = regenerationValidation;
-            approved = true;
-            reasons = [];
-            repairedCount += 1;
-          } else {
-            reasons = regenerationApproval.reasons;
-          }
-        } else {
-          reasons = regenerationValidation.reasons || reasons;
-        }
-      }
-    }
-
-    if (approved) {
-      approvedItems.push(candidate);
-    } else {
-      finalValidationEvents.push({ index, reasons, approved: false });
     }
   }
 
@@ -904,6 +975,7 @@ export async function applyOutputQualityStage({
   return {
     text: formatGeneratedItems(approvedItems),
     repairedCount,
+    approvedCount: approvedItems.length,
     rejectedCount: finalValidationEvents.length,
     validationEvents: [...validationEvents, ...finalValidationEvents],
   };
@@ -1416,7 +1488,16 @@ ${memoryPromptSection}
       return getPublicError(502, "OPENAI_EMPTY_RESPONSE", "We couldn't generate that right now. Please try again.", requestId);
     }
 
-    return json(200, { ok: true, text: safeText, requestId });
+    return json(200, {
+      ok: true,
+      text: safeText,
+      requestId,
+      notice: generatorType === "captions" && qualityResult.approvedCount < 5
+        ? `BrandThat returned ${qualityResult.approvedCount} caption${qualityResult.approvedCount === 1 ? "" : "s"} that passed review.`
+        : undefined,
+      approvedCount: qualityResult.approvedCount,
+      rejectedCount: qualityResult.rejectedCount,
+    });
   } catch (error) {
     const providerError = normalizeOpenAiError(error);
     logGenerateFailure({

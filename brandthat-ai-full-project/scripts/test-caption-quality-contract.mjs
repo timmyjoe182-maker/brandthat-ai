@@ -17,6 +17,25 @@ function createApprovalClient() {
         create: async ({ messages }) => {
           const userText = messages?.at?.(-1)?.content || "";
           if (!userText.includes("Captions to review:")) {
+            const parsed = (() => {
+              try {
+                return JSON.parse(userText);
+              } catch {
+                return null;
+              }
+            })();
+            if (Array.isArray(parsed?.candidate_captions)) {
+              return {
+                choices: [{
+                  message: {
+                    content: JSON.stringify({
+                      approved_captions: parsed.candidate_captions.slice(0, 5),
+                      rejected: parsed.candidate_captions.slice(5).map((_, index) => ({ index: index + 5, problems: ["not in top five"] })),
+                    }),
+                  },
+                }],
+              };
+            }
             return {
               choices: [{
                 message: {
@@ -61,11 +80,6 @@ const requiredStyleLabels = [
   "Benefit",
   "Conversational",
   "Educational",
-  "Product",
-  "Community",
-  "Direct CTA",
-  "Brand-building",
-  "Platform-native",
 ];
 
 for (const label of requiredStyleLabels) {
@@ -77,7 +91,13 @@ for (const goal of ["Awareness", "Engagement", "Launch", "Conversion", "Educatio
 }
 
 assert.ok(
-  appSource.includes("If the goal is Conversion, at least 6 of 10 captions must include a concrete conversion action"),
+  appSource.includes("Generate exactly 8 candidate captions") &&
+    appSource.includes("best 5 approved captions"),
+  "Caption prompt must generate 8 candidates for editorial selection into 5 approved captions."
+);
+
+assert.ok(
+  appSource.includes("If the goal is Conversion, at least 4 of 8 candidates must include a concrete conversion action"),
   "Conversion goal must materially change caption output."
 );
 
@@ -116,8 +136,14 @@ assert.ok(
 );
 
 assert.ok(
+  appSource.includes("Generate 5 Captions") &&
+    appSource.includes("5 COPY-READY CAPTIONS"),
+  "Caption UI must promise five reviewed captions."
+);
+
+assert.ok(
   appSource.includes("captionStyleLabels[index]"),
-  "Caption rows must visibly label each result style."
+  "Caption rows must visibly label each approved result style."
 );
 
 assert.ok(
@@ -299,8 +325,8 @@ assert.doesNotMatch(
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);
 assert.equal(
   new Set(repairedHarborOutput.text.split("\n").map((line) => line.replace(/^\d+[.)]\s*/, "").trim().toLowerCase())).size,
-  10,
-  "Quality stage must return ten distinct caption lines after duplicate repair.",
+  5,
+  "Quality stage must return five distinct approved caption lines after review.",
 );
 
 const repairedStoneOutput = await applyOutputQualityStage({
@@ -334,6 +360,12 @@ assert.equal(
   new Set(generatedOpenings).size,
   generatedOpenings.length,
   "Quality stage must vary caption openings.",
+);
+
+assert.equal(
+  repairedStoneOutput.text.split("\n").filter(Boolean).length,
+  5,
+  "Caption quality stage must return five approved captions.",
 );
 
 assert.doesNotMatch(
