@@ -14,5 +14,7 @@ assert(generateFunction.includes("text: safeText"), "successful generation respo
 assert(generateFunction.includes("indoor )?air quality") || generateFunction.includes("air quality"), "air-quality claims must be covered");
 assert(generateFunction.includes("pet[- ]safe") && generateFunction.includes("non[- ]toxic"), "pet-safety and toxicity claims must be covered");
 assert(generateFunction.includes("guaranteed growth"), "guaranteed growth claims must be covered");
+assert(generateFunction.includes("fragrant|scented|aromatic|perfumed"), "fragrance and scent claims must be covered");
+assert(generateFunction.includes("removeUnsupportedPlantSpecies"), "unsupported plant species must be scrubbed unless supplied");
 
 console.log("Generation claim safety contract passed.");
