@@ -402,6 +402,10 @@ const verifiedHarborFailures = [
   "Say goodbye to stressful trips to the grooming; we bring the gentle grooming right to your driveway.",
   "Enjoy feel more prepared knowing your dog is receiving gentle, clean care tailored for their comfort.",
   "After a long week, nothing beats a fresh groom for your furry friend. Watch them shine!",
+  "Imagine your furry friend getting groomed while you enjoy a sunny day at the beach.",
+  "Keep your dog clean and comfortable without the stress of travel. Our gentle handling helps create a positive grooming experience.",
+  "We know your time is precious. Let Harbor Hound handle the grooming while you focus on what matters most.",
+  "Join the Harbor Hound community, where we understand the needs of coastal families and senior pet owners.",
 ];
 
 for (const failure of verifiedHarborFailures) {
@@ -417,7 +421,7 @@ for (const failure of verifiedHarborFailures) {
   assert.equal(validation.ok, false, `Verified production failure must fail validation: ${failure}`);
   assert.doesNotMatch(
     repaired,
-    /pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|transform your pup|calmer grooming session|peace of mind|enjoy feel|nothing beats|watch them shine|prioritizes your pet|as a local service|professional groom|let us handle your pet's grooming today|part of the coastal community|local families|trustworthy|tailored for your pet|tailored to your needs|best care|joining the harbor hound community means|pamper|happier dog|happy and clean|keep them happy|salon|warm bath|wagging|stressful trips|driveway|to the grooming|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience/i,
+    /pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|transform your pup|calmer grooming session|peace of mind|enjoy feel|nothing beats|watch them shine|while you enjoy|sunny day at the beach|stress of travel|positive grooming experience|what matters most|join the harbor hound community|prioritizes your pet|as a local service|professional groom|let us handle your pet's grooming today|part of the coastal community|local families|trustworthy|tailored for your pet|tailored to your needs|best care|joining the harbor hound community means|pamper|happier dog|happy and clean|keep them happy|salon|warm bath|wagging|stressful trips|driveway|to the grooming|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience/i,
     `Verified production failure must be repaired safely: ${failure}`,
   );
 }
@@ -443,11 +447,15 @@ const repairedHarborOutput = await applyOutputQualityStage({
     "14. Say goodbye to stressful trips to the grooming; we bring care to your driveway.",
     "15. Enjoy feel more prepared knowing your dog is receiving gentle, clean care tailored for their comfort.",
     "16. After a long week, nothing beats a fresh groom for your furry friend. Watch them shine!",
+    "17. Imagine your furry friend getting groomed while you enjoy a sunny day at the beach.",
+    "18. Keep your dog clean and comfortable without the stress of travel. Our gentle handling helps create a positive grooming experience.",
+    "19. We know your time is precious. Let Harbor Hound handle the grooming while you focus on what matters most.",
+    "20. Join the Harbor Hound community, where we understand the needs of coastal families and senior pet owners.",
   ].join("\n"),
 });
 assert.doesNotMatch(
   repairedHarborOutput.text,
-  /helps with they|helps with every grooming session feels|pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|transform your pup|calmer grooming session|peace of mind|enjoy feel|nothing beats|watch them shine|prioritizes your pet|as a local service|professional groom|let us handle your pet's grooming today|part of the coastal community|local families|trustworthy|tailored for your pet|tailored to your needs|best care|joining the harbor hound community means|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pamper|happier dog|happy and clean|keep them happy|salon|warm bath|wagging|stressful trips|driveway|to the grooming|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  /helps with they|helps with every grooming session feels|pets deserves|pup deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|serve our coastal community|proud to serve our coastal community|just a call away|top priority|transform your pup|calmer grooming session|peace of mind|enjoy feel|nothing beats|watch them shine|while you enjoy|sunny day at the beach|stress of travel|positive grooming experience|what matters most|join the harbor hound community|prioritizes your pet|as a local service|professional groom|let us handle your pet's grooming today|part of the coastal community|local families|trustworthy|tailored for your pet|tailored to your needs|best care|joining the harbor hound community means|just wrapped up|happy pup|greatly reduce|ensuring|deserves the best|game-changing|pamper|happier dog|happy and clean|keep them happy|salon|warm bath|wagging|stressful trips|driveway|to the grooming|long day at the beach|like never before|spa to you|trusted mobile dog grooming service|reach out today|grooming they deserve|calmer grooming experience|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
   "Quality stage must repair verified broken grammar, invented CTAs/local claims, cross-brand leakage, guarantees, and placeholders.",
 );
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);

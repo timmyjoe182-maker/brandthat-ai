@@ -222,6 +222,30 @@ export function sanitizeUnsafeGeneratedClaims(text = "", supportedSource = "") {
       replacement: "Feel more prepared knowing",
     },
     {
+      pattern: /\bwhile\s+you\s+enjoy\s+[^.!?\n]{0,80}\b/gi,
+      replacement: "while the appointment fits the home routine",
+    },
+    {
+      pattern: /\bsunny\s+day\s+at\s+the\s+beach\b/gi,
+      replacement: "busy day",
+    },
+    {
+      pattern: /\bstress\s+of\s+travel\b/gi,
+      replacement: "extra trip",
+    },
+    {
+      pattern: /\bpositive\s+grooming\s+experience\b/gi,
+      replacement: "gentle grooming visit",
+    },
+    {
+      pattern: /\bjoin\s+the\s+[^.!?\n]{0,80}\s+community\b/gi,
+      replacement: "Learn how mobile grooming can support busy coastal families and senior pet owners",
+    },
+    {
+      pattern: /\bhandle\s+the\s+grooming\s+while\s+you\s+focus\s+on\s+what\s+matters\s+most\b/gi,
+      replacement: "keep grooming closer to home with a simpler mobile appointment",
+    },
+    {
       pattern: /\bnothing\s+beats\s+[^.!?\n]{0,120}\b/gi,
       replacement: "A mobile grooming visit can fit the home routine with gentle handling and clean details",
     },
@@ -396,6 +420,12 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\btop\s+priority\b/i,
   /\bnothing\s+beats\b/i,
   /\bwatch\s+them\s+shine\b/i,
+  /\bwhile\s+you\s+enjoy\b/i,
+  /\bsunny\s+day\s+at\s+the\s+beach\b/i,
+  /\bstress\s+of\s+travel\b/i,
+  /\bpositive\s+grooming\s+experience\b/i,
+  /\bjoin\s+the\s+[^.!?\n]{0,80}\s+community\b/i,
+  /\bwhat\s+matters\s+most\b/i,
   /\btransform\s+your\s+(pup|pet|dog)'?s?\s+grooming\s+experience\b/i,
   /\bcalmer\s+grooming\s+session\b/i,
   /\bpeace\s+of\s+mind\b/i,
