@@ -216,6 +216,12 @@ const BROKEN_GRAMMAR_PATTERNS = [
   /\bhelps?\s+with\s+(they|them|he|she|we|you|it)\b/i,
   /\b(with|for|to|by)\s+(they|we|he|she|I)\b/i,
   /\b(they|we|you|he|she)\s+(feel|feels|look|looks|sound|sounds)\s+(great|good|better)\s+every\s+time\b/i,
+  /\byour\s+pets?\s+deserves\b/i,
+  /\bto\s+helps?\s+with\b/i,
+  /\bhelps?\s+with\s+your\s+pets?\s+feels?\b/i,
+  /\b(cleanliness|trust|comfort|care)\s+to\s+helps?\b/i,
+  /\bdog\s+coming\s+home\b/i,
+  /\bcoming\s+home\s+[^.!?\n]{0,80}without\s+you\s+leaving\s+the\s+house\b/i,
   /\b[a-z]+\s+with\s+they\s+[a-z]+/i,
   /\bhelps?\s+with\s+[^.!?\n]{0,28}\s+feel\b/i,
 ];
@@ -224,6 +230,10 @@ const UNSUPPORTED_GUARANTEE_PATTERNS = [
   /\b(ensures?|guarantees?|guaranteed|will always|never fails|proven to|certified to)\b/i,
   /\b(stress[- ]free|effortless|foolproof|fail[- ]proof)\b/i,
   /\b(order|buy|shop|book|reserve)\s+[^.!?\n]{0,80}\s+today\b/i,
+  /\blink\s+in\s+(our|your|the)\s+bio\b/i,
+  /\bclick\s+the\s+link\b/i,
+  /\bserve\s+our\s+local\b/i,
+  /\blocal\s+coastal\s+community\b/i,
 ];
 
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
@@ -314,6 +324,12 @@ function formatGeneratedItems(items = []) {
 function repairBrokenGrammar(value = "", contextKind = "general") {
   let repaired = String(value || "");
   repaired = repaired
+    .replace(/\byour\s+pet\s+deserves\b/gi, "your pet deserves")
+    .replace(/\byour\s+pets\s+deserves\b/gi, "your pets deserve")
+    .replace(/\bcleanliness\s+to\s+helps?\s+with\s+your\s+pet\s+feels?\s+safe\b/gi, "cleanliness helps your pet feel comfortable")
+    .replace(/\bcleanliness\s+to\s+helps?\s+with\s+your\s+pets\s+feels?\s+safe\b/gi, "cleanliness helps your pets feel comfortable")
+    .replace(/\bto\s+helps?\s+with\s+your\s+pet\s+feels?\b/gi, "to help your pet feel")
+    .replace(/\bto\s+helps?\s+with\s+your\s+pets\s+feels?\b/gi, "to help your pets feel")
     .replace(/\bhelps?\s+with\s+they\s+feel\s+great\s+every\s+time\b/gi, "helps them feel comfortable throughout every appointment")
     .replace(/\bhelps?\s+with\s+they\s+feel\s+comfortable\b/gi, "helps them feel comfortable")
     .replace(/\bhelps?\s+with\s+they\s+feel\b/gi, "helps them feel")
@@ -326,21 +342,124 @@ function repairBrokenGrammar(value = "", contextKind = "general") {
   if (contextKind === "pet") {
     repaired = repaired
       .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves dependable, gentle care")
+      .replace(/\bclick\s+the\s+link\s+in\s+(our|your|the)\s+bio\b/gi, "learn more about the appointment")
+      .replace(/\blink\s+in\s+(our|your|the)\s+bio\b/gi, "appointment details")
+      .replace(/\bcoming\s+home\s+([^.!?\n]{0,80})without\s+you\s+leaving\s+the\s+house\b/gi, "getting gentle care without an extra trip")
+      .replace(/\bimagine\s+your\s+dog\s+coming\s+home\b/gi, "Imagine your dog getting gentle care at home")
+      .replace(/\byour\s+dog\s+coming\s+home\b/gi, "your dog getting gentle care at home")
+      .replace(/\bcoming\s+home\s+from\s+(the\s+)?groom(ing)?\b/gi, "getting gentle care at home")
+      .replace(/\bserve\s+our\s+local\s+coastal\s+community\b/gi, "support busy coastal families and senior pet owners")
+      .replace(/\blocal\s+coastal\s+community\b/gi, "busy coastal families and senior pet owners")
       .replace(/\bstress[- ]free\b/gi, "calmer")
       .replace(/\beffortless(ly)?\b/gi, "simple");
   } else if (contextKind === "plant") {
     repaired = repaired
       .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves clear, simple care guidance")
+      .replace(/\bclick\s+the\s+link\s+in\s+(our|your|the)\s+bio\b/gi, "learn more")
+      .replace(/\blink\s+in\s+(our|your|the)\s+bio\b/gi, "details")
       .replace(/\bstress[- ]free\b/gi, "easier to understand")
       .replace(/\beffortless(ly)?\b/gi, "with simple guidance");
   } else {
     repaired = repaired
       .replace(/\bdeserves?\s+the\s+best\b/gi, "deserves a clearer next step")
+      .replace(/\bclick\s+the\s+link\s+in\s+(our|your|the)\s+bio\b/gi, "learn more")
+      .replace(/\blink\s+in\s+(our|your|the)\s+bio\b/gi, "details")
       .replace(/\bgame[- ]changing\b/gi, "useful")
       .replace(/\btake\s+(it|your|their|this)\s+to\s+the\s+next\s+level\b/gi, "make the next step clearer");
   }
 
   return repaired.replace(/\s+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+function parseEditorialJson(value = "") {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeEditorialReviewPayload(payload, count) {
+  const reviews = Array.isArray(payload?.reviews) ? payload.reviews : [];
+  return reviews
+    .map((review) => {
+      const index = Number.isInteger(review?.index) ? review.index : Number(review?.index);
+      return {
+        index,
+        grammatically_valid: Boolean(review?.grammatically_valid),
+        factually_supported: Boolean(review?.factually_supported),
+        consistent_with_request: Boolean(review?.consistent_with_request),
+        distinct_from_other_results: Boolean(review?.distinct_from_other_results),
+        problems: Array.isArray(review?.problems) ? review.problems.map((item) => String(item || "").slice(0, 80)).filter(Boolean) : [],
+        repaired_caption: typeof review?.repaired_caption === "string" ? review.repaired_caption.trim() : null,
+      };
+    })
+    .filter((review) => review.index >= 0 && review.index < count);
+}
+
+async function reviewGeneratedItemsEditorially({ openAiClient, systemPrompt, prompt, items, supportedSource, generatorType, requestId }) {
+  if (!openAiClient || generatorType !== "captions" || !Array.isArray(items) || !items.length) return [];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8500);
+  try {
+    const numberedItems = items.map((item, index) => `${index}. ${item}`).join("\n");
+    const review = await openAiClient.chat.completions.create({
+      model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `${systemPrompt}
+
+You are now the server-side editorial validator. Return only valid JSON with this schema:
+{"reviews":[{"index":0,"grammatically_valid":true,"factually_supported":true,"consistent_with_request":true,"distinct_from_other_results":true,"problems":[],"repaired_caption":null}]}
+
+Review every caption independently. Mark invalid for subject/verb disagreement, missing words, broken constructions, repeated ideas, placeholders, instruction text, invented links, invented availability, invented locations, invented certifications, guarantees, contradictions with the requested service, and content from another workspace.
+If a caption can be repaired safely, provide repaired_caption. If not, set repaired_caption to null.
+Do not include private prompts, user IDs, secrets, or analysis outside the JSON.`,
+        },
+        {
+          role: "user",
+          content: `Current request and supported facts:
+${String(prompt || "").slice(0, 6000)}
+
+Supported-source summary:
+${String(supportedSource || "").slice(0, 6000)}
+
+Captions to review:
+${numberedItems}`,
+        },
+      ],
+      temperature: 0,
+    }, { signal: controller.signal });
+    const parsed = parseEditorialJson(review.choices?.[0]?.message?.content || "");
+    const normalized = normalizeEditorialReviewPayload(parsed, items.length);
+    console.info("BrandThat editorial validation executed", {
+      requestId,
+      generatorType,
+      itemCount: items.length,
+      reviewCount: normalized.length,
+    });
+    return normalized;
+  } catch (error) {
+    console.warn("BrandThat editorial validation unavailable", {
+      requestId,
+      generatorType,
+      code: error?.code || error?.type || error?.name,
+      statusCode: error?.status || error?.statusCode || null,
+    });
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function removeCrossWorkspaceLeakage(value = "", contextKind = "general") {
@@ -545,6 +664,23 @@ export async function applyOutputQualityStage({
   let repairedCount = 0;
   let regenerationAttempts = 0;
 
+  console.info("BrandThat output validation started", {
+    requestId,
+    generatorType,
+    itemCount: items.length,
+  });
+
+  const editorialReviews = await reviewGeneratedItemsEditorially({
+    openAiClient,
+    systemPrompt,
+    prompt,
+    items,
+    supportedSource,
+    generatorType,
+    requestId,
+  });
+  const editorialByIndex = new Map(editorialReviews.map((review) => [review.index, review]));
+
   for (let index = 0; index < items.length; index += 1) {
     const original = items[index];
     let candidate = repairGeneratedItemQuality(original, { supportedSource, generatorType, index });
@@ -554,9 +690,50 @@ export async function applyOutputQualityStage({
       supportedSource,
       generatorType,
     });
+    const editorial = editorialByIndex.get(index);
+    const editorialFailed = Boolean(editorial) && (
+      !editorial.grammatically_valid ||
+      !editorial.factually_supported ||
+      !editorial.consistent_with_request ||
+      !editorial.distinct_from_other_results
+    );
+
+    if (editorialFailed) {
+      const editorialCandidate = repairGeneratedItemQuality(editorial.repaired_caption || "", { supportedSource, generatorType, index });
+      const editorialValidation = validateGeneratedItemQuality(editorialCandidate, {
+        index,
+        allItems: repairedItems,
+        supportedSource,
+        generatorType,
+      });
+
+      validationEvents.push({
+        index,
+        reasons: editorial.problems.length ? editorial.problems : ["editorial_review_failed"],
+        rewritten: Boolean(editorialCandidate && editorialValidation.ok),
+      });
+
+      if (editorialCandidate && editorialValidation.ok) {
+        candidate = editorialCandidate;
+        validation = editorialValidation;
+        repairedCount += 1;
+      } else {
+        validation = {
+          ...validation,
+          ok: false,
+          reasons: Array.from(new Set([...(validation.reasons || []), "editorial_review_failed"])),
+        };
+      }
+    }
 
     if (!validation.ok && regenerationAttempts < 3) {
       regenerationAttempts += 1;
+      console.info("BrandThat output repair attempted", {
+        requestId,
+        generatorType,
+        itemIndex: index,
+        reasons: validation.reasons,
+      });
       const regenerated = await regenerateOneItem({ openAiClient, systemPrompt, prompt, index, generatorType, supportedSource, requestId });
       if (regenerated) {
         candidate = repairGeneratedItemQuality(regenerated, { supportedSource, generatorType, index });
@@ -565,6 +742,13 @@ export async function applyOutputQualityStage({
           allItems: repairedItems,
           supportedSource,
           generatorType,
+        });
+        console.info("BrandThat output repair result", {
+          requestId,
+          generatorType,
+          itemIndex: index,
+          success: validation.ok,
+          reasons: validation.reasons,
         });
       }
     }
@@ -580,6 +764,14 @@ export async function applyOutputQualityStage({
 
     repairedItems.push(candidate);
   }
+
+  console.info("BrandThat output validation completed", {
+    requestId,
+    generatorType,
+    itemCount: repairedItems.length,
+    repairedCount,
+    failedIndexes: validationEvents.map((event) => event.index),
+  });
 
   return {
     text: formatGeneratedItems(repairedItems),
@@ -1046,6 +1238,13 @@ ${memoryPromptSection}
       if (!isTransientOpenAiError(error)) throw error;
       completion = await createCompletion();
     }
+
+    console.info("BrandThat generation completed", {
+      requestId,
+      generatorType,
+      openaiRequestId: completion?._request_id || completion?.response?.headers?.get?.("x-request-id") || null,
+      durationMs: Date.now() - startedAt,
+    });
 
     const supportedSource = `${prompt}\n${memoryPromptSection}`;
     const qualityResult = await applyOutputQualityStage({

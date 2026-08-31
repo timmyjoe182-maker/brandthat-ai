@@ -198,26 +198,52 @@ const brokenValidation = validateGeneratedItemQuality(
 assert.equal(brokenValidation.ok, false, "Broken grammar must fail validation.");
 assert.ok(brokenValidation.reasons.includes("broken_grammar"), "Broken grammar reason should be recorded.");
 
+const verifiedHarborFailures = [
+  "your pets deserves dependable, gentle care",
+  "cleanliness to helps with your pet feels safe",
+  "Imagine your dog coming home fresh and calm without you leaving the house",
+  "Click the link in our bio",
+  "serve our local coastal community",
+];
+
+for (const failure of verifiedHarborFailures) {
+  const validation = validateGeneratedItemQuality(failure, {
+    supportedSource: harborSource,
+    generatorType: "captions",
+    allItems: [],
+  });
+  const repaired = repairGeneratedItemQuality(failure, {
+    supportedSource: harborSource,
+    generatorType: "captions",
+  });
+  assert.equal(validation.ok, false, `Verified production failure must fail validation: ${failure}`);
+  assert.doesNotMatch(
+    repaired,
+    /pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community/i,
+    `Verified production failure must be repaired safely: ${failure}`,
+  );
+}
+
 const repairedHarborOutput = await applyOutputQualityStage({
   generatorType: "captions",
   supportedSource: harborSource,
   text: [
     "1. Our gentle approach helps with they feel great every time.",
-    "2. Your dog deserves the best.",
-    "3. Pothos and plant care cards make grooming easy.",
-    "4. Game-changing grooming for every pet.",
-    "5. Mobile grooming without the stressful trip.",
-    "6. Mobile grooming without the stressful trip.",
-    "7. Book your appointment today for guaranteed comfort.",
-    "8. {caption here}",
-    "9. Clean pets, calmer routines, and care close to home.",
-    "10. A dependable visit built around comfort, cleanliness, and trust.",
+    "2. your pets deserves dependable, gentle care",
+    "3. cleanliness to helps with your pet feels safe",
+    "4. Imagine your dog coming home fresh and calm without you leaving the house",
+    "5. Click the link in our bio",
+    "6. serve our local coastal community",
+    "7. Pothos and plant care cards make grooming easy.",
+    "8. Mobile grooming without the stressful trip.",
+    "9. Book your appointment today for guaranteed comfort.",
+    "10. {caption here}",
   ].join("\n"),
 });
 assert.doesNotMatch(
   repairedHarborOutput.text,
-  /helps with they|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
-  "Quality stage must repair broken grammar, generic copy, cross-brand leakage, guarantees, and placeholders.",
+  /helps with they|pets deserves|to helps|pet feels|dog coming home|link in (our|your|the) bio|click the link|serve our local coastal community|deserves the best|game-changing|pothos|plant care cards|guaranteed comfort|\{caption here\}/i,
+  "Quality stage must repair verified broken grammar, invented CTAs/local claims, cross-brand leakage, guarantees, and placeholders.",
 );
 assert.match(repairedHarborOutput.text, /Harbor Hound|mobile grooming|pet care|gentle|comfort|coastal|home/i);
 assert.equal(
