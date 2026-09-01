@@ -493,6 +493,15 @@ function getCurrentSeoMeta(page) {
     };
   }
 
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
+  if (currentPath === "/workspace" || currentPath.startsWith("/workspace/")) {
+    return {
+      title: "BrandThat Workspace | BrandThat.ai",
+      description: "Open the BrandThat application workspace for connected strategy, identity, content tools, saved assets, and launch roadmap.",
+      canonical: `https://brandthat.ai${currentPath}`,
+    };
+  }
+
   return {
     title: "BrandThat.ai | Where Brands Are Born",
     description: "Start with a brand name and rough idea. BrandThat previews strategy, identity direction, content, roadmap, and workspace before checkout.",
@@ -6587,6 +6596,7 @@ ${promptValue}`;
         </div>
       )}
 
+      <main id="brandthat-main" tabIndex="-1">
       {checkoutResumePrompt && authStatus === "logged_in" && !membershipLoading && normalizePlan(userPlan) !== MEMBER_PLAN && (
         <div className="checkoutResumeBanner" role="status" aria-live="polite">
           <div>
@@ -6890,6 +6900,7 @@ ${promptValue}`;
       {["about", "contact", "privacy", "terms", "cancellation", "refund"].includes(page) && (
         <InfoPage page={page} setPage={setPage} />
       )}
+      </main>
 
       {!isLoggedInApplicationPage && <footer className="footerSubscribe completeFooter">
         <div>
@@ -8862,7 +8873,7 @@ function InfoPage({ page, setPage }) {
   };
   const content = pages[page] || pages.about;
   return (
-    <main className="infoPage">
+    <section className="infoPage">
       <span>{content.eyebrow}</span>
       <h1>{content.title}</h1>
       <p>{content.body}</p>
@@ -8870,7 +8881,7 @@ function InfoPage({ page, setPage }) {
         {content.notes.map((note) => <article key={note}>{note}</article>)}
       </div>
       <button className="birthCta" onClick={() => { setPage("home"); window.history.pushState({}, "", "/"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Back to BrandThat</button>
-    </main>
+    </section>
   );
 }
 
@@ -13137,4 +13148,5 @@ const futureThemeCss = `
 @media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.exampleBrandMedia{animation:softReveal .55s ease both}@keyframes softReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:1050px){.birthHero,.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder,.footerSubscribe.completeFooter{grid-template-columns:1fr}.birthHero{padding-top:42px}.birthHero .northlineInputPanel,.productWalkthrough .northlineOutputPreview{display:none}.birthHeroVisual{max-width:760px}.receiveGrid,.howGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.boundaryGrid{grid-template-columns:1fr}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:520px}.navInner{align-items:flex-start}.navLinks{max-width:100%;overflow-x:auto}}
 @media(max-width:720px){.nav{padding:10px 16px}.navInner{display:grid;grid-template-columns:1fr auto;gap:10px}.navLinks{grid-column:1/-1;width:100%;border-radius:14px;justify-content:flex-start}.navPrimaryCta{display:none}.accountMenu span{display:none}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:calc(100% - 32px)}.birthHero{padding:30px 0 34px;gap:20px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(50px,15vw,68px);letter-spacing:-.075em}.birthHeroCopy>p,.examplesHero p{font-size:18px;margin-bottom:18px}.heroSupport{margin-bottom:0}.birthHero .northlineInputPanel{display:none}.birthHeroActions,.builderActions{align-items:stretch;margin-bottom:12px}.birthCta,.birthSecondary,.textLinkButton,.btn.dark,.btn.light{width:100%}.northlineInputPanel,.brandBuilderCard{border-radius:22px;padding:18px}.agentSteps,.outputTray,.builderContextGrid,.previewResult,.receiveGrid,.howGrid{grid-template-columns:1fr}.productWalkthrough .northlineOutputPreview{display:none}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:34px 0}.sectionHeader.compact{margin-bottom:18px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(36px,10.8vw,52px);letter-spacing:-.065em}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:17px}.walkthroughSteps{gap:4px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{padding:10px 0}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{font-size:18px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{font-size:14px}.worldList{margin-top:16px}.worldList div,.exampleDetails div{grid-template-columns:1fr;gap:5px}.previewImageFrame,.brandWorldPhoto,.exampleBrandMedia{border-radius:20px}.priceStatement{border-radius:22px;padding:20px}.priceStatement strong{font-size:48px}.faqList details{padding:11px 0}.faqList summary{font-size:16px}.builderField textarea{min-height:96px}.builderContextFields{padding:11px 12px}.examplesPage{padding:38px 16px 70px}.exampleBrandGrid{gap:44px}.footerSubscribe.completeFooter{width:calc(100% - 32px);padding:34px 0 42px;gap:18px}.footerSubscribe h2{font-size:34px}.footerLinks{grid-template-columns:1fr}.footerForm input,.footerForm button{width:100%}}
+#brandthat-main{display:block}.priceStatement span{color:#ffd2bd!important}.footerSubscribe h2{color:#11110f!important}.navLinks button,.navPrimaryCta,.accountBtn,.accountMenu button,.brand,.logoText,.textLinkButton,.birthHeroActions button{min-height:44px}
 `;
