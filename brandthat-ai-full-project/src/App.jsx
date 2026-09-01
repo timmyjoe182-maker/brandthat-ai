@@ -350,6 +350,18 @@ const seoPages = {
 
 const toolMap = Object.fromEntries(tools.map((tool) => [tool.key, tool]));
 
+const verifiedWorkspaceRoutes = [
+  "/workspace",
+  "/workspace/strategy",
+  "/workspace/identity",
+  "/workspace/content",
+  "/workspace/roadmap",
+  "/workspace/assets",
+  "/workspace/settings",
+  "/workspace/content/captions",
+  "/workspace/identity/logos",
+];
+
 const tones = [
   "Modern", "Professional", "Minimal", "Luxury", "Bold", "Playful", "Editorial", "Cinematic",
   "Premium", "Friendly", "Witty", "Elegant", "Direct", "Emotional", "High-end", "Viral"
@@ -3055,6 +3067,11 @@ export default function App() {
   const [logoColors, setLogoColors] = useState("");
   const [logoAvoid, setLogoAvoid] = useState("");
   const [captionGoal, setCaptionGoal] = useState("Awareness");
+  const [captionTone, setCaptionTone] = useState("Brand voice");
+  const [captionLength, setCaptionLength] = useState("Mixed");
+  const [captionEmojiPreference, setCaptionEmojiPreference] = useState("Restrained");
+  const [captionCtaPreference, setCaptionCtaPreference] = useState("Soft CTA");
+  const [captionHashtagPreference, setCaptionHashtagPreference] = useState("No hashtags");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [logoImage, setLogoImage] = useState("");
@@ -5746,6 +5763,13 @@ ${prompt}
 Caption goal:
 ${captionGoal || "Awareness"}
 
+Caption controls:
+Tone: ${captionTone || "Brand voice"}
+Length: ${captionLength || "Mixed"}
+Emoji preference: ${captionEmojiPreference || "Restrained"}
+CTA preference: ${captionCtaPreference || "Soft CTA"}
+Hashtag preference: ${captionHashtagPreference || "No hashtags"}
+
 Task:
 Generate exactly 8 candidate captions based on the active Brand Workspace and the user's post description. The server will editorially select or rewrite the best 5 approved captions before returning results.
 
@@ -5770,6 +5794,9 @@ Rules:
   8. Direct CTA: ask for one clear next action.
 - Tune all candidates toward this selected goal: ${captionGoal || "Awareness"}.
 - Make the goal visible through the CTA, angle, or framing without repeating the word "${captionGoal || "Awareness"}".
+- Follow the selected controls. Tone must be ${captionTone || "the active brand voice"}; length must be ${captionLength || "mixed"}; emoji use must be ${captionEmojiPreference || "restrained"}; CTA behavior must be ${captionCtaPreference || "soft and relevant"}; hashtag behavior must be ${captionHashtagPreference || "no hashtags"}.
+- If hashtags are not requested, do not add hashtags to captions. If hashtags are requested, include only a small, relevant set and do not pad.
+- Make captions feel platform-native: natural line breaks, strong first line, specific scene details, and a human rhythm that could be posted on ${selectedPlatform || "the selected platform"}.
 - If the goal is Conversion, at least 4 of 8 candidates must include a concrete conversion action, with varied soft CTA, direct CTA, benefit CTA, objection-handling, and offer framing. Do not invent discounts, scarcity, guarantees, stock status, delivery promises, or product facts.
 - If the goal is Awareness, prioritize distinct brand memory, category clarity, and one concrete scene detail over direct selling.
 - If the goal is Education, make each teaching point safe, specific, and non-claimy; do not ask generic engagement questions.
@@ -6687,6 +6714,16 @@ ${promptValue}`;
           setLogoAvoid={setLogoAvoid}
           captionGoal={captionGoal}
           setCaptionGoal={setCaptionGoal}
+          captionTone={captionTone}
+          setCaptionTone={setCaptionTone}
+          captionLength={captionLength}
+          setCaptionLength={setCaptionLength}
+          captionEmojiPreference={captionEmojiPreference}
+          setCaptionEmojiPreference={setCaptionEmojiPreference}
+          captionCtaPreference={captionCtaPreference}
+          setCaptionCtaPreference={setCaptionCtaPreference}
+          captionHashtagPreference={captionHashtagPreference}
+          setCaptionHashtagPreference={setCaptionHashtagPreference}
           generate={generate}
           loading={loading}
           result={result}
@@ -6788,6 +6825,16 @@ ${promptValue}`;
             setLogoAvoid={setLogoAvoid}
             captionGoal={captionGoal}
             setCaptionGoal={setCaptionGoal}
+            captionTone={captionTone}
+            setCaptionTone={setCaptionTone}
+            captionLength={captionLength}
+            setCaptionLength={setCaptionLength}
+            captionEmojiPreference={captionEmojiPreference}
+            setCaptionEmojiPreference={setCaptionEmojiPreference}
+            captionCtaPreference={captionCtaPreference}
+            setCaptionCtaPreference={setCaptionCtaPreference}
+            captionHashtagPreference={captionHashtagPreference}
+            setCaptionHashtagPreference={setCaptionHashtagPreference}
             generate={generate}
             loading={loading}
             generationSlow={generationSlow}
@@ -7561,17 +7608,34 @@ function CompactRecentAssetsPreview({ brand, recentGenerations = [], navigateWor
 
 function WorkspaceWelcomePanel({ brand, navigateWorkspaceSection, selectTool, dismissWorkspaceTour }) {
   if (!brand) return null;
+  const steps = [
+    ["1", "Confirm imported preview", "Review the name, audience, voice, and positioning BrandThat carried into this workspace."],
+    ["2", "Edit anything quickly", "Use Settings for basics or Brand Strategy for positioning before generating more."],
+    ["3", "Generate the complete Brand Plan", "Open Content Tools or Brand Strategy to expand the preview into a reusable system."],
+    ["4", "Create the first asset", "Generate a caption or logo concept from the active brand context."],
+    ["5", "Save the winner", "Saved Assets keeps approved work available for future generations."],
+  ];
   return (
     <section className="appPanel workspaceWelcomePanel" aria-label="Welcome to your Brand Workspace">
       <div>
         <span>Welcome to your Brand Workspace</span>
         <h2>Your strategy, identity, content tools, and roadmap all share {brand.name} context.</h2>
-        <p>Use the left navigation to move between Overview, Brand Strategy, Visual Identity, Content Tools, Launch Roadmap, Saved Assets, and Settings. Start with Content Tools when you want captions, hashtags, hooks, bios, emails, campaigns, or social strategy from the active brand.</p>
+        <p>This short onboarding can be skipped and resumed from Overview. Confirm the imported preview, make quick edits, generate the complete Brand Plan, then create and save the first useful asset.</p>
+        <div className="workspaceOnboardingSteps">
+          {steps.map(([number, title, copy]) => (
+            <article key={title}>
+              <b>{number}</b>
+              <strong>{title}</strong>
+              <span>{copy}</span>
+            </article>
+          ))}
+        </div>
       </div>
       <div className="welcomeActions">
+        <button className="btn light" onClick={() => navigateWorkspaceSection("strategy")}>Review Brand Strategy</button>
         <button className="btn dark" onClick={() => navigateWorkspaceSection("tools")}>Open Content Tools</button>
         <button className="btn light" onClick={() => selectTool("logo")}>Generate Logo Concepts</button>
-        <button className="textLinkButton" onClick={dismissWorkspaceTour}>Dismiss tour</button>
+        <button className="textLinkButton" onClick={dismissWorkspaceTour}>Dismiss tour · Skip and resume later</button>
       </div>
     </section>
   );
@@ -8678,7 +8742,51 @@ function WhatYouReceiveSection() {
 }
 
 function CompleteExampleSection() {
-  return <section className="completeExample" id="complete-example"><div className="worldCopy"><span>Labeled demo case study</span><h2>Stone & Stem turns one rough idea into a usable brand system.</h2><p>This is a BrandThat demo/test brand, not a customer testimonial. The input was a local houseplant subscription for apartment renters; the output connects strategy, identity, content, and roadmap decisions around that exact business.</p><div className="worldList"><div><strong>Input</strong><span>Beginner-friendly houseplants delivered locally to apartment renters with simple care guidance.</span></div><div><strong>Strategy</strong><span>Own beginner confidence for small-space greenery, with a calm, encouraging, practical voice.</span></div><div><strong>Identity</strong><span>Leaf green, stone gray, warm ivory, soft terracotta, botanical type, care-card and delivery imagery.</span></div><div><strong>Content</strong><span>Caption and hashtag outputs stay grounded in delivery moments, renter life, and simple guidance.</span></div><div><strong>Roadmap</strong><span>Apartment partnerships, Instagram proof, subscriber-interest tracking, and referral prompts.</span></div></div></div><figure className="brandWorldPhoto"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Demo brand workspace, identity, content, and roadmap examples arranged in warm editorial light" loading="lazy" width="1800" height="1200" /></picture></figure></section>;
+  const cases = [
+    {
+      name: "Stone & Stem",
+      headline: "A houseplant subscription becomes a calmer apartment-living brand.",
+      input: "Beginner-friendly houseplants delivered locally to apartment renters with simple care guidance.",
+      strategy: "Own beginner confidence for small-space greenery, with a calm, encouraging, practical voice.",
+      identity: "Leaf green, stone gray, warm ivory, soft terracotta, botanical type, care-card and delivery imagery.",
+      content: "Caption and hashtag outputs stay grounded in delivery moments, renter life, and simple guidance.",
+      roadmap: "Apartment partnerships, Instagram proof, subscriber-interest tracking, and referral prompts.",
+    },
+    {
+      name: "Harbor Hound",
+      headline: "A mobile dog-grooming service becomes a trust-led local service system.",
+      input: "Mobile dog grooming for busy coastal families and senior pet owners who want convenient, gentle care at home.",
+      strategy: "Lead with convenience, gentle handling, cleanliness, trust, and pet comfort without inventing credentials or guarantees.",
+      identity: "Warm whites, soft charcoal, calming blue-green, friendly service typography, pet-care and at-home appointment cues.",
+      content: "Captions use real appointment scenes, owner convenience, senior-pet care context, and mobile grooming details.",
+      roadmap: "Service-area clarity, before-and-after proof, review collection, referrals, booking conversion, and local trust signals.",
+    },
+  ];
+  return (
+    <section className="completeExample caseStudyShowcase" id="complete-example">
+      <div className="sectionHeader compact">
+        <span>Clearly labeled demo case studies</span>
+        <h2>See the same system adapt to different businesses.</h2>
+        <p>These are BrandThat demo/test brands, not paying-customer testimonials. Each example shows input, strategy, identity, content, and roadmap output from the product.</p>
+      </div>
+      <div className="caseStudyGrid">
+        {cases.map((item) => (
+          <article className="caseStudyCard" key={item.name}>
+            <span>Demo brand</span>
+            <h3>{item.name}</h3>
+            <p>{item.headline}</p>
+            <div className="worldList">
+              <div><strong>Input</strong><span>{item.input}</span></div>
+              <div><strong>Strategy</strong><span>{item.strategy}</span></div>
+              <div><strong>Identity</strong><span>{item.identity}</span></div>
+              <div><strong>Content</strong><span>{item.content}</span></div>
+              <div><strong>Roadmap</strong><span>{item.roadmap}</span></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function HowItWorksSection() {
@@ -8706,7 +8814,7 @@ function BrandBirthHomepage({ workspaceDraft, setWorkspaceDraft, autoSaveStatus,
   };
   const seedExampleBrand = () => { setWorkspaceDraft({ ...workspaceDraft, name: "Northline Goods", description: "Weatherproof everyday carry for creators who move between studio, gym, travel, and late-night work.", audience: "Creators, founders, photographers, designers, and operators", style: "Quietly premium, durable, useful", industry: "physical goods and apparel", exampleContext: "" }); trackBrandthatEvent("example_selection", { example: "northline_goods" }); setTimeout(() => scrollSection("brandthat-builder"), 80); };
   const scrollToBuilder = () => { trackBrandthatEvent("hero_cta_click", { cta: "preview_my_brand" }); scrollSection("brandthat-builder"); };
-  return <div className="birthPage" id="brandthat-product"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand.</h1><p>Start with your brand name and rough idea. BrandThat uses AI to preview the strategy, identity direction, content system, and roadmap you can build around.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => scrollSection("northline-demo")}>See a complete example</button></div><p className="heroSupport">No checkout required for the first preview.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></section></div>;
+  return <div className="birthPage" id="brandthat-product"><section className="birthHero" id="product-demo"><div className="birthHeroCopy"><h1>One idea. An entire brand workspace.</h1><p>Preview the strategic shape of your brand in seconds, then unlock the saved workspace that keeps strategy, identity, content, logos, and roadmap decisions connected.</p><div className="birthHeroActions"><button className="birthCta" onClick={scrollToBuilder}>Preview My Brand</button><button className="textLinkButton" onClick={() => scrollSection("complete-example")}>See demo case studies</button></div><p className="heroSupport">Free preview first. Complete workspace is $9.99/month.</p></div><BirthHeroVisual /></section><BrandDemoWalkthrough onExample={seedExampleBrand} /><WhatYouReceiveSection /><CompleteExampleSection /><HowItWorksSection /><PricingSection startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /><TrustSection /><FAQSection /><section className="birthBuilder" id="brandthat-builder"><div><span>Final CTA</span><h2>Bring the idea. Preview the direction.</h2><p>Generate a limited preview first. Create an account and unlock the full workspace when you want the complete plan.</p></div><BrandBuilderFlow workspaceDraft={workspaceDraft} setWorkspaceDraft={setWorkspaceDraft} autoSaveStatus={autoSaveStatus} buildGuidedBrandPlan={buildGuidedBrandPlan} loading={loading} startCheckout={startCheckout} user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></section></div>;
 }
 
 function BirthHeroVisual() {
@@ -8840,6 +8948,16 @@ function SEOPage({
   setLogoAvoid,
   captionGoal = "Awareness",
   setCaptionGoal = () => {},
+  captionTone = "Brand voice",
+  setCaptionTone = () => {},
+  captionLength = "Mixed",
+  setCaptionLength = () => {},
+  captionEmojiPreference = "Restrained",
+  setCaptionEmojiPreference = () => {},
+  captionCtaPreference = "Soft CTA",
+  setCaptionCtaPreference = () => {},
+  captionHashtagPreference = "No hashtags",
+  setCaptionHashtagPreference = () => {},
   generate,
   loading,
   result,
@@ -9610,6 +9728,7 @@ function GeneratorCard({
   const currentBucket = getSavedBucketKey(activeTool.key);
   const [savingResultKey, setSavingResultKey] = useState("");
   const [copiedResultKey, setCopiedResultKey] = useState("");
+  const [preservedResults, setPreservedResults] = useState([]);
   const getSavedAsset = (content = "", image = "") => {
     const fingerprint = normalizeAssetContent(content || image);
     if (!fingerprint || !activeBrand?.saved?.[currentBucket]) return null;
@@ -9745,6 +9864,22 @@ function GeneratorCard({
       ].filter(Boolean).join("\n"),
       title: `${directionLabel} • ${new Date().toLocaleDateString()}`,
     });
+  };
+  const generateCaptionVariant = (item, index, mode) => {
+    if (!item || loading) return;
+    const originalPrompt = prompt?.trim() || "";
+    const instruction = mode === "rewrite"
+      ? "Rewrite only the selected caption into a sharper, more platform-native option. Preserve the post facts, active brand, safety rules, and selected caption controls. Do not lose the original result."
+      : "Generate five new captions inspired by the selected caption's angle. Preserve the post facts, active brand, safety rules, and selected caption controls. Do not copy the original wording.";
+    const variantPrompt = `${originalPrompt}
+
+${instruction}
+Selected caption ${index + 1}: ${item}`.trim();
+    setPreservedResults((items) => [
+      { id: `${Date.now()}-${index}-${mode}`, mode, caption: item, createdAt: new Date().toISOString() },
+      ...items,
+    ].slice(0, 5));
+    generate?.(null, { prompt: variantPrompt });
   };
 
   const activeEntry = {
@@ -10179,6 +10314,40 @@ Designer iteration rules:
               </label>
             )}
           </div>
+          {activeTool.key === "captions" && (
+            <div className="captionControlPanel" aria-label="Caption output controls">
+              <label>
+                <span>Tone</span>
+                <select value={captionTone} onChange={(e) => setCaptionTone(e.target.value)}>
+                  {["Brand voice", "Warm", "Polished", "Conversational", "Direct", "Playful only if supported"].map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Length</span>
+                <select value={captionLength} onChange={(e) => setCaptionLength(e.target.value)}>
+                  {["Mixed", "Short", "Medium", "Long"].map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Emojis</span>
+                <select value={captionEmojiPreference} onChange={(e) => setCaptionEmojiPreference(e.target.value)}>
+                  {["No emoji", "Restrained", "Light emoji"].map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>CTA</span>
+                <select value={captionCtaPreference} onChange={(e) => setCaptionCtaPreference(e.target.value)}>
+                  {["No CTA", "Soft CTA", "Direct CTA", "Question CTA"].map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Hashtags</span>
+                <select value={captionHashtagPreference} onChange={(e) => setCaptionHashtagPreference(e.target.value)}>
+                  {["No hashtags", "Include 3 hashtags", "Include 5 hashtags"].map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+            </div>
+          )}
 
           <textarea
             className="mainPromptBox"
@@ -10501,11 +10670,21 @@ Generate another logo from the same creative direction. Preserve the strongest p
                   <button onClick={() => handleSaveResultItem(item, index, true)} disabled={isSaving}>
                     {isSaving ? "Saving..." : savedAsset?.favorite ? "Favorited" : "Favorite"}
                   </button>
+                  {activeTool.key === "captions" && <button onClick={() => generateCaptionVariant(item, index, "more")}>More like this</button>}
+                  {activeTool.key === "captions" && <button onClick={() => generateCaptionVariant(item, index, "rewrite")}>Rewrite</button>}
                 </div>
               </div>
               );
             })}
           </div>
+          {activeTool.key === "captions" && preservedResults.length > 0 && (
+            <details className="preservedResultHistory">
+              <summary>Original results preserved</summary>
+              {preservedResults.map((item) => (
+                <p key={item.id}><strong>{item.mode === "rewrite" ? "Rewrite source" : "More-like-this source"}:</strong> {item.caption}</p>
+              ))}
+            </details>
+          )}
           <div className="savedAssetLinkRow">
             <span>Saved outputs stay attached to {activeBrand?.name || "the active brand"}.</span>
             <button onClick={onViewSavedAssets}>View Saved Assets</button>
@@ -12844,11 +13023,18 @@ textarea{height:170px;resize:none;line-height:1.6}
 .hashtagSingleBox .tinyTag{color:#ffffff;margin-bottom:14px}
 .hashtagSingleBox p{font-size:22px;line-height:1.9;margin:0;white-space:pre-wrap;word-break:break-word;color:white}
 
+.captionControlPanel{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0 12px}
+.captionControlPanel label{display:grid;gap:6px}
+.captionControlPanel span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}
+.captionControlPanel select{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:11px 12px;font-weight:760;color:#11110f;min-height:44px}
 .captionListBox{padding:22px;display:flex;flex-direction:column;gap:12px}
 .captionOptionRow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:start;background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:16px}
 .captionNumber{width:34px;height:34px;border-radius:50%;background:#111;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
 .captionOptionRow p{margin:4px 0 0;color:#333;line-height:1.65;font-size:15px;white-space:pre-wrap}
 .captionOptionRow button{background:white;border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:#111}
+.preservedResultHistory{margin:0 22px 18px;border-top:1px solid rgba(17,17,15,.1);padding-top:12px}
+.preservedResultHistory summary{cursor:pointer;font-weight:900}
+.preservedResultHistory p{margin:10px 0 0;color:#5d554d;line-height:1.5}
 
 .birthPage{background:#f8f5ef;color:#111;overflow:hidden}
 .birthPage h1,.birthPage h2,.birthPage h3{letter-spacing:-.065em}
@@ -12934,8 +13120,10 @@ const futureThemeCss = `
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bt-paper);color:var(--bt-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--bt-clay);outline-offset:3px}.app{min-height:100vh;background:var(--bt-paper)!important;color:var(--bt-ink)!important}.nav{position:sticky;top:0;z-index:40;max-width:1440px;margin:0 auto;padding:14px clamp(18px,4vw,54px) 10px;background:rgba(255,253,248,.9);backdrop-filter:blur(16px);border-bottom:1px solid rgba(17,17,15,.06)}.navInner{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand,.logoText{font-size:23px;font-weight:950;letter-spacing:-.07em;color:var(--bt-ink);border:0;background:transparent}.navLinks{display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bt-line);border-radius:999px;background:rgba(255,255,255,.72)}.navLinks button{border:0;background:transparent;border-radius:999px;padding:9px 14px;color:#302d28;font-weight:760;font-size:14px}.navLinks button:hover{background:#11110f;color:#fffdf8}.navActions,.authCluster{display:flex;align-items:center;gap:10px}.navPrimaryCta,.accountBtn,.authCluster button,.birthCta,.birthSecondary,.inputAction,.priceStatement button,.unlockCallout button,.btn.dark,.btn.light{display:inline-flex;align-items:center;justify-content:center;border:1px solid #11110f;border-radius:999px;padding:12px 18px;background:#11110f;color:#fffdf8;font-weight:850;letter-spacing:-.02em;text-decoration:none;transition:transform .18s ease,background .18s ease,color .18s ease,border-color .18s ease}.birthSecondary,.btn.light{background:#fffdf8;color:#11110f;border-color:var(--bt-line)}.navPrimaryCta:hover,.accountBtn:hover,.birthCta:hover,.inputAction:hover,.priceStatement button:hover,.unlockCallout button:hover,.btn.dark:hover{transform:translateY(-1px);background:#2a251f}.birthSecondary:hover,.btn.light:hover{background:#f0e8dc}.accountMenu{display:flex;align-items:center;gap:8px}.accountMenu span{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-muted);font-weight:700;font-size:13px}
 .birthPage{background:var(--bt-paper);overflow:hidden}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:min(1180px,calc(100% - 44px));margin:0 auto}.birthHero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(420px,.88fr);gap:clamp(30px,5vw,76px);align-items:center;padding:54px 0 60px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(58px,9.5vw,132px);line-height:.87;letter-spacing:-.08em;margin:0 0 22px;font-weight:950;color:var(--bt-ink)}.birthHeroCopy>p,.examplesHero p{font-size:clamp(19px,1.75vw,25px);line-height:1.3;color:var(--bt-muted);max-width:690px;margin:0 0 24px;letter-spacing:-.03em}.birthHeroActions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}.textLinkButton{border:0;background:transparent;color:#11110f;text-decoration:underline;text-underline-offset:4px;font-weight:820;padding:10px}.heroSupport,.builderFinePrint,.policyNote{font-size:14px;color:var(--bt-muted);line-height:1.45;margin:0 0 20px}.birthHeroVisual:before{content:"";position:absolute;inset:-22px;background:linear-gradient(120deg,rgba(215,197,173,.35),rgba(255,253,248,0) 56%);border-radius:34px;z-index:0}.birthHeroVisual{position:relative;min-width:0}.birthHeroVisual>*{position:relative;z-index:1}.northlineInputPanel,.brandBuilderCard{background:#fffaf2;border:1px solid rgba(17,17,15,.1);border-radius:26px;padding:22px;box-shadow:var(--bt-shadow);display:grid;gap:16px}.inputPanelHeader,.builderTop{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.inputPanelHeader span,.builderTop>span,.sectionHeader>span,.worldCopy>span,.pricingSection>div>span,.exampleBrandCopy>span,.examplesKicker,.priceStatement span{display:block;color:var(--bt-clay);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;margin-bottom:8px}.inputPanelHeader strong{font-size:16px;color:var(--bt-ink)}.inputRows{display:grid;gap:12px}.inputRow,.builderField{display:grid;gap:8px;padding:15px;border:1px solid rgba(17,17,15,.09);border-radius:16px;background:#fffdf8}.inputRow span,.builderField span,.outputTray span,.toolExample span,.roadmapLine span,.workspaceShelf span,.previewResult span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#806546;font-weight:850}.inputRow strong{font-size:22px;letter-spacing:-.05em}.inputRow p,.builderField input,.builderField textarea{margin:0;color:#38332d;font-size:16px;line-height:1.4}.agentSteps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.agentSteps span{border-bottom:1px solid rgba(17,17,15,.1);padding:8px 0;color:#47413a;font-size:13px;font-weight:740}.northlineOutputPreview{display:grid;gap:14px}.previewImageFrame,.brandWorldPhoto,.brandHeadquarters picture,.exampleBrandMedia{display:block;overflow:hidden;border-radius:26px;background:#eee5d8;box-shadow:var(--bt-shadow);border:1px solid rgba(17,17,15,.08);margin:0;aspect-ratio:3/2}.previewImageFrame img,.brandWorldPhoto img,.brandHeadquarters img,.exampleBrandMedia img{display:block;width:100%;height:100%;object-fit:cover}.outputTray{display:grid;grid-template-columns:1fr 1fr;gap:10px}.outputTray div{background:#11110f;color:#fffdf8;border-radius:16px;padding:15px;min-height:96px}.outputTray span{color:#d7c5ad}.outputTray strong{display:block;color:#fffdf8;font-size:18px;line-height:1.15;letter-spacing:-.03em}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:56px 0}.sectionHeader.compact{max-width:820px;margin-bottom:28px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(42px,6vw,82px);line-height:.94;letter-spacing:-.07em;margin:0 0 14px;font-weight:950}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:clamp(18px,1.8vw,23px);line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em;margin:0}.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder{display:grid;grid-template-columns:minmax(0,.92fr) minmax(420px,1fr);gap:36px;align-items:start}.walkthroughSteps,.receiveGrid,.howGrid,.boundaryGrid,.faqList,.infoNotes{display:grid;gap:12px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{border-top:1px solid var(--bt-line);padding:14px 0}.walkthroughSteps span,.howGrid span{color:var(--bt-clay);font-size:12px;font-weight:900;letter-spacing:.08em}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{display:block;font-size:20px;letter-spacing:-.04em;margin-bottom:6px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{color:var(--bt-muted);line-height:1.45;margin:0}.receiveGrid,.howGrid,.boundaryGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.boundaryGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.worldList{display:grid;gap:10px;margin-top:22px}.worldList div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:11px}.worldList span{color:var(--bt-muted);font-size:15px;line-height:1.35}.priceStatement{background:#11110f;color:#fffdf8;border-radius:26px;padding:26px;box-shadow:var(--bt-shadow)}.priceStatement strong{display:block;font-size:64px;letter-spacing:-.08em;line-height:.9;margin:6px 0 16px}.priceStatement p,.priceStatement li{color:rgba(255,253,248,.72);line-height:1.45}.priceStatement a{display:inline-block;color:#fffdf8;margin-top:14px;text-decoration:underline;text-underline-offset:4px}.priceStatement button{background:#fffdf8;color:#11110f;border-color:#fffdf8;width:100%;margin-top:14px}.builderContextGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.builderField.full{grid-column:1/-1}.builderField{padding:0;background:transparent;border:0}.builderField input,.builderField textarea,.footerForm input{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:13px 14px}.builderField textarea{min-height:122px;resize:vertical}.builderActions{display:flex;gap:10px;flex-wrap:wrap}.previewResult{display:grid;grid-template-columns:1fr 1fr;gap:12px}.previewResult>div{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:16px;padding:16px}.previewResult p{margin:6px 0 0;color:#39342e;line-height:1.42}.previewSwatches{display:flex;gap:8px;margin-top:10px}.previewSwatches i{width:38px;height:38px;border-radius:50%;border:1px solid rgba(17,17,15,.14)}.unlockCallout{grid-column:1/-1;background:#11110f!important;color:#fffdf8!important}.unlockCallout p{color:rgba(255,253,248,.72)!important}.unlockCallout button{margin-top:12px;background:#fffdf8;color:#11110f}.faqList details{border-top:1px solid var(--bt-line);padding:16px 0}.faqList summary{font-weight:850;font-size:18px;cursor:pointer}.examplesPage{background:var(--bt-paper);padding:54px clamp(22px,5vw,76px) 90px}.examplesHero{max-width:980px;margin:0 auto 48px}.exampleBrandGrid{display:grid;gap:54px;max-width:1180px;margin:0 auto}.exampleBrandCard.editorial{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);gap:34px;align-items:center}.exampleBrandCard.editorial.reverse{grid-template-columns:minmax(340px,.95fr) minmax(0,1.05fr)}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:2}.exampleBrandCopy h2{font-size:clamp(42px,6vw,82px);line-height:.92;letter-spacing:-.07em;margin:0 0 14px}.exampleBrandCopy p{font-size:21px;line-height:1.35;color:var(--bt-muted);letter-spacing:-.025em}.exampleDetails{display:grid;gap:10px;margin-top:20px}.exampleDetails div{display:grid;grid-template-columns:110px 1fr;gap:14px;border-top:1px solid var(--bt-line);padding-top:10px}.exampleDetails span{color:var(--bt-muted);font-size:15px}.textExamplePanel{padding:28px;box-shadow:none}.textExamplePanel strong{font-size:34px;letter-spacing:-.06em}.textExamplePanel li{color:var(--bt-muted);margin:10px 0;line-height:1.4}.darkPanel{background:#11110f;color:#fffdf8}.darkPanel li,.darkPanel p{color:rgba(255,253,248,.7)}.infoPage{padding:78px 0}.infoPage>span{color:var(--bt-clay);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.footerSubscribe.completeFooter{max-width:1180px;margin:0 auto;padding:50px 0 70px;border-top:1px solid var(--bt-line);display:grid;grid-template-columns:1fr 420px;gap:36px}.footerSubscribe h2{font-size:clamp(34px,4vw,56px);line-height:1;letter-spacing:-.06em}.footerSubscribe p,.footerForm span{color:var(--bt-muted);line-height:1.55}.footerLinks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.footerLinks button{border:0;background:transparent;text-align:left;padding:6px 0;color:#11110f;text-decoration:underline;text-underline-offset:3px;font-weight:750}
 .builderContextFields{border:1px solid rgba(17,17,15,.1);border-radius:16px;background:#fffdf8;padding:12px 14px}.builderContextFields summary{cursor:pointer;font-weight:850;color:#2f2a25}.builderContextFields .builderContextGrid{margin-top:14px}
+.caseStudyShowcase{display:block}.caseStudyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.caseStudyCard{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px;box-shadow:0 20px 58px rgba(35,28,19,.07)}.caseStudyCard>span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}.caseStudyCard h3{font-size:34px;line-height:1;letter-spacing:-.06em;margin:8px 0}.caseStudyCard>p{color:#5d554d;line-height:1.45}
+.workspaceOnboardingSteps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:18px}.workspaceOnboardingSteps article{border:1px solid rgba(17,17,15,.1);border-radius:16px;background:#f8f5ef;padding:13px;display:grid;gap:6px}.workspaceOnboardingSteps b{width:28px;height:28px;border-radius:50%;background:#11110f;color:#fffdf8;display:grid;place-items:center;font-size:12px}.workspaceOnboardingSteps strong{font-size:15px;line-height:1.1}.workspaceOnboardingSteps span{font-size:12px!important;line-height:1.35;color:#6b625b!important;text-transform:none!important;letter-spacing:0!important;font-weight:700!important}
 .loggedInApp{display:grid;grid-template-columns:292px minmax(0,1fr);min-height:100vh;background:#f8f5ef;border-top:1px solid rgba(17,17,15,.06)}.appSidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:space-between;padding:22px;border-right:1px solid rgba(17,17,15,.1);background:#fffdf8;z-index:20}.appBrandButton{border:0;background:transparent;text-align:left;font-size:25px;font-weight:950;letter-spacing:-.075em;color:#11110f;padding:0;margin-bottom:22px}.brandSwitcher{display:grid;gap:8px}.brandSwitcher span,.appSidebarBottom span,.appHeader span,.appCardHeader span,.appToolCard span,.appPanel>span,.completionTop span,.completionChecklist span,.identityOverviewGrid span,.generatorAppCrumb span,.brandContextPanel summary,.assetCardMeta span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#806546}.brandSwitcher select{width:100%;border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#f8f5ef;padding:12px;font-weight:850;color:#11110f}.appSectionNav{display:grid;gap:6px;margin:28px 0}.appSectionNav button{border:0;background:transparent;border-radius:14px;padding:12px 13px;text-align:left;font-weight:850;color:#37322c}.appSectionNav button:hover,.appSectionNav button.active{background:#11110f;color:#fffdf8}.appSidebarBottom{display:grid;gap:8px;border-top:1px solid rgba(17,17,15,.1);padding-top:16px}.appSidebarBottom strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#5d554d}.appSidebarBottom button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;padding:10px 12px;font-weight:850;color:#11110f}.appShellBody{min-width:0;display:grid;grid-template-rows:auto 1fr}.appHeader{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;background:rgba(248,245,239,.92);backdrop-filter:blur(14px);border-bottom:1px solid rgba(17,17,15,.08)}.appHeader strong{display:block;font-size:22px;letter-spacing:-.045em}.mobileAppMenu{display:none}.createMenuWrap{position:relative}.appCreateButton{min-width:104px}.createMenu{position:absolute;right:0;top:calc(100% + 8px);width:360px;max-height:70vh;overflow:auto;background:#fffdf8;border:1px solid rgba(17,17,15,.12);border-radius:20px;padding:10px;box-shadow:0 24px 70px rgba(35,28,19,.16);display:grid;gap:6px;z-index:30}.createMenuContext{padding:10px 12px;color:#806546;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:900}.createMenu button{border:0;background:transparent;border-radius:14px;padding:12px;text-align:left;color:#11110f}.createMenu button:hover{background:#f1eadf}.createMenu strong{display:block;font-size:15px;margin-bottom:4px}.createMenu span{display:block;color:#6b625b;font-size:12px;line-height:1.35}.appMain{min-width:0;padding:28px;scroll-margin-top:120px}.appContentSection{max-width:1180px;margin:0 auto;padding:0 0 54px}.workspaceOverview .pageTitle,.overviewHero h1{font-size:clamp(46px,7vw,88px);line-height:.92;letter-spacing:-.075em;margin:0 0 14px}.overviewHero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.62fr);gap:24px;align-items:stretch}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:24px;padding:24px;box-shadow:0 20px 58px rgba(35,28,19,.07)}.overviewHero p{font-size:20px;line-height:1.35;color:#5d554d;max-width:760px}.overviewMeta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.overviewMeta span{border:1px solid rgba(17,17,15,.1);border-radius:999px;padding:9px 12px;background:#f8f5ef;font-size:13px;font-weight:850;color:#37322c}.nextActionCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px}.nextActionCard strong{font-size:28px;line-height:1.08;letter-spacing:-.055em}.nextActionCard button,.appPanel button,.appToolCard button,.completionChecklist button,.identityOverviewGrid button{align-self:flex-start;border:1px solid #11110f;border-radius:999px;background:#11110f;color:#fffdf8;padding:10px 14px;font-weight:850}.overviewActions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.completionTop{width:100%;border:0;background:transparent;text-align:left;display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:center;color:#11110f}.completionTop strong{font-size:44px;letter-spacing:-.075em}.completionTop small{color:#6b625b;font-weight:750}.completionChecklist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.completionChecklist button{display:grid;gap:4px;align-items:start;text-align:left;border-color:rgba(17,17,15,.12);background:#f8f5ef;color:#11110f;border-radius:16px}.completionChecklist button.complete{background:#11110f;color:#fffdf8}.completionChecklist button.complete span,.completionChecklist button.complete small{color:rgba(255,253,248,.68)}.completionChecklist small{color:#6b625b}.workspaceTools{margin-top:18px}.appCardHeader h2{font-size:32px;line-height:1;letter-spacing:-.06em;margin:6px 0 0}.toolCardGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.appToolCard{display:flex;flex-direction:column;justify-content:space-between;gap:18px;background:#f8f5ef;border:1px solid rgba(17,17,15,.1);border-radius:18px;padding:18px;min-height:178px}.appToolCard strong{display:block;font-size:22px;letter-spacing:-.05em;margin:8px 0}.appToolCard p{color:#5d554d;line-height:1.4;margin:0}.moreTools{margin-top:18px}.moreTools summary{font-weight:900;cursor:pointer}.overviewGrid,.identityOverviewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.appPanel{box-shadow:none}.appPanel.wide{grid-column:span 2}.appPanel p{color:#5d554d;line-height:1.5}.recentAssetRow,.appPanel>button:not(.btn){display:block;width:100%;border:0;border-top:1px solid rgba(17,17,15,.1);border-radius:0;background:transparent;color:#11110f;text-align:left;padding:12px 0;margin:0}.recentAssetRow strong{display:block}.recentAssetRow small,.roadmapMiniRow p{color:#6b625b}.roadmapMiniRow{border-top:1px solid rgba(17,17,15,.1);padding:12px 0}.identityLogoStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}.identityLogoStrip img{width:100%;aspect-ratio:1;border-radius:20px;object-fit:contain;background:#fffdf8;border:1px solid rgba(17,17,15,.1);padding:18px}.settingsGrid{display:grid;gap:18px}.newBrandPanel summary{font-size:18px;font-weight:950;cursor:pointer}.newBrandPanel .workspaceCard{box-shadow:none;border:0;padding:18px 0 0}.generatorAppCrumb{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.generatorAppCrumb button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.brandContextPanel{border:1px solid rgba(17,17,15,.1);border-radius:18px;background:#fffdf8;padding:14px 16px;margin-bottom:18px}.brandContextPanel summary{cursor:pointer;color:#806546}.brandContextPanel div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.brandContextPanel p{margin:0;color:#5d554d;line-height:1.45}.captionRowActions{display:flex;gap:8px;flex-wrap:wrap}.savedAssetLinkRow{border-top:1px solid rgba(17,17,15,.08);padding:14px 22px;display:flex;justify-content:space-between;gap:12px;align-items:center}.savedAssetLinkRow span{color:#6b625b;font-weight:760}.savedAssetLinkRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:9px 12px;font-weight:850;color:#11110f}.assetLibraryHero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:18px}.assetLibraryHero h2{font-size:clamp(42px,6vw,80px);line-height:.94;letter-spacing:-.07em;margin:0 0 12px}.assetLibraryHero p{color:#5d554d;font-size:18px;line-height:1.4}.assetLibraryHero>strong{font-size:42px;letter-spacing:-.07em}.assetControls{display:grid;grid-template-columns:minmax(220px,1fr) 220px 180px;gap:10px;margin-bottom:12px}.assetControls input,.assetControls select{border:1px solid rgba(17,17,15,.12);border-radius:14px;background:#fffdf8;padding:12px 13px;font-weight:760;color:#11110f}.assetCountRow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.assetCountRow button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:8px 11px;font-weight:820;color:#11110f}.assetRecentPanel{margin:0 0 18px}.assetLibraryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.assetLibraryCard{background:#fffdf8;border:1px solid rgba(17,17,15,.1);border-radius:22px;padding:18px;display:grid;gap:12px}.assetImageButton{border:0;background:#f8f5ef;border-radius:16px;padding:12px}.assetImageButton img{width:100%;aspect-ratio:1;object-fit:contain}.assetCardMeta{display:flex;justify-content:space-between;gap:10px}.assetCardMeta small{color:#6b625b}.assetLibraryCard>strong{font-size:20px;letter-spacing:-.045em}.assetLibraryCard p{color:#5d554d;line-height:1.45;margin:0}.assetLibraryCard details{border-top:1px solid rgba(17,17,15,.1);padding-top:10px}.assetLibraryCard summary{cursor:pointer;font-weight:850}.assetLibraryCard pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;color:#4d463f}.assetCardActions{display:flex;gap:8px;flex-wrap:wrap}.assetCardActions button{border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#f8f5ef;color:#11110f;padding:8px 10px;font-weight:820}.assetCardActions .miniDanger{border-color:rgba(145,34,18,.25);color:#8d2718}
-@media(max-width:1040px){.loggedInApp{grid-template-columns:1fr}.appSidebar{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);height:100vh;top:0;transform:translateX(-105%);transition:transform .2s ease;box-shadow:20px 0 70px rgba(35,28,19,.16)}.appSidebar.open{transform:translateX(0)}.appHeader{top:0}.mobileAppMenu{display:inline-flex;border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:10px 12px;font-weight:850}.appMain{padding:20px}.overviewHero,.overviewGrid,.identityOverviewGrid{grid-template-columns:1fr}.appPanel.wide{grid-column:auto}.toolCardGrid,.completionChecklist{grid-template-columns:repeat(2,minmax(0,1fr))}.createMenu{right:-8px;width:min(88vw,360px)}}@media(max-width:680px){.appHeader{align-items:flex-start;padding:12px 16px}.appHeader strong{font-size:18px}.appMain{padding:16px}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{border-radius:18px;padding:18px}.overviewHero p{font-size:17px}.overviewActions .btn{width:100%}.toolCardGrid,.completionChecklist,.brandContextPanel div{grid-template-columns:1fr}.completionTop{grid-template-columns:1fr;gap:5px}.captionOptionRow{grid-template-columns:34px 1fr}.captionRowActions{grid-column:2}.savedAssetLinkRow{flex-direction:column;align-items:flex-start}.savedAssetLinkRow button{width:100%}}
+@media(max-width:1040px){.loggedInApp{grid-template-columns:1fr}.appSidebar{position:fixed;inset:0 auto 0 0;width:min(86vw,320px);height:100vh;top:0;transform:translateX(-105%);transition:transform .2s ease;box-shadow:20px 0 70px rgba(35,28,19,.16)}.appSidebar.open{transform:translateX(0)}.appHeader{top:0}.mobileAppMenu{display:inline-flex;border:1px solid rgba(17,17,15,.12);border-radius:999px;background:#fffdf8;padding:10px 12px;font-weight:850}.appMain{padding:20px}.overviewHero,.overviewGrid,.identityOverviewGrid{grid-template-columns:1fr}.appPanel.wide{grid-column:auto}.toolCardGrid,.completionChecklist{grid-template-columns:repeat(2,minmax(0,1fr))}.createMenu{right:-8px;width:min(88vw,360px)}.captionControlPanel{grid-template-columns:repeat(2,minmax(0,1fr))}.caseStudyGrid{grid-template-columns:1fr}.workspaceOnboardingSteps{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:680px){.appHeader{align-items:flex-start;padding:12px 16px}.appHeader strong{font-size:18px}.appMain{padding:16px}.overviewHero>div:first-child,.nextActionCard,.appPanel,.completionPanel,.workspaceTools,.newBrandPanel{border-radius:18px;padding:18px}.overviewHero p{font-size:17px}.overviewActions .btn{width:100%}.toolCardGrid,.completionChecklist,.brandContextPanel div,.captionControlPanel,.workspaceOnboardingSteps{grid-template-columns:1fr}.completionTop{grid-template-columns:1fr;gap:5px}.captionOptionRow{grid-template-columns:34px 1fr}.captionRowActions{grid-column:2}.captionRowActions button{min-height:44px}.savedAssetLinkRow{flex-direction:column;align-items:flex-start}.savedAssetLinkRow button{width:100%}}
 @media (prefers-reduced-motion:no-preference){.birthHeroVisual,.brandWorldPhoto,.exampleBrandMedia{animation:softReveal .55s ease both}@keyframes softReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:1050px){.birthHero,.walkthroughGrid,.completeExample,.pricingSection,.birthBuilder,.footerSubscribe.completeFooter{grid-template-columns:1fr}.birthHero{padding-top:42px}.birthHero .northlineInputPanel,.productWalkthrough .northlineOutputPreview{display:none}.birthHeroVisual{max-width:760px}.receiveGrid,.howGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.boundaryGrid{grid-template-columns:1fr}.exampleBrandCard.editorial,.exampleBrandCard.editorial.reverse{grid-template-columns:1fr}.exampleBrandCard.editorial.reverse .exampleBrandMedia{order:0}.priceStatement{max-width:520px}.navInner{align-items:flex-start}.navLinks{max-width:100%;overflow-x:auto}}
 @media(max-width:720px){.nav{padding:10px 16px}.navInner{display:grid;grid-template-columns:1fr auto;gap:10px}.navLinks{grid-column:1/-1;width:100%;border-radius:14px;justify-content:flex-start}.navPrimaryCta{display:none}.accountMenu span{display:none}.birthHero,.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder,.infoPage{width:calc(100% - 32px)}.birthHero{padding:30px 0 34px;gap:20px}.birthHeroCopy h1,.examplesHero h1{font-size:clamp(50px,15vw,68px);letter-spacing:-.075em}.birthHeroCopy>p,.examplesHero p{font-size:18px;margin-bottom:18px}.heroSupport{margin-bottom:0}.birthHero .northlineInputPanel{display:none}.birthHeroActions,.builderActions{align-items:stretch;margin-bottom:12px}.birthCta,.birthSecondary,.textLinkButton,.btn.dark,.btn.light{width:100%}.northlineInputPanel,.brandBuilderCard{border-radius:22px;padding:18px}.agentSteps,.outputTray,.builderContextGrid,.previewResult,.receiveGrid,.howGrid{grid-template-columns:1fr}.productWalkthrough .northlineOutputPreview{display:none}.productWalkthrough,.receiveSection,.completeExample,.howSection,.pricingSection,.trustSection,.faqSection,.birthBuilder{padding:34px 0}.sectionHeader.compact{margin-bottom:18px}.sectionHeader h2,.worldCopy h2,.pricingSection h2,.birthBuilder h2,.infoPage h1{font-size:clamp(36px,10.8vw,52px);letter-spacing:-.065em}.sectionHeader p,.worldCopy p,.pricingSection p,.birthBuilder p,.infoPage p{font-size:17px}.walkthroughSteps{gap:4px}.walkthroughSteps article,.receiveGrid article,.howGrid article,.boundaryGrid article,.infoNotes article,.friendlyState{padding:10px 0}.walkthroughSteps strong,.receiveGrid strong,.howGrid strong,.boundaryGrid strong{font-size:18px}.walkthroughSteps p,.receiveGrid p,.howGrid p,.boundaryGrid p,.boundaryGrid li,.faqList p{font-size:14px}.worldList{margin-top:16px}.worldList div,.exampleDetails div{grid-template-columns:1fr;gap:5px}.previewImageFrame,.brandWorldPhoto,.exampleBrandMedia{border-radius:20px}.priceStatement{border-radius:22px;padding:20px}.priceStatement strong{font-size:48px}.faqList details{padding:11px 0}.faqList summary{font-size:16px}.builderField textarea{min-height:96px}.builderContextFields{padding:11px 12px}.examplesPage{padding:38px 16px 70px}.exampleBrandGrid{gap:44px}.footerSubscribe.completeFooter{width:calc(100% - 32px);padding:34px 0 42px;gap:18px}.footerSubscribe h2{font-size:34px}.footerLinks{grid-template-columns:1fr}.footerForm input,.footerForm button{width:100%}}

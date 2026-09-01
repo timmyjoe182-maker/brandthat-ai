@@ -1179,11 +1179,11 @@ function getRequestSpecificSafeCaptions({ contextKind = "general", supportedSour
   if (contextKind === "pet") {
     if (/before[- ]and[- ]after|reel|nervous|senior golden|retriever|relax/.test(request)) {
       return [
-        "This Reel follows a nervous senior golden retriever through a gentler at-home grooming appointment, one calm step at a time.",
-        "Before: a dog who needs a slower approach. After: a cleaner grooming routine built around home, trust, and careful handling.",
-        "For busy coastal families and senior pet owners, mobile grooming can make the appointment feel easier to plan without leaving home.",
-        "Notice the quiet details: clean tools, gentle handling, and a pace shaped around the pet in front of us.",
-        "A before-and-after grooming moment can tell a bigger story: convenience for the owner, thoughtful care for the dog, and a cleaner routine at home.",
+        "Watch the shift: a nervous senior golden retriever, a slower pace, and a gentle grooming appointment at home.",
+        "Before: unsure at the start. After: settled into the routine. That is the kind of care an at-home grooming appointment can make room for.",
+        "Senior pets often need a little more patience around grooming. This Reel is about moving at the dog's pace, keeping the setup clean, and making the appointment easier for the family at home.",
+        "Ever wish grooming day could feel less like a production? Harbor Hound brings the appointment home, with gentle handling and quiet attention to the dog in front of us.",
+        "A good before-and-after is not just about the finished groom. It is the trust built in the middle: familiar surroundings, careful handling, and a calmer rhythm for a senior golden retriever.",
       ];
     }
     if (/come(?:s)? to the customer|customer'?s home|at home|appointments?|mobile dog grooming|introduce/.test(request)) {
