@@ -2172,6 +2172,17 @@ function trackBrandthatEvent(name, properties = {}) {
   }
 }
 
+function trackBrandthatEventOnce(name, properties = {}, key = name) {
+  try {
+    const storageKey = `brandthat_funnel_once_${key}`;
+    if (sessionStorage.getItem(storageKey) === "true") return;
+    sessionStorage.setItem(storageKey, "true");
+    trackBrandthatEvent(name, properties);
+  } catch {
+    trackBrandthatEvent(name, properties);
+  }
+}
+
 function getAssetFileName(name = "brandthat-logo", image = "") {
   const extension = image.startsWith("data:image/svg") ? "svg" : "png";
   const cleanName = String(name || "brandthat-logo")
@@ -3137,6 +3148,15 @@ export default function App() {
   const membershipLoading = authLoading || (authStatus === "logged_in" && (workspaceLoading || membershipLookupPending) && normalizePlan(userPlan) !== MEMBER_PLAN);
 
   useEffect(() => {
+    if (page === "home") {
+      trackBrandthatEventOnce("landing_page_view", { route: "/" }, "landing_page_view");
+    }
+    if (page === "workspace") {
+      trackBrandthatEventOnce("workspace_opened", { route: window.location.pathname || "/workspace" }, `workspace_opened_${window.location.pathname || "/workspace"}`);
+    }
+  }, [page, workspaceSection]);
+
+  useEffect(() => {
     if (!isMember) return;
     clearPendingMembershipIntent();
     setCheckoutResumePrompt(false);
@@ -3427,6 +3447,7 @@ export default function App() {
       });
 
       if (data?.member || normalizePlan(data?.plan) === MEMBER_PLAN) {
+        trackBrandthatEvent("checkout_completed", { source: "stripe_return" });
         clearPendingMembershipIntent();
         localStorage.setItem("brandthat_plan", MEMBER_PLAN);
         setUserPlan(MEMBER_PLAN);
@@ -3583,6 +3604,7 @@ export default function App() {
 
     if (params.get("brand_plan") === "canceled") {
       trackBrandthatEvent("checkout_canceled", {});
+      trackBrandthatEvent("checkout_cancelled", { source: "stripe_return" });
       setCheckoutStatus("idle");
       setCheckoutError("Checkout was canceled. Your brand draft is still saved, and you can retry anytime.");
       notify("info", "Checkout canceled", "Your brand draft is still saved. Start membership again whenever you are ready.");
@@ -3779,6 +3801,9 @@ export default function App() {
   };
 
   const openAuth = (mode = "login", message = "", action = null) => {
+    if (mode === "signup") {
+      trackBrandthatEvent("signup_opened", { source: String(action || "auth_modal").slice(0, 80) });
+    }
     setAuthMode(mode);
     setAuthMessage(message);
     setPendingAuthAction(action);
@@ -3994,6 +4019,7 @@ export default function App() {
       localStorage.setItem("brandthat_trial_generation_count", "0");
       setTrialGenerationCount(0);
       setUserPlan("free");
+      trackBrandthatEvent("signup_completed", { source: "auth_modal" });
 
       if (data?.session?.user) {
         if (isUserEmailVerified(data.session.user)) {
@@ -4212,6 +4238,7 @@ export default function App() {
     storePendingMembershipIntent(eventSource);
     setCheckoutStatus("loading");
     trackBrandthatEvent("checkout_request_started", { plan: checkoutPlan, source: eventSource });
+    trackBrandthatEvent("checkout_started", { plan: checkoutPlan, source: eventSource });
     trackBrandthatEvent("checkout_session_requested", { plan: checkoutPlan, source: eventSource });
 
     try {
@@ -6363,6 +6390,7 @@ ${promptValue}`;
         }
         setResult(cleanText);
         trackBrandthatEvent("text_generated", { tool: activeTool.key, plan: userPlan });
+        trackBrandthatEvent("generator_used", { tool: activeTool.key, plan: userPlan });
       }
 
       if (!trialLimitsBypassed) incrementTrialGenerationUse();
@@ -7091,10 +7119,12 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
     if (!canPreview) { setPreviewState("missing"); return; }
     setPreviewState("loading");
     trackBrandthatEvent("builder_started", { source: "homepage_preview" });
+    trackBrandthatEvent("preview_started", { source: "homepage_preview" });
     window.setTimeout(() => {
       setPreview(buildPreviewFromDraft(workspaceDraft));
       setPreviewState("ready");
       trackBrandthatEvent("preview_success", { source: "homepage_preview" });
+      trackBrandthatEvent("preview_completed", { source: "homepage_preview" });
     }, 450);
   };
 

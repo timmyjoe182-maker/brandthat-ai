@@ -69,6 +69,16 @@ const generatorSignature = app.slice(generatorSignatureStart, generatorSignature
   "sanitizeAnalyticsProperties",
   "blockedKeyPattern",
   "stableStringHash(String(value))",
+  "landing_page_view",
+  "preview_started",
+  "preview_completed",
+  "signup_opened",
+  "signup_completed",
+  "checkout_started",
+  "checkout_completed",
+  "checkout_cancelled",
+  "workspace_opened",
+  "generator_used",
 ].forEach((needle) => assert.ok(app.includes(needle), `Missing privacy-safe analytics guard: ${needle}`));
 
 assert.match(index, /rel="canonical"/, "Canonical URL must exist.");

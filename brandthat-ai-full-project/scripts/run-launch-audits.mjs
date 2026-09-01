@@ -40,6 +40,16 @@ assert.ok(sitemap.includes("https://brandthat.ai/"), "sitemap.xml must include h
 ].forEach((needle) => assert.ok(app.includes(needle), `Missing accessibility/mobile marker: ${needle}`));
 
 [
+  "landing_page_view",
+  "preview_started",
+  "preview_completed",
+  "signup_opened",
+  "signup_completed",
+  "checkout_started",
+  "checkout_completed",
+  "checkout_cancelled",
+  "workspace_opened",
+  "generator_used",
   "checkout_canceled",
   "checkout_request_started",
   "checkout_session_created",
