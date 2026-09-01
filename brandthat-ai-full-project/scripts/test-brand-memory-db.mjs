@@ -170,6 +170,39 @@ try {
   });
   assert.ok(clientAdminSearch.error, "Authenticated clients must not execute the service-role memory RPC.");
 
+  const clientEventInsert = await userA.client
+    .from("brand_memory_operational_events")
+    .insert({
+      event_name: "test.client_write",
+      request_id: "client-write-should-fail",
+      user_hash: "client",
+      workspace_hash: "client",
+    });
+  assert.ok(clientEventInsert.error, "Authenticated clients must not write operational memory events.");
+
+  const clientEventRead = await userA.client
+    .from("brand_memory_operational_events")
+    .select("id")
+    .limit(1);
+  assert.ok(clientEventRead.error, "Authenticated clients must not read operational memory events.");
+
+  const serviceEvent = await assertNoError(await admin
+    .from("brand_memory_operational_events")
+    .insert({
+      event_name: "test.service_write",
+      request_id: "service-write",
+      user_hash: "hashed-user",
+      workspace_hash: "hashed-workspace",
+      duration_ms: 1,
+      result_count: 1,
+      code: "TEST_ONLY",
+      model: "test-vector",
+      metadata: { fixture: true },
+    })
+    .select("id,event_name")
+    .single(), "service role operational event write");
+  assert.equal(serviceEvent.event_name, "test.service_write", "Service role should write sanitized operational events.");
+
   const mismatchedServerSearch = await admin.rpc("match_brand_memories_admin", {
     requested_user_id: userA.id,
     requested_workspace_id: workspaceB.id,

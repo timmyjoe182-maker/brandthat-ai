@@ -5,10 +5,13 @@ import {
   deleteWorkspaceMemories,
   forgetBrandMemory,
   isBrandMemoryEnabled,
+  getBrandMemoryOperationalSummary,
   getBrandMemoryTestUserIds,
+  hashOperationalIdentifier,
   isBrandMemoryActiveForUser,
   getWorkspaceMemoryStatus,
   listWorkspaceMemoryControls,
+  recordBrandMemoryEvent,
   rebuildWorkspaceMemories,
   searchBrandMemories,
   setWorkspaceMemoryDisabled,
@@ -84,8 +87,8 @@ function logBrandMemory(fields = {}) {
   console.info("Brand memory request", {
     requestId: fields.requestId,
     action: fields.action,
-    authenticatedUserId: fields.userId,
-    workspaceId: fields.workspaceId,
+    userHash: hashOperationalIdentifier(fields.userId),
+    workspaceHash: hashOperationalIdentifier(fields.workspaceId),
     eligibility: fields.eligibility,
     stage: fields.stage,
     code: fields.code,
@@ -99,6 +102,7 @@ export async function handler(event, _context = {}, meta = {}) {
   let stage = "method";
   let body = {};
   let action = "unknown";
+  let authenticatedUserId = "";
 
   try {
     logBrandMemory({ requestId, action, stage: "request_received", durationMs: Date.now() - startedAt });
@@ -114,10 +118,18 @@ export async function handler(event, _context = {}, meta = {}) {
     const authResult = await requireVerifiedUser(event);
     if (authResult.error) {
       logBrandMemory({ requestId, action, stage, code: "UNAUTHENTICATED", durationMs: Date.now() - startedAt });
+      await recordBrandMemoryEvent({
+        eventName: "auth.blocked",
+        requestId,
+        durationMs: Date.now() - startedAt,
+        code: authResult.error.statusCode === 401 ? "UNAUTHENTICATED" : "EMAIL_VERIFICATION_REQUIRED",
+        metadata: { action, stage },
+      });
       return json(authResult.error.statusCode, { ok: false, code: authResult.error.statusCode === 401 ? "UNAUTHENTICATED" : "EMAIL_VERIFICATION_REQUIRED", error: authResult.error.message, requestId });
     }
 
     logBrandMemory({ requestId, action, userId: authResult.user.id, stage: "authentication_complete", durationMs: Date.now() - startedAt });
+    authenticatedUserId = authResult.user.id;
 
     stage = "eligibility";
     const common = {
@@ -145,7 +157,7 @@ export async function handler(event, _context = {}, meta = {}) {
         try {
           const ownership = await getWorkspaceMemoryStatus(common);
           workspaceOwned = Boolean(ownership?.ok);
-          workspaceCheckCode = ownership?.memoryDisabled ? "WORKSPACE_MEMORY_DISABLED" : ownership?.code || null;
+      workspaceCheckCode = ownership?.memoryDisabled ? "WORKSPACE_MEMORY_DISABLED" : ownership?.code || null;
           logBrandMemory({ requestId, action, userId: authResult.user.id, workspaceId: common.workspaceId, eligibility: workspaceOwned ? "owned" : workspaceCheckCode || "not_owned", stage: "workspace_lookup_complete", durationMs: Date.now() - startedAt });
         } catch (error) {
           workspaceOwned = false;
@@ -176,6 +188,22 @@ export async function handler(event, _context = {}, meta = {}) {
         stage: "response_created",
         durationMs: Date.now() - startedAt,
       });
+      await recordBrandMemoryEvent({
+        eventName: statusPayload.active ? "status.eligible" : "status.ineligible",
+        requestId,
+        userId: authResult.user.id,
+        workspaceId: common.workspaceId || "",
+        durationMs: Date.now() - startedAt,
+        resultCount: statusPayload.active ? 1 : 0,
+        code: statusPayload.active ? null : statusPayload.workspaceCheckCode || (!memoryEnabled ? "BRAND_MEMORY_DISABLED" : !allowlisted ? "BRAND_MEMORY_NOT_ALLOWLISTED" : "BRAND_MEMORY_NOT_ACTIVE"),
+        metadata: {
+          action,
+          stage: "response_created",
+          workspaceOwned,
+          allowlisted,
+          disabled: !memoryEnabled || Boolean(statusPayload.workspaceCheckCode),
+        },
+      });
       return json(200, statusPayload);
     }
 
@@ -188,16 +216,17 @@ export async function handler(event, _context = {}, meta = {}) {
       return json(200, { ok: false, disabled: true, code: "BRAND_MEMORY_NOT_ALLOWLISTED", error: "Brand memory is not enabled for this account.", requestId });
     }
 
-    if (!common.workspaceId) return json(400, { ok: false, code: "WORKSPACE_REQUIRED", error: "Workspace is required.", requestId });
+    if (!common.workspaceId && body.action !== "metrics") return json(400, { ok: false, code: "WORKSPACE_REQUIRED", error: "Workspace is required.", requestId });
 
     switch (body.action) {
       case "refresh":
-        return json(200, await rebuildWorkspaceMemories(common));
+        return json(200, await rebuildWorkspaceMemories({ ...common, requestId }));
       case "list":
         return json(200, await listWorkspaceMemoryControls(common));
       case "create":
         return json(200, await createBrandMemory({
           ...common,
+          requestId,
           memoryType: body.memoryType,
           title: body.title,
           content: body.content,
@@ -212,6 +241,7 @@ export async function handler(event, _context = {}, meta = {}) {
       case "update":
         return json(200, await updateBrandMemory({
           ...common,
+          requestId,
           memoryId: body.memoryId,
           title: body.title,
           content: body.content,
@@ -221,26 +251,30 @@ export async function handler(event, _context = {}, meta = {}) {
       case "forget":
         return json(200, await forgetBrandMemory({
           ...common,
+          requestId,
           memoryId: body.memoryId,
         }));
       case "delete_workspace":
         if (body.confirm !== "DELETE_WORKSPACE_MEMORY") {
           return json(400, { ok: false, code: "CONFIRMATION_REQUIRED", error: "Confirm workspace memory deletion.", requestId });
         }
-        return json(200, await deleteWorkspaceMemories(common));
+        return json(200, await deleteWorkspaceMemories({ ...common, requestId }));
       case "disable_workspace":
         return json(200, await setWorkspaceMemoryDisabled({
           ...common,
+          requestId,
           disabled: true,
         }));
       case "enable_workspace":
         return json(200, await setWorkspaceMemoryDisabled({
           ...common,
+          requestId,
           disabled: false,
         }));
       case "search":
         return json(200, await searchBrandMemories({
           ...common,
+          requestId,
           query: body.query,
           memoryTypes: Array.isArray(body.memoryTypes) ? body.memoryTypes.slice(0, 10) : null,
           matchCount: body.matchCount,
@@ -249,9 +283,24 @@ export async function handler(event, _context = {}, meta = {}) {
       case "deactivate":
         return json(200, await deactivateBrandMemory({
           ...common,
+          requestId,
           memoryId: body.memoryId,
         }));
+      case "metrics":
+        return json(200, await getBrandMemoryOperationalSummary({
+          ...common,
+          hours: body.hours,
+        }));
       default:
+        await recordBrandMemoryEvent({
+          eventName: "request.invalid",
+          requestId,
+          userId: authResult.user.id,
+          workspaceId: common.workspaceId || "",
+          durationMs: Date.now() - startedAt,
+          code: "UNSUPPORTED_ACTION",
+          metadata: { action, stage: "route" },
+        });
         return json(400, { ok: false, error: "Unsupported brand-memory action." });
     }
   } catch (error) {
@@ -264,6 +313,15 @@ export async function handler(event, _context = {}, meta = {}) {
       code,
       message: error?.message || "Unknown error",
       durationMs: Date.now() - startedAt,
+    });
+    await recordBrandMemoryEvent({
+      eventName: code === "WORKSPACE_NOT_FOUND" ? "request.blocked_cross_workspace" : "request.failed",
+      requestId,
+      userId: authenticatedUserId,
+      workspaceId: body?.workspaceId || "",
+      durationMs: Date.now() - startedAt,
+      code,
+      metadata: { action, stage },
     });
     return json(statusCode, {
       ok: false,

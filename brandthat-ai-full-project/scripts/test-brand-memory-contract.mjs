@@ -18,6 +18,10 @@ const provenanceMigration = fs.readFileSync(
   new URL("../supabase/migrations/20260830090000_extend_semantic_brand_memory_provenance.sql", import.meta.url),
   "utf8",
 );
+const observabilityMigration = fs.readFileSync(
+  new URL("../supabase/migrations/20260831190000_add_brand_memory_operational_events.sql", import.meta.url),
+  "utf8",
+);
 const generate = fs.readFileSync(
   new URL("../netlify/functions/generate.js", import.meta.url),
   "utf8",
@@ -53,6 +57,19 @@ assert.match(provenanceMigration, /memory_disabled boolean not null default fals
 assert.match(provenanceMigration, /brand_memories_active_source_identity_unique/i);
 assert.match(provenanceMigration, /coalesce\(settings\.memory_disabled, false\) = false/i);
 assert.match(provenanceMigration, /notify pgrst, 'reload schema'/i);
+assert.match(observabilityMigration, /create table if not exists public\.brand_memory_operational_events/i);
+assert.match(observabilityMigration, /alter table public\.brand_memory_operational_events enable row level security/i);
+assert.match(observabilityMigration, /revoke all on table public\.brand_memory_operational_events from anon/i);
+assert.match(observabilityMigration, /revoke all on table public\.brand_memory_operational_events from authenticated/i);
+assert.match(observabilityMigration, /grant select, insert, delete on table public\.brand_memory_operational_events to service_role/i);
+assert.match(observabilityMigration, /brand_memory_operational_events_timestamp_idx/i);
+assert.match(observabilityMigration, /brand_memory_operational_events_event_idx/i);
+assert.match(observabilityMigration, /brand_memory_operational_events_code_idx/i);
+assert.match(observabilityMigration, /prune_brand_memory_operational_events/i);
+assert.match(observabilityMigration, /expires_at timestamptz/i);
+assert.doesNotMatch(observabilityMigration, /\bemail\b/i, "Operational events must not store emails.");
+assert.doesNotMatch(observabilityMigration, /\bprompt\b/i, "Operational events must not store prompts.");
+assert.doesNotMatch(observabilityMigration, /\bembedding\b/i, "Operational events must not store embeddings.");
 assert.match(service, /BRAND_MEMORY_ENABLED/);
 assert.match(service, /String\(process\.env\.BRAND_MEMORY_ENABLED \|\| "false"\)/);
 assert.match(service, /BRAND_MEMORY_TEST_USER_IDS/);
@@ -78,6 +95,12 @@ assert.match(service, /setWorkspaceMemoryDisabled/);
 assert.match(service, /listWorkspaceMemoryControls/);
 assert.match(service, /forgetBrandMemory/);
 assert.match(service, /SOURCE_RANK/);
+assert.match(service, /hashOperationalIdentifier/);
+assert.match(service, /createHmac\("sha256"/);
+assert.match(service, /brand_memory_operational_events/);
+assert.match(service, /recordBrandMemoryEvent/);
+assert.match(service, /getBrandMemoryOperationalSummary/);
+assert.match(service, /memoryGrowthByHashedWorkspace/);
 assert.match(service, /Brand memory legacy lookup failed/);
 assert.match(service, /\.eq\("content_hash", contentHash\)/);
 assert.match(service, /source_identity: sourceIdentity/);
@@ -103,9 +126,16 @@ assert.match(endpoint, /case "forget"/);
 assert.match(endpoint, /case "disable_workspace"/);
 assert.match(endpoint, /case "enable_workspace"/);
 assert.match(endpoint, /case "delete_workspace"/);
+assert.match(endpoint, /case "metrics"/);
+assert.match(endpoint, /recordBrandMemoryEvent/);
+assert.doesNotMatch(endpoint, /console\.info\([^)]*authenticatedUserId/);
 assert.match(endpoint, /BRAND_MEMORY_NOT_ALLOWLISTED/);
 assert.match(generate, /getGeneratorMemoryContext/);
 assert.match(generate, /MEMORY_ENABLED_GENERATORS/);
+assert.match(generate, /hashOperationalIdentifier/);
+assert.match(generate, /recordBrandMemoryEvent/);
+assert.doesNotMatch(generate, /Brand memory generator context[\s\S]{0,220}userId:/);
+assert.doesNotMatch(generate, /Brand memory generator context[\s\S]{0,220}workspaceId:/);
 assert.match(generate, /"hashtags"/);
 assert.match(generate, /"bios"/);
 assert.match(generate, /"strategy"/);
@@ -146,5 +176,10 @@ assert.ok(payloads.length >= 5, "workspace refresh should produce structured mem
 assert.ok(payloads.every((item) => item.metadata.workspace_id && item.metadata.user_id && item.metadata.source_identity), "memory metadata must include user/workspace/source identity.");
 assert.ok(payloads.every((item) => item.sourceType === "confirmed_brand_dna"), "structured workspace memories must use confirmed Brand DNA provenance.");
 assert.ok(payloads.every((item) => item.confidence >= 0.9), "structured workspace memories should carry high confidence.");
+const hashedA = memoryModule.hashOperationalIdentifier("11111111-1111-1111-1111-111111111111");
+const hashedB = memoryModule.hashOperationalIdentifier("22222222-2222-2222-2222-222222222222");
+assert.equal(hashedA.length, 24, "Operational hashes should be compact one-way identifiers.");
+assert.notEqual(hashedA, "11111111-1111-1111-1111-111111111111", "Operational logs must not expose raw UUIDs.");
+assert.notEqual(hashedA, hashedB, "Different identifiers should produce different operational hashes.");
 
 console.log("Semantic brand memory security contract passed.");

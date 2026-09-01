@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
-import { getGeneratorMemoryContext, isBrandMemoryActiveForUser } from "./lib/brand-memory.js";
+import { getGeneratorMemoryContext, hashOperationalIdentifier, isBrandMemoryActiveForUser, recordBrandMemoryEvent } from "./lib/brand-memory.js";
 
 const rateLimitStore = global.brandthatGenerateRateLimit || new Map();
 global.brandthatGenerateRateLimit = rateLimitStore;
@@ -1945,19 +1945,40 @@ export const handler = async (event) => {
       const memoryResult = await getGeneratorMemoryContext({
         userId: auth.user.id,
         workspaceId,
+        requestId,
         query: `${verifiedWorkspaceContext}\n${safeClientPrompt}`.trim(),
         generatorType,
       });
 
+      const memoryDurationMs = Date.now() - memoryStartedAt;
       console.info("Brand memory generator context", {
         requestId,
         generatorType,
-        userId: auth.user.id,
-        workspaceId,
+        userHash: hashOperationalIdentifier(auth.user.id),
+        workspaceHash: hashOperationalIdentifier(workspaceId),
         active: !memoryResult.disabled,
         ok: memoryResult.ok,
         memoryCount: memoryResult.memories?.length || 0,
-        durationMs: Date.now() - memoryStartedAt,
+        durationMs: memoryDurationMs,
+      });
+      await recordBrandMemoryEvent({
+        eventName: memoryResult.ok
+          ? memoryResult.memories?.length
+            ? "retrieval_success"
+            : "retrieval_empty"
+          : "retrieval_fallback",
+        requestId,
+        userId: auth.user.id,
+        workspaceId,
+        durationMs: memoryDurationMs,
+        resultCount: memoryResult.memories?.length || 0,
+        code: memoryResult.code || null,
+        metadata: {
+          generatorType,
+          retrievalOk: Boolean(memoryResult.ok),
+          fallback: !memoryResult.ok,
+          disabled: Boolean(memoryResult.disabled),
+        },
       });
 
       if (memoryResult.context) {
