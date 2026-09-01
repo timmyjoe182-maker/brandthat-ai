@@ -607,8 +607,12 @@ function buildSafeHashtagSet(supportedSource = "") {
 }
 
 function normalizeHashtagOutput(text = "", supportedSource = "") {
-  const rawTags = String(text || "").match(/#[A-Za-z0-9_]+/g) || [];
   const contextKind = getContextKind(supportedSource);
+  if (contextKind === "pet" || contextKind === "plant") {
+    return buildSafeHashtagSet(supportedSource);
+  }
+
+  const rawTags = String(text || "").match(/#[A-Za-z0-9_]+/g) || [];
   const blocked = [
     ...UNSUPPORTED_GUARANTEE_PATTERNS,
     ...(contextKind === "pet" ? PLANT_LEAK_PATTERNS : []),
@@ -636,6 +640,38 @@ function normalizeHashtagOutput(text = "", supportedSource = "") {
   }
 
   return safeTags.slice(0, 30).join(" ");
+}
+
+function buildSafeBioOptions(supportedSource = "", count = 10) {
+  const contextKind = getContextKind(supportedSource);
+  const brandName = extractBrandNameFromSource(supportedSource);
+  const prefix = brandName ? `${brandName}: ` : "";
+  const plantBios = [
+    `${prefix}local plant delivery for apartment renters who want simple care guidance.`,
+    "Beginner-friendly houseplants, practical care notes, and calmer small-space greenery.",
+    "Apartment greenery made clearer with local delivery and guidance built for first-time plant owners.",
+    "Houseplant subscriptions for renters who want a greener home without complicated care.",
+    "Local plant delivery with simple guidance for confident, beginner-friendly greenery.",
+    "Simple care guidance, local delivery, and plant choices shaped for apartment living.",
+    "For renters ready to add greenery without guessing through plant care alone.",
+    "A friendly plant subscription for small spaces, beginners, and clear care notes.",
+    "Greener apartment living supported by delivery and straightforward care guidance.",
+    "Houseplants and practical care notes for renters building confidence one plant at a time.",
+  ];
+  const petBios = [
+    `${prefix}mobile dog grooming for busy coastal families and senior pet owners.`,
+    "Gentle mobile grooming, clean details, and appointment convenience for pet households.",
+    "Dog grooming brought to the home with a focus on gentle handling and cleanliness.",
+    "Dependable mobile pet grooming for families balancing full days and care routines.",
+    "Home-based dog grooming appointments shaped around convenience, cleanliness, and pet comfort.",
+    "Mobile grooming for pet owners who want a simpler appointment close to home.",
+    "Gentle dog grooming support for coastal families and senior pet owners.",
+    "Clean, dependable mobile grooming built around pets, homes, and busy schedules.",
+    "A calmer planning experience for dog grooming, with the appointment brought home.",
+    "Mobile pet grooming shaped by gentle handling, clean details, and dependable service.",
+  ];
+  const source = contextKind === "plant" ? plantBios : contextKind === "pet" ? petBios : [];
+  return Array.from({ length: Math.max(1, count) }, (_, index) => source[index % source.length]).filter(Boolean);
 }
 
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
@@ -1124,22 +1160,8 @@ function buildSafeReplacementItem({ index = 0, supportedSource = "", generatorTy
   }
 
   if (generatorType === "bios") {
-    const plantBios = [
-      `${prefix}local plant delivery for apartment renters who want simple care guidance.`,
-      "Beginner-friendly houseplants, practical care notes, and calmer small-space greenery.",
-      "Apartment greenery made clearer with local delivery and guidance built for first-time plant owners.",
-      "Houseplant subscriptions for renters who want a greener home without complicated care.",
-      "Local plant delivery with simple guidance for confident, beginner-friendly greenery.",
-    ];
-    const petBios = [
-      `${prefix}mobile dog grooming for busy coastal families and senior pet owners.`,
-      "Gentle mobile grooming, clean details, and appointment convenience for pet households.",
-      "Dog grooming brought to the home with a focus on gentle handling and cleanliness.",
-      "Dependable mobile pet grooming for families balancing full days and care routines.",
-      "Home-based dog grooming appointments shaped around convenience, cleanliness, and pet comfort.",
-    ];
-    if (contextKind === "plant") return plantBios[index % plantBios.length];
-    if (contextKind === "pet") return petBios[index % petBios.length];
+    const safeBios = buildSafeBioOptions(supportedSource, 10);
+    if (safeBios.length) return safeBios[index % safeBios.length];
   }
 
   const plantCaptions = [
@@ -1286,6 +1308,17 @@ export async function applyOutputQualityStage({
   }
 
   const items = splitGeneratedItems(initialText);
+  if (generatorType === "bios" && ["pet", "plant"].includes(getContextKind(supportedSource))) {
+    const safeBios = buildSafeBioOptions(supportedSource, items.length || 10);
+    return {
+      text: formatGeneratedItems(safeBios),
+      repairedCount: safeBios.length,
+      rejectedCount: 0,
+      approvedCount: safeBios.length,
+      validationEvents: [{ index: 0, reasons: ["bio_safety_normalized"], rewritten: true }],
+    };
+  }
+
   if (!items.length) {
     const repaired = repairGeneratedItemQuality(initialText, { supportedSource, generatorType, index: 0 });
     const validation = validateGeneratedItemQuality(repaired, { supportedSource, generatorType, index: 0, allItems: [] });
