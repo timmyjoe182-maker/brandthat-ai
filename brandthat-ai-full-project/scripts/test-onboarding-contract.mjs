@@ -21,6 +21,7 @@ assert.ok(app.includes("Three voice traits"), "Preview must show three voice tra
 assert.ok(app.includes("Positioning direction"), "Preview must show positioning.");
 assert.ok(app.includes("Visual direction"), "Preview must show visual direction.");
 assert.ok(app.includes("Unlock the Complete Workspace"), "Preview must include the unlock CTA.");
+assert.ok(app.includes("Your complete workspace will include"), "Preview unlock area must show the paid-workspace checklist.");
 
 assert.ok(app.includes("WORKSPACE_TOUR_DISMISSED_KEY"), "First paid session tour must persist dismissal.");
 assert.ok(app.includes("WorkspaceWelcomePanel"), "Workspace must include a first-session welcome panel.");
@@ -55,5 +56,8 @@ assert.doesNotMatch(app, /window\.history\.(pushState|replaceState)\(\{\}, "", "
 assert.ok(membership.includes("Checking membership..."), "Membership CTA must show a neutral loading state.");
 assert.ok(membership.includes("Retry account check"), "Subscription lookup failure must be recoverable.");
 assert.ok(app.includes("checkoutResumePrompt && authStatus === \"logged_in\" && !membershipLoading"), "Checkout resume banner must wait for membership lookup.");
+assert.ok(app.includes("sanitizeAnalyticsProperties"), "Funnel analytics must sanitize properties centrally.");
+assert.ok(app.includes("blockedKeyPattern"), "Funnel analytics must guard sensitive property names.");
+assert.ok(app.includes("stableStringHash(String(value))"), "Funnel analytics must hash unsafe IDs/content instead of storing raw values.");
 
 console.log("Onboarding contract tests passed.");

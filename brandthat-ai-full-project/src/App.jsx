@@ -1631,8 +1631,46 @@ function getRgbLabel(hex = "") {
 
 function getIdentityTypography(brand = {}, plan = {}) {
   const text = getIdentitySourceText(brand, plan);
-  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return { headline: "Fraunces or Cormorant Garamond", supporting: "Inter or Source Sans 3", wordmark: "Warm botanical serif", source: "Google Fonts / open-source font licenses", note: "A soft serif gives the wordmark a living, botanical quality while the humanist sans keeps care cards, captions, and subscription details easy to read." };
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) return { headline: "Fraunces", supporting: "Source Sans 3", wordmark: "Warm botanical serif (Fraunces or Cormorant Garamond)", source: "Google Fonts / SIL Open Font License", note: "Fraunces gives the wordmark a warm botanical character, Source Sans 3 keeps care guidance readable, and Cormorant can support softer editorial moments." };
+  if (/pet|dog|grooming|walking/.test(text)) return { headline: "Lora", supporting: "Inter", wordmark: "Nunito Sans", source: "Google Fonts / SIL Open Font License", note: "Lora adds warmth and trust, Inter keeps booking and service details clear, and Nunito Sans can soften small labels without making the service childish." };
+  if (/coffee|cafe|brew|roast|morning/.test(text)) return { headline: "Fraunces", supporting: "Source Sans 3", wordmark: "Cormorant Garamond", source: "Google Fonts / SIL Open Font License", note: "A warm serif supports the premium morning ritual while Source Sans 3 keeps product and subscription details unpretentious." };
+  if (/software|saas|creator|invoice|sponsorship|platform|app/.test(text)) return { headline: "Space Grotesk", supporting: "Inter", wordmark: "IBM Plex Sans", source: "Google Fonts / SIL Open Font License", note: "Structured sans typography fits workflow software, with enough polish for dashboards, landing pages, and creator-facing UI." };
   return { ...getTypographyPairing({ style: (brand.style || "") + " " + (brand.tone || "") + " " + (plan.brandPersonality || ""), industry: getWorkspaceIndustry(brand, plan), typography: plan.typographySystem || brand.logoDirection || "" }), source: "Google Fonts alternatives / confirm license before final use" };
+}
+
+function getTypographyPairingOptions(brand = {}, plan = {}) {
+  const text = getIdentitySourceText(brand, plan);
+  if (/pet|dog|grooming|walking/.test(text)) {
+    return [
+      ["Lora + Inter", "Headline 600 / Body 400-600", "Warm trust with clean appointment readability."],
+      ["Nunito Sans + Source Sans 3", "Wordmark 800 / Body 400-700", "Friendly service tone without cartoon pet-brand energy."],
+      ["Libre Franklin + Lora", "UI 500-700 / Editorial 500", "Dependable local-service clarity with a softer care layer."],
+    ];
+  }
+  if (/houseplant|plant delivery|botanical|greenery/.test(text)) {
+    return [
+      ["Fraunces + Source Sans 3", "Wordmark 700 / Body 400-600", "Botanical warmth with practical care-card clarity."],
+      ["Cormorant Garamond + Inter", "Headline 600 / UI 400-600", "Calm editorial presence for apartment-lifestyle imagery."],
+      ["Libre Baskerville + Source Sans 3", "Headline 700 / Body 400-600", "Grounded, readable, and less generic than wellness-leaf branding."],
+    ];
+  }
+  if (/coffee|cafe|brew|roast|morning/.test(text)) {
+    return [
+      ["Fraunces + Source Sans 3", "Display 700 / Body 400-600", "Premium coffee warmth without cafe pretension."],
+      ["Cormorant Garamond + Inter", "Wordmark 600 / UI 400-600", "Editorial morning ritual energy with modern utility."],
+      ["Libre Franklin + Lora", "Label 700 / Story 500", "A polished package system that still feels approachable."],
+    ];
+  }
+  return [
+    ["Inter + Fraunces", "UI 400-700 / Display 600", "Clean digital readability with an editorial accent."],
+    ["Source Sans 3 + Libre Baskerville", "Body 400-700 / Headline 700", "Practical launch materials with a more ownable headline voice."],
+    ["Space Grotesk + Inter", "Display 600-700 / UI 400-600", "Useful when the brand genuinely needs a sharper product-system feel."],
+  ];
+}
+
+function getPaletteUsageGuidance(palette = []) {
+  const percentages = ["55%", "25%", "15%", "5%"];
+  return palette.map((color, index) => ({ ...color, usage: percentages[index] || "5%" }));
 }
 
 function getMoodboardTiles(brand = {}, plan = {}) {
@@ -2068,21 +2106,45 @@ function buildLogoFallbackOption(fallback = {}, requestPayload = {}, error = {})
   };
 }
 
+function sanitizeAnalyticsProperties(properties = {}) {
+  const safe = {};
+  const allowedStringKeys = new Set(["source", "cta", "tool", "plan", "status", "code", "reason", "route", "step", "example"]);
+  const blockedKeyPattern = /(email|prompt|content|brand|name|description|token|secret|key|password|uuid|user|workspace|asset|payment|stripe)/i;
+
+  for (const [key, rawValue] of Object.entries(properties || {})) {
+    if (rawValue === null || rawValue === undefined) continue;
+    const value = typeof rawValue === "string" ? rawValue : typeof rawValue === "number" || typeof rawValue === "boolean" ? rawValue : "";
+    if (value === "") continue;
+    if (blockedKeyPattern.test(key)) {
+      safe[`${key.replace(blockedKeyPattern, "id")}_hash`] = stableStringHash(String(value));
+      continue;
+    }
+    if (typeof value === "string") {
+      safe[key] = allowedStringKeys.has(key) ? value.replace(/[^a-z0-9_\- ./]/gi, "").slice(0, 80) : stableStringHash(value);
+    } else {
+      safe[key] = value;
+    }
+  }
+
+  return safe;
+}
+
 function trackBrandthatEvent(name, properties = {}) {
   try {
+    const safeProperties = sanitizeAnalyticsProperties(properties);
     const event = {
       name,
-      properties,
+      properties: safeProperties,
       createdAt: new Date().toISOString(),
     };
     const existing = safeParse("brandthat_analytics_events", []);
     localStorage.setItem("brandthat_analytics_events", JSON.stringify([event, ...existing].slice(0, 100)));
 
     window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({ event: name, ...properties });
+    window.dataLayer.push({ event: name, ...safeProperties });
 
     if (typeof window.gtag === "function") {
-      window.gtag("event", name, properties);
+      window.gtag("event", name, safeProperties);
     }
   } catch {
     // Analytics should never block product actions.
@@ -2385,16 +2447,67 @@ function getExpandedRoadmap(plan = {}, payload = {}) {
   if (Array.isArray(plan.expandedRoadmap) && plan.expandedRoadmap.length) return plan.expandedRoadmap;
   const roadmap = normalizeRoadmapItems(plan.launchRoadmap90Days || plan.launchRoadmap || plan.launchRoadmap30Days);
   const phases = ["First 30 days", "Days 31-60", "Days 61-90"];
+  const sourceText = getIdentitySourceText(payload, plan);
+  const roadmapDefaults = /pet|dog|groom|mobile service/.test(sourceText)
+    ? [
+        {
+          priority: "Define the first service-area demand loop",
+          tasks: ["List the first neighborhoods or service radius to validate", "Create before-and-after proof guidelines that avoid unsupported outcome claims", "Publish three trust-building posts about gentle handling, cleanliness, and home appointments", "Ask early customers for review language after completed appointments"],
+          recommendedTools: ["Scheduling tool", "Google Business Profile", "Instagram", "Review request template"],
+          kpis: ["Profile clicks", "Booking inquiries", "Completed appointment requests", "Review requests sent"],
+          completionCriteria: "The service area, appointment path, proof format, and first review request process are documented.",
+        },
+        {
+          priority: "Turn attention into booked appointments",
+          tasks: ["Test two booking CTAs without inventing urgency or guarantees", "Create weekly content around owner convenience, senior pet support, and clean service details", "Build a referral note customers can share with neighbors", "Track which posts lead to booking-page visits or messages"],
+          recommendedTools: ["Booking page", "Referral card", "Instagram Insights", "Simple CRM sheet"],
+          kpis: ["Booking conversion rate", "Referral mentions", "Saved posts", "Message-to-booking rate"],
+          completionCriteria: "The strongest booking CTA and referral path are clear enough to repeat for the next month.",
+        },
+        {
+          priority: "Build repeatable local trust",
+          tasks: ["Create a monthly proof library from approved photos, reviews, and service details", "Package a new-customer explanation for mobile appointment flow", "Review demand by neighborhood before expanding service areas", "Create a follow-up sequence for rebooking and referrals"],
+          recommendedTools: ["Email/SMS follow-up", "Review library", "Neighborhood tracker", "Content calendar"],
+          kpis: ["Repeat booking signals", "Reviews collected", "Referral inquiries", "Neighborhood demand"],
+          completionCriteria: "The brand has a repeatable content, booking, review, and referral rhythm for the next growth phase.",
+        },
+      ]
+    : /houseplant|plant delivery|botanical|greenery/.test(sourceText)
+      ? [
+          {
+            priority: "Prove beginner-friendly apartment plant demand",
+            tasks: ["Show delivery moments with simple care guidance included", "Create three apartment-living content angles for renters and beginners", "Partner with one local apartment community or building newsletter", "Track which plant-delivery messages earn saves, replies, or signups"],
+            recommendedTools: ["Instagram", "Email signup form", "Apartment partner list", "Content calendar"],
+            kpis: ["Email signups", "Saves", "Replies", "Partner conversations"],
+            completionCriteria: "The strongest apartment-renter message and first local partnership path are visible.",
+          },
+          {
+            priority: "Build a reliable subscriber-growth rhythm",
+            tasks: ["Publish weekly care-card education without inventing plant-specific claims", "Create a delivery-day photo format for social proof", "Test a simple learn-more CTA for subscription interest", "Collect beginner questions to improve future care guidance"],
+            recommendedTools: ["Instagram Insights", "Question form", "Landing page", "Email platform"],
+            kpis: ["Landing-page clicks", "Questions submitted", "Waitlist/signups", "Content saves"],
+            completionCriteria: "The brand has a repeatable weekly content and subscriber-interest loop.",
+          },
+          {
+            priority: "Turn local interest into retention signals",
+            tasks: ["Package welcome materials around clear care guidance", "Create a referral prompt for apartment neighbors and friends", "Review which delivery and care topics drive repeat engagement", "Plan the next subscription theme without claiming unverified inventory"],
+            recommendedTools: ["Referral template", "Welcome insert", "Customer feedback form", "Email sequence"],
+            kpis: ["Repeat engagement", "Referral signals", "Subscriber feedback", "Content conversion"],
+            completionCriteria: "The subscription story, referral prompt, and retention content are ready for the next cycle.",
+          },
+        ]
+      : null;
   return phases.map((phase, index) => {
     const source = roadmap[index + 1] || roadmap[index] || {};
+    const defaults = roadmapDefaults?.[index] || null;
     return {
       phase,
-      priority: index === 0 ? "Validate the sharpest brand angle" : index === 1 ? "Build repeatable demand" : "Convert attention into customers",
-      tasks: Array.isArray(source.actions) && source.actions.length ? source.actions.slice(0, 4) : ["Publish focused proof content", "Collect audience feedback", "Refine the offer page", "Review weekly metrics"],
-      recommendedTools: index === 0 ? ["Domain registrar", "Carrd/Webflow/Framer", "Google Analytics", "Canva or Figma"] : ["Email platform", "Scheduler", "Analytics dashboard", "Customer feedback form"],
+      priority: cleanGeneratedText(source.focus || source.priority) || defaults?.priority || (index === 0 ? "Validate the sharpest brand angle" : index === 1 ? "Build repeatable demand" : "Convert attention into customers"),
+      tasks: Array.isArray(source.actions) && source.actions.length ? source.actions.slice(0, 4) : defaults?.tasks || ["Publish focused proof content", "Collect audience feedback", "Refine the offer page", "Review weekly metrics"],
+      recommendedTools: defaults?.recommendedTools || (index === 0 ? ["Domain registrar", "Carrd/Webflow/Framer", "Google Analytics", "Canva or Figma"] : ["Email platform", "Scheduler", "Analytics dashboard", "Customer feedback form"]),
       estimatedCosts: index === 0 ? "$20-$150 depending on domain, landing page, and email tools." : "$0-$300 depending on paid tools, samples, creative, or small tests.",
-      kpis: index === 0 ? ["Landing page visits", "Email signups", "Content saves", "Profile clicks"] : index === 1 ? ["Lead conversion rate", "Content reach", "Reply rate", "Qualified inquiries"] : ["First purchases", "Repeat visits", "Referral signals", "Revenue per channel"],
-      completionCriteria: cleanGeneratedText(source.outcome) || "The phase has a visible output, measured response, and a clear decision for the next phase.",
+      kpis: defaults?.kpis || (index === 0 ? ["Landing page visits", "Email signups", "Content saves", "Profile clicks"] : index === 1 ? ["Lead conversion rate", "Content reach", "Reply rate", "Qualified inquiries"] : ["First purchases", "Repeat visits", "Referral signals", "Revenue per channel"]),
+      completionCriteria: cleanGeneratedText(source.outcome) || defaults?.completionCriteria || "The phase has a visible output, measured response, and a clear decision for the next phase.",
       status: source.status || "Not started",
     };
   });
@@ -6959,7 +7072,7 @@ function BrandBuilderFlow({ workspaceDraft, setWorkspaceDraft, autoSaveStatus, b
         <div><span>Three voice traits</span><p>{preview.traits.slice(0, 3).join(" · ")}</p></div>
         <div><span>Positioning direction</span><p>{preview.positioning}</p></div>
         <div><span>Visual direction</span><p>{preview.visualDirection}</p><div className="previewSwatches">{preview.colors.map((color) => <i key={color} style={{ background: color }} />)}</div></div>
-        <div className="unlockCallout"><strong>Unlock the Complete Workspace</strong><p>After membership, your draft becomes a saved Brand Workspace with expanded strategy, brand voice, visual identity, Content Tools, logo generation, 90-day roadmap, Brand Book export, and persistent saved assets.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock the Complete Workspace" verifiedLabel="Unlock the Complete Workspace" source="preview_unlock_result" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div>
+        <div className="unlockCallout"><strong>Unlock the Complete Workspace</strong><p>Your complete workspace will include expanded strategy, brand voice, visual identity, Content Tools, logo generation, 90-day roadmap, Brand Book export, saved assets, and connected context for future generations.</p><MembershipCta user={user} userPlan={userPlan} authStatus={authStatus} checkoutStatus={checkoutStatus} checkoutError={checkoutError} startCheckout={unlockWorkspace} loggedOutLabel="Unlock the Complete Workspace" verifiedLabel="Unlock the Complete Workspace" source="preview_unlock_result" membershipLoading={membershipLoading} membershipLookupFailed={membershipLookupFailed} /></div>
       </div>}
       <p className="builderFinePrint">The free preview avoids expensive generation and does not save a full workspace. Complete generation remains behind authentication, email verification, Stripe checkout, and existing server-side validation.</p>
     </section>
@@ -7236,6 +7349,11 @@ const captionStyleLabels = [
   "Benefit",
   "Conversational",
   "Educational",
+  "Product",
+  "Community",
+  "Direct CTA",
+  "Brand-building",
+  "Platform-native",
 ];
 
 function getAppToolTitle(tool = {}) {
@@ -7568,7 +7686,9 @@ function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectToo
   const primaryLogoImage = getPrimaryLogoImage(brand);
   const savedLogos = (brand.saved?.logos || []).filter((item) => item.image).slice(0, 6);
   const palette = getIdentityPalette(brand, plan);
+  const paletteUsage = getPaletteUsageGuidance(palette);
   const typography = getIdentityTypography(brand, plan);
+  const typeOptions = getTypographyPairingOptions(brand, plan);
   const moodboard = getMoodboardTiles(brand, plan);
   const logoDefaults = getLogoRecommendations(brand, plan);
   const logoBrief = buildWorkspaceLogoBrief(brand, plan);
@@ -7579,10 +7699,10 @@ function WorkspaceIdentity({ brand, setPage, navigateWorkspaceSection, selectToo
       <p className="pageLead">Your logo, palette, typography, moodboard, and saved concepts all come from the active Brand Workspace context.</p>
       <div className="visualIdentityBoard">
         <div className="identityBoardHero"><div className="identityPrimaryMark">{primaryLogoImage ? <img src={primaryLogoImage} alt={(brand.name || "Brand") + " primary logo"} /> : <span>{getInitialsFromBrandName(brand.name)}</span>}</div><div><span>Logo Direction</span><h2>{primaryLogoImage ? "Primary logo selected" : "Ready for logo concepts"}</h2><p>{brand.logoDirection || plan.logoDirection || logoDefaults.symbolDirection}</p><button className="btn dark" onClick={() => selectTool("logo")}>Generate Logo Concepts</button></div></div>
-        <div className="identityPalettePanel"><div className="appCardHeader"><div><span>Color Palette</span><h2>Editable starting system.</h2></div></div><div className="identityPaletteGrid">{palette.map((color) => <div className="identitySwatchCard" key={color.name}><div className="identitySwatch" style={{ background: color.hex, color: getContrastTextColor(color.hex) }}><strong>{color.role}</strong></div><b>{color.name}</b><span>{color.hex}</span><small>{getRgbLabel(color.hex)}</small><button onClick={() => navigator.clipboard?.writeText(color.hex)}>Copy HEX</button></div>)}</div><p className="identityRationale">{plan.colorSystem || "Palette generated from the brand category, personality, and visual direction. Check contrast before final production use."}</p></div>
-        <div className="identityTypePanel"><span>Typography</span><div className="typeSpecimen headlineSpecimen">{brand.name}</div><p className="bodySpecimen">{brand.description || plan.brandThesis}</p><div className="typePairingGrid"><div><strong>Headline / Wordmark</strong><span>{typography.headline}</span></div><div><strong>Body / UI</strong><span>{typography.supporting}</span></div><div><strong>Source</strong><span>{typography.source}</span></div></div><p>{plan.typographySystem || typography.note}</p></div>
+        <div className="identityPalettePanel"><div className="appCardHeader"><div><span>Color Palette</span><h2>Editable starting system.</h2></div></div><div className="identityPaletteGrid">{paletteUsage.map((color) => <div className="identitySwatchCard" key={color.name}><div className="identitySwatch" style={{ background: color.hex, color: getContrastTextColor(color.hex) }}><strong>{color.role}</strong></div><b>{color.name}</b><span>{color.hex}</span><small>{getRgbLabel(color.hex)} · use about {color.usage}</small><small>Text contrast: {getContrastTextColor(color.hex) === "#11110F" ? "dark text" : "light text"}</small><button onClick={() => navigator.clipboard?.writeText(color.hex)}>Copy HEX</button></div>)}</div><p className="identityRationale">{plan.colorSystem || "Palette generated from the brand category, personality, and visual direction. Check contrast before final production use."}</p></div>
+        <div className="identityTypePanel"><span>Typography</span><div className="typeSpecimen headlineSpecimen">{brand.name}</div><p className="bodySpecimen">{brand.description || plan.brandThesis}</p><div className="typePairingGrid"><div><strong>Headline / Wordmark</strong><span>{typography.headline}</span></div><div><strong>Body / UI</strong><span>{typography.supporting}</span></div><div><strong>Source</strong><span>{typography.source}</span></div>{typeOptions.map(([pairing, role, rationale]) => <div key={pairing}><strong>{pairing}</strong><span>{role}</span><p>{rationale}</p></div>)}</div><p>{plan.typographySystem || typography.note}</p></div>
         <div className="identityMoodboardPanel"><span>Moodboard Direction</span><div className="moodboardTileGrid">{moodboard.map(([title, copy]) => <article key={title}><strong>{title}</strong><p>{copy}</p></article>)}</div><p>{plan.moodboardDirection || brand.style || "Use these as honest direction tiles until custom photography or generated references are supplied."}</p></div>
-        <div className="identityLogoSpecPanel"><span>Logo System</span><div className="logoSpecGrid"><div><strong>Mark type</strong><p>{logoDefaults.markType.join(", ")}</p></div><div><strong>Brand feel</strong><p>{logoDefaults.brandFeel.join(", ")}</p></div><div><strong>Use cases</strong><p>{logoDefaults.useCases.join(", ")}</p></div><div><strong>Quality target</strong><p>{logoDefaults.qualityTargets.join(", ")}</p></div></div><details><summary>Logo brief generated from this workspace</summary><p>{logoBrief}</p></details></div>
+        <div className="identityLogoSpecPanel"><span>Logo System</span><div className="logoSpecGrid"><div><strong>Mark type</strong><p>{logoDefaults.markType.join(", ")}</p></div><div><strong>Brand feel</strong><p>{logoDefaults.brandFeel.join(", ")}</p></div><div><strong>Use cases</strong><p>{logoDefaults.useCases.join(", ")}</p></div><div><strong>Quality target</strong><p>{logoDefaults.qualityTargets.join(", ")}</p></div><div><strong>Size guidance</strong><p>Keep a simple square mark for avatars, a horizontal lockup for headers, and a one-color version for receipts, labels, or small placements.</p></div><div><strong>What to avoid</strong><p>{moodboard.find(([title]) => title === "Avoid")?.[1] || "Generic icons, low-contrast text, and logo details that disappear at small sizes."}</p></div></div><details><summary>Logo brief generated from this workspace</summary><p>{logoBrief}</p></details></div>
       </div>
       {savedLogos.length > 0 && <div className="identityLogoStrip">{savedLogos.map((logo) => <img key={logo.id} src={logo.image} alt={logo.title || "Saved logo concept"} />)}</div>}
     </section>
@@ -8558,7 +8678,7 @@ function WhatYouReceiveSection() {
 }
 
 function CompleteExampleSection() {
-  return <section className="completeExample" id="complete-example"><div className="worldCopy"><span>Complete example</span><h2>Northline Goods becomes a full brand world.</h2><p>The mockups are demo examples of brand direction, not physical deliverables. BrandThat produces the strategy, content, identity direction, roadmap, saved workspace, and logo concepts that guide this kind of execution.</p><div className="worldList"><div><strong>Merchandise</strong><span>Heavyweight tee, embroidered cap, utility pouch, and launch tote direction.</span></div><div><strong>Packaging</strong><span>Shipping box, hang tag, customer insert, and product-card direction.</span></div><div><strong>Digital</strong><span>Website direction, social profile, captions, handles, and campaign guidance.</span></div></div></div><figure className="brandWorldPhoto"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Northline Goods tote bag, apparel, cap, pouch, packaging, water bottle, and stationery photographed in warm light" loading="lazy" width="1800" height="1200" /></picture></figure></section>;
+  return <section className="completeExample" id="complete-example"><div className="worldCopy"><span>Labeled demo case study</span><h2>Stone & Stem turns one rough idea into a usable brand system.</h2><p>This is a BrandThat demo/test brand, not a customer testimonial. The input was a local houseplant subscription for apartment renters; the output connects strategy, identity, content, and roadmap decisions around that exact business.</p><div className="worldList"><div><strong>Input</strong><span>Beginner-friendly houseplants delivered locally to apartment renters with simple care guidance.</span></div><div><strong>Strategy</strong><span>Own beginner confidence for small-space greenery, with a calm, encouraging, practical voice.</span></div><div><strong>Identity</strong><span>Leaf green, stone gray, warm ivory, soft terracotta, botanical type, care-card and delivery imagery.</span></div><div><strong>Content</strong><span>Caption and hashtag outputs stay grounded in delivery moments, renter life, and simple guidance.</span></div><div><strong>Roadmap</strong><span>Apartment partnerships, Instagram proof, subscriber-interest tracking, and referral prompts.</span></div></div></div><figure className="brandWorldPhoto"><picture><source media="(max-width: 720px)" srcSet="/brandthat-assets/northline-brand-world-small.jpg" /><img src="/brandthat-assets/northline-brand-world.jpg" alt="Demo brand workspace, identity, content, and roadmap examples arranged in warm editorial light" loading="lazy" width="1800" height="1200" /></picture></figure></section>;
 }
 
 function HowItWorksSection() {

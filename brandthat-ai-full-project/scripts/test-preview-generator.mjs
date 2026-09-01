@@ -38,6 +38,17 @@ const cases = [
     blocked: ["creators", "sponsorship", "software", "invoices", "spreadsheets", "deal cards", "technical bags"],
   },
   {
+    key: "coffee-ritual",
+    draft: {
+      name: "Copper Lane Coffee",
+      description: "Small-batch coffee for busy creative people who want a calm, premium morning ritual without coffee-shop pretension.",
+      audience: "busy creative people",
+      style: "calm, premium, unpretentious",
+    },
+    expected: ["busy creative", "coffee", "morning", "premium", "unpretentious"],
+    blocked: ["trails", "hikers", "events", "vans", "outdoor groups", "mobile coffee service", "route-map", "trailhead", "dog grooming", "sponsorship"],
+  },
+  {
     key: "coffee",
     draft: {
       name: "Canyon Trail Coffee",

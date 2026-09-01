@@ -543,6 +543,38 @@ assert.equal(
   "Quality stage must return five distinct approved caption lines after review.",
 );
 
+const harborReelPrompt = `
+User platform:
+Instagram
+
+Caption goal:
+Awareness
+
+User request:
+A before-and-after Reel showing a nervous senior golden retriever becoming relaxed during a gentle mobile grooming appointment at the customer's home.
+`;
+const harborReelOutput = await applyOutputQualityStage({
+  generatorType: "captions",
+  supportedSource: `${harborSource}\n${harborReelPrompt}`,
+  prompt: harborReelPrompt,
+  openAiClient: createApprovalClient(),
+  text: [
+    "1. Your pet will love this professional groom.",
+    "2. No more stressful trips for coastal families.",
+    "3. Click the link in our bio to book today.",
+    "4. Our gentle approach helps with every grooming session feels like a treat.",
+    "5. Just wrapped up with a happy pup.",
+    "6. Proudly serving our coastal community.",
+    "7. Professional mobile grooming ensures comfort.",
+    "8. Trust us to care for your furry companions.",
+  ].join("\n"),
+});
+const harborReelCaptions = harborReelOutput.text.split("\n").filter(Boolean);
+const reelSpecificCount = harborReelCaptions.filter((line) => /reel|before|after|nervous|senior golden|retriever|at-home|home/i.test(line)).length;
+assert.equal(harborReelCaptions.length, 5, "Harbor Hound acceptance case must return five captions.");
+assert.ok(reelSpecificCount >= 4, "At least four Harbor Hound captions must reference the requested Reel/transformation/home appointment.");
+assert.doesNotMatch(harborReelOutput.text, /professional|certified|will love|no more|ensures|stress-free|click the link|plants?|pothos/i, "Harbor Hound Reel captions must avoid unsupported claims and plant leakage.");
+
 const repairedStoneOutput = await applyOutputQualityStage({
   generatorType: "captions",
   supportedSource: stoneSource,
