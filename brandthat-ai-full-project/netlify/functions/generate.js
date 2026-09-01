@@ -676,7 +676,8 @@ function buildSafeBioOptions(supportedSource = "", count = 10) {
 
 const PLANT_CONTEXT_PATTERN = /houseplant|plant delivery|apartment greenery|botanical|care card|care guidance|plant subscription|stone & stem/i;
 const PET_CONTEXT_PATTERN = /dog grooming|mobile grooming|pet grooming|pet care|senior pet|harbor hound|coastal families/i;
-const SOFTWARE_CONTEXT_PATTERN = /software|saas|sponsorship|invoice|creator workflow|signaldesk|platform/i;
+const SOFTWARE_CONTEXT_PATTERN = /software|saas|sponsorship|invoice|creator workflow|signaldesk|software platform/i;
+const BICYCLE_CONTEXT_PATTERN = /bicycle|bike|commuter|rider|tune-up|maintenance guidance/i;
 const MEMORY_ENABLED_GENERATORS = new Set([
   "captions",
   "hashtags",
@@ -741,6 +742,8 @@ function getContextKind(supportedSource = "") {
   if (PLANT_CONTEXT_PATTERN.test(authoritativeSource)) return "plant";
   if (PET_CONTEXT_PATTERN.test(authoritativeSource)) return "pet";
   if (SOFTWARE_CONTEXT_PATTERN.test(authoritativeSource)) return "software";
+  if (BICYCLE_CONTEXT_PATTERN.test(authoritativeSource)) return "bicycle";
+  if (/Current Brand Workspace:|Brand name:/i.test(authoritativeSource)) return "general";
   if (PET_CONTEXT_PATTERN.test(source)) return "pet";
   if (PLANT_CONTEXT_PATTERN.test(source)) return "plant";
   if (SOFTWARE_CONTEXT_PATTERN.test(source)) return "software";
@@ -869,6 +872,20 @@ function extractCurrentUserRequest(source = "") {
   const text = String(source || "");
   const match = text.match(/User (?:post\/topic description|topic\/post description|request):\s*([\s\S]*?)(?:\n\n[A-Z][A-Za-z /\-]+:|\nCurrent Brand Workspace:|\nBrand DNA:|$)/i);
   return match?.[1]?.trim() || "";
+}
+
+export function buildSafeClientPrompt(prompt = "") {
+  const text = String(prompt || "");
+  const currentRequest = extractCurrentUserRequest(text) || text.trim();
+  const platform = getSectionValue(text, "User platform");
+  const captionGoal = getSectionValue(text, "Caption goal");
+  const lines = [];
+
+  if (platform) lines.push(`User platform: ${platform}`);
+  if (captionGoal) lines.push(`Caption goal: ${captionGoal}`);
+  lines.push(`User request: ${currentRequest}`);
+
+  return lines.join("\n").trim();
 }
 
 function buildApprovedFactsObject({ prompt = "", supportedSource = "", generatorType = "captions" } = {}) {
@@ -1136,6 +1153,9 @@ export function validateGeneratedItemQuality(item = "", { index = 0, allItems = 
   if (contextKind === "pet" && hasAnyPattern(text, PLANT_LEAK_PATTERNS)) reasons.push("cross_workspace_plant_leak");
   if (contextKind === "plant" && hasAnyPattern(text, PET_LEAK_PATTERNS)) reasons.push("cross_workspace_pet_leak");
   if (contextKind !== "software" && hasAnyPattern(text, SOFTWARE_LEAK_PATTERNS)) reasons.push("cross_workspace_software_leak");
+  if (contextKind === "bicycle" && (hasAnyPattern(text, PET_LEAK_PATTERNS) || hasAnyPattern(text, PLANT_LEAK_PATTERNS) || hasAnyPattern(text, SOFTWARE_LEAK_PATTERNS))) {
+    reasons.push("cross_workspace_category_leak");
+  }
 
   return {
     ok: reasons.length === 0,
@@ -1865,6 +1885,7 @@ export const handler = async (event) => {
     }
 
     const { prompt } = body;
+    const safeClientPrompt = buildSafeClientPrompt(prompt);
     generatorType = String(body.tool || body.generatorType || "unknown").slice(0, 80);
     const workspaceId = String(body.brandId || body.workspaceId || "");
 
@@ -1900,7 +1921,7 @@ export const handler = async (event) => {
       return getPublicError(500, "OPENAI_API_KEY_MISSING", "Generation is not configured right now. Please contact BrandThat support.", requestId);
     }
 
-    if (!String(prompt || "").trim()) {
+    if (!String(safeClientPrompt || "").trim()) {
       return getPublicError(400, "INVALID_INPUT", "Please enter what you want BrandThat to create.", requestId);
     }
 
@@ -1924,7 +1945,7 @@ export const handler = async (event) => {
       const memoryResult = await getGeneratorMemoryContext({
         userId: auth.user.id,
         workspaceId,
-        query: `${verifiedWorkspaceContext}\n${prompt}`.trim(),
+        query: `${verifiedWorkspaceContext}\n${safeClientPrompt}`.trim(),
         generatorType,
       });
 
@@ -2049,7 +2070,7 @@ ${memoryPromptSection}
         model: process.env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
+          { role: "user", content: safeClientPrompt },
         ],
         temperature: 0.8,
       }, { signal: controller.signal })
@@ -2086,14 +2107,14 @@ ${memoryPromptSection}
       durationMs: Date.now() - startedAt,
     });
 
-    const supportedSource = `${verifiedWorkspaceContext}\n${prompt}\n${memoryPromptSection}`;
+    const supportedSource = `${verifiedWorkspaceContext}\n${safeClientPrompt}\n${memoryPromptSection}`;
     const qualityResult = await applyOutputQualityStage({
       text: completion.choices?.[0]?.message?.content || "",
       generatorType,
       supportedSource,
       openAiClient,
       systemPrompt,
-      prompt,
+      prompt: safeClientPrompt,
       requestId,
     });
     const safeText = qualityResult.text;

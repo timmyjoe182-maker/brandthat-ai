@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   applyOutputQualityStage,
+  buildSafeClientPrompt,
   repairGeneratedItemQuality,
   sanitizeUnsafeGeneratedClaims,
   validateGeneratedItemQuality,
@@ -343,6 +344,67 @@ assert.ok(
   "Stale pet-care language must be recorded as cross-workspace leakage.",
 );
 
+const hiddenContextPrompt = `
+Current Brand Workspace:
+Brand name: Harbor Hound
+Description: A mobile dog-grooming service for busy coastal families and senior pet owners.
+Audience: Senior pet owners
+Brand DNA:
+Positioning: Gentle mobile pet care.
+
+User platform:
+Instagram
+
+Caption goal:
+Awareness
+
+User request:
+Introduce a practical bicycle tune-up service for commuters and students. Mention clear maintenance guidance and convenient scheduling only.
+`;
+
+const safeClientPrompt = buildSafeClientPrompt(hiddenContextPrompt);
+assert.match(safeClientPrompt, /bicycle tune-up service/i, "Visible user request must be preserved.");
+assert.match(safeClientPrompt, /User platform:\s*Instagram/i, "Visible platform must be preserved.");
+assert.match(safeClientPrompt, /Caption goal:\s*Awareness/i, "Visible caption goal must be preserved.");
+assert.doesNotMatch(safeClientPrompt, /Harbor Hound|dog-grooming|Senior pet owners|Brand DNA/i, "Hidden client workspace context must not be trusted by the server.");
+
+const bicycleSourceWithStaleMemory = `
+Current Brand Workspace:
+Brand name: Memory Audit Disposable
+Description: Disposable production audit workspace for a neighborhood bicycle tune-up service.
+Audience: Commuters, students, and casual riders who want clear maintenance guidance and convenient tune-up scheduling.
+Brand tone: Clear, practical, friendly
+${safeClientPrompt}
+
+Private semantic brand memory for this selected workspace:
+Brand name: Harbor Hound
+Description: A mobile dog-grooming service for busy coastal families and senior pet owners.
+`;
+
+const bicycleContextValidation = validateGeneratedItemQuality(
+  "Memory Audit Disposable brings gentle mobile grooming closer to home for busy coastal families.",
+  { supportedSource: bicycleSourceWithStaleMemory, generatorType: "captions" },
+);
+assert.equal(bicycleContextValidation.contextKind, "bicycle", "Verified bicycle workspace context must not be reclassified by stale memory.");
+
+const bicycleQualityOutput = await applyOutputQualityStage({
+  generatorType: "captions",
+  supportedSource: bicycleSourceWithStaleMemory,
+  openAiClient: createApprovalClient(),
+  prompt: safeClientPrompt,
+  text: [
+    "1. Memory Audit Disposable brings gentle mobile grooming closer to home for busy coastal families.",
+    "2. A mobile grooming visit can fit the home routine with gentle handling and clean details.",
+    "3. For senior pet owners and busy households, convenience can still feel personal.",
+    "4. Gentle handling, cleanliness, and pet comfort guide the mobile grooming experience.",
+    "5. Skip the extra trip with dog grooming brought to the home.",
+    "6. Practical bicycle tune-ups help commuters understand the next maintenance step.",
+    "7. Clear maintenance guidance and convenient scheduling make bike care easier to plan.",
+    "8. For students and commuters, a tune-up can start with straightforward guidance.",
+  ].join("\n"),
+});
+assert.doesNotMatch(bicycleQualityOutput.text, /dog|pet|grooming|senior pet|coastal families/i, "Stale Harbor Hound client or memory context must not leak into a verified bicycle workspace.");
+
 const brokenHarborSentence = repairGeneratedItemQuality(
   "Our gentle approach helps with they feel great every time.",
   { supportedSource: harborSource, generatorType: "captions" },
@@ -614,9 +676,10 @@ assert.ok(
 assert.ok(
   generateSource.includes("Server verified workspace context:") &&
     generateSource.includes("getVerifiedWorkspaceContext") &&
-    generateSource.includes("query: `${verifiedWorkspaceContext}\\n${prompt}`.trim()") &&
-    generateSource.includes("const supportedSource = `${verifiedWorkspaceContext}\\n${prompt}\\n${memoryPromptSection}`"),
-  "Caption generation must use the authenticated workspace row as the authoritative context before semantic memory."
+    generateSource.includes("buildSafeClientPrompt") &&
+    generateSource.includes("query: `${verifiedWorkspaceContext}\\n${safeClientPrompt}`.trim()") &&
+    generateSource.includes("const supportedSource = `${verifiedWorkspaceContext}\\n${safeClientPrompt}\\n${memoryPromptSection}`"),
+  "Caption generation must use the authenticated workspace row and sanitized visible client prompt as authoritative context before semantic memory."
 );
 
 assert.doesNotMatch(
