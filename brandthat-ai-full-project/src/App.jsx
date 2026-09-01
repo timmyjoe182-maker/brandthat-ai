@@ -3742,11 +3742,16 @@ export default function App() {
 
   const runBrandMemoryAction = useCallback(async (action, payload = {}, options = {}) => {
     if (!activeBrand?.id) throw new Error("Choose a Brand Workspace first.");
-    const headers = await getAuthorizedHeaders(options.authAction || "brand_memory");
-    if (!headers) throw new Error("Sign in required.");
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data.session?.access_token || "";
+    if (!token) throw new Error("Sign in required.");
     return fetchJsonWithTimeout("/.netlify/functions/brand-memory", {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ action, workspaceId: activeBrand.id, ...payload }),
     }, {
       timeoutMs: options.timeoutMs || 25000,
