@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const generate = readFileSync(new URL("../netlify/functions/generate.js", import.meta.url), "utf8");
 const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const generatorSignatureStart = app.indexOf("function GeneratorCard({");
+const generatorSignatureEnd = app.indexOf("}) {", generatorSignatureStart);
+const generatorSignature = app.slice(generatorSignatureStart, generatorSignatureEnd);
 
 [
   "captionTone",
@@ -15,6 +18,19 @@ const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   "Rewrite",
   "Original results preserved",
 ].forEach((needle) => assert.ok(app.includes(needle), `Missing caption control/action: ${needle}`));
+
+[
+  "captionTone = \"Brand voice\"",
+  "setCaptionTone = () => {}",
+  "captionLength = \"Mixed\"",
+  "setCaptionLength = () => {}",
+  "captionEmojiPreference = \"Restrained\"",
+  "setCaptionEmojiPreference = () => {}",
+  "captionCtaPreference = \"Soft CTA\"",
+  "setCaptionCtaPreference = () => {}",
+  "captionHashtagPreference = \"No hashtags\"",
+  "setCaptionHashtagPreference = () => {}",
+].forEach((needle) => assert.ok(generatorSignature.includes(needle), `GeneratorCard must declare rendered caption control prop: ${needle}`));
 
 [
   "Clearly labeled demo case studies",
